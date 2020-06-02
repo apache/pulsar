@@ -148,6 +148,12 @@ public class EntryCacheImpl implements EntryCache {
     public void invalidateEntries(final PositionImpl lastPosition) {
         final PositionImpl firstPosition = PositionImpl.get(-1, 0);
 
+        if (firstPosition.compareTo(lastPosition) > 0) {
+            log.debug("Attempted to invalidate entries in an invalid range : {} ~ {}",
+                firstPosition, lastPosition);
+            return;
+        }
+
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
@@ -227,7 +233,12 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName()));
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
+                    	  ml.invalidateLedgerHandle(lh, exception);
+                          callback.readEntryFailed(createManagedLedgerException(exception), ctx);
+                          return null;
+                    }
+                    );
         }
     }
 
@@ -321,7 +332,17 @@ public class EntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName()));
+                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception->{
+                    	  if (exception instanceof BKException
+                                  && ((BKException)exception).getCode() == BKException.Code.TooManyRequestsException) {
+                                  callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                              } else {
+                                  ml.invalidateLedgerHandle(lh, exception);
+                                  ManagedLedgerException mlException = createManagedLedgerException(exception);
+                                  callback.readEntriesFailed(mlException, ctx);
+                              }
+                    	return null;
+                    });
         }
     }
 

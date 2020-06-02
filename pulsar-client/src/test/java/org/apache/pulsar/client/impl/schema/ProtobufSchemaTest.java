@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl.schema;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -36,7 +38,7 @@ public class ProtobufSchemaTest {
     private static final String NAME = "foo";
 
     private static final String EXPECTED_SCHEMA_JSON = "{\"type\":\"record\",\"name\":\"TestMessage\"," +
-            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test$\",\"fields\":[{\"name\":\"stringField\"," +
+            "\"namespace\":\"org.apache.pulsar.client.schema.proto.Test\",\"fields\":[{\"name\":\"stringField\"," +
             "\"type\":{\"type\":\"string\",\"avro.java.string\":\"String\"},\"default\":\"\"}," +
             "{\"name\":\"doubleField\",\"type\":\"double\",\"default\":0},{\"name\":\"intField\",\"type\":\"int\"," +
             "\"default\":0},{\"name\":\"testEnum\",\"type\":{\"type\":\"enum\",\"name\":\"TestEnum\"," +
@@ -46,7 +48,7 @@ public class ProtobufSchemaTest {
             "\"type\":\"double\",\"default\":0}]}],\"default\":null},{\"name\":\"repeatedField\"," +
             "\"type\":{\"type\":\"array\",\"items\":{\"type\":\"string\",\"avro.java.string\":\"String\"}}}]}";
 
-    private static final String EXPECTED_PARSING_INFO = "{\"__alwaysAllowNull\":\"true\",\"__PARSING_INFO__\":" +
+    private static final String EXPECTED_PARSING_INFO = "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"__PARSING_INFO__\":" +
             "\"[{\\\"number\\\":1,\\\"name\\\":\\\"stringField\\\",\\\"type\\\":\\\"STRING\\\",\\\"label\\\":\\\"" +
             "LABEL_OPTIONAL\\\",\\\"definition\\\":null},{\\\"number\\\":2,\\\"name\\\":\\\"doubleField\\\",\\\"type\\\"" +
             ":\\\"DOUBLE\\\",\\\"label\\\":\\\"LABEL_OPTIONAL\\\",\\\"definition\\\":null},{\\\"number\\\":6,\\\"name\\\"" +
@@ -109,6 +111,20 @@ public class ProtobufSchemaTest {
                 = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
 
         Assert.assertEquals(new ObjectMapper().writeValueAsString(protobufSchema.getSchemaInfo().getProperties()), EXPECTED_PARSING_INFO);
+
+    }
+
+    @Test
+    public void testDecodeByteBuf() throws JsonProcessingException {
+        ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
+                = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
+        org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage =
+                org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder().build();
+        byte[] bytes = protobufSchema.encode(org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder().build());
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(bytes.length);
+        byteBuf.writeBytes(bytes);
+
+        Assert.assertEquals(testMessage, protobufSchema.decode(byteBuf));
 
     }
 }

@@ -21,11 +21,17 @@ package org.apache.pulsar.client.impl.schema.reader;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.io.InputStream;
 
 public class AvroReader<T> implements SchemaReader<T> {
 
@@ -37,22 +43,61 @@ public class AvroReader<T> implements SchemaReader<T> {
         this.reader = new ReflectDatumReader<>(schema);
     }
 
-    public AvroReader(Schema writerSchema, Schema readerSchema) {
-        this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
+    public AvroReader(Schema schema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
+        if (classLoader != null) {
+            ReflectData reflectData = new ReflectData(classLoader);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+            this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
+        } else {
+            this.reader = new ReflectDatumReader<>(schema);
+        }
+    }
+
+    public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
+        boolean jsr310ConversionEnabled) {
+        if (classLoader != null) {
+            ReflectData reflectData = new ReflectData(classLoader);
+            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
+        } else {
+            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
+        }
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public T read(byte[] bytes, int offset, int length) {
         try {
             BinaryDecoder decoderFromCache = decoders.get();
-            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, decoderFromCache);
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, offset, length, decoderFromCache);
             if (decoderFromCache == null) {
                 decoders.set(decoder);
             }
-            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, decoder));
+            return reader.read(null, DecoderFactory.get().binaryDecoder(bytes, offset, length, decoder));
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }
     }
+
+    @Override
+    public T read(InputStream inputStream) {
+        try {
+            BinaryDecoder decoderFromCache = decoders.get();
+            BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(inputStream, decoderFromCache);
+            if (decoderFromCache == null) {
+                decoders.set(decoder);
+            }
+            return reader.read(null, DecoderFactory.get().binaryDecoder(inputStream, decoder));
+        } catch (Exception e) {
+            throw new SchemaSerializationException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("AvroReader close inputStream close error", e);
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(AvroReader.class);
 
 }

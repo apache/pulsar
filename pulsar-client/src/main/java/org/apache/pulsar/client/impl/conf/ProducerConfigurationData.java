@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.HashingScheme;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -51,12 +52,16 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
+    public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+
     private String topicName = null;
     private String producerName = null;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
-    private int maxPendingMessages = 1000;
-    private int maxPendingMessagesAcrossPartitions = 50000;
+    private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
+    private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
     private MessageRoutingMode messageRoutingMode = null;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
@@ -66,13 +71,18 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private MessageRouter customMessageRouter = null;
 
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
-    private int batchingMaxMessages = 1000;
+    private int batchingPartitionSwitchFrequencyByPublishDelay = 10;
+    private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+    private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
     private boolean batchingEnabled = true; // enabled by default
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
+
+    @JsonIgnore
+    private MessageCrypto messageCrypto = null;
 
     @JsonIgnore
     private Set<String> encryptionKeys = new TreeSet<>();
@@ -83,6 +93,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private Long initialSequenceId = null;
 
     private boolean autoUpdatePartitions = true;
+
+    private boolean multiSchema = true;
 
     private SortedMap<String, String> properties = new TreeMap<>();
 
@@ -123,8 +135,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setBatchingMaxMessages(int batchingMaxMessages) {
-        checkArgument(batchingMaxMessages > 1, "batchingMaxMessages needs to be > 1");
         this.batchingMaxMessages = batchingMaxMessages;
+    }
+
+    public void setBatchingMaxBytes(int batchingMaxBytes) {
+        this.batchingMaxBytes = batchingMaxBytes;
     }
 
     public void setSendTimeoutMs(int sendTimeout, TimeUnit timeUnit) {
@@ -136,6 +151,15 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         long delayInMs = timeUnit.toMillis(batchDelay);
         checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
         this.batchingMaxPublishDelayMicros = timeUnit.toMicros(batchDelay);
+    }
+
+    public void setBatchingPartitionSwitchFrequencyByPublishDelay(int frequencyByPublishDelay) {
+        checkArgument(frequencyByPublishDelay >= 1, "configured value for partition switch frequency must be >= 1");
+        this.batchingPartitionSwitchFrequencyByPublishDelay = frequencyByPublishDelay;
+    }
+
+    public long batchingPartitionSwitchFrequencyIntervalMicros() {
+        return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
     }
 
 }

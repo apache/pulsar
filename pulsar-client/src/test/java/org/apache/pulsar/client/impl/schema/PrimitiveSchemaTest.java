@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.sql.Date;
@@ -88,10 +89,18 @@ public class PrimitiveSchemaTest {
     @Test(dataProvider = "schemas")
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
-            assertNull(schema.encode(null),
-                "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
-            assertNull(schema.decode( null),
-                "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            byte[] bytes = null;
+            ByteBuf byteBuf =  null;
+            try {
+                assertNull(schema.encode(null),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
+                assertNull(schema.decode(bytes),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+                assertNull(((AbstractSchema) schema).decode(byteBuf),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            } catch (NullPointerException npe) {
+                throw new NullPointerException("NPE when using schema " + schema + " : " + npe.getMessage());
+            }
         }
     }
 
@@ -101,10 +110,15 @@ public class PrimitiveSchemaTest {
             log.info("Test schema {}", test.getKey());
             for (Object value : test.getValue()) {
                 log.info("Encode : {}", value);
-                assertEquals(value,
-                    test.getKey().decode(test.getKey().encode(value)),
-                    "Should get the original " + test.getKey().getSchemaInfo().getName() +
-                        " after serialization and deserialization");
+                try {
+                    assertEquals(value,
+                        test.getKey().decode(test.getKey().encode(value)),
+                        "Should get the original " + test.getKey().getSchemaInfo().getName() +
+                            " after serialization and deserialization");
+                } catch (NullPointerException npe) {
+                    throw new NullPointerException("NPE when using schema " + test.getKey()
+                        + " : " + npe.getMessage());
+                }
             }
         }
     }

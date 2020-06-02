@@ -63,7 +63,6 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
-    private final static String brokerHostName = "localhost";
     private boolean hostnameVerificationEnabled = true;
 
     protected void setup() throws Exception {
@@ -110,9 +109,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
                 .authentication(authTls).build());
-        String lookupUrl;
-        lookupUrl = new URI("pulsar+ssl://" + brokerHostName + ":" + BROKER_PORT_TLS).toString();
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
                 .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
                 .build();
@@ -155,8 +154,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         // setup broker cert which has CN = "pulsar" different than broker's hostname="localhost"
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_MIM_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_MIM_SERVER_KEY_FILE_PATH);
@@ -196,8 +195,8 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         log.info("-- Starting {} test --", methodName);
 
         // setup broker cert which has CN = "localhost"
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);

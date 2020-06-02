@@ -260,7 +260,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {
-                    log.warn("[{}] Failed to send ack {}", producer.getTopic(), th.getMessage(), th);
+                    log.warn("[{}] Failed to send ack: {}", producer.getTopic(), th.getMessage());
                 }
 
                 @Override
@@ -272,9 +272,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 }
             });
         } catch (JsonProcessingException e) {
-            log.warn("[{}] Failed to generate ack json-response {}", producer.getTopic(), e.getMessage(), e);
+            log.warn("[{}] Failed to generate ack json-response: {}", producer.getTopic(), e.getMessage());
         } catch (Exception e) {
-            log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
+            log.warn("[{}] Failed to send ack: {}", producer.getTopic(), e.getMessage());
         }
     }
 

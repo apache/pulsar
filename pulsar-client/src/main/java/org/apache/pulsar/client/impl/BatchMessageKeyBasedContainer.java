@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -53,7 +54,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     private Map<String, KeyedBatch> batches = new HashMap<>();
 
     @Override
-    public void add(MessageImpl<?> msg, SendCallback callback) {
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
                     numMessagesInBatch);
@@ -68,10 +69,13 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             part.compressionType = compressionType;
             part.compressor = compressor;
             part.maxBatchSize = maxBatchSize;
+            part.topicName = topicName;
+            part.producerName = producerName;
             batches.putIfAbsent(key, part);
         } else {
             part.addMsg(msg, callback);
         }
+        return isBatchFull();
     }
 
     @Override
@@ -105,6 +109,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
         ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
+            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
+                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
+            return null;
+        }
+
         final int numMessagesInBatch = keyedBatch.messages.size();
         long currentBatchSizeBytes = 0;
         for (MessageImpl<?> message : keyedBatch.messages) {
@@ -116,15 +126,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
 
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-            cmd.release();
-            if (op != null) {
-                op.callback.sendComplete(new PulsarClientException.InvalidMessageException(
-                        "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
-                op.recycle();
-            }
-            return null;
-        }
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
         return op;
@@ -146,6 +147,20 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         return result;
     }
 
+    @Override
+    public boolean hasSameSchema(MessageImpl<?> msg) {
+        String key = getKey(msg);
+        KeyedBatch part = batches.get(key);
+        if (part == null || part.messages.isEmpty()) {
+            return true;
+        }
+        if (!part.messageMetadata.hasSchemaVersion()) {
+            return msg.getSchemaVersion() == null;
+        }
+        return Arrays.equals(msg.getSchemaVersion(),
+                             part.messageMetadata.getSchemaVersion().toByteArray());
+    }
+
     private String getKey(MessageImpl<?> msg) {
         if (msg.hasOrderingKey()) {
             return Base64.getEncoder().encodeToString(msg.getOrderingKey());
@@ -163,6 +178,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         private PulsarApi.CompressionType compressionType;
         private CompressionCodec compressor;
         private int maxBatchSize;
+        private String topicName;
+        private String producerName;
 
         // keep track of callbacks for individual messages being published in a batch
         private SendCallback firstCallback;
@@ -201,7 +218,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                     messageMetadata.setOrderingKey(ByteString.copyFrom(msg.getOrderingKey()));
                 }
                 batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES));
+                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
                 firstCallback = callback;
             }
             if (previousCallback != null) {
@@ -209,6 +226,28 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             }
             previousCallback = callback;
             messages.add(msg);
+        }
+
+        public void discard(Exception ex) {
+            try {
+                // Need to protect ourselves from any exception being thrown in the future handler from the application
+                if (firstCallback != null) {
+                    firstCallback.sendComplete(ex);
+                }
+            } catch (Throwable t) {
+                log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
+                        sequenceId, t);
+            }
+            clear();
+        }
+
+        public void clear() {
+            messages = Lists.newArrayList();
+            firstCallback = null;
+            previousCallback = null;
+            messageMetadata.clear();
+            sequenceId = -1;
+            batchedMessageMetadataAndPayload = null;
         }
     }
 

@@ -131,9 +131,18 @@ const std::string& Message::getTopicName() const {
     return impl_->getTopicName();
 }
 
+const int Message::getRedeliveryCount() const {
+    if (!impl_) {
+        return 0;
+    }
+    return impl_->getRedeliveryCount();
+}
+
 uint64_t Message::getPublishTimestamp() const { return impl_ ? impl_->getPublishTimestamp() : 0ull; }
 
 uint64_t Message::getEventTimestamp() const { return impl_ ? impl_->getEventTimestamp() : 0ull; }
+
+bool Message::operator==(const Message& msg) const { return getMessageId() == msg.getMessageId(); }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message::StringMap& map) {
     // Output at most 10 elements -- appropriate if used for logging.

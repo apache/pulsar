@@ -19,7 +19,7 @@
 #
 
 BINDIR=$(dirname "$0")
-export PULSAR_HOME=`cd $BINDIR/..;pwd`
+export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
@@ -44,7 +44,13 @@ FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
 
+# Check bookkeeper env and load bkenv.sh
+if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
+then
+    . "$PULSAR_HOME/conf/bkenv.sh"
+fi
 
+# Check pulsar env and load pulser_env.sh
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
@@ -106,16 +112,18 @@ if [ ! -f "${PY_INSTANCE_FILE}" ]; then
 fi
 
 # find pulsar sql presto distribution location
-if [ ! -d "${PRESTO_HOME}" ]; then
+check_presto_libraries() {
+    if [ ! -d "${PRESTO_HOME}" ]; then
 
-  BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
-  if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
-        echo "\nCouldn't find presto distribution.";
-        echo "Make sure you've run 'mvn package'\n";
-        exit 1;
+        BUILT_PRESTO_HOME="${SQL_HOME}/presto-distribution/target/pulsar-presto-distribution"
+        if [ ! -d "${BUILT_PRESTO_HOME}" ]; then
+            echo "\nCouldn't find presto distribution.";
+            echo "Make sure you've run 'mvn package'\n";
+            exit 1;
+        fi
+        PRESTO_HOME=${BUILT_PRESTO_HOME}
     fi
-    PRESTO_HOME=${BUILT_PRESTO_HOME}
-fi
+}
 
 pulsar_help() {
     cat <<EOF
@@ -135,8 +143,10 @@ where command is one of:
     standalone          Run a broker server with local bookies and local zookeeper
 
     initialize-cluster-metadata     One-time metadata initialization
+    initialize-transaction-coordinator-metadata     One-time transaction coordinator metadata initialization
     compact-topic       Run compaction against a topic
     zookeeper-shell     Open a ZK shell client
+    broker-tool         CLI to operate a specific broker
     tokens              Utility to create authentication tokens
 
     help                This help message
@@ -267,7 +277,7 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS $PULSAR_MEM $PULSAR_GC"
 # log directory & file
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
-PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"debug"}
+PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"info"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 
@@ -286,7 +296,7 @@ OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
 
 
-ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=*"
+ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
@@ -328,13 +338,19 @@ elif [ $COMMAND == "standalone" ]; then
     exec $JAVA $OPTS $ASPECTJ_AGENT ${ZK_OPTS} -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.PulsarStandaloneStarter --config $PULSAR_STANDALONE_CONF $@
 elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
+elif [ $COMMAND == "initialize-transaction-coordinator-metadata" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
+elif [ $COMMAND == "broker-tool" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.broker.tools.BrokerTool $@
 elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "sql" ]; then
+    check_presto_libraries
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" com.facebook.presto.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
+    check_presto_libraries
     exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
       exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@

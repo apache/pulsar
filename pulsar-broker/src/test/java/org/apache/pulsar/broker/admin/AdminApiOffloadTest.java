@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -55,7 +56,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
@@ -71,7 +72,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         LedgerOffloader offloader = mock(LedgerOffloader.class);
         when(offloader.getOffloadDriverName()).thenReturn("mock");
 
-        doReturn(offloader).when(pulsar).getManagedLedgerOffloader();
+        doReturn(offloader).when(pulsar).getManagedLedgerOffloader(any(), any());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
         doReturn(promise).when(offloader).offload(any(), any(), any());
@@ -138,4 +139,20 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         String mlName = "prop-xyz/test/ns1/persistent/topic2";
         testOffload(topicName, mlName);
     }
+
+    @Test
+    public void testOffloadPolicies() throws Exception {
+        String namespaceName = "prop-xyz/ns1";
+        String driver = "aws-s3";
+        String region = "test-region";
+        String bucket = "test-bucket";
+        String endpoint = "test-endpoint";
+
+        OffloadPolicies offload1 = OffloadPolicies.create(
+                driver, region, bucket, endpoint, 100, 100, -1, null);
+        admin.namespaces().setOffloadPolicies(namespaceName, offload1);
+        OffloadPolicies offload2 = admin.namespaces().getOffloadPolicies(namespaceName);
+        Assert.assertEquals(offload1, offload2);
+    }
+
 }

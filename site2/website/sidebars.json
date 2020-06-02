@@ -4,6 +4,7 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
+      "kubernetes-helm",
       "client-libraries"
     ],
     "Concepts and Architecture": [
@@ -15,49 +16,46 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-tiered-storage",
-      "concepts-schema-registry"
+      "concepts-tiered-storage"
     ],
     "Pulsar Schema": [
-      "schema-get-started"
+      "schema-get-started",
+      "schema-understand",
+      "schema-evolution-compatibility",
+      "schema-manage"
     ],
     "Pulsar Functions": [
       "functions-overview",
-      "functions-quickstart",
-      "functions-api",
-      "functions-deploying",
-      "functions-guarantees",
-      "functions-state",
-      "functions-metrics",
-      "functions-worker",
-      "functions-runtime",
-      "functions-deploying",
-      "functions-debugging"
-    ],
-    "Pulsar Functions（New）": [
-      "functions-overview-new",
       "functions-worker",
       "functions-runtime",
       "functions-develop",
       "functions-debug",
       "functions-deploy",
-      "functions-configure",
-      "functions-monitor",
-      "functions-secure",
-      "functions-troubleshoot"
+      "functions-cli"
     ],
     "Pulsar IO": [
       "io-overview",
       "io-quickstart",
-      "io-managing",
+      "io-use",
+      "io-debug",
       "io-connectors",
+      "io-cdc",
       "io-develop",
-      "io-cdc"
+      "io-cli"
     ],
     "Pulsar SQL": [
       "sql-overview",
       "sql-getting-started",
-      "sql-deployment-configurations"
+      "sql-deployment-configurations",
+      "sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "helm-overview",
+      "helm-prepare",
+      "helm-install",
+      "helm-deploy",
+      "helm-upgrade",
+      "helm-tools"
     ],
     "Deployment": [
       "deploy-aws",
@@ -70,7 +68,7 @@
     "Administration": [
       "administration-zk-bk",
       "administration-geo",
-      "administration-dashboard",
+      "administration-pulsar-manager",
       "administration-stats",
       "administration-load-balance",
       "administration-proxy",
@@ -80,20 +78,26 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
-      "security-token-client",
-      "security-token-admin",
+      "security-tls-keystore",
+      "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",
       "security-encryption",
-      "security-extending"
+      "security-extending",
+      "security-bouncy-castle"
+    ],
+    "Performance": [
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",
       "client-libraries-go",
       "client-libraries-python",
       "client-libraries-cpp",
-      "client-libraries-websocket"
+      "client-libraries-node",
+      "client-libraries-websocket",
+      "client-libraries-dotnet"
     ],
     "Admin API": [
       "admin-api-overview",
@@ -105,7 +109,9 @@
       "admin-api-persistent-topics",
       "admin-api-non-persistent-topics",
       "admin-api-partitioned-topics",
-      "admin-api-schemas"
+      "admin-api-non-partitioned-topics",
+      "admin-api-schemas",
+      "admin-api-functions"
     ],
     "Adaptors": [
       "adaptors-kafka",
@@ -133,8 +139,8 @@
     "Reference": [
       "reference-terminology",
       "reference-cli-tools",
-      "pulsar-admin",
-      "reference-configuration"
+      "reference-configuration",
+      "reference-metrics"
     ]
   },
   "docs-other": {

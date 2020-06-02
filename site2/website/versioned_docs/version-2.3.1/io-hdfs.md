@@ -8,7 +8,7 @@ original_id: io-hdfs
 ## Sink
 
 The Hdfs Sink Connector is used to pull messages from Pulsar topics and persist the messages
-to a hdfs file.
+to an hdfs file.
 
 ## Sink Configuration Options
 

@@ -237,8 +237,27 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPropertyIsNegative() {
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodInMinutesIsNegative() {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodIsNegative() {
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(-1, TimeUnit.MINUTES);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNull() {
+        consumerBuilderImpl.batchReceivePolicy(null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenBatchReceivePolicyIsNotValid() {
+        consumerBuilderImpl.batchReceivePolicy(BatchReceivePolicy.builder()
+                .maxNumMessages(0)
+                .maxNumBytes(0)
+                .timeout(0, TimeUnit.MILLISECONDS)
+                .build());
     }
 
     @Test
@@ -247,6 +266,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.priorityLevel(1);
         consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(1);
         consumerBuilderImpl.patternAutoDiscoveryPeriod(1);
+        consumerBuilderImpl.patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS);
     }
 
 }

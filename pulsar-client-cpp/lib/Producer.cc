@@ -35,21 +35,21 @@ Producer::Producer(ProducerImplBasePtr impl) : impl_(impl) {}
 const std::string& Producer::getTopic() const { return impl_ != NULL ? impl_->getTopic() : EMPTY_STRING; }
 
 Result Producer::send(const Message& msg) {
-    Promise<Result, Message> promise;
-    sendAsync(msg, WaitForCallbackValue<Message>(promise));
+    Promise<Result, MessageId> promise;
+    sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
 
     if (!promise.isComplete()) {
         impl_->triggerFlush();
     }
 
-    Message m;
-    Result result = promise.getFuture().get(m);
+    MessageId mi;
+    Result result = promise.getFuture().get(mi);
     return result;
 }
 
 void Producer::sendAsync(const Message& msg, SendCallback callback) {
     if (!impl_) {
-        callback(ResultProducerNotInitialized, msg);
+        callback(ResultProducerNotInitialized, msg.getMessageId());
         return;
     }
 
@@ -96,5 +96,12 @@ void Producer::flushAsync(FlushCallback callback) {
     }
 
     impl_->flushAsync(callback);
+}
+
+void Producer::producerFailMessages(Result result) {
+    if (impl_) {
+        ProducerImpl* producerImpl = static_cast<ProducerImpl*>(impl_.get());
+        producerImpl->failPendingMessages(result);
+    }
 }
 }  // namespace pulsar

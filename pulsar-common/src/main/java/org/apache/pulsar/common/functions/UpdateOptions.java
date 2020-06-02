@@ -20,10 +20,12 @@ package org.apache.pulsar.common.functions;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Options while updating the sink.
+ */
 @Data
 @NoArgsConstructor
 @ApiModel(value = "UpdateOptions", description = "Options while updating the sink")

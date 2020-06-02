@@ -20,29 +20,29 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
 /**
+ * Statistics for a non-persistent topic.
  */
 public class NonPersistentTopicStats extends TopicStats {
 
     /**
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
-     * messages per connection
+     * messages per connection.
      **/
     public double msgDropRate;
 
-    /** List of connected publishers on this topic w/ their stats */
+    /** List of connected publishers on this topic w/ their stats. */
     public List<NonPersistentPublisherStats> publishers;
 
-    /** Map of subscriptions with their individual statistics */
+    /** Map of subscriptions with their individual statistics. */
     public Map<String, NonPersistentSubscriptionStats> subscriptions;
 
-    /** Map of replication statistics by remote cluster context */
+    /** Map of replication statistics by remote cluster context. */
     public Map<String, NonPersistentReplicatorStats> replication;
 
     public NonPersistentTopicStats() {
@@ -57,14 +57,14 @@ public class NonPersistentTopicStats extends TopicStats {
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats
+    // stats.
     public NonPersistentTopicStats add(NonPersistentTopicStats stats) {
         checkNotNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
         return this;
     }
-    
+
     public List<NonPersistentPublisherStats> getPublishers() {
         return this.publishers;
     }

@@ -45,11 +45,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
@@ -63,24 +63,32 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A client program to test pulsar producer performance.
+ */
 public class PerformanceProducer {
 
     private static final ExecutorService executor = Executors
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
     private static final LongAdder messagesSent = new LongAdder();
+    private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
 
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     static class Arguments {
 
@@ -92,6 +100,9 @@ public class PerformanceProducer {
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
+
+        @Parameter(names = { "-threads", "--num-test-threads" }, description = "Number of test threads")
+        public int numTestThreads = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
@@ -119,10 +130,10 @@ public class PerformanceProducer {
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
-        public int maxOutstanding = 1000;
+        public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
 
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
-        public int maxPendingMessagesAcrossPartitions = 50000;
+        public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -149,6 +160,16 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
+        
+        @Parameter(names = {
+            "-bm", "--batch-max-messages"
+        }, description = "Maximum number of messages per batch")
+        public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+
+        @Parameter(names = {
+            "-bb", "--batch-max-bytes"
+        }, description = "Maximum number of bytes per batch")
+        public int batchMaxBytes = 4 * 1024 * 1024;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -171,6 +192,36 @@ public class PerformanceProducer {
         @Parameter(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
+        
+        @Parameter(names = { "-ef",
+                "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
+        public boolean exitOnFailure = false;
+    }
+
+    static class EncKeyReader implements CryptoKeyReader {
+
+        private static final long serialVersionUID = 7235317430835444498L;
+
+        final String encKeyName;
+        final EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+        EncKeyReader(String encKeyName, byte[] value) {
+            this.encKeyName = encKeyName;
+            keyInfo.setKey(value);
+        }
+
+        @Override
+        public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+            if (keyName.equals(encKeyName)) {
+                return keyInfo;
+            }
+            return null;
+        }
+
+        @Override
+        public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+            return null;
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -255,85 +306,6 @@ public class PerformanceProducer {
             }
         }
 
-        // Now processing command line arguments
-        String prefixTopicName = arguments.topics.get(0);
-        List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
-
-        ClientBuilder clientBuilder = PulsarClient.builder() //
-                .serviceUrl(arguments.serviceURL) //
-                .connectionsPerBroker(arguments.maxConnections) //
-                .ioThreads(Runtime.getRuntime().availableProcessors()) //
-                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
-
-        class EncKeyReader implements CryptoKeyReader {
-
-            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
-
-            EncKeyReader(byte[] value) {
-                keyInfo.setKey(value);
-            }
-
-            @Override
-            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                if (keyName.equals(arguments.encKeyName)) {
-                    return keyInfo;
-                }
-                return null;
-            }
-
-            @Override
-            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                return null;
-            }
-        }
-        PulsarClient client = clientBuilder.build();
-        ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
-                .sendTimeout(0, TimeUnit.SECONDS) //
-                .compressionType(arguments.compression) //
-                .maxPendingMessages(arguments.maxOutstanding) //
-                .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
-                // enable round robin message routing if it is a partitioned topic
-                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-
-        if (arguments.batchTimeMillis == 0.0) {
-            producerBuilder.enableBatching(false);
-        } else {
-            long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-            producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
-                    .enableBatching(true);
-        }
-
-        // Block if queue is full else we will start seeing errors in sendAsync
-        producerBuilder.blockIfQueueFull(true);
-
-        if (arguments.encKeyName != null) {
-            producerBuilder.addEncryptionKey(arguments.encKeyName);
-            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
-            EncKeyReader keyReader = new EncKeyReader(pKey);
-            producerBuilder.cryptoKeyReader(keyReader);
-        }
-
-        for (int i = 0; i < arguments.numTopics; i++) {
-            String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
-            log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
-
-            for (int j = 0; j < arguments.numProducers; j++) {
-                futures.add(producerBuilder.clone().topic(topic).createAsync());
-            }
-        }
-
-        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
-        for (Future<Producer<byte[]>> future : futures) {
-            producers.add(future.get());
-        }
-
-        log.info("Created {} producers", producers.size());
-
         long start = System.nanoTime();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -341,81 +313,26 @@ public class PerformanceProducer {
             printAggregatedStats();
         }));
 
-        Collections.shuffle(producers);
-        AtomicBoolean isDone = new AtomicBoolean();
+        CountDownLatch doneLatch = new CountDownLatch(arguments.numTestThreads);
 
-        executor.submit(() -> {
-            try {
-                RateLimiter rateLimiter = RateLimiter.create(arguments.msgRate);
+        final long numMessagesPerThread = arguments.numMessages / arguments.numTestThreads;
+        final int msgRatePerThread = arguments.msgRate / arguments.numTestThreads;
 
-                long startTime = System.nanoTime();
-                long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
-                long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-
-                // Send messages on all topics/producers
-                long totalSent = 0;
-                while (true) {
-                    for (Producer<byte[]> producer : producers) {
-                        if (arguments.testTime > 0) {
-                            if (System.nanoTime() > testEndTime) {
-                                log.info("------------------- DONE -----------------------");
-                                printAggregatedStats();
-                                isDone.set(true);
-                                Thread.sleep(5000);
-                                System.exit(0);
-                            }
-                        }
-
-                        if (arguments.numMessages > 0) {
-                            if (totalSent++ >= arguments.numMessages) {
-                                log.info("------------------- DONE -----------------------");
-                                printAggregatedStats();
-                                isDone.set(true);
-                                Thread.sleep(5000);
-                                System.exit(0);
-                            }
-                        }
-                        rateLimiter.acquire();
-
-                        final long sendTime = System.nanoTime();
-
-                        byte[] payloadData;
-
-                        if (arguments.payloadFilename != null) {
-                            payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
-                        } else {
-                            payloadData = payloadBytes;
-                        }
-
-                        TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
-                                .value(payloadData);
-                        if (arguments.delay >0) {
-                            messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
-                        }
-                        messageBuilder.sendAsync().thenRun(() -> {
-                            messagesSent.increment();
-                            bytesSent.add(payloadData.length);
-
-                            totalMessagesSent.increment();
-                            totalBytesSent.add(payloadData.length);
-
-                            long now = System.nanoTime();
-                            if (now > warmupEndTime) {
-                                long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
-                                recorder.recordValue(latencyMicros);
-                                cumulativeRecorder.recordValue(latencyMicros);
-                            }
-                        }).exceptionally(ex -> {
-                            log.warn("Write error on message", ex);
-                            System.exit(-1);
-                            return null;
-                        });
-                    }
-                }
-            } catch (Throwable t) {
-                log.error("Got error", t);
-            }
-        });
+        for (int i = 0; i < arguments.numTestThreads; i++) {
+            final int threadIdx = i;
+            executor.submit(() -> {
+                log.info("Started performance test thread {}", threadIdx);
+                runProducer(
+                    arguments,
+                    numMessagesPerThread,
+                    msgRatePerThread,
+                    payloadByteList,
+                    payloadBytes,
+                    random,
+                    doneLatch
+                );
+            });
+        }
 
         // Print report stats
         long oldTime = System.nanoTime();
@@ -439,7 +356,7 @@ public class PerformanceProducer {
                 break;
             }
 
-            if (isDone.get()) {
+            if (doneLatch.getCount() <= 0) {
                 break;
             }
 
@@ -447,13 +364,15 @@ public class PerformanceProducer {
             double elapsed = (now - oldTime) / 1e9;
 
             double rate = messagesSent.sumThenReset() / elapsed;
+            double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput produced: {}  msg/s --- {} Mbit/s --- failure {} msg/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     throughputFormat.format(rate), throughputFormat.format(throughput),
+                    throughputFormat.format(failureRate),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -467,8 +386,166 @@ public class PerformanceProducer {
 
             oldTime = now;
         }
+    }
 
-        client.close();
+    private static void runProducer(Arguments arguments,
+                                    long numMessages,
+                                    int msgRate,
+                                    List<byte[]> payloadByteList,
+                                    byte[] payloadBytes,
+                                    Random random,
+                                    CountDownLatch doneLatch) {
+        PulsarClient client = null;
+        try {
+            // Now processing command line arguments
+            String prefixTopicName = arguments.topics.get(0);
+            List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
+
+            ClientBuilder clientBuilder = PulsarClient.builder() //
+                    .serviceUrl(arguments.serviceURL) //
+                    .connectionsPerBroker(arguments.maxConnections) //
+                    .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                    .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+
+            if (isNotBlank(arguments.authPluginClassName)) {
+                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
+            client = clientBuilder.build();
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
+                    .sendTimeout(0, TimeUnit.SECONDS) //
+                    .compressionType(arguments.compression) //
+                    .maxPendingMessages(arguments.maxOutstanding) //
+                    .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
+                    // enable round robin message routing if it is a partitioned topic
+                    .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
+                producerBuilder.enableBatching(false);
+            } else {
+                long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
+                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
+            }
+            if (arguments.batchMaxMessages > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
+            }
+            if (arguments.batchMaxBytes > 0) {
+                producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
+            }
+
+            // Block if queue is full else we will start seeing errors in sendAsync
+            producerBuilder.blockIfQueueFull(true);
+
+            if (arguments.encKeyName != null) {
+                producerBuilder.addEncryptionKey(arguments.encKeyName);
+                byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
+                EncKeyReader keyReader = new EncKeyReader(arguments.encKeyName, pKey);
+                producerBuilder.cryptoKeyReader(keyReader);
+            }
+
+            for (int i = 0; i < arguments.numTopics; i++) {
+                String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
+                log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
+
+                for (int j = 0; j < arguments.numProducers; j++) {
+                    futures.add(producerBuilder.clone().topic(topic).createAsync());
+                }
+            }
+
+            final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+            for (Future<Producer<byte[]>> future : futures) {
+                producers.add(future.get());
+            }
+            Collections.shuffle(producers);
+
+            log.info("Created {} producers", producers.size());
+
+            RateLimiter rateLimiter = RateLimiter.create(msgRate);
+
+            long startTime = System.nanoTime();
+            long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
+            long testEndTime = startTime + (long) (arguments.testTime * 1e9);
+
+            // Send messages on all topics/producers
+            long totalSent = 0;
+            while (true) {
+                for (Producer<byte[]> producer : producers) {
+                    if (arguments.testTime > 0) {
+                        if (System.nanoTime() > testEndTime) {
+                            log.info("------------------- DONE -----------------------");
+                            printAggregatedStats();
+                            doneLatch.countDown();
+                            Thread.sleep(5000);
+                            System.exit(0);
+                        }
+                    }
+
+                    if (numMessages > 0) {
+                        if (totalSent++ >= numMessages) {
+                            log.info("------------------- DONE -----------------------");
+                            printAggregatedStats();
+                            doneLatch.countDown();
+                            Thread.sleep(5000);
+                            System.exit(0);
+                        }
+                    }
+                    rateLimiter.acquire();
+
+                    final long sendTime = System.nanoTime();
+
+                    byte[] payloadData;
+
+                    if (arguments.payloadFilename != null) {
+                        payloadData = payloadByteList.get(random.nextInt(payloadByteList.size()));
+                    } else {
+                        payloadData = payloadBytes;
+                    }
+
+                    TypedMessageBuilder<byte[]> messageBuilder = producer.newMessage()
+                            .value(payloadData);
+                    if (arguments.delay >0) {
+                        messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    }
+                    messageBuilder.sendAsync().thenRun(() -> {
+                        messagesSent.increment();
+                        bytesSent.add(payloadData.length);
+
+                        totalMessagesSent.increment();
+                        totalBytesSent.add(payloadData.length);
+
+                        long now = System.nanoTime();
+                        if (now > warmupEndTime) {
+                            long latencyMicros = NANOSECONDS.toMicros(now - sendTime);
+                            recorder.recordValue(latencyMicros);
+                            cumulativeRecorder.recordValue(latencyMicros);
+                        }
+                    }).exceptionally(ex -> {
+                        // Ignore the exception of recorder since a very large latencyMicros will lead
+                        // ArrayIndexOutOfBoundsException in AbstractHistogram
+                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                            return null;
+                        }
+                        log.warn("Write error on message", ex);
+                        messagesFailed.increment();
+                        if (arguments.exitOnFailure) {
+                            System.exit(-1);
+                        }
+                        return null;
+                    });
+                }
+            }
+        } catch (Throwable t) {
+            log.error("Got error", t);
+        } finally {
+            if (null != client) {
+                try {
+                    client.close();
+                } catch (PulsarClientException e) {
+                    log.error("Failed to close test client", e);
+                }
+            }
+        }
     }
 
     private static void printAggregatedThroughput(long start) {

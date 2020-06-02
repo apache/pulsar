@@ -48,11 +48,12 @@ public class OffloaderUtils {
      * @return the offloader class name
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
-    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(String narPath) throws IOException {
+    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(String narPath, String narExtractionDirectory) throws IOException {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
         // as is the case for the pulsar presto plugin
-        NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), LedgerOffloaderFactory.class.getClassLoader());
+        NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
+                LedgerOffloaderFactory.class.getClassLoader(), narExtractionDirectory);
         String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
         OffloaderDefinition conf = ObjectMapperFactory.getThreadLocalYaml()
@@ -105,15 +106,15 @@ public class OffloaderUtils {
         }
     }
 
-    public static OffloaderDefinition getOffloaderDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+    public static OffloaderDefinition getOffloaderDefinition(String narPath, String narExtractionDirectory) throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, OffloaderDefinition.class);
         }
     }
 
-    public static Offloaders searchForOffloaders(String connectorsDirectory) throws IOException {
+    public static Offloaders searchForOffloaders(String connectorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for offloaders in {}", path);
 
@@ -127,13 +128,13 @@ public class OffloaderUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             stream.forEach(archive -> {
                 try {
-                    OffloaderDefinition definition = getOffloaderDefinition(archive.toString());
+                    OffloaderDefinition definition = getOffloaderDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found offloader {} from {}", definition, archive);
 
                     if (!StringUtils.isEmpty(definition.getOffloaderFactoryClass())) {
                         // Validate offloader factory class to be present and of the right type
                         Pair<NarClassLoader,  LedgerOffloaderFactory> offloaderFactoryPair =
-                            getOffloaderFactory(archive.toString());
+                            getOffloaderFactory(archive.toString(), narExtractionDirectory);
                         if (null != offloaderFactoryPair) {
                             offloaders.getOffloaders().add(offloaderFactoryPair);
                         }

@@ -18,6 +18,7 @@
  */
 
 #include <lib/ProducerImpl.h>
+#include <lib/PartitionedProducerImpl.h>
 #include <lib/ConsumerImpl.h>
 #include <string>
 
@@ -35,6 +36,21 @@ class PulsarFriend {
     static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());
         return std::static_pointer_cast<ProducerStatsImpl>(producerImpl->producerStatsBasePtr_);
+    }
+
+    static std::vector<ProducerImpl::MessageQueue*> getProducerMessageQueue(Producer producer,
+                                                                            ConsumerTopicType type) {
+        ProducerImplBasePtr producerBaseImpl = producer.impl_;
+        if (type == Partitioned) {
+            std::vector<ProducerImpl::MessageQueue*> queues;
+            for (const auto& producer :
+                 std::static_pointer_cast<PartitionedProducerImpl>(producerBaseImpl)->producers_) {
+                queues.emplace_back(&producer->pendingMessagesQueue_);
+            }
+            return queues;
+        } else {
+            return {&std::static_pointer_cast<ProducerImpl>(producerBaseImpl)->pendingMessagesQueue_};
+        }
     }
 
     template <typename T>
@@ -56,9 +72,17 @@ class PulsarFriend {
         return *producerImpl;
     }
 
+    static void producerFailMessages(Producer producer, Result result) {
+        producer.producerFailMessages(result);
+    }
+
     static ConsumerImpl& getConsumerImpl(Consumer consumer) {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
         return *consumerImpl;
+    }
+
+    static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
+        consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }

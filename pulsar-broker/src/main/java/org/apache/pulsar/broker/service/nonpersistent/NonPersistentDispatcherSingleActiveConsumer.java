@@ -23,7 +23,6 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.util.List;
 
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
@@ -34,6 +33,7 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -62,8 +62,8 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
-            currentConsumer.sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null);
+            currentConsumer.sendMessages(entries, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {
@@ -79,9 +79,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected boolean isConsumersExceededOnTopic() {
         Policies policies;
         try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
-                    .orElseGet(() -> new Policies());
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+
+            if (policies == null) {
+                policies = new Policies();
+            }
         } catch (Exception e) {
             policies = new Policies();
         }
@@ -97,9 +101,13 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected boolean isConsumersExceededOnSubscription() {
         Policies policies;
         try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
-                    .orElseGet(() -> new Policies());
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+
+            if (policies == null) {
+                policies = new Policies();
+            }
         } catch (Exception e) {
             policies = new Policies();
         }
@@ -113,7 +121,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     @Override
-    public Rate getMesssageDropRate() {
+    public Rate getMessageDropRate() {
         return msgDrop;
     }
 

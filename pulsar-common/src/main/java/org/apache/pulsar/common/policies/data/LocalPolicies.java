@@ -22,6 +22,9 @@ import static org.apache.pulsar.common.policies.data.Policies.defaultBundle;
 
 import com.google.common.base.Objects;
 
+/**
+ * Local policies.
+ */
 public class LocalPolicies {
 
     public BundlesData bundles;

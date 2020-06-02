@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -73,6 +73,18 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        return this.service.checkConsumerCompatibility(schemaId, schemaData, strategy);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                         SchemaData schemaData) {
+        return this.service.getSchemaVersionBySchemaData(schemaAndMetadataList, schemaData);
+    }
+
+    @Override
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId,
                                                               SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
@@ -90,7 +102,17 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId,
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+        try {
+            SchemaDataValidator.validateSchemaData(schema);
+        } catch (InvalidSchemaDataException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        return service.isCompatible(schemaId, schema, strategy);
+    }
+
+    @Override
+    public CompletableFuture<Void> checkCompatible(String schemaId,
                                                    SchemaData schema,
                                                    SchemaCompatibilityStrategy strategy) {
         try {
@@ -98,7 +120,7 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
         } catch (InvalidSchemaDataException e) {
             return FutureUtil.failedFuture(e);
         }
-        return service.isCompatible(schemaId, schema, strategy);
+        return service.checkCompatible(schemaId, schema, strategy);
     }
 
     @Override

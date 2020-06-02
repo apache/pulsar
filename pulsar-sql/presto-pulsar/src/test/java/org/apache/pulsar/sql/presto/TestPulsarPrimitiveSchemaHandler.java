@@ -138,6 +138,8 @@ public class TestPulsarPrimitiveSchemaHandler {
     public void testNewPulsarPrimitiveSchemaHandler() {
         RawMessage rawMessage = mock(RawMessage.class);
         SchemaHandler schemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(
+                null,
+                null,
                 StringSchema.utf8().getSchemaInfo(),
                 null);
 
@@ -153,7 +155,7 @@ public class TestPulsarPrimitiveSchemaHandler {
     @Test
     public void testNewColumnMetadata() {
         List<ColumnMetadata> columnMetadataList = PulsarMetadata.getPulsarColumns(stringTopicName,
-                StringSchema.utf8().getSchemaInfo(), false);
+                StringSchema.utf8().getSchemaInfo(), false, null);
         Assert.assertEquals(columnMetadataList.size(), 1);
         ColumnMetadata columnMetadata = columnMetadataList.get(0);
         Assert.assertEquals("__value__", columnMetadata.getName());

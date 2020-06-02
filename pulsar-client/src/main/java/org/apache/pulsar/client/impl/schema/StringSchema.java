@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.pulsar.client.api.Schema;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -32,13 +34,32 @@ import java.nio.charset.StandardCharsets;
 /**
  * Schema definition for Strings encoded in UTF-8 format.
  */
-public class StringSchema implements Schema<String> {
+public class StringSchema extends AbstractSchema<String> {
 
-    static final String CHARSET_KEY = "__charset";
+    static final String CHARSET_KEY;
 
-    public static StringSchema utf8() {
-        return UTF8;
+    private static final SchemaInfo DEFAULT_SCHEMA_INFO;
+    private static final Charset DEFAULT_CHARSET;
+    private static final StringSchema UTF8;
+
+    static {
+        // Ensure the ordering of the static initialization
+        CHARSET_KEY = "__charset";
+        DEFAULT_CHARSET = StandardCharsets.UTF_8;
+        DEFAULT_SCHEMA_INFO = new SchemaInfo()
+                .setName("String")
+                .setType(SchemaType.STRING)
+                .setSchema(new byte[0]);
+
+        UTF8 = new StringSchema(StandardCharsets.UTF_8);
     }
+
+    private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
+        @Override
+        protected byte[] initialValue() {
+            return new byte[1024];
+        }
+    };
 
     public static StringSchema fromSchemaInfo(SchemaInfo schemaInfo) {
         checkArgument(SchemaType.STRING == schemaInfo.getType(), "Not a string schema");
@@ -50,14 +71,10 @@ public class StringSchema implements Schema<String> {
         }
     }
 
-    private static final SchemaInfo DEFAULT_SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
-        .setSchema(new byte[0]);
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+    public static StringSchema utf8() {
+        return UTF8;
+    }
 
-    // make sure other static fields are initialized before this field
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
     private final Charset charset;
     private final SchemaInfo schemaInfo;
 
@@ -71,10 +88,10 @@ public class StringSchema implements Schema<String> {
         Map<String, String> properties = new HashMap<>();
         properties.put(CHARSET_KEY, charset.name());
         this.schemaInfo = new SchemaInfo()
-            .setName(DEFAULT_SCHEMA_INFO.getName())
-            .setType(SchemaType.STRING)
-            .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
-            .setProperties(properties);
+                .setName(DEFAULT_SCHEMA_INFO.getName())
+                .setType(SchemaType.STRING)
+                .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
+                .setProperties(properties);
     }
 
     public byte[] encode(String message) {
@@ -90,6 +107,22 @@ public class StringSchema implements Schema<String> {
             return null;
         } else {
             return new String(bytes, charset);
+        }
+    }
+
+    public String decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        } else {
+            int size = byteBuf.readableBytes();
+            byte[] bytes = tmpBuffer.get();
+            if (size > bytes.length) {
+                bytes = new byte[size * 2];
+                tmpBuffer.set(bytes);
+            }
+            byteBuf.readBytes(bytes, 0, size);
+
+            return new String(bytes, 0, size, charset);
         }
     }
 

@@ -83,4 +83,36 @@ Result Reader::hasMessageAvailable(bool& hasMessageAvailable) {
     return promise.getFuture().get(hasMessageAvailable);
 }
 
+void Reader::seekAsync(const MessageId& msgId, ResultCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+    impl_->seekAsync(msgId, callback);
+}
+
+void Reader::seekAsync(uint64_t timestamp, ResultCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+    impl_->seekAsync(timestamp, callback);
+}
+
+Result Reader::seek(const MessageId& msgId) {
+    Promise<bool, Result> promise;
+    impl_->seekAsync(msgId, WaitForCallback(promise));
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
+Result Reader::seek(uint64_t timestamp) {
+    Promise<bool, Result> promise;
+    impl_->seekAsync(timestamp, WaitForCallback(promise));
+    Result result;
+    promise.getFuture().get(result);
+    return result;
+}
+
 }  // namespace pulsar

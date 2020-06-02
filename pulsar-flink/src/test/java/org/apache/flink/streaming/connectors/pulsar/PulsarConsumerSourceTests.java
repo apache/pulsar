@@ -34,10 +34,12 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -307,7 +309,7 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
-        PulsarClient createClient() {
+        PulsarClient getClient() {
             return mock(PulsarClient.class);
         }
 
@@ -420,6 +422,16 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public Messages<byte[]> batchReceive() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Messages<byte[]>> batchReceiveAsync() {
+            return null;
+        }
+
+        @Override
         public void acknowledge(Message<?> message) throws PulsarClientException {
 
         }
@@ -430,11 +442,21 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void acknowledge(Messages<?> messages) throws PulsarClientException {
+
+        }
+
+        @Override
         public void negativeAcknowledge(Message<?> message) {
         }
 
         @Override
         public void negativeAcknowledge(MessageId messageId) {
+        }
+
+        @Override
+        public void negativeAcknowledge(Messages<?> messages) {
+
         }
 
         @Override
@@ -456,6 +478,11 @@ public class PulsarConsumerSourceTests {
         public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
             acknowledgedIds.put(messageId, messageId);
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
+            return null;
         }
 
         @Override
@@ -530,6 +557,48 @@ public class PulsarConsumerSourceTests {
         @Override
         public void resume() {
         }
+
+        @Override
+        public MessageId getLastMessageId() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<MessageId> getLastMessageIdAsync() {
+            return null;
+        }
+
+        @Override
+        public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
+            
+        }
+
+        @Override
+        public void reconsumeLater(Messages<?> messages, long delayTime, TimeUnit unit) throws PulsarClientException {
+            
+        }
+
+        @Override
+        public void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit)
+                throws PulsarClientException {
+            
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime,
+                TimeUnit unit) {
+            return null;
+        }
     }
 
     private static List<Message> createMessages(int startIndex, int numMessages) {
@@ -543,7 +612,7 @@ public class PulsarConsumerSourceTests {
 
     private static Message<byte[]> createMessage(String content, String messageId) {
         return new MessageImpl<byte[]>("my-topic", messageId, Collections.emptyMap(),
-                                       content.getBytes(), Schema.BYTES);
+                                       content.getBytes(), Schema.BYTES, PulsarApi.MessageMetadata.newBuilder());
     }
 
     private static String createMessageId(long ledgerId, long entryId, long partitionIndex) {

@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl.schema;
 import java.util.Collections;
 import java.util.List;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -31,8 +33,10 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Foo;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBar;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.NestedBarList;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.json.JSONException;
 
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.FOO_FIELDS;
 import static org.apache.pulsar.client.impl.schema.SchemaTestUtils.SCHEMA_JSON_NOT_ALLOW_NULL;
@@ -42,13 +46,16 @@ import static org.testng.Assert.assertEquals;
 @Slf4j
 public class JSONSchemaTest {
 
+    public static void assertJSONEqual(String s1, String s2) throws JSONException{
+        JSONAssert.assertEquals(s1, s2, false);
+    }
     @Test
-    public void testNotAllowNullSchema() {
+    public void testNotAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
-        Assert.assertEquals(schemaJson, SCHEMA_JSON_NOT_ALLOW_NULL);
+        assertJSONEqual(schemaJson, SCHEMA_JSON_NOT_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -65,12 +72,13 @@ public class JSONSchemaTest {
     }
 
     @Test
-    public void testAllowNullSchema() {
+    public void testAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         String schemaJson = new String(jsonSchema.getSchemaInfo().getSchema());
-        Assert.assertEquals(schemaJson, SCHEMA_JSON_ALLOW_NULL);
+        assertJSONEqual(schemaJson, SCHEMA_JSON_ALLOW_NULL);
         Schema schema = parser.parse(schemaJson);
 
         for (String fieldName : FOO_FIELDS) {
@@ -301,5 +309,27 @@ public class JSONSchemaTest {
     public void testNotAllowNullDecodeWithInvalidContent() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         jsonSchema.decode(new byte[0]);
+    }
+
+    @Test
+    public void testDecodeByteBuf() {
+        JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
+
+        Foo foo1 = new Foo();
+        foo1.setField1("foo1");
+        foo1.setField2("bar1");
+        foo1.setField4(new Bar());
+        foo1.setFieldUnableNull("notNull");
+
+        Foo foo2 = new Foo();
+        foo2.setField1("foo2");
+        foo2.setField2("bar2");
+
+        byte[] bytes1 = jsonSchema.encode(foo1);
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(bytes1.length);
+        byteBuf.writeBytes(bytes1);
+        Assert.assertTrue(bytes1.length > 0);
+        assertEquals(jsonSchema.decode(byteBuf), foo1);
+
     }
 }

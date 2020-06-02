@@ -23,6 +23,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Response containing the schema version field.
+ */
 @Data
 @Builder
 @AllArgsConstructor

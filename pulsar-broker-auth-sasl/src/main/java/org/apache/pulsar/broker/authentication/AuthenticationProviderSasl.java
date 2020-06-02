@@ -90,7 +90,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                     new PulsarSaslServer.SaslServerCallbackHandler(allowedIdsPattern),
                     configuration);
             } catch (LoginException e) {
-                log.error("JAAS login in broker failed: {}" , e);
+                log.error("JAAS login in broker failed" , e);
                 throw new IOException(e);
             }
         }
@@ -125,7 +125,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 new SaslAuthenticationDataSource(
                     new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern)));
         } catch (Throwable t) {
-            log.error("Failed create sasl auth state: {}" , t);
+            log.error("Failed create sasl auth state" , t);
             throw new AuthenticationException(t.getMessage());
         }
     }

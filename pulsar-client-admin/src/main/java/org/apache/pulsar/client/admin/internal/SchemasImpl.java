@@ -20,13 +20,22 @@ package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -34,9 +43,8 @@ import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
-
-import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemasImpl extends BaseResource implements Schemas {
 
@@ -50,105 +58,355 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public SchemaInfo getSchemaInfo(String topic) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn)).get(GetSchemaResponse.class);
-            return convertGetSchemaResponseToSchemaInfo(tn, response);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getSchemaInfoAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
+        asyncGetRequest(schemaPath(tn),
+                new InvocationCallback<GetSchemaResponse>() {
+                    @Override
+                    public void completed(GetSchemaResponse response) {
+                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public SchemaInfoWithVersion getSchemaInfoWithVersion(String topic) throws PulsarAdminException {
+        try {
+            return getSchemaInfoWithVersionAsync(topic).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<SchemaInfoWithVersion> getSchemaInfoWithVersionAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        final CompletableFuture<SchemaInfoWithVersion> future = new CompletableFuture<>();
+        asyncGetRequest(schemaPath(tn),
+                new InvocationCallback<GetSchemaResponse>() {
+                    @Override
+                    public void completed(GetSchemaResponse response) {
+                        future.complete(convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public SchemaInfo getSchemaInfo(String topic, long version) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            GetSchemaResponse response = request(schemaPath(tn).path(Long.toString(version)))
-                .get(GetSchemaResponse.class);
-            return convertGetSchemaResponseToSchemaInfo(tn, response);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getSchemaInfoAsync(topic, version).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic, long version) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = schemaPath(tn).path(Long.toString(version));
+        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<GetSchemaResponse>() {
+                    @Override
+                    public void completed(GetSchemaResponse response) {
+                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public void deleteSchema(String topic) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            request(schemaPath(tn)).delete(DeleteSchemaResponse.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            deleteSchemaAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
     @Override
-    public void createSchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
+    public CompletableFuture<Void> deleteSchemaAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            request(schemaPath(tn)).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
+                @Override
+                public void completed(DeleteSchemaResponse deleteSchemaResponse) {
+                    future.complete(null);
+                }
 
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
+    }
+
+    @Override
+    public void createSchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
         createSchema(topic, convertSchemaInfoToPostSchemaPayload(schemaInfo));
+    }
+
+    @Override
+    public CompletableFuture<Void> createSchemaAsync(String topic, SchemaInfo schemaInfo) {
+        return createSchemaAsync(topic, convertSchemaInfoToPostSchemaPayload(schemaInfo));
     }
 
     @Override
     public void createSchema(String topic, PostSchemaPayload payload) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            request(schemaPath(tn))
-                .post(Entity.json(payload), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            createSchemaAsync(topic, payload).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
     @Override
-    public IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload payload) throws PulsarAdminException {
+    public CompletableFuture<Void> createSchemaAsync(String topic, PostSchemaPayload payload) {
+        TopicName tn = TopicName.get(topic);
+        return asyncPostRequest(schemaPath(tn), Entity.json(payload));
+    }
+
+    @Override
+    public IsCompatibilityResponse testCompatibility(String topic, PostSchemaPayload payload)
+            throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            return request(compatibilityPath(tn)).post(Entity.json(payload), IsCompatibilityResponse.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return testCompatibilityAsync(topic, payload).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<IsCompatibilityResponse> testCompatibilityAsync(String topic, PostSchemaPayload payload) {
+        TopicName tn = TopicName.get(topic);
+        final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
+        try {
+            request(compatibilityPath(tn)).async().post(Entity.json(payload),
+                    new InvocationCallback<IsCompatibilityResponse>() {
+                        @Override
+                        public void completed(IsCompatibilityResponse isCompatibilityResponse) {
+                            future.complete(isCompatibilityResponse);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
     public Long getVersionBySchema(String topic, PostSchemaPayload payload) throws PulsarAdminException {
         try {
-            return request(versionPath(TopicName.get(topic))).post(Entity.json(payload), LongSchemaVersionResponse.class).getVersion();
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getVersionBySchemaAsync(topic, payload).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Long> getVersionBySchemaAsync(String topic, PostSchemaPayload payload) {
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(versionPath(TopicName.get(topic))).async().post(Entity.json(payload)
+                    , new InvocationCallback<LongSchemaVersionResponse>() {
+                        @Override
+                        public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
+                            future.complete(longSchemaVersionResponse.getVersion());
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
     public IsCompatibilityResponse testCompatibility(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
         try {
-            return request(compatibilityPath(TopicName.get(topic)))
-                    .post(Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)), IsCompatibilityResponse.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return testCompatibilityAsync(topic, schemaInfo).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<IsCompatibilityResponse> testCompatibilityAsync(String topic, SchemaInfo schemaInfo) {
+        final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
+        try {
+            request(compatibilityPath(TopicName.get(topic))).async()
+                    .post(
+                            Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
+                            new InvocationCallback<IsCompatibilityResponse>() {
+                                @Override
+                                public void completed(IsCompatibilityResponse isCompatibilityResponse) {
+                                    future.complete(isCompatibilityResponse);
+                                }
+
+                                @Override
+                                public void failed(Throwable throwable) {
+                                    future.completeExceptionally(getApiException(throwable.getCause()));
+                                }
+                            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
     public Long getVersionBySchema(String topic, SchemaInfo schemaInfo) throws PulsarAdminException {
         try {
-            return request(versionPath(TopicName.get(topic)))
-                    .post(Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)), LongSchemaVersionResponse.class).getVersion();
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getVersionBySchemaAsync(topic, schemaInfo).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Long> getVersionBySchemaAsync(String topic, SchemaInfo schemaInfo) {
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        try {
+            request(versionPath(TopicName.get(topic))).async().post(
+                    Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
+                    new InvocationCallback<LongSchemaVersionResponse>() {
+                        @Override
+                        public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
+                            future.complete(longSchemaVersionResponse.getVersion());
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
     public List<SchemaInfo> getAllSchemas(String topic) throws PulsarAdminException {
         try {
-            TopicName topicName = TopicName.get(topic);
-            return request(schemasPath(TopicName.get(topic)))
-                    .get(GetAllVersionsSchemaResponse.class)
-                    .getGetSchemaResponses().stream()
-                    .map(getSchemaResponse -> convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
-                    .collect(Collectors.toList());
-
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getAllSchemasAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<List<SchemaInfo>> getAllSchemasAsync(String topic) {
+        WebTarget path = schemasPath(TopicName.get(topic));
+        TopicName topicName = TopicName.get(topic);
+        final CompletableFuture<List<SchemaInfo>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<GetAllVersionsSchemaResponse>() {
+                    @Override
+                    public void completed(GetAllVersionsSchemaResponse response) {
+                        future.complete(
+                                response.getGetSchemaResponses().stream()
+                                        .map(getSchemaResponse ->
+                                                convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
+                                        .collect(Collectors.toList()));
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     private WebTarget schemaPath(TopicName topicName) {
@@ -187,30 +445,56 @@ public class SchemasImpl extends BaseResource implements Schemas {
     static SchemaInfo convertGetSchemaResponseToSchemaInfo(TopicName tn,
                                                            GetSchemaResponse response) {
         SchemaInfo info = new SchemaInfo();
-        info.setSchema(response.getData().getBytes(UTF_8));
+        byte[] schema;
+        if (response.getType() == SchemaType.KEY_VALUE) {
+            schema = DefaultImplementation.convertKeyValueDataStringToSchemaInfoSchema(
+                    response.getData().getBytes(UTF_8));
+        } else {
+            schema = response.getData().getBytes(UTF_8);
+        }
+        info.setSchema(schema);
         info.setType(response.getType());
         info.setProperties(response.getProperties());
         info.setName(tn.getLocalName());
         return info;
     }
 
+    static SchemaInfoWithVersion convertGetSchemaResponseToSchemaInfoWithVersion(TopicName tn,
+                                                           GetSchemaResponse response) {
+
+        return  SchemaInfoWithVersion
+                .builder()
+                .schemaInfo(convertGetSchemaResponseToSchemaInfo(tn, response))
+                .version(response.getVersion())
+                .build();
+    }
+
+
+
 
     // the util function exists for backward compatibility concern
-    static String convertSchemaDataToStringLegacy(byte[] schemaData) {
-        if (null == schemaData) {
+    static String convertSchemaDataToStringLegacy(SchemaInfo schemaInfo) {
+        byte[] schemaData = schemaInfo.getSchema();
+        if (null == schemaInfo.getSchema()) {
             return "";
+        }
+
+        if (schemaInfo.getType() == SchemaType.KEY_VALUE) {
+           return DefaultImplementation.convertKeyValueSchemaInfoDataToString(
+                   DefaultImplementation.decodeKeyValueSchemaInfo(schemaInfo));
         }
 
         return new String(schemaData, UTF_8);
     }
 
     static PostSchemaPayload convertSchemaInfoToPostSchemaPayload(SchemaInfo schemaInfo) {
+
         PostSchemaPayload payload = new PostSchemaPayload();
         payload.setType(schemaInfo.getType().name());
         payload.setProperties(schemaInfo.getProperties());
         // for backward compatibility concern, we convert `bytes` to `string`
         // we can consider fixing it in a new version of rest endpoint
-        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo.getSchema()));
+        payload.setSchema(convertSchemaDataToStringLegacy(schemaInfo));
         return payload;
     }
 }

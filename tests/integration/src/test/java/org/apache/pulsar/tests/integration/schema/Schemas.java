@@ -31,18 +31,21 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+
 import org.apache.avro.reflect.AvroDefault;
-import org.joda.time.DateTime;
-import org.joda.time.LocalDate;
-import org.joda.time.LocalTime;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * Keep a list of schemas for testing.
@@ -53,10 +56,6 @@ public final class Schemas {
      * A Person Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class Person {
 
         private String name;
@@ -68,10 +67,6 @@ public final class Schemas {
      * A Person Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class PersonConsumeSchema {
 
         private String name;
@@ -85,10 +80,6 @@ public final class Schemas {
      * A Student Struct.
      */
     @Data
-    @Getter
-    @Setter
-    @ToString
-    @EqualsAndHashCode
     public static class Student {
 
         private String name;
@@ -99,8 +90,8 @@ public final class Schemas {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Builder
     public static class AvroLogicalType{
         @org.apache.avro.reflect.AvroSchema("{\n" +
@@ -113,7 +104,7 @@ public final class Schemas {
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"}")
-        DateTime timestampMillis;
+        Instant timestampMillis;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"time-millis\"}")
         LocalTime timeMillis;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"long\",\"logicalType\":\"timestamp-micros\"}")
@@ -123,5 +114,38 @@ public final class Schemas {
     }
 
     private Schemas() {}
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PersonOne{
+        int id;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class PersonTwo{
+        int id;
+
+        @AvroDefault("\"Tom\"")
+        String name;
+    }
+
+    @Data
+    public static class PersonThree{
+        int id;
+
+        String name;
+    }
+
+    @Data
+    public static class PersonFour{
+        int id;
+
+        String name;
+
+        int age;
+    }
 
 }

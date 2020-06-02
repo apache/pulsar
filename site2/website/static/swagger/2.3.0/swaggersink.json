@@ -1,0 +1,3038 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "description" : "This provides the REST API for Pulsar Sink operations",
+    "version" : "v3",
+    "title" : "Pulsar Sink REST API",
+    "license" : {
+      "name" : "Apache 2.0",
+      "url" : "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "basePath" : "/admin/v3",
+  "tags" : [ {
+    "name" : "sink"
+  } ],
+  "schemes" : [ "http", "https" ],
+  "paths" : {
+    "/sink/builtinsinks" : {
+      "get" : {
+        "tags" : [ "sink" ],
+        "summary" : "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",
+        "description" : "",
+        "operationId" : "getSinkList",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "type" : "object"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}" : {
+      "get" : {
+        "tags" : [ "sink" ],
+        "summary" : "Lists all Pulsar Sinks currently deployed in a given namespace",
+        "description" : "",
+        "operationId" : "listSinks",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "string"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}" : {
+      "get" : {
+        "tags" : [ "sink" ],
+        "summary" : "Fetches information about a Pulsar Sink currently running in cluster mode",
+        "description" : "",
+        "operationId" : "getSinkInfo",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/FunctionMetaData"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Creates a new Pulsar Sink in cluster mode",
+        "description" : "",
+        "operationId" : "registerSink",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Pulsar Function successfully created"
+          },
+          "400" : {
+            "description" : "Invalid request (function already exists, etc.)"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "sink" ],
+        "summary" : "Updates a Pulsar Sink currently running in cluster mode",
+        "description" : "",
+        "operationId" : "updateSink",
+        "consumes" : [ "multipart/form-data" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Pulsar Function successfully updated"
+          },
+          "400" : {
+            "description" : "Invalid request (function doesn't exist, etc.)"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "sink" ],
+        "summary" : "Deletes a Pulsar Sink currently running in cluster mode",
+        "description" : "",
+        "operationId" : "deregisterSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The function was successfully deleted"
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The function doesn't exist"
+          },
+          "408" : {
+            "description" : "Request timeout"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/restart" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Restart all sink instances",
+        "description" : "",
+        "operationId" : "restartSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/start" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Start all sink instances",
+        "description" : "",
+        "operationId" : "startSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/status" : {
+      "get" : {
+        "tags" : [ "sink" ],
+        "summary" : "Displays the status of a Pulsar Sink running in cluster mode",
+        "description" : "",
+        "operationId" : "getSinkStatus",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/SinkStatus"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The sink doesn't exist"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/stop" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Stop all sink instances",
+        "description" : "",
+        "operationId" : "stopSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/restart" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Restart sink instance",
+        "description" : "",
+        "operationId" : "restartSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/start" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Start sink instance",
+        "description" : "",
+        "operationId" : "startSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/status" : {
+      "get" : {
+        "tags" : [ "sink" ],
+        "summary" : "Displays the status of a Pulsar Sink instance",
+        "description" : "",
+        "operationId" : "getSinkInstanceStatus",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "$ref" : "#/definitions/SinkInstanceStatusData"
+            }
+          },
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "The sink doesn't exist"
+          }
+        }
+      }
+    },
+    "/sink/{tenant}/{namespace}/{sinkName}/{instanceId}/stop" : {
+      "post" : {
+        "tags" : [ "sink" ],
+        "summary" : "Stop sink instance",
+        "description" : "",
+        "operationId" : "stopSink",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "sinkName",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "instanceId",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "400" : {
+            "description" : "Invalid request"
+          },
+          "404" : {
+            "description" : "The function does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "definitions" : {
+    "ByteString" : {
+      "type" : "object",
+      "properties" : {
+        "empty" : {
+          "type" : "boolean"
+        },
+        "validUtf8" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "ConsumerSpec" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "schemaType" : {
+          "type" : "string"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserConsumerSpec"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/ConsumerSpec"
+        },
+        "schemaTypeBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "serdeClassName" : {
+          "type" : "string"
+        },
+        "serdeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "isRegexPattern" : {
+          "type" : "boolean"
+        },
+        "receiverQueueSize" : {
+          "$ref" : "#/definitions/ReceiverQueueSize"
+        },
+        "receiverQueueSizeOrBuilder" : {
+          "$ref" : "#/definitions/ReceiverQueueSizeOrBuilder"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "Descriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "containingType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "nestedTypes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/Descriptor"
+          }
+        },
+        "enumTypes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/EnumDescriptor"
+          }
+        },
+        "fields" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FieldDescriptor"
+          }
+        },
+        "extensions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FieldDescriptor"
+          }
+        },
+        "oneofs" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/OneofDescriptor"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/MessageOptions"
+        },
+        "extendable" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "EnumDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "containingType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "values" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/EnumValueDescriptor"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/EnumOptions"
+        }
+      }
+    },
+    "EnumOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserEnumOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/EnumOptions"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allowAlias" : {
+          "type" : "boolean"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "EnumValueDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "type" : {
+          "$ref" : "#/definitions/EnumDescriptor"
+        },
+        "number" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/EnumValueOptions"
+        }
+      }
+    },
+    "EnumValueOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserEnumValueOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/EnumValueOptions"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "ExceptionInformation" : {
+      "type" : "object",
+      "properties" : {
+        "exceptionString" : {
+          "type" : "string"
+        },
+        "timestampMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        }
+      }
+    },
+    "FieldDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "jsonName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "extensionScope" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "type" : {
+          "type" : "string",
+          "enum" : [ "DOUBLE", "FLOAT", "INT64", "UINT64", "INT32", "FIXED64", "FIXED32", "BOOL", "STRING", "GROUP", "MESSAGE", "BYTES", "UINT32", "ENUM", "SFIXED32", "SFIXED64", "SINT32", "SINT64" ]
+        },
+        "containingType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "messageType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "containingOneof" : {
+          "$ref" : "#/definitions/OneofDescriptor"
+        },
+        "enumType" : {
+          "$ref" : "#/definitions/EnumDescriptor"
+        },
+        "defaultValue" : {
+          "type" : "object"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "number" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "required" : {
+          "type" : "boolean"
+        },
+        "optional" : {
+          "type" : "boolean"
+        },
+        "options" : {
+          "$ref" : "#/definitions/FieldOptions"
+        },
+        "liteType" : {
+          "type" : "string",
+          "enum" : [ "DOUBLE", "FLOAT", "INT64", "UINT64", "INT32", "FIXED64", "FIXED32", "BOOL", "STRING", "GROUP", "MESSAGE", "BYTES", "UINT32", "ENUM", "SFIXED32", "SFIXED64", "SINT32", "SINT64" ]
+        },
+        "liteJavaType" : {
+          "type" : "string",
+          "enum" : [ "INT", "LONG", "FLOAT", "DOUBLE", "BOOLEAN", "STRING", "BYTE_STRING", "ENUM", "MESSAGE" ]
+        },
+        "packable" : {
+          "type" : "boolean"
+        },
+        "repeated" : {
+          "type" : "boolean"
+        },
+        "javaType" : {
+          "type" : "string",
+          "enum" : [ "INT", "LONG", "FLOAT", "DOUBLE", "BOOLEAN", "STRING", "BYTE_STRING", "ENUM", "MESSAGE" ]
+        },
+        "mapField" : {
+          "type" : "boolean"
+        },
+        "extension" : {
+          "type" : "boolean"
+        },
+        "packed" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "FieldOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserFieldOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/FieldOptions"
+        },
+        "packed" : {
+          "type" : "boolean"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "weak" : {
+          "type" : "boolean"
+        },
+        "ctype" : {
+          "type" : "string",
+          "enum" : [ "STRING", "CORD", "STRING_PIECE" ]
+        },
+        "lazy" : {
+          "type" : "boolean"
+        },
+        "jstype" : {
+          "type" : "string",
+          "enum" : [ "JS_NORMAL", "JS_STRING", "JS_NUMBER" ]
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "FileDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "messageTypes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/Descriptor"
+          }
+        },
+        "enumTypes" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/EnumDescriptor"
+          }
+        },
+        "services" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ServiceDescriptor"
+          }
+        },
+        "extensions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FieldDescriptor"
+          }
+        },
+        "dependencies" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FileDescriptor"
+          }
+        },
+        "publicDependencies" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FileDescriptor"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "package" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "options" : {
+          "$ref" : "#/definitions/FileOptions"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "syntax" : {
+          "type" : "string",
+          "enum" : [ "UNKNOWN", "PROTO2", "PROTO3" ]
+        }
+      }
+    },
+    "FileOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserFileOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/FileOptions"
+        },
+        "javaStringCheckUtf8" : {
+          "type" : "boolean"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "javaPackage" : {
+          "type" : "string"
+        },
+        "javaPackageBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "javaOuterClassname" : {
+          "type" : "string"
+        },
+        "javaOuterClassnameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "javaMultipleFiles" : {
+          "type" : "boolean"
+        },
+        "javaGenerateEqualsAndHash" : {
+          "type" : "boolean"
+        },
+        "optimizeFor" : {
+          "type" : "string",
+          "enum" : [ "SPEED", "CODE_SIZE", "LITE_RUNTIME" ]
+        },
+        "goPackage" : {
+          "type" : "string"
+        },
+        "goPackageBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "ccGenericServices" : {
+          "type" : "boolean"
+        },
+        "javaGenericServices" : {
+          "type" : "boolean"
+        },
+        "pyGenericServices" : {
+          "type" : "boolean"
+        },
+        "phpGenericServices" : {
+          "type" : "boolean"
+        },
+        "ccEnableArenas" : {
+          "type" : "boolean"
+        },
+        "objcClassPrefix" : {
+          "type" : "string"
+        },
+        "objcClassPrefixBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "csharpNamespace" : {
+          "type" : "string"
+        },
+        "csharpNamespaceBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "swiftPrefix" : {
+          "type" : "string"
+        },
+        "swiftPrefixBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "phpClassPrefix" : {
+          "type" : "string"
+        },
+        "phpClassPrefixBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "phpNamespace" : {
+          "type" : "string"
+        },
+        "phpNamespaceBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "FunctionDetails" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "resources" : {
+          "$ref" : "#/definitions/Resources"
+        },
+        "runtime" : {
+          "type" : "string",
+          "enum" : [ "JAVA", "PYTHON", "UNRECOGNIZED" ]
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "namespace" : {
+          "type" : "string"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "nameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "source" : {
+          "$ref" : "#/definitions/SourceSpec"
+        },
+        "sink" : {
+          "$ref" : "#/definitions/SinkSpec"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "tenant" : {
+          "type" : "string"
+        },
+        "runtimeFlags" : {
+          "type" : "string"
+        },
+        "logTopic" : {
+          "type" : "string"
+        },
+        "processingGuarantees" : {
+          "type" : "string",
+          "enum" : [ "ATLEAST_ONCE", "ATMOST_ONCE", "EFFECTIVELY_ONCE", "UNRECOGNIZED" ]
+        },
+        "userConfig" : {
+          "type" : "string"
+        },
+        "autoAck" : {
+          "type" : "boolean"
+        },
+        "parallelism" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserFunctionDetails"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/FunctionDetails"
+        },
+        "namespaceBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "tenantBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "logTopicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "processingGuaranteesValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "userConfigBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "secretsMap" : {
+          "type" : "string"
+        },
+        "secretsMapBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "runtimeValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "sourceOrBuilder" : {
+          "$ref" : "#/definitions/SourceSpecOrBuilder"
+        },
+        "sinkOrBuilder" : {
+          "$ref" : "#/definitions/SinkSpecOrBuilder"
+        },
+        "resourcesOrBuilder" : {
+          "$ref" : "#/definitions/ResourcesOrBuilder"
+        },
+        "packageUrl" : {
+          "type" : "string"
+        },
+        "packageUrlBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "retryDetails" : {
+          "$ref" : "#/definitions/RetryDetails"
+        },
+        "retryDetailsOrBuilder" : {
+          "$ref" : "#/definitions/RetryDetailsOrBuilder"
+        },
+        "runtimeFlagsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "FunctionDetailsOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "resources" : {
+          "$ref" : "#/definitions/Resources"
+        },
+        "runtime" : {
+          "type" : "string",
+          "enum" : [ "JAVA", "PYTHON", "UNRECOGNIZED" ]
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "namespace" : {
+          "type" : "string"
+        },
+        "nameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "source" : {
+          "$ref" : "#/definitions/SourceSpec"
+        },
+        "sink" : {
+          "$ref" : "#/definitions/SinkSpec"
+        },
+        "tenant" : {
+          "type" : "string"
+        },
+        "runtimeFlags" : {
+          "type" : "string"
+        },
+        "logTopic" : {
+          "type" : "string"
+        },
+        "processingGuarantees" : {
+          "type" : "string",
+          "enum" : [ "ATLEAST_ONCE", "ATMOST_ONCE", "EFFECTIVELY_ONCE", "UNRECOGNIZED" ]
+        },
+        "userConfig" : {
+          "type" : "string"
+        },
+        "autoAck" : {
+          "type" : "boolean"
+        },
+        "parallelism" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "namespaceBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "tenantBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "logTopicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "processingGuaranteesValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "userConfigBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "secretsMap" : {
+          "type" : "string"
+        },
+        "secretsMapBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "runtimeValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "sourceOrBuilder" : {
+          "$ref" : "#/definitions/SourceSpecOrBuilder"
+        },
+        "sinkOrBuilder" : {
+          "$ref" : "#/definitions/SinkSpecOrBuilder"
+        },
+        "resourcesOrBuilder" : {
+          "$ref" : "#/definitions/ResourcesOrBuilder"
+        },
+        "packageUrl" : {
+          "type" : "string"
+        },
+        "packageUrlBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "retryDetails" : {
+          "$ref" : "#/definitions/RetryDetails"
+        },
+        "retryDetailsOrBuilder" : {
+          "$ref" : "#/definitions/RetryDetailsOrBuilder"
+        },
+        "runtimeFlagsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "FunctionMetaData" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "version" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "createTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "functionDetails" : {
+          "$ref" : "#/definitions/FunctionDetails"
+        },
+        "functionDetailsOrBuilder" : {
+          "$ref" : "#/definitions/FunctionDetailsOrBuilder"
+        },
+        "packageLocation" : {
+          "$ref" : "#/definitions/PackageLocationMetaData"
+        },
+        "packageLocationOrBuilder" : {
+          "$ref" : "#/definitions/PackageLocationMetaDataOrBuilder"
+        },
+        "instanceStatesCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "instanceStates" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string",
+            "enum" : [ "RUNNING", "STOPPED", "UNRECOGNIZED" ]
+          }
+        },
+        "instanceStatesMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string",
+            "enum" : [ "RUNNING", "STOPPED", "UNRECOGNIZED" ]
+          }
+        },
+        "instanceStatesValue" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "instanceStatesValueMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserFunctionMetaData"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/FunctionMetaData"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "Message" : {
+      "type" : "object",
+      "properties" : {
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserMessage"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/MessageLite"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        }
+      }
+    },
+    "MessageLite" : {
+      "type" : "object",
+      "properties" : {
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserMessageLite"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/MessageLite"
+        }
+      }
+    },
+    "MessageOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserMessageOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/MessageOptions"
+        },
+        "mapEntry" : {
+          "type" : "boolean"
+        },
+        "messageSetWireFormat" : {
+          "type" : "boolean"
+        },
+        "noStandardDescriptorAccessor" : {
+          "type" : "boolean"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "MethodDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "service" : {
+          "$ref" : "#/definitions/ServiceDescriptor"
+        },
+        "inputType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "outputType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/MethodOptions"
+        }
+      }
+    },
+    "MethodOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserMethodOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/MethodOptions"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "idempotencyLevel" : {
+          "type" : "string",
+          "enum" : [ "IDEMPOTENCY_UNKNOWN", "NO_SIDE_EFFECTS", "IDEMPOTENT" ]
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "NamePart" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserNamePart"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/NamePart"
+        },
+        "namePart" : {
+          "type" : "string"
+        },
+        "namePartBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "isExtension" : {
+          "type" : "boolean"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "NamePartOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "namePart" : {
+          "type" : "string"
+        },
+        "namePartBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "isExtension" : {
+          "type" : "boolean"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "OneofDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "containingType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "fieldCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fields" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/FieldDescriptor"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/OneofOptions"
+        }
+      }
+    },
+    "OneofOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserOneofOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/OneofOptions"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "PackageLocationMetaData" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserPackageLocationMetaData"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/PackageLocationMetaData"
+        },
+        "originalFileName" : {
+          "type" : "string"
+        },
+        "originalFileNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "packagePath" : {
+          "type" : "string"
+        },
+        "packagePathBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "PackageLocationMetaDataOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "originalFileName" : {
+          "type" : "string"
+        },
+        "originalFileNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "packagePath" : {
+          "type" : "string"
+        },
+        "packagePathBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "Parser" : {
+      "type" : "object"
+    },
+    "ParserConsumerSpec" : {
+      "type" : "object"
+    },
+    "ParserEnumOptions" : {
+      "type" : "object"
+    },
+    "ParserEnumValueOptions" : {
+      "type" : "object"
+    },
+    "ParserFieldOptions" : {
+      "type" : "object"
+    },
+    "ParserFileOptions" : {
+      "type" : "object"
+    },
+    "ParserFunctionDetails" : {
+      "type" : "object"
+    },
+    "ParserFunctionMetaData" : {
+      "type" : "object"
+    },
+    "ParserMessage" : {
+      "type" : "object"
+    },
+    "ParserMessageLite" : {
+      "type" : "object"
+    },
+    "ParserMessageOptions" : {
+      "type" : "object"
+    },
+    "ParserMethodOptions" : {
+      "type" : "object"
+    },
+    "ParserNamePart" : {
+      "type" : "object"
+    },
+    "ParserOneofOptions" : {
+      "type" : "object"
+    },
+    "ParserPackageLocationMetaData" : {
+      "type" : "object"
+    },
+    "ParserReceiverQueueSize" : {
+      "type" : "object"
+    },
+    "ParserResources" : {
+      "type" : "object"
+    },
+    "ParserRetryDetails" : {
+      "type" : "object"
+    },
+    "ParserServiceOptions" : {
+      "type" : "object"
+    },
+    "ParserSinkSpec" : {
+      "type" : "object"
+    },
+    "ParserSourceSpec" : {
+      "type" : "object"
+    },
+    "ParserUninterpretedOption" : {
+      "type" : "object"
+    },
+    "ReceiverQueueSize" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "value" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserReceiverQueueSize"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/ReceiverQueueSize"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "ReceiverQueueSizeOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "value" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "Resources" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "cpu" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserResources"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Resources"
+        },
+        "ram" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "disk" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "ResourcesOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "cpu" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "ram" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "disk" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "RetryDetails" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "maxMessageRetries" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "deadLetterTopic" : {
+          "type" : "string"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserRetryDetails"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/RetryDetails"
+        },
+        "deadLetterTopicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "RetryDetailsOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "maxMessageRetries" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "deadLetterTopic" : {
+          "type" : "string"
+        },
+        "deadLetterTopicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "ServiceDescriptor" : {
+      "type" : "object",
+      "properties" : {
+        "index" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "fullName" : {
+          "type" : "string"
+        },
+        "file" : {
+          "$ref" : "#/definitions/FileDescriptor"
+        },
+        "methods" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/MethodDescriptor"
+          }
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "options" : {
+          "$ref" : "#/definitions/ServiceOptions"
+        }
+      }
+    },
+    "ServiceOptions" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "deprecated" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserServiceOptions"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/ServiceOptions"
+        },
+        "uninterpretedOptionList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOption"
+          }
+        },
+        "uninterpretedOptionOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/UninterpretedOptionOrBuilder"
+          }
+        },
+        "uninterpretedOptionCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "allFieldsRaw" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "SinkInstanceStatus" : {
+      "type" : "object",
+      "properties" : {
+        "instanceId" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "status" : {
+          "$ref" : "#/definitions/SinkInstanceStatusData"
+        }
+      }
+    },
+    "SinkInstanceStatusData" : {
+      "type" : "object",
+      "properties" : {
+        "running" : {
+          "type" : "boolean"
+        },
+        "error" : {
+          "type" : "string"
+        },
+        "numRestarts" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numReadFromPulsar" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "numSystemExceptions" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "latestSystemExceptions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ExceptionInformation"
+          }
+        },
+        "numSinkExceptions" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "latestSinkExceptions" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/ExceptionInformation"
+          }
+        },
+        "numWrittenToSink" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "lastReceivedTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "workerId" : {
+          "type" : "string"
+        }
+      }
+    },
+    "SinkSpec" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "topic" : {
+          "type" : "string"
+        },
+        "schemaType" : {
+          "type" : "string"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserSinkSpec"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/SinkSpec"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "configs" : {
+          "type" : "string"
+        },
+        "configsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "typeClassName" : {
+          "type" : "string"
+        },
+        "typeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "topicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "serDeClassName" : {
+          "type" : "string"
+        },
+        "serDeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "builtin" : {
+          "type" : "string"
+        },
+        "builtinBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "schemaTypeBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "SinkSpecOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "className" : {
+          "type" : "string"
+        },
+        "topic" : {
+          "type" : "string"
+        },
+        "schemaType" : {
+          "type" : "string"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "configs" : {
+          "type" : "string"
+        },
+        "configsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "typeClassName" : {
+          "type" : "string"
+        },
+        "typeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "topicBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "serDeClassName" : {
+          "type" : "string"
+        },
+        "serDeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "builtin" : {
+          "type" : "string"
+        },
+        "builtinBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "schemaTypeBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "SinkStatus" : {
+      "type" : "object",
+      "properties" : {
+        "numInstances" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "numRunning" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "instances" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/SinkInstanceStatus"
+          }
+        }
+      }
+    },
+    "SourceSpec" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "className" : {
+          "type" : "string"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "topicsPattern" : {
+          "type" : "string"
+        },
+        "inputSpecs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/ConsumerSpec"
+          }
+        },
+        "timeoutMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "cleanupSubscription" : {
+          "type" : "boolean"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserSourceSpec"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/SourceSpec"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "configs" : {
+          "type" : "string"
+        },
+        "configsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "typeClassName" : {
+          "type" : "string"
+        },
+        "typeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "builtin" : {
+          "type" : "string"
+        },
+        "builtinBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "subscriptionTypeValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "subscriptionType" : {
+          "type" : "string",
+          "enum" : [ "SHARED", "FAILOVER", "UNRECOGNIZED" ]
+        },
+        "topicsToSerDeClassNameCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "topicsToSerDeClassName" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "topicsToSerDeClassNameMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "inputSpecsCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "inputSpecsMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/ConsumerSpec"
+          }
+        },
+        "topicsPatternBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "subscriptionName" : {
+          "type" : "string"
+        },
+        "subscriptionNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "SourceSpecOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "className" : {
+          "type" : "string"
+        },
+        "topicsPattern" : {
+          "type" : "string"
+        },
+        "inputSpecs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/ConsumerSpec"
+          }
+        },
+        "timeoutMs" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "cleanupSubscription" : {
+          "type" : "boolean"
+        },
+        "classNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "configs" : {
+          "type" : "string"
+        },
+        "configsBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "typeClassName" : {
+          "type" : "string"
+        },
+        "typeClassNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "builtin" : {
+          "type" : "string"
+        },
+        "builtinBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "subscriptionTypeValue" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "subscriptionType" : {
+          "type" : "string",
+          "enum" : [ "SHARED", "FAILOVER", "UNRECOGNIZED" ]
+        },
+        "topicsToSerDeClassNameCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "topicsToSerDeClassName" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "topicsToSerDeClassNameMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "inputSpecsCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "inputSpecsMap" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "$ref" : "#/definitions/ConsumerSpec"
+          }
+        },
+        "topicsPatternBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "subscriptionName" : {
+          "type" : "string"
+        },
+        "subscriptionNameBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "UninterpretedOption" : {
+      "type" : "object",
+      "properties" : {
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "nameCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "doubleValue" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "stringValue" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/ParserUninterpretedOption"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/UninterpretedOption"
+        },
+        "nameList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/NamePart"
+          }
+        },
+        "nameOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/NamePartOrBuilder"
+          }
+        },
+        "identifierValue" : {
+          "type" : "string"
+        },
+        "identifierValueBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "positiveIntValue" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "negativeIntValue" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "aggregateValue" : {
+          "type" : "string"
+        },
+        "aggregateValueBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        }
+      }
+    },
+    "UninterpretedOptionOrBuilder" : {
+      "type" : "object",
+      "properties" : {
+        "nameCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "doubleValue" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "stringValue" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "nameList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/NamePart"
+          }
+        },
+        "nameOrBuilderList" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/NamePartOrBuilder"
+          }
+        },
+        "identifierValue" : {
+          "type" : "string"
+        },
+        "identifierValueBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "positiveIntValue" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "negativeIntValue" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "aggregateValue" : {
+          "type" : "string"
+        },
+        "aggregateValueBytes" : {
+          "$ref" : "#/definitions/ByteString"
+        },
+        "allFields" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        },
+        "initializationErrorString" : {
+          "type" : "string"
+        },
+        "descriptorForType" : {
+          "$ref" : "#/definitions/Descriptor"
+        },
+        "unknownFields" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/Message"
+        },
+        "initialized" : {
+          "type" : "boolean"
+        }
+      }
+    },
+    "UnknownFieldSet" : {
+      "type" : "object",
+      "properties" : {
+        "initialized" : {
+          "type" : "boolean"
+        },
+        "serializedSize" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "parserForType" : {
+          "$ref" : "#/definitions/Parser"
+        },
+        "defaultInstanceForType" : {
+          "$ref" : "#/definitions/UnknownFieldSet"
+        },
+        "serializedSizeAsMessageSet" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    }
+  }
+}

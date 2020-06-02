@@ -330,7 +330,7 @@ In order to better describe their differences, assuming you have a topic named "
 ```java
 Producer<String> producer = client.newProducer(Schema.STRING)
         .topic("my-topic")
-        .enableBatch(false)
+        .enableBatching(false)
         .create();
 // 3 messages with "key-1", 3 messages with "key-2", 2 messages with "key-3" and 2 messages with "key-4"
 producer.newMessage().key("key-1").value("message-1-1").send();
@@ -453,7 +453,7 @@ consumer 2 will receive:
 
 `Shared` subscription is different from `Exclusive` and `Failover` subscription modes. `Shared` subscription has better flexibility, but cannot provide order guarantee.
 
-#### Key_shared
+#### Key_Shared
 
 This is a new subscription mode since 2.4.0 release, create new consumers and subscribe with `Key_Shared` subscription mode:
 

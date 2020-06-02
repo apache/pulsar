@@ -37,12 +37,13 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
-    String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
+    String serviceUrl;
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+        serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
     }
 
     @AfterClass
@@ -68,11 +69,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         client.close();
+        eventLoop.shutdownGracefully();
     }
 
     @Test
     public void testDoubleIpAddress() throws Exception {
-        String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
+        String serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
 
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
@@ -90,5 +92,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         // Create producer should succeed by trying the 2nd IP
         client.newProducer().topic("persistent://sample/standalone/ns/my-topic").create();
         client.close();
+
+        eventLoop.shutdownGracefully();
     }
 }

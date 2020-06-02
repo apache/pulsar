@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -27,16 +27,22 @@ import java.sql.Timestamp;
 /**
  * A schema for `java.sql.Timestamp`.
  */
-public class TimestampSchema implements Schema<Timestamp> {
+public class TimestampSchema extends AbstractSchema<Timestamp> {
+
+   private static final TimestampSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Timestamp")
+             .setType(SchemaType.TIMESTAMP)
+             .setSchema(new byte[0]);
+       INSTANCE = new TimestampSchema();
+   }
+
    public static TimestampSchema of() {
       return INSTANCE;
    }
-
-   private static final TimestampSchema INSTANCE = new TimestampSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Timestamp")
-         .setType(SchemaType.TIMESTAMP)
-         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Timestamp message) {
@@ -55,6 +61,16 @@ public class TimestampSchema implements Schema<Timestamp> {
       }
 
       Long decode = LongSchema.of().decode(bytes);
+      return new Timestamp(decode);
+   }
+
+   @Override
+   public Timestamp decode(ByteBuf byteBuf) {
+      if (null == byteBuf) {
+         return null;
+      }
+
+      Long decode = LongSchema.of().decode(byteBuf);
       return new Timestamp(decode);
    }
 

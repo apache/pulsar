@@ -178,6 +178,16 @@ admin.nonPersistentTopics().getInternalStats(topic);
 
 Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.
 
+> #### Note
+>
+> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+>
+> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
+>
+> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+>
+> For more information about these two parameters, see [here](reference-configuration.md#broker).
+
 #### pulsar-admin
 
 ```shell

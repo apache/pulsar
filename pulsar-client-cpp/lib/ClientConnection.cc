@@ -111,6 +111,12 @@ static Result getResult(ServerError serverError) {
 
         case ConsumerAssignError:
             return ResultConsumerAssignError;
+
+        case TransactionCoordinatorNotFound:
+            return ResultTransactionCoordinatorNotFoundError;
+
+        case InvalidTxnStatus:
+            return ResultInvalidTxnStatusError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -136,14 +142,14 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       serverProtocolVersion_(ProtocolVersion_MIN),
       maxMessageSize_(Commands::DefaultMaxMessageSize),
       executor_(executor),
-      resolver_(executor->createTcpResolver()),
-      socket_(executor->createSocket()),
+      resolver_(executor_->createTcpResolver()),
+      socket_(executor_->createSocket()),
 #if BOOST_VERSION >= 107000
-      strand_(boost::asio::make_strand(executor_->io_service_.get_executor())),
+      strand_(boost::asio::make_strand(executor_->io_service_->get_executor())),
 #elif BOOST_VERSION >= 106600
-      strand_(executor_->io_service_.get_executor()),
+      strand_(executor_->io_service_->get_executor()),
 #else
-      strand_(executor_->io_service_),
+      strand_(*(executor_->io_service_)),
 #endif
       logicalAddress_(logicalAddress),
       physicalAddress_(physicalAddress),
@@ -222,7 +228,7 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
             }
         }
 
-        tlsSocket_ = executor->createTlsSocket(socket_, ctx);
+        tlsSocket_ = executor_->createTlsSocket(socket_, ctx);
     }
 }
 
@@ -247,9 +253,10 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 
     if (serverProtocolVersion_ >= v1) {
         // Only send keep-alive probes if the broker supports it
-        keepAliveTimer_ = executor_->createDeadlineTimer();
-        keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
-        keepAliveTimer_->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        DeadlineTimerPtr keepAliveTimer = executor_->createDeadlineTimer();
+        keepAliveTimer->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
+        keepAliveTimer->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        keepAliveTimer_ = keepAliveTimer;
     }
 
     if (serverProtocolVersion_ >= v8) {
@@ -278,10 +285,14 @@ void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerSta
          it != pendingConsumerStatsMap_.end(); ++it) {
         consumerStatsRequests.push_back(it->first);
     }
-    consumerStatsRequestTimer_->expires_from_now(operationsTimeout_);
-    consumerStatsRequestTimer_->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout,
-                                                     shared_from_this(), std::placeholders::_1,
-                                                     consumerStatsRequests));
+
+    DeadlineTimerPtr timer = consumerStatsRequestTimer_;
+    if (timer) {
+        timer->expires_from_now(operationsTimeout_);
+        timer->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout, shared_from_this(),
+                                    std::placeholders::_1, consumerStatsRequests));
+    }
+
     lock.unlock();
     // Complex logic since promises need to be fulfilled outside the lock
     for (int i = 0; i < consumerStatsPromises.size(); i++) {
@@ -401,6 +412,15 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
 
     // Schedule the reading of CONNECTED command from broker
     readNextCommand();
+}
+
+void ClientConnection::handleSentAuthResponse(const boost::system::error_code& err,
+                                              const SharedBuffer& buffer) {
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to send auth response: " << err.message());
+        close();
+        return;
+    }
 }
 
 /*
@@ -669,9 +689,12 @@ void ClientConnection::handleIncomingCommand() {
                     const CommandSendReceipt& sendReceipt = incomingCmd_.send_receipt();
                     int producerId = sendReceipt.producer_id();
                     uint64_t sequenceId = sendReceipt.sequence_id();
+                    const proto::MessageIdData& messageIdData = sendReceipt.message_id();
+                    MessageId messageId = MessageId(messageIdData.partition(), messageIdData.ledgerid(),
+                                                    messageIdData.entryid(), messageIdData.batch_index());
 
                     LOG_DEBUG(cnxString_ << "Got receipt for producer: " << producerId
-                                         << " -- msg: " << sequenceId);
+                                         << " -- msg: " << sequenceId << "-- message id: " << messageId);
 
                     Lock lock(mutex_);
                     ProducersMap::iterator it = producers_.find(producerId);
@@ -680,7 +703,7 @@ void ClientConnection::handleIncomingCommand() {
                         lock.unlock();
 
                         if (producer) {
-                            if (!producer->ackReceived(sequenceId)) {
+                            if (!producer->ackReceived(sequenceId, messageId)) {
                                 // If the producer fails to process the ack, we need to close the connection
                                 // to give it a chance to recover from there
                                 close();
@@ -1012,6 +1035,15 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::AUTH_CHALLENGE: {
+                    LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
+
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    asyncWrite(buffer.const_asio_buffer(),
+                               std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
+                                         std::placeholders::_1, buffer));
+                }
+
                 case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
                     LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
                     // ignore this message for now.
@@ -1325,6 +1357,9 @@ void ClientConnection::handleConsumerStatsTimeout(const boost::system::error_cod
 
 void ClientConnection::close() {
     Lock lock(mutex_);
+    if (isClosed()) {
+        return;
+    }
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
@@ -1338,11 +1373,14 @@ void ClientConnection::close() {
 
     if (keepAliveTimer_) {
         keepAliveTimer_->cancel();
+        keepAliveTimer_.reset();
     }
 
     if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->cancel();
+        consumerStatsRequestTimer_.reset();
     }
+
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
         HandlerBase::handleDisconnection(ResultConnectError, shared_from_this(), it->second);
     }
@@ -1381,6 +1419,10 @@ void ClientConnection::close() {
 
     if (tlsSocket_) {
         tlsSocket_->lowest_layer().close();
+    }
+
+    if (executor_) {
+        executor_.reset();
     }
 }
 

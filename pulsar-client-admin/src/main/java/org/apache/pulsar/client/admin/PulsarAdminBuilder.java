@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
@@ -38,7 +39,7 @@ public interface PulsarAdminBuilder {
 
     /**
      * Create a copy of the current client builder.
-     * <p>
+     * <p/>
      * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
      * example:
      *
@@ -59,9 +60,9 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
      * <pre>
      * <code>
@@ -88,12 +89,11 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
-     * <pre>
-     * <code>
+     * <pre>{@code
      * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
      *
      * Map<String, String> conf = new TreeMap<>();
@@ -105,7 +105,8 @@ public interface PulsarAdminBuilder {
      *          .authentication(AUTH_CLASS, conf)
      *          .build();
      * ....
-     * </code>
+     * }
+     * </pre>
      *
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
@@ -119,12 +120,11 @@ public interface PulsarAdminBuilder {
 
     /**
      * Set the authentication provider to use in the Pulsar admin instance.
-     * <p>
+     * <p/>
      * Example:
-     * <p>
+     * <p/>
      *
-     * <pre>
-     * <code>
+     * <pre>{@code
      * String AUTH_CLASS = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
      *
      * Map<String, String> conf = new TreeMap<>();
@@ -138,7 +138,7 @@ public interface PulsarAdminBuilder {
      *          .authentication(auth)
      *          .build();
      * ....
-     * </code>
+     * }
      * </pre>
      *
      * @param authentication
@@ -147,14 +147,14 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder authentication(Authentication authentication);
 
     /**
-     * Set the path to the trusted TLS certificate file
+     * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
      */
     PulsarAdminBuilder tlsTrustCertsFilePath(String tlsTrustCertsFilePath);
 
     /**
-     * Configure whether the Pulsar admin client accept untrusted TLS certificate from broker <i>(default: false)</i>
+     * Configure whether the Pulsar admin client accept untrusted TLS certificate from broker <i>(default: false)</i>.
      *
      * @param allowTlsInsecureConnection
      */
@@ -172,7 +172,64 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
 
     /**
-     * This sets the connection time out for the pulsar admin client
+     * If Tls is enabled, whether use KeyStore type as tls configuration parameter.
+     * False means use default pem type configuration.
+     *
+     * @param useKeyStoreTls
+     */
+    PulsarAdminBuilder useKeyStoreTls(boolean useKeyStoreTls);
+
+    /**
+     * The name of the security provider used for SSL connections.
+     * Default value is the default security provider of the JVM.
+     *
+     * @param sslProvider
+     */
+    PulsarAdminBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the trust store file.
+     *
+     * @param tlsTrustStoreType
+     */
+    PulsarAdminBuilder tlsTrustStoreType(String tlsTrustStoreType);
+
+    /**
+     * The location of the trust store file.
+     *
+     * @param tlsTrustStorePath
+     */
+    PulsarAdminBuilder tlsTrustStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsTrustStorePassword
+     * @return the client builder instance
+     */
+    PulsarAdminBuilder tlsTrustStorePassword(String tlsTrustStorePassword);
+
+    /**
+     * A list of cipher suites.
+     * This is a named combination of authentication, encryption, MAC and key exchange algorithm
+     * used to negotiate the security settings for a network connection using TLS or SSL network protocol.
+     * By default all the available cipher suites are supported.
+     *
+     * @param tlsCiphers
+     */
+    PulsarAdminBuilder tlsCiphers(Set<String> tlsCiphers);
+
+    /**
+     * The SSL protocol used to generate the SSLContext.
+     * Default setting is TLS, which is fine for most cases.
+     * Allowed values in recent JVMs are TLS, TLSv1.1 and TLSv1.2. SSL, SSLv2.
+     *
+     * @param tlsProtocols
+     */
+    PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols);
+
+    /**
+     * This sets the connection time out for the pulsar admin client.
      *
      * @param connectionTimeout
      * @param connectionTimeoutUnit

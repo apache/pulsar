@@ -22,6 +22,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Bookie information.
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

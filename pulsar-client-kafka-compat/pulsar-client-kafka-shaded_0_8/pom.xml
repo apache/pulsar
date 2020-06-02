@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<project
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.apache.pulsar</groupId>
+    <artifactId>pulsar-client-kafka-compat</artifactId>
+    <version>2.6.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
+
+  <artifactId>pulsar-client-kafka_0_8</artifactId>
+  <name>Pulsar Kafka compatibility 0.8 :: API</name>
+
+  <description>Drop-in replacement for Kafka client library that publishes and consumes
+  messages on Pulsar topics</description>
+
+  <properties>
+     <kafka_0_8.version>0.8.1.1</kafka_0_8.version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-kafka_0_8-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <createDependencyReducedPom>true</createDependencyReducedPom>
+              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+              <artifactSet>
+                <includes>
+                  <include>org.apache.kafka:kafka_2.9.2</include>
+                  <include>org.apache.pulsar:pulsar-client-kafka_0_8-original</include>
+                  <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.commons:commons-lang3</include>
+                  <include>commons-codec:commons-codec</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <include>commons-collections:commons-collections</include>
+                  <include>org.asynchttpclient:*</include>
+                  <include>io.netty:netty-codec-http</include>
+                  <include>io.netty:netty-transport-native-epoll</include>
+                  <include>org.reactivestreams:reactive-streams</include>
+                  <include>com.typesafe.netty:netty-reactive-streams</include>
+                  <include>org.javassist:javassist</include>
+                  <include>com.google.protobuf:protobuf-java</include>
+                  <include>com.google.guava:guava</include>
+                  <include>com.google.code.gson:gson</include>
+                  <include>com.fasterxml.jackson.core</include>
+                  <include>com.fasterxml.jackson.module</include>
+                  <include>com.fasterxml.jackson.dataformat</include>
+                  <include>io.netty:netty</include>
+                  <include>io.netty:netty-*</include>
+                  <include>org.apache.pulsar:pulsar-common</include>
+                  <include>org.apache.bookkeeper:circe-checksum</include>
+                  <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>commons-logging:commons-logging</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
+                  <include>org.eclipse.jetty:*</include>
+                  <include>com.yahoo.datasketches:*</include>
+                  <include>commons-*:*</include>
+                  <include>org.yaml:snakeyaml</include>
+                  <include>org.objenesis:*</include>
+
+                  <include>org.apache.avro:*</include>
+                  <!-- Avro transitive dependencies-->
+                  <include>org.codehaus.jackson:jackson-core-asl</include>
+                  <include>org.codehaus.jackson:jackson-mapper-asl</include>
+                  <include>com.thoughtworks.paranamer:paranamer</include>
+                  <include>org.apache.commons:commons-compress</include>
+                  <include>org.tukaani:xz</include>
+                </includes>
+              </artifactSet>
+               <filters>
+                 <filter>
+                   <artifact>commons-logging:commons-logging</artifact>
+                   <includes>
+                       <include>**</include>
+                   </includes>
+                 </filter>
+                 <filter>
+                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                   <includes>
+                     <include>**</include>
+                   </includes>
+                 </filter>
+              </filters>
+              <relocations>
+                <relocation>
+                  <pattern>kafka.javaapi.producer.Producer</pattern>
+                  <shadedPattern>kafka.javaapi.producer.OriginalProducer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.producer.PulsarKafkaProducer</pattern>
+                  <shadedPattern>kafka.javaapi.producer.Producer</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.consumer.ConsumerConnector</pattern>
+                  <shadedPattern>kafka.javaapi.consumer.OriginalConsumerConnector</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.ConsumerConnector</pattern>
+                  <shadedPattern>kafka.javaapi.consumer.ConsumerConnector</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.consumer.KafkaStream</pattern>
+                  <shadedPattern>kafka.consumer.OriginalKafkaStream</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.PulsarKafkaStream</pattern>
+                  <shadedPattern>kafka.consumer.KafkaStream</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.message.MessageAndMetadata</pattern>
+                  <shadedPattern>kafka.message.OriginalMessageAndMetadata</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.PulsarMessageAndMetadata</pattern>
+                  <shadedPattern>kafka.message.MessageAndMetadata</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.consumer.ConsumerIterator</pattern>
+                  <shadedPattern>kafka.consumer.OriginalConsumerIterator</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.ConsumerIterator</pattern>
+                  <shadedPattern>kafka.consumer.ConsumerIterator</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.consumer.Consumer</pattern>
+                  <shadedPattern>kafka.consumer.OriginalConsumer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.PulsarKafkaConsumer</pattern>
+                  <shadedPattern>kafka.consumer.Consumer</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>org.apache.kafka.clients.consumer.PulsarConsumerConfig</pattern>
+                  <shadedPattern>kafka.consumer.ConsumerConfig</shadedPattern>
+                </relocation>
+                
+                <!-- low-level consumer -->
+                <relocation>
+                  <pattern>kafka.javaapi.consumer.SimpleConsumer</pattern>
+                  <shadedPattern>kafka.javaapi.consumer.OriginalSimpleConsumer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarKafkaSimpleConsumer</pattern>
+                  <shadedPattern>kafka.javaapi.consumer.SimpleConsumer</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetFetchResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetFetchResponse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetFetchResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetFetchResponse</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetFetchRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetFetchRequest</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetFetchRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetFetchRequest</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetCommitRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetCommitRequest</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetCommitRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetCommitRequest</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.FetchResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalFetchResponse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarFetchResponse</pattern>
+                  <shadedPattern>kafka.javaapi.FetchResponse</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.message.MessageAndOffset</pattern>
+                  <shadedPattern>kafka.message.MessageAndOffset</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.message.ByteBufferMessageSet</pattern>
+                  <shadedPattern>kafka.javaapi.message.OriginalByteBufferMessageSet</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarByteBufferMessageSet</pattern>
+                  <shadedPattern>kafka.javaapi.message.ByteBufferMessageSet</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.message.Message</pattern>
+                  <shadedPattern>kafka.message.OriginalMessage</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarMessage</pattern>
+                  <shadedPattern>kafka.message.Message</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.TopicMetadataResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalTopicMetadataResponse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarTopicMetadataResponse</pattern>
+                  <shadedPattern>kafka.javaapi.TopicMetadataResponse</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetCommitResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetCommitResponse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetCommitResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetCommitResponse</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                 <pattern>kafka.common.OffsetMetadataAndError</pattern>
+                  <shadedPattern>kafka.common.OriginalOffsetMetadataAndError</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetMetadataAndError</pattern>
+                  <shadedPattern>kafka.common.OffsetMetadataAndError</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetResponse</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetResponse</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetResponse</shadedPattern>
+                </relocation>
+                
+                <relocation>
+                  <pattern>kafka.javaapi.OffsetRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OriginalOffsetRequest</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.kafka.clients.simple.consumer.PulsarOffsetRequest</pattern>
+                  <shadedPattern>kafka.javaapi.OffsetRequest</shadedPattern>
+                </relocation>
+                
+                
+                <!-- General relocation rules for Pulsar client dependencies -->
+
+                <relocation>
+                  <pattern>org.asynchttpclient</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.datasketches</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.sketches</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.http</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
+                </relocation>
+                <relocation>
+                   <pattern>org.eclipse.jetty</pattern>
+                   <shadedPattern>org.apache.pulsar.shade.org.eclipse</shadedPattern>
+                </relocation>
+                <relocation>
+                   <pattern>org.reactivestreams</pattern>
+                   <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.typesafe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.memory</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.memory</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.objenesis</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.objenesis</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.avro</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
+                  <excludes>
+                    <exclude>org.apache.avro.reflect.AvroAlias</exclude>
+                    <exclude>org.apache.avro.reflect.AvroDefault</exclude>
+                    <exclude>org.apache.avro.reflect.AvroEncode</exclude>
+                    <exclude>org.apache.avro.reflect.AvroIgnore</exclude>
+                    <exclude>org.apache.avro.reflect.AvroMeta</exclude>
+                    <exclude>org.apache.avro.reflect.AvroName</exclude>
+                    <exclude>org.apache.avro.reflect.AvroSchema</exclude>
+                    <exclude>org.apache.avro.reflect.Nullable</exclude>
+                    <exclude>org.apache.avro.reflect.Stringable</exclude>
+                    <exclude>org.apache.avro.reflect.Union</exclude>
+                  </excludes>
+                </relocation>
+                <!--Avro transitive dependencies-->
+                <relocation>
+                  <pattern>org.codehaus.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.codehaus.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.thoughtworks.paranamer</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.tukaani</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
+                </relocation>
+              </relocations>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- This plugin is used to run a script after the package phase in order to rename
+            libnetty_transport_native_epoll_x86_64.so from Netty into
+            liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so
+            to reflect the shade that is being applied.
+         -->
+        <artifactId>exec-maven-plugin</artifactId>
+        <groupId>org.codehaus.mojo</groupId>
+        <executions>
+          <execution>
+            <id>rename-epoll-library</id>
+            <phase>package</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${project.parent.basedir}/../src/${rename.netty.native.libs}</executable>
+              <arguments>
+                <argument>${project.artifactId}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

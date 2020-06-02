@@ -21,9 +21,19 @@ package org.apache.pulsar.client.impl.schema.reader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 
+/**
+ * Reader implementation for reading objects from JSON.
+ *
+ * @param <T> object type to read
+ * @deprecated use {@link JacksonJsonReader} instead.
+ */
+@Deprecated
 public class JsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectMapper objectMapper;
@@ -34,11 +44,28 @@ public class JsonReader<T> implements SchemaReader<T> {
     }
 
     @Override
-    public T read(byte[] bytes) {
+    public T read(byte[] bytes, int offset, int length) {
         try {
-            return objectMapper.readValue(bytes, this.pojo);
+            return objectMapper.readValue(bytes, offset, length, this.pojo);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }
     }
+
+    @Override
+    public T read(InputStream inputStream) {
+        try {
+            return objectMapper.readValue(inputStream, pojo);
+        } catch (IOException e) {
+            throw new SchemaSerializationException(e);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("JsonReader close inputStream close error", e);
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(JsonReader.class);
 }

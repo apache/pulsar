@@ -26,6 +26,7 @@ import com.facebook.presto.spi.type.IntegerType;
 import com.facebook.presto.spi.type.RealType;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.VarcharType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -71,6 +72,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -92,7 +94,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-@Test(singleThreaded = true)
 public abstract class TestPulsarConnector {
 
     protected static final long currentTimeMs = 1534806330000L;
@@ -117,6 +118,7 @@ public abstract class TestPulsarConnector {
     protected static Map<String, SchemaInfo> topicsToSchemas;
     protected static Map<String, Long> topicsToNumEntries;
 
+    private final static ObjectMapper objectMapper = new ObjectMapper();
 
     protected static final NamespaceName NAMESPACE_NAME_1 = NamespaceName.get("tenant-1", "ns-1");
     protected static final NamespaceName NAMESPACE_NAME_2 = NamespaceName.get("tenant-1", "ns-2");
@@ -129,6 +131,9 @@ public abstract class TestPulsarConnector {
     protected static final TopicName TOPIC_4 = TopicName.get("persistent", NAMESPACE_NAME_3, "topic-1");
     protected static final TopicName TOPIC_5 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-1");
     protected static final TopicName TOPIC_6 = TopicName.get("persistent", NAMESPACE_NAME_4, "topic-2");
+    protected static final TopicName NON_SCHEMA_TOPIC = TopicName.get(
+        "persistent", NAMESPACE_NAME_2, "non-schema-topic");
+
 
     protected static final TopicName PARTITIONED_TOPIC_1 = TopicName.get("persistent", NAMESPACE_NAME_1,
             "partitioned-topic-1");
@@ -207,6 +212,7 @@ public abstract class TestPulsarConnector {
             topicNames.add(TOPIC_4);
             topicNames.add(TOPIC_5);
             topicNames.add(TOPIC_6);
+            topicNames.add(NON_SCHEMA_TOPIC);
 
             partitionedTopicNames = new LinkedList<>();
             partitionedTopicNames.add(PARTITIONED_TOPIC_1);
@@ -215,6 +221,7 @@ public abstract class TestPulsarConnector {
             partitionedTopicNames.add(PARTITIONED_TOPIC_4);
             partitionedTopicNames.add(PARTITIONED_TOPIC_5);
             partitionedTopicNames.add(PARTITIONED_TOPIC_6);
+
 
             partitionedTopicsToPartitions = new HashMap<>();
             partitionedTopicsToPartitions.put(PARTITIONED_TOPIC_1.toString(), 2);
@@ -270,6 +277,8 @@ public abstract class TestPulsarConnector {
             topicsToNumEntries.put(TOPIC_4.getSchemaName(), 12345L);
             topicsToNumEntries.put(TOPIC_5.getSchemaName(), 8000L);
             topicsToNumEntries.put(TOPIC_6.getSchemaName(), 1L);
+
+            topicsToNumEntries.put(NON_SCHEMA_TOPIC.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_1.getSchemaName(), 1233L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_2.getSchemaName(), 8000L);
             topicsToNumEntries.put(PARTITIONED_TOPIC_3.getSchemaName(), 100L);
@@ -291,7 +300,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fooFieldNames.get("field1"),
-                    fooPositionIndices.get("field1")));
+                    fooPositionIndices.get("field1"), null));
 
 
             String[] fieldNames2 = {"field2"};
@@ -304,7 +313,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames2,
-                    positionIndices2));
+                    positionIndices2, null));
 
             String[] fieldNames3 = {"field3"};
             Integer[] positionIndices3 = {2};
@@ -316,7 +325,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames3,
-                    positionIndices3));
+                    positionIndices3,  null));
 
             String[] fieldNames4 = {"field4"};
             Integer[] positionIndices4 = {3};
@@ -328,7 +337,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames4,
-                    positionIndices4));
+                    positionIndices4, null));
 
 
             String[] fieldNames5 = {"field5"};
@@ -341,7 +350,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames5,
-                    positionIndices5));
+                    positionIndices5, null));
 
             String[] fieldNames6 = {"field6"};
             Integer[] positionIndices6 = {5};
@@ -353,7 +362,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames6,
-                    positionIndices6));
+                    positionIndices6, null));
 
             String[] fieldNames7 = {"timestamp"};
             Integer[] positionIndices7 = {6};
@@ -365,7 +374,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames7,
-                    positionIndices7));
+                    positionIndices7, null));
 
             String[] fieldNames8 = {"time"};
             Integer[] positionIndices8 = {7};
@@ -377,7 +386,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames8,
-                    positionIndices8));
+                    positionIndices8, null));
 
             String[] fieldNames9 = {"date"};
             Integer[] positionIndices9 = {8};
@@ -389,7 +398,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames9,
-                    positionIndices9));
+                    positionIndices9, null));
 
             String[] bar_fieldNames1 = {"bar", "field1"};
             Integer[] bar_positionIndices1 = {9, 0};
@@ -401,7 +410,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_fieldNames1,
-                    bar_positionIndices1));
+                    bar_positionIndices1, null));
 
             String[] bar_fieldNames2 = {"bar", "field2"};
             Integer[] bar_positionIndices2 = {9, 1};
@@ -413,7 +422,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_fieldNames2,
-                    bar_positionIndices2));
+                    bar_positionIndices2, null));
 
             String[] bar_test_fieldNames4 = {"bar", "test", "field4"};
             Integer[] bar_test_positionIndices4 = {9, 2, 0};
@@ -425,7 +434,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames4,
-                    bar_test_positionIndices4));
+                    bar_test_positionIndices4, null));
 
             String[] bar_test_fieldNames5 = {"bar", "test", "field5"};
             Integer[] bar_test_positionIndices5 = {9, 2, 1};
@@ -437,7 +446,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames5,
-                    bar_test_positionIndices5));
+                    bar_test_positionIndices5, null));
 
             String[] bar_test_fieldNames6 = {"bar", "test", "field6"};
             Integer[] bar_test_positionIndices6 = {9, 2, 2};
@@ -449,7 +458,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_fieldNames6,
-                    bar_test_positionIndices6));
+                    bar_test_positionIndices6, null));
 
             String[] bar_test_foobar_fieldNames1 = {"bar", "test", "foobar", "field1"};
             Integer[] bar_test_foobar_positionIndices1 = {9, 2, 6, 0};
@@ -461,7 +470,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test_foobar_fieldNames1,
-                    bar_test_foobar_positionIndices1));
+                    bar_test_foobar_positionIndices1, null));
 
             String[] bar_field3 = {"bar", "field3"};
             Integer[] bar_positionIndices3 = {9, 3};
@@ -473,7 +482,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_field3,
-                    bar_positionIndices3));
+                    bar_positionIndices3, null));
 
             String[] bar_test2_fieldNames4 = {"bar", "test2", "field4"};
             Integer[] bar_test2_positionIndices4 = {9, 4, 0};
@@ -485,7 +494,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames4,
-                    bar_test2_positionIndices4));
+                    bar_test2_positionIndices4, null));
 
             String[] bar_test2_fieldNames5 = {"bar", "test2", "field5"};
             Integer[] bar_test2_positionIndices5 = {9, 4, 1};
@@ -497,7 +506,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames5,
-                    bar_test2_positionIndices5));
+                    bar_test2_positionIndices5, null));
 
             String[] bar_test2_fieldNames6 = {"bar", "test2", "field6"};
             Integer[] bar_test2_positionIndices6 = {9, 4, 2};
@@ -509,7 +518,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_fieldNames6,
-                    bar_test2_positionIndices6));
+                    bar_test2_positionIndices6, null));
 
             String[] bar_test2_foobar_fieldNames1 = {"bar", "test2", "foobar", "field1"};
             Integer[] bar_test2_foobar_positionIndices1 = {9, 4, 6, 0};
@@ -521,7 +530,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     bar_test2_foobar_fieldNames1,
-                    bar_test2_foobar_positionIndices1));
+                    bar_test2_foobar_positionIndices1, null));
 
             String[] fieldNames10 = {"field7"};
             Integer[] positionIndices10 = {10};
@@ -533,7 +542,7 @@ public abstract class TestPulsarConnector {
                     false,
                     false,
                     fieldNames10,
-                    positionIndices10));
+                    positionIndices10, null));
 
             fooColumnHandles.addAll(PulsarInternalColumn.getInternalFields().stream()
                 .map(pulsarInternalColumn -> pulsarInternalColumn.getColumnHandle(pulsarConnectorId.toString(), false))
@@ -546,13 +555,17 @@ public abstract class TestPulsarConnector {
             allTopics.addAll(partitionedTopicNames);
 
             for (TopicName topicName : allTopics) {
-                splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
-                        topicName.getNamespace(), topicName.getLocalName(),
+                if (topicsToSchemas.containsKey(topicName.getSchemaName())) {
+                    splits.put(topicName, new PulsarSplit(0, pulsarConnectorId.toString(),
+                        topicName.getNamespace(), topicName.getLocalName(), topicName.getLocalName(),
                         topicsToNumEntries.get(topicName.getSchemaName()),
                         new String(topicsToSchemas.get(topicName.getSchemaName()).getSchema()),
                         topicsToSchemas.get(topicName.getSchemaName()).getType(),
                         0, topicsToNumEntries.get(topicName.getSchemaName()),
-                        0, 0, TupleDomain.all(), new HashMap<>()));
+                        0, 0, TupleDomain.all(),
+                            objectMapper.writeValueAsString(
+                                    topicsToSchemas.get(topicName.getSchemaName()).getProperties()), null));
+                }
             }
 
             fooFunctions = new HashMap<>();
@@ -591,7 +604,6 @@ public abstract class TestPulsarConnector {
         } catch (Throwable e) {
             System.out.println("Error: " + e);
             System.out.println("Stacktrace: " + Arrays.asList(e.getStackTrace()));
-            throw e;
         }
     }
 
@@ -649,9 +661,15 @@ public abstract class TestPulsarConnector {
     }
 
     protected static List<String> getTopics(String ns) {
-        return topicNames.stream()
+        List<String> topics = new ArrayList<>(topicNames.stream()
             .filter(topicName -> topicName.getNamespace().equals(ns))
-            .map(TopicName::toString).collect(Collectors.toList());
+            .map(TopicName::toString).collect(Collectors.toList()));
+        partitionedTopicNames.stream().filter(topicName -> topicName.getNamespace().equals(ns)).forEach(topicName -> {
+            for (Integer i = 0; i < partitionedTopicsToPartitions.get(topicName.toString()); i++) {
+                topics.add(TopicName.get(topicName + "-partition-" + i).toString());
+            }
+        });
+        return topics;
     }
 
     protected static List<String> getPartitionedTopics(String ns) {
@@ -732,7 +750,11 @@ public abstract class TestPulsarConnector {
             public SchemaInfo answer(InvocationOnMock invocationOnMock) throws Throwable {
                 Object[] args = invocationOnMock.getArguments();
                 String topic = (String) args[0];
-                return topicsToSchemas.get(topic);
+                if (topicsToSchemas.get(topic) != null) {
+                    return topicsToSchemas.get(topic);
+                } else {
+                    throw new PulsarAdminException(new ClientErrorException(Response.status(404).build()));
+                }
             }
         });
 

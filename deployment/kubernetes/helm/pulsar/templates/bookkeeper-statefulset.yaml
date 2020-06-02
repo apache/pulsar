@@ -17,25 +17,21 @@
 # under the License.
 #
 
+{{- if .Values.components.bookkeeper }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.bookkeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 spec:
   serviceName: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
   replicas: {{ .Values.bookkeeper.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "pulsar.name" . }}
-      release: {{ .Release.Name }}
+      {{- include "pulsar.matchLabels" . | nindent 6 }}
       component: {{ .Values.bookkeeper.component }}
   updateStrategy:
 {{ toYaml .Values.bookkeeper.updateStrategy | indent 4 }}
@@ -43,12 +39,14 @@ spec:
   template:
     metadata:
       labels:
-        app: {{ template "pulsar.name" . }}
-        release: {{ .Release.Name }}
+        {{- include "pulsar.template.labels" . | nindent 8 }}
         component: {{ .Values.bookkeeper.component }}
-        cluster: {{ template "pulsar.fullname" . }}
       annotations:
-{{ toYaml .Values.bookkeeper.annotations | indent 8 }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.bookkeeper.ports.http }}"
+{{- with .Values.bookkeeper.annotations }}
+{{ toYaml . | indent 8 }}
+{{- end }}
     spec:
     {{- if .Values.bookkeeper.nodeSelector }}
       nodeSelector:
@@ -59,6 +57,7 @@ spec:
 {{ toYaml .Values.bookkeeper.tolerations | indent 8 }}
     {{- end }}
       affinity:
+        {{- if and .Values.affinity.anti_affinity .Values.bookkeeper.affinity.anti_affinity}}
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
           - labelSelector:
@@ -76,36 +75,55 @@ spec:
                 values:
                 - {{ .Values.bookkeeper.component }}
             topologyKey: "kubernetes.io/hostname"
+        {{- end }}
       terminationGracePeriodSeconds: {{ .Values.bookkeeper.gracePeriod }}
       initContainers:
-      # This init container will wait for zookeeper to be ready before
-      # deploying the bookies
-      - name: wait-zookeeper-ready
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+      # This initContainer will wait for bookkeeper initnewcluster to complete
+      # before deploying the bookies
+      - name: pulsar-bookkeeper-verify-clusterid
+        image: "{{ .Values.images.bookie.repository }}:{{ .Values.images.bookie.tag }}"
+        imagePullPolicy: {{ .Values.images.bookie.pullPolicy }}
         command: ["sh", "-c"]
         args:
-          - >-
-            until bin/pulsar zookeeper-shell -server {{ template "pulsar.fullname" . }}-{{ .Values.zookeeper.component }} ls /admin/clusters/{{ template "pulsar.fullname" . }}; do
-              sleep 3;
-            done;
-      # This initContainer will make sure that the bookeeper
-      # metadata is in zookeeper
-      - name: pulsar-bookkeeper-metaformat
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        command: ["sh", "-c"]
-        args:
+        # only reformat bookie if bookkeeper is running without persistence
         - >
-          bin/apply-config-from-env.py conf/bookkeeper.conf &&
-          bin/bookkeeper shell metaformat --nonInteractive || true;
+          {{- include "pulsar.bookkeeper.init.verify_cluster_id" . | nindent 10 }}
         envFrom:
         - configMapRef:
             name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
+        volumeMounts:
+        {{- include "pulsar.bookkeeper.certs.volumeMounts" . | nindent 8 }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: "{{ .Values.images.bookie.repository }}:{{ .Values.images.bookie.tag }}"
+        imagePullPolicy: {{ .Values.images.bookie.pullPolicy }}
+        {{- if .Values.bookkeeper.probe.liveness.enabled }}
+        livenessProbe:
+          httpGet:
+            path: /api/v1/bookie/state
+            port: {{ .Values.bookkeeper.ports.http }}
+          initialDelaySeconds: {{ .Values.bookkeeper.probe.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.bookkeeper.probe.liveness.periodSeconds }}
+          failureThreshold: {{ .Values.bookkeeper.probe.liveness.failureThreshold }}
+        {{- end }}
+        {{- if .Values.bookkeeper.probe.readiness.enabled }}
+        readinessProbe:
+          httpGet:
+            path: /api/v1/bookie/is_ready
+            port: {{ .Values.bookkeeper.ports.http }}
+          initialDelaySeconds: {{ .Values.bookkeeper.probe.readiness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.bookkeeper.probe.readiness.periodSeconds }}
+          failureThreshold: {{ .Values.bookkeeper.probe.readiness.failureThreshold }}
+        {{- end }}
+        {{- if .Values.bookkeeper.probe.startup.enabled }}
+        startupProbe:
+          httpGet:
+            path: /api/v1/bookie/is_ready
+            port: {{ .Values.bookkeeper.ports.http }}
+          initialDelaySeconds: {{ .Values.bookkeeper.probe.startup.initialDelaySeconds }}
+          periodSeconds: {{ .Values.bookkeeper.probe.startup.periodSeconds }}
+          failureThreshold: {{ .Values.bookkeeper.probe.startup.failureThreshold }}
+        {{- end }}
       {{- if .Values.bookkeeper.resources }}
         resources:
 {{ toYaml .Values.bookkeeper.resources | indent 10 }}
@@ -113,12 +131,16 @@ spec:
         command: ["sh", "-c"]
         args:
         - >
-          bin/apply-config-from-env.py conf/bookkeeper.conf &&
-          bin/apply-config-from-env.py conf/pulsar_env.sh &&
-          bin/pulsar bookie
+          bin/apply-config-from-env.py conf/bookkeeper.conf;
+          bin/apply-config-from-env.py conf/pulsar_env.sh;
+          bin/apply-config-from-env.py conf/bkenv.sh;
+          {{- include "pulsar.bookkeeper.zookeeper.tls.settings" . | nindent 10 }}
+          bin/pulsar bookie;
         ports:
-        - name: client
-          containerPort: 3181
+        - name: bookie
+          containerPort: {{ .Values.bookkeeper.ports.bookie }}
+        - name: http
+          containerPort: {{ .Values.bookkeeper.ports.http }}
         envFrom:
         - configMapRef:
             name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}"
@@ -127,14 +149,16 @@ spec:
           mountPath: /pulsar/data/bookkeeper/journal
         - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
           mountPath: /pulsar/data/bookkeeper/ledgers
-        {{- if not .Values.persistence }}
+        {{- include "pulsar.bookkeeper.certs.volumeMounts" . | nindent 8 }}
       volumes:
+      {{- if not (and (and .Values.persistence .Values.volumes.persistence) .Values.bookkeeper.volumes.persistence) }}
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.journal.name }}"
         emptyDir: {}
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
         emptyDir: {}
-    {{- end }}
-{{- if .Values.persistence }}
+      {{- end }}
+      {{- include "pulsar.bookkeeper.certs.volumes" . | nindent 6 }}
+{{- if and (and .Values.persistence .Values.volumes.persistence) .Values.bookkeeper.volumes.persistence}}
   volumeClaimTemplates:
   - metadata:
       name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.journal.name }}"
@@ -143,8 +167,12 @@ spec:
       resources:
         requests:
           storage: {{ .Values.bookkeeper.volumes.journal.size }}
-    {{- if .Values.bookkeeper.volumes.journal.storageClass }}
+    {{- if .Values.bookkeeper.volumes.journal.storageClassName }}
+      storageClassName: "{{ .Values.bookkeeper.volumes.journal.storageClassName }}"
+    {{- else if and (not (and .Values.volumes.local_storage .Values.bookkeeper.volumes.journal.local_storage)) .Values.bookkeeper.volumes.journal.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.journal.name }}"
+    {{- else if and .Values.volumes.local_storage .Values.bookkeeper.volumes.journal.local_storage }}
+      storageClassName: "local-storage"
     {{- end }}
   - metadata:
       name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
@@ -153,7 +181,12 @@ spec:
       resources:
         requests:
           storage: {{ .Values.bookkeeper.volumes.ledgers.size }}
-    {{- if .Values.bookkeeper.volumes.ledgers.storageClass }}
+    {{- if .Values.bookkeeper.volumes.ledgers.storageClassName }}
+      storageClassName: "{{ .Values.bookkeeper.volumes.ledgers.storageClassName }}"
+    {{- else if and (not (and .Values.volumes.local_storage .Values.bookkeeper.volumes.ledgers.local_storage)) .Values.bookkeeper.volumes.ledgers.storageClass }}
       storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
+    {{- else if and .Values.volumes.local_storage .Values.bookkeeper.volumes.ledgers.local_storage }}
+      storageClassName: "local-storage"
     {{- end }}
+{{- end }}
 {{- end }}

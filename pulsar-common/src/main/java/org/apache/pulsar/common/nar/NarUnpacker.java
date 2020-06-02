@@ -39,10 +39,13 @@ import java.util.jar.JarFile;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Helper class to unpack NARs.
+ */
 @Slf4j
 public class NarUnpacker {
 
-    private static String HASH_FILENAME = "nar-md5sum";
+    private final static String HASH_FILENAME = "nar-md5sum";
 
     /**
      * Unpacks the specified nar into the specified base working directory.

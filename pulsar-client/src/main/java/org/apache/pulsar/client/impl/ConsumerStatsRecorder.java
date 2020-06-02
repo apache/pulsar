@@ -34,6 +34,8 @@ public interface ConsumerStatsRecorder extends ConsumerStats {
 
     void incrementNumReceiveFailed();
 
+    void incrementNumBatchReceiveFailed();
+
     Optional<Timeout> getStatTimeout();
 
     void reset();

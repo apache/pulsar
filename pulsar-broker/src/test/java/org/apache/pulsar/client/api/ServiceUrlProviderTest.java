@@ -21,7 +21,8 @@ package org.apache.pulsar.client.api;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -30,8 +31,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
@@ -104,9 +103,9 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .subscribe();
 
         PulsarService pulsarService1 = pulsar;
-        conf.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        conf.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        startBroker();
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setWebServicePort(Optional.of(0));
+        restartBroker();
         PulsarService pulsarService2 = pulsar;
 
         log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getSafeBrokerServiceUrl(), pulsarService2.getSafeBrokerServiceUrl());

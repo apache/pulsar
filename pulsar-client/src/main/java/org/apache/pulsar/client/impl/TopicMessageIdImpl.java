@@ -28,7 +28,7 @@ public class TopicMessageIdImpl implements MessageId {
     private final String topicName;
     private final MessageId messageId;
 
-    TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
+    public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
         this.messageId = messageId;
         this.topicPartitionName = topicPartitionName;
         this.topicName = topicName;

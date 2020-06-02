@@ -34,6 +34,11 @@ enum SubscriptionType {
     FAILOVER = 1;
 }
 
+enum SubscriptionPosition {
+    LATEST = 0;
+    EARLIEST = 1;
+}
+
 message Resources {
     double cpu = 1;
     int64 ram = 2;
@@ -75,6 +80,7 @@ message FunctionDetails {
     RetryDetails retryDetails = 15;
     string runtimeFlags = 17;
     ComponentType componentType = 18;
+    string customRuntimeOptions = 19;
 }
 
 message ConsumerSpec {
@@ -112,6 +118,8 @@ message SourceSpec {
     string builtin = 8;
     string subscriptionName = 9;
     bool cleanupSubscription = 11;
+    SubscriptionPosition subscriptionPosition = 12;
+    uint64 negativeAckRedeliveryDelayMs = 13;
 }
 
 message SinkSpec {
@@ -133,6 +141,8 @@ message SinkSpec {
      * Builtin schema type or custom schema class name
      */
     string schemaType = 7;
+
+    bool forwardSourceMessageProperty = 8;
 }
 
 message PackageLocationMetaData {

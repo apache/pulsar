@@ -19,6 +19,7 @@
 package org.apache.pulsar.discovery.service.web;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -108,7 +109,9 @@ public class ZookeeperCacheLoader implements Closeable {
     }
 
     @Override
-    public void close() {
+    public void close() throws IOException {
+        localZkCache.stop();
+        localZkConnectionSvc.close();
         orderedExecutor.shutdown();
     }
 

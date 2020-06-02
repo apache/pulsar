@@ -78,12 +78,16 @@ enum Result
     ResultIncompatibleSchema,   /// Specified schema is incompatible with the topic's schema
     ResultConsumerAssignError,  /// Error when a new consumer connected but can't assign messages to this
                                 /// consumer
+    ResultCumulativeAcknowledgementNotAllowedError,  /// Not allowed to call cumulativeAcknowledgement in
+                                                     /// Shared and Key_Shared subscription mode
+    ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
+    ResultInvalidTxnStatusError,                     /// Invalid txn status error
 };
 
 // Return string representation of result code
 PULSAR_PUBLIC const char* strResult(Result result);
-}  // namespace pulsar
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, pulsar::Result result);
+}  // namespace pulsar
 
 #endif /* ERROR_HPP_ */

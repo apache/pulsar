@@ -45,6 +45,7 @@ public class ProducerExample {
             log.info("Message {} sent successfully", i);
         }
 
+        producer.flush();
         producer.close();
     }
 

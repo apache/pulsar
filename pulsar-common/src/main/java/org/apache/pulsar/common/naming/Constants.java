@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
+/**
+ * Definition of constants.
+ */
 public class Constants {
 
     public static final String GLOBAL_CLUSTER = "global";

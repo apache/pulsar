@@ -47,7 +47,7 @@ public interface LoadManager {
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
-    public void start() throws PulsarServerException;
+    void start() throws PulsarServerException;
 
     /**
      * Is centralized decision making to assign a new bundle.
@@ -107,7 +107,7 @@ public interface LoadManager {
      *
      * @throws Exception
      */
-    public void disableBroker() throws Exception;
+    void disableBroker() throws Exception;
     
     /**
      * Get list of available brokers in cluster
@@ -117,7 +117,7 @@ public interface LoadManager {
      */
     Set<String> getAvailableBrokers() throws Exception;
 
-    public void stop() throws PulsarServerException;
+    void stop() throws PulsarServerException;
 
     /**
      * Initialize this LoadManager.
@@ -125,7 +125,7 @@ public interface LoadManager {
      * @param pulsar
      *            The service to initialize this with.
      */
-    public void initialize(PulsarService pulsar);
+    void initialize(PulsarService pulsar);
 
     static LoadManager create(final PulsarService pulsar) {
         try {

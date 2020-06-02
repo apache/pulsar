@@ -21,10 +21,17 @@ package org.apache.pulsar.common.util.collections;
 import java.util.BitSet;
 import java.util.concurrent.locks.StampedLock;
 
+/**
+ * Safe multithreaded version of {@code BitSet}.
+ */
 public class ConcurrentBitSet extends BitSet {
 
     private static final long serialVersionUID = 1L;
     private final StampedLock rwLock = new StampedLock();
+
+    public ConcurrentBitSet() {
+        super();
+    }
 
     /**
      * Creates a bit set whose initial size is large enough to explicitly represent bits with indices in the range

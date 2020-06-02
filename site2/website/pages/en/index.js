@@ -9,6 +9,9 @@ const GridBlock = CompLibrary.GridBlock;
 const CWD = process.cwd();
 
 const translate = require('../../server/translate.js').translate;
+const users = require(`${CWD}/data/users.js`)
+const featuredUsers = users.filter(x => x.hasOwnProperty('featured'))
+featuredUsers.sort((a, b) => (a.featured > b.featured) ? 1 : -1);
 
 const siteConfig = require(`${CWD}/siteConfig.js`);
 
@@ -159,6 +162,39 @@ const KeyFeautresGrid = props => (
   </Container>
 );
 
+const UsersBlock = props => (
+  <Container
+    padding={['bottom']}
+    id={props.id}
+    background={props.background}>
+
+    <p align="center"><small style={{color: 'black', fontSize: '1.7rem'}}>Used by companies such as</small></p>
+    <div class="logo-wrapper">
+      {
+        featuredUsers.map(
+            c => (
+                (() => {
+                  if (c.hasOwnProperty('logo_white')) {
+                    return <div className="logo-box-background-for-white">
+                      <a href={c.url} title={c.name} target="_blank">
+                        <img src={c.logo} alt={c.name} className={c.logo.endsWith('.svg') ? 'logo-svg' : ''}/>
+                      </a>
+                    </div>
+                  } else {
+                    return <div className="logo-box">
+                      <a href={c.url} title={c.name} target="_blank">
+                        <img src={c.logo} alt={c.name} className={c.logo.endsWith('.svg') ? 'logo-svg' : ''}/>
+                      </a>
+                    </div>
+                  }
+                })()
+            )
+        )}
+    </div>
+    <p align="center"><small style={{color: 'black', fontSize: '1.7rem'}}><a href="/powered-by">... and many more</a></small></p>
+
+  </Container>
+);
 
 
 const ApacheBlock = prop => (
@@ -181,6 +217,7 @@ class Index extends React.Component {
         <HomeSplash language={language} />
         <div className="mainContainer">
           <KeyFeautresGrid features={features} id={'key-features'} />
+          <UsersBlock id={'users'} />
           <ApacheBlock />
         </div>
       </div>

@@ -22,13 +22,14 @@ package org.apache.pulsar.client.api;
  * A plugin interface that allows you to intercept (and possibly mutate) the
  * messages received by the producer before they are published to the Pulsar
  * brokers.
- * <p>
- * Exceptions thrown by ProducerInterceptor methods will be caught, logged, but
+ *
+ * <p>Exceptions thrown by ProducerInterceptor methods will be caught, logged, but
  * not propagated further.
- * <p>
- * ProducerInterceptor callbacks may be called from multiple threads. Interceptor
+ *
+ * <p>ProducerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
+@Deprecated
 public interface ProducerInterceptor<T> extends AutoCloseable {
 
     /**
@@ -42,16 +43,16 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * send the message to the brokers. This method is allowed to modify the
      * record, in which case, the new record
      * will be returned.
-     * <p>
-     * Any exception thrown by this method will be caught by the caller and
+     *
+     * <p>Any exception thrown by this method will be caught by the caller and
      * logged, but not propagated further.
-     * <p>
-     * Since the producer may run multiple interceptors, a particular
+     *
+     * <p>Since the producer may run multiple interceptors, a particular
      * interceptor's {@link #beforeSend(Producer, Message)} callback will be called in the
      * order specified by
      * {@link ProducerBuilder#intercept(ProducerInterceptor[])}.
-     * <p>
-     * The first interceptor in the list gets the message passed from the client,
+     *
+     * <p>The first interceptor in the list gets the message passed from the client,
      * the following interceptor will be passed the message returned by the
      * previous interceptor, and so on. Since interceptors are allowed to modify
      * messages, interceptors may potentially get the message already modified by
@@ -75,10 +76,10 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
      * acknowledged, or when sending the message fails.
      * This method is generally called just before the user callback is
      * called, and in additional cases when an exception on the producer side.
-     * <p>
-     * Any exception thrown by this method will be ignored by the caller.
-     * <p>
-     * This method will generally execute in the background I/O thread, so the
+     *
+     * <p>Any exception thrown by this method will be ignored by the caller.
+     *
+     * <p>This method will generally execute in the background I/O thread, so the
      * implementation should be reasonably fast. Otherwise, sending of messages
      * from other threads could be delayed.
      *

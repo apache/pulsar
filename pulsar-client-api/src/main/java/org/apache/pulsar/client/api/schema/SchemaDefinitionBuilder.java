@@ -28,7 +28,7 @@ import java.util.Map;
 public interface SchemaDefinitionBuilder<T> {
 
     /**
-     * Set schema whether always allow null or not
+     * Set schema whether always allow null or not.
      *
      * @param alwaysAllowNull definition null or not
      * @return schema definition builder
@@ -36,7 +36,23 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withAlwaysAllowNull(boolean alwaysAllowNull);
 
     /**
-     * Set schema info properties
+     * Set schema use JRS310 conversion or not.
+     *
+     * <p>Before Avro 1.9 the Joda time library was used for handling the logical date(time) values.
+     * But since the introduction of Java8 the Java Specification Request (JSR) 310 has been included,
+     * which greatly improves the handling of date and time natively. To keep forwarding compatibility,
+     * default is use Joda time conversion.
+     *
+     * <p>JSR310 conversion is recommended here. Joda time conversion is has been marked deprecated.
+     * In future versions, joda time conversion may be removed
+     *
+     * @param jsr310ConversionEnabled use JRS310 conversion or not, default is false for keep forwarding compatibility
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withJSR310ConversionEnabled(boolean jsr310ConversionEnabled);
+
+    /**
+     * Set schema info properties.
      *
      * @param properties schema info properties
      * @return schema definition builder
@@ -44,7 +60,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withProperties(Map<String, String> properties);
 
     /**
-     * Set schema info properties
+     * Set schema info properties.
      *
      * @param key property key
      * @param value property value
@@ -54,7 +70,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> addProperty(String key, String value);
 
     /**
-     * Set schema of pojo definition
+     * Set schema of pojo definition.
      *
      * @param pojo pojo schema definition
      *
@@ -63,7 +79,7 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withPojo(Class pojo);
 
     /**
-     * Set schema of json definition
+     * Set schema of json definition.
      *
      * @param jsonDefinition json schema definition
      *
@@ -72,13 +88,31 @@ public interface SchemaDefinitionBuilder<T> {
     SchemaDefinitionBuilder<T> withJsonDef(String jsonDefinition);
 
     /**
-     * Set schema whether decode by schema version
+     * Set schema whether decode by schema version.
      *
      * @param supportSchemaVersioning decode by version
      *
      * @return schema definition builder
      */
     SchemaDefinitionBuilder<T> withSupportSchemaVersioning(boolean supportSchemaVersioning);
+
+    /**
+     * Set schema reader for deserialization of object data.
+     *
+     * @param reader reader for object data
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaReader(SchemaReader<T> reader);
+
+    /**
+     * Set schema writer for serialization of objects.
+     *
+     * @param writer writer for objects
+     *
+     * @return schema definition builder
+     */
+    SchemaDefinitionBuilder<T> withSchemaWriter(SchemaWriter<T> writer);
 
     /**
      * Build the schema definition.

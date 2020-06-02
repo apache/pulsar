@@ -32,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,6 +41,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import lombok.Cleanup;
 
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -90,7 +94,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testConsumerBlockingWithUnAckedMessagesAtDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -151,7 +155,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             // try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
             // all messages
-            Queue<MessageId> result = Queues.newConcurrentLinkedQueue();
+            Set<MessageId> result = ConcurrentHashMap.newKeySet();
             // expecting messages which are not received
             int expectedRemainingMessages = totalProducedMsgs - messages.size();
             CountDownLatch latch = new CountDownLatch(expectedRemainingMessages);
@@ -170,10 +174,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             }
 
-            latch.await();
+            latch.await(10, TimeUnit.SECONDS);
 
             // total received-messages should match to produced messages (it may have duplicate messages)
-            assertTrue(result.size() >= expectedRemainingMessages);
+            assertEquals(result.size(), expectedRemainingMessages);
 
             producer.close();
             consumers.forEach(c -> {
@@ -183,8 +187,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             });
             log.info("-- Exiting {} test --", methodName);
-        } catch (Exception e) {
-            fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
@@ -198,21 +200,24 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    @Test(timeOut = 10000)
+    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testConsumerBlockingWithUnAckedMessagesAndRedelivery() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
             final int unackMsgAllowed = 100;
-            final int totalProducedMsgs = 200;
+            final int totalProducedMsgs = 150;
             final int receiverQueueSize = 10;
-            final String topicName = "persistent://my-property/my-ns/unacked-topic";
+            final String topicName = "persistent://my-property/my-ns/unacked-topic-" + UUID.randomUUID().toString();
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
-            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriberName)
+                    .receiverQueueSize(receiverQueueSize)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                     .subscriptionType(SubscriptionType.Shared);
             ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
             ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
@@ -220,7 +225,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/my-ns/unacked-topic").create();
+                    .topic(topicName)
+                    .create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -254,24 +260,28 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             // (4) try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
             // all messages
-            Queue<MessageId> result = Queues.newConcurrentLinkedQueue();
-            CountDownLatch latch = new CountDownLatch(totalProducedMsgs);
+            Set<MessageId> result = ConcurrentHashMap.newKeySet();
             for (int i = 0; i < consumers.size(); i++) {
                 final int consumerCount = i;
                 for (int j = 0; j < totalProducedMsgs; j++) {
                     consumers.get(i).receiveAsync().thenAccept(m -> {
+                        log.info("Received: {}", new String(m.getData()));
                         result.add(m.getMessageId());
                         try {
                             consumers.get(consumerCount).acknowledge(m);
                         } catch (PulsarClientException e) {
                             fail("failed to ack msg", e);
                         }
-                        latch.countDown();
                     });
                 }
             }
 
-            latch.await();
+            while (result.size() < totalProducedMsgs) {
+                Thread.sleep(100);
+                log.info("Result Size: " + result.size());
+            }
+
+            assertEquals(result.size(), totalProducedMsgs);
 
             // total received-messages should match to produced messages (it may have duplicate messages)
             assertTrue(result.size() >= totalProducedMsgs);
@@ -283,8 +293,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             });
             log.info("-- Exiting {} test --", methodName);
-        } catch (Exception e) {
-            fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
@@ -296,26 +304,31 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testCloseConsumerBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        final String topicName = "persistent://my-property/my-ns/unacked-topic-" + UUID.randomUUID().toString();
+
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
-            stopBroker();
-            startBroker();
             final int unackMsgAllowed = 100;
             final int receiverQueueSize = 10;
             final int totalProducedMsgs = 200;
-            final String topicName = "persistent://my-property/my-ns/unacked-topic";
+
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
-            Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriberName)
-                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
+            Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriberName)
+                    .receiverQueueSize(receiverQueueSize)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/my-ns/unacked-topic").create();
+                    .topic(topicName)
+                    .create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -342,26 +355,24 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // close consumer1: all messages of consumer1 must be replayed and received by consumer2
             consumer1.close();
             // create consumer2
-            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriberName)
-                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscriberName)
+                    .receiverQueueSize(receiverQueueSize)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                    .subscribe();
             Map<Message<?>, Consumer<?>> messages2 = Maps.newHashMap();
             // try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
             // all messages
-            for (int retry = 0; retry < 5; retry++) {
-                for (int i = 0; i < totalProducedMsgs; i++) {
-                    msg = consumer2.receive(100, TimeUnit.MILLISECONDS);
-                    if (msg != null) {
-                        messages2.put(msg, consumer2);
-                        consumer2.acknowledge(msg);
-                        log.info("Received message: " + new String(msg.getData()));
-                    } else {
-                        break;
-                    }
-                }
-                if (messages2.size() >= totalProducedMsgs) {
-                    break;
+            for (int i = 0; i < totalProducedMsgs; i++) {
+                msg = consumer2.receive(5, TimeUnit.SECONDS);
+                if (msg != null) {
+                    messages2.put(msg, consumer2);
+                    consumer2.acknowledge(msg);
+                    log.info("Received message: " + new String(msg.getData()));
                 } else {
-                    Thread.sleep(100);
+                    break;
                 }
             }
 
@@ -369,8 +380,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             log.info("-- Exiting {} test --", methodName);
             producer.close();
             consumer2.close();
-        } catch (Exception e) {
-            fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
@@ -382,18 +391,16 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testRedeliveryOnBlockedDistpatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerSubscription();
         try {
-            stopBroker();
-            startBroker();
             final int unackMsgAllowed = 100;
             final int receiverQueueSize = 10;
-            final int totalProducedMsgs = 200;
-            final String topicName = "persistent://my-property/my-ns/unacked-topic";
+            final int totalProducedMsgs = 150;
+            final String topicName = "persistent://my-property/my-ns/unacked-topic-" + UUID.randomUUID().toString();
             final String subscriberName = "subscriber-1";
 
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscription(unackMsgAllowed);
@@ -406,7 +413,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             List<ConsumerImpl<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             Producer<byte[]> producer = pulsarClient.newProducer()
-                    .topic("persistent://my-property/my-ns/unacked-topic").create();
+                    .topic(topicName).create();
 
             // (1) Produced Messages
             for (int i = 0; i < totalProducedMsgs; i++) {
@@ -507,8 +514,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 }
             });
             log.info("-- Exiting {} test --", methodName);
-        } catch (Exception e) {
-            fail();
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         }
@@ -539,7 +544,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertNotNull(topicRef);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats();
+            stats = topicRef.getStats(false);
             subStats = stats.subscriptions.values().iterator().next();
 
             // subscription stats
@@ -557,7 +562,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats();
+            stats = topicRef.getStats(false);
             subStats = stats.subscriptions.values().iterator().next();
 
             assertTrue(subStats.msgBacklog > 0);
@@ -677,6 +682,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
         double unAckedMessagePercentage = pulsar.getConfiguration()
                 .getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked();
+
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+
         try {
             final int maxUnAckPerBroker = 200;
             final double unAckMsgPercentagePerDispatcher = 10;
@@ -720,7 +728,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                     .topic("persistent://my-property/my-ns/unacked-topic").create();
 
             // continuously checks unack-message dispatching
-            ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
             executor.scheduleAtFixedRate(() -> pulsar.getBrokerService().checkUnAckMessageDispatching(), 10, 10,
                     TimeUnit.MILLISECONDS);
             // Produced Messages
@@ -856,6 +863,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(unAckedMessagePercentage);
+
+            executor.shutdownNow();
         }
     }
 
@@ -876,6 +885,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     public void testBrokerDispatchBlockAndSubAckBackRequiredMsgs() {
 
         log.info("-- Starting {} test --", methodName);
+
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
 
         int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
         double unAckedMessagePercentage = pulsar.getConfiguration()
@@ -914,7 +925,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             consumer1Sub2.close();
 
             // continuously checks unack-message dispatching
-            ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
             executor.scheduleAtFixedRate(() -> pulsar.getBrokerService().checkUnAckMessageDispatching(), 10, 10,
                     TimeUnit.MILLISECONDS);
 
@@ -1023,8 +1033,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         } finally {
             pulsar.getConfiguration().setMaxUnackedMessagesPerBroker(unAckedMessages);
             pulsar.getConfiguration().setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(unAckedMessagePercentage);
+            executor.shutdownNow();
         }
-
     }
 
     private void rolloverPerIntervalStats() {

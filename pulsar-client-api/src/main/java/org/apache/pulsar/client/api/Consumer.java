@@ -24,34 +24,34 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
- * <p>
- * All the operations on the consumer instance are thread safe.
+ *
+ * <p>All the operations on the consumer instance are thread safe.
  */
 public interface Consumer<T> extends Closeable {
 
     /**
-     * Get a topic for the consumer
+     * Get a topic for the consumer.
      *
      * @return topic for the consumer
      */
     String getTopic();
 
     /**
-     * Get a subscription for the consumer
+     * Get a subscription for the consumer.
      *
      * @return subscription for the consumer
      */
     String getSubscription();
 
     /**
-     * Unsubscribe the consumer
-     * <p>
-     * This call blocks until the consumer is unsubscribed.
-     * <p>
-     * Unsubscribing will the subscription to be deleted and all the
+     * Unsubscribe the consumer.
+     *
+     * <p>This call blocks until the consumer is unsubscribed.
+     *
+     * <p>Unsubscribing will the subscription to be deleted and all the
      * data retained can potentially be deleted as well.
-     * <p>
-     * The operation will fail when performed on a shared subscription
+     *
+     * <p>The operation will fail when performed on a shared subscription
      * where multiple consumers are currently connected.
      *
      * @throws PulsarClientException if the operation fails
@@ -59,7 +59,7 @@ public interface Consumer<T> extends Closeable {
     void unsubscribe() throws PulsarClientException;
 
     /**
-     * Asynchronously unsubscribe the consumer
+     * Asynchronously unsubscribe the consumer.
      *
      * @see Consumer#unsubscribe()
      * @return {@link CompletableFuture} to track the operation
@@ -68,8 +68,8 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Receives a single message.
-     * <p>
-     * This calls blocks until a message is available.
+     *
+     * <p>This calls blocks until a message is available.
      *
      * @return the received message
      * @throws PulsarClientException.AlreadyClosedException
@@ -81,22 +81,20 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Receive a single message
-     * <p>
-     * Retrieves a message when it will be available and completes {@link CompletableFuture} with received message.
-     * </p>
-     * <p>
-     * {@code receiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete with
-     * received message. Else it creates <i> backlog of receive requests </i> in the application.
-     * </p>
+     *
+     * <p>Retrieves a message when it will be available and completes {@link CompletableFuture} with received message.
+     *
+     * <p>{@code receiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
+     * with received message. Else it creates <i> backlog of receive requests </i> in the application.
      *
      * @return {@link CompletableFuture}<{@link Message}> will be completed when message is available
      */
     CompletableFuture<Message<T>> receiveAsync();
 
     /**
-     * Receive a single message
-     * <p>
-     * Retrieves a message, waiting up to the specified wait time if necessary.
+     * Receive a single message.
+     *
+     * <p>Retrieves a message, waiting up to the specified wait time if necessary.
      *
      * @param timeout
      *            0 or less means immediate rather than infinite
@@ -110,7 +108,34 @@ public interface Consumer<T> extends Closeable {
     Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     /**
-     * Acknowledge the consumption of a single message
+     * Batch receiving messages.
+     *
+     * <p>This calls blocks until has enough messages or wait timeout, more details to see {@link BatchReceivePolicy}.
+     *
+     * @return messages
+     * @since 2.4.1
+     * @throws PulsarClientException
+     */
+    Messages<T> batchReceive() throws PulsarClientException;
+
+    /**
+     * Batch receiving messages.
+     * <p>
+     * Retrieves messages when has enough messages or wait timeout and
+     * completes {@link CompletableFuture} with received messages.
+     * </p>
+     * <p>
+     * {@code batchReceiveAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
+     * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
+     * </p>
+     * @return messages
+     * @since 2.4.1
+     * @throws PulsarClientException
+     */
+    CompletableFuture<Messages<T>> batchReceiveAsync();
+
+    /**
+     * Acknowledge the consumption of a single message.
      *
      * @param message
      *            The {@code Message} to be acknowledged
@@ -130,16 +155,24 @@ public interface Consumer<T> extends Closeable {
     void acknowledge(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Acknowledge the consumption of {@link Messages}.
+     *
+     * @param messages messages
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void acknowledge(Messages<?> messages) throws PulsarClientException;
+
+    /**
      * Acknowledge the failure to process a single message.
-     * <p>
-     * When a message is "negatively acked" it will be marked for redelivery after
+     *
+     * <p>When a message is "negatively acked" it will be marked for redelivery after
      * some fixed delay. The delay is configurable when constructing the consumer
      * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
-     * <p>
-     * This call is not blocking.
      *
-     * <p>
-     * Example of usage:
+     * <p>This call is not blocking.
+     *
+     * <p>Example of usage:
      * <pre><code>
      * while (true) {
      *     Message&lt;String&gt; msg = consumer.receive();
@@ -162,14 +195,14 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Acknowledge the failure to process a single message.
-     * <p>
-     * When a message is "negatively acked" it will be marked for redelivery after
+     *
+     * <p>When a message is "negatively acked" it will be marked for redelivery after
      * some fixed delay. The delay is configurable when constructing the consumer
      * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
-     * <p>
-     * This call is not blocking.
-     * <p>
-     * This variation allows to pass a {@link MessageId} rather than a {@link Message}
+     *
+     * <p>This call is not blocking.
+     *
+     * <p>This variation allows to pass a {@link MessageId} rather than a {@link Message}
      * object, in order to avoid keeping the payload in memory for extended amount
      * of time
      *
@@ -181,14 +214,91 @@ public interface Consumer<T> extends Closeable {
     void negativeAcknowledge(MessageId messageId);
 
     /**
+     * Acknowledge the failure to process {@link Messages}.
+     *
+     * <p>When messages is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerBuilder#negativeAckRedeliveryDelay(long, TimeUnit)}.
+     *
+     * <p>This call is not blocking.
+     *
+     * <p>Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Messages&lt;String&gt; msgs = consumer.batchReceive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msgs);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msgs);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param messages
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(Messages<?> messages);
+
+    /**
+     * reconsumeLater the consumption of {@link Messages}.
+     *
+     *<p>When a message is "reconsumeLater" it will be marked for redelivery after
+     * some custom delay.
+     *
+     * <p>Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message&lt;String&gt; msg = consumer.receive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            the {@code Message} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
+     * reconsumeLater the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            the {@code messages} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void reconsumeLater(Messages<?> messages, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
      *
-     * This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
+     * <p>This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
      * re-delivered to this consumer.
      *
-     * Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
      *
-     * It's equivalent to calling asyncAcknowledgeCumulative(Message) and waiting for the callback to be triggered.
+     * <p>It's equivalent to calling asyncAcknowledgeCumulative(Message) and waiting for the callback to be triggered.
      *
      * @param message
      *            The {@code Message} to be cumulatively acknowledged
@@ -200,12 +310,12 @@ public interface Consumer<T> extends Closeable {
     /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
      *
-     * This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
+     * <p>This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
      * re-delivered to this consumer.
      *
-     * Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
      *
-     * It's equivalent to calling asyncAcknowledgeCumulative(MessageId) and waiting for the callback to be triggered.
+     * <p>It's equivalent to calling asyncAcknowledgeCumulative(MessageId) and waiting for the callback to be triggered.
      *
      * @param messageId
      *            The {@code MessageId} to be cumulatively acknowledged
@@ -215,7 +325,21 @@ public interface Consumer<T> extends Closeable {
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
     /**
-     * Asynchronously acknowledge the consumption of a single message
+     * reconsumeLater the reception of all the messages in the stream up to (and including) the provided message.
+     *
+     * @param message
+     *            The {@code message} to be cumulatively reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     */
+    void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
+     * Asynchronously acknowledge the consumption of a single message.
      *
      * @param message
      *            The {@code Message} to be acknowledged
@@ -224,7 +348,7 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeAsync(Message<?> message);
 
     /**
-     * Asynchronously acknowledge the consumption of a single message
+     * Asynchronously acknowledge the consumption of a single message.
      *
      * @param messageId
      *            The {@code MessageId} to be acknowledged
@@ -233,10 +357,45 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeAsync(MessageId messageId);
 
     /**
+     * Asynchronously acknowledge the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            The {@link Messages} to be acknowledged
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
+
+    /**
+     * Asynchronously reconsumeLater the consumption of a single message.
+     *
+     * @param message
+     *            The {@code Message} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit);
+
+    /**
+     * Asynchronously reconsumeLater the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            The {@link Messages} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit);
+
+    /**
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
      * message.
      *
-     * Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
      *
      * @param message
      *            The {@code Message} to be cumulatively acknowledged
@@ -248,7 +407,7 @@ public interface Consumer<T> extends Closeable {
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
      * message.
      *
-     * Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
+     * <p>Cumulative acknowledge cannot be used when the consumer type is set to ConsumerShared.
      *
      * @param messageId
      *            The {@code MessageId} to be cumulatively acknowledged
@@ -257,8 +416,23 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId);
 
     /**
-     * Get statistics for the consumer.
+     * Asynchronously ReconsumeLater the reception of all the messages in the stream up to (and including) the provided
+     * message.
      *
+     * <p>Cumulative reconsumeLater cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * @param message
+     *            The {@code message} to be cumulatively reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit);
+
+    /**
+     * Get statistics for the consumer.
      * <ul>
      * <li>numMsgsReceived : Number of messages received in the current interval
      * <li>numBytesReceived : Number of bytes received in the current interval
@@ -283,7 +457,7 @@ public interface Consumer<T> extends Closeable {
     void close() throws PulsarClientException;
 
     /**
-     * Asynchronously close the consumer and stop the broker to push more messages
+     * Asynchronously close the consumer and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
      */
@@ -292,7 +466,7 @@ public interface Consumer<T> extends Closeable {
     /**
      * Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.
      *
-     * Please note that this does not simply mean that the consumer is caught up with the last message published by
+     * <p>Please note that this does not simply mean that the consumer is caught up with the last message published by
      * producers, rather the topic needs to be explicitly "terminated".
      */
     boolean hasReachedEndOfTopic();
@@ -307,17 +481,15 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
-     * <p>
      *
-     * The message id can either be a specific message or represent the first or last messages in the topic.
-     * <p>
+     * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param messageId
      *            the message id where to reposition the subscription
@@ -327,9 +499,6 @@ public interface Consumer<T> extends Closeable {
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
-     *
      * @param timestamp
      *            the message publish time where to reposition the subscription
      */
@@ -337,17 +506,15 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
-     * <p>
      *
-     * The message id can either be a specific message or represent the first or last messages in the topic.
-     * <p>
+     * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
+     * <p>Note: this operation can only be done on non-partitioned topics. For these, one can rather perform
+     * the seek() on the individual partitions.
      *
      * @param messageId
      *            the message id where to reposition the subscription
@@ -358,14 +525,25 @@ public interface Consumer<T> extends Closeable {
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
      *
-     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
-     * the individual partitions.
-     *
      * @param timestamp
      *            the message publish time where to reposition the subscription
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);
+
+    /**
+     * Get the last message id available available for consume.
+     *
+     * @return the last message id.
+     */
+    MessageId getLastMessageId() throws PulsarClientException;
+
+    /**
+     * Get the last message id available available for consume.
+     *
+     * @return a future that can be used to track the completion of the operation.
+     */
+    CompletableFuture<MessageId> getLastMessageIdAsync();
 
     /**
      * @return Whether the consumer is connected to the broker

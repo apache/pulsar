@@ -42,6 +42,7 @@ class MessageImpl {
     MessageId messageId;
     ClientConnection* cnx_;
     const std::string* topicName_;
+    int redeliveryCount_;
 
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
@@ -61,6 +62,9 @@ class MessageImpl {
      * Set a valid topicName
      */
     void setTopicName(const std::string& topicName);
+
+    int getRedeliveryCount();
+    void setRedeliveryCount(int count);
 
     friend class PulsarWrapper;
     friend class MessageBuilder;

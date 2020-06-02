@@ -132,6 +132,7 @@ export OPENSSL_ROOT_DIR=/usr/local/opt/openssl/
 
 # For Protobuf
 brew install protobuf boost boost-python log4cxx jsoncpp
+// If you are using python3, you need to install boost-python3
 
 # For gtest
 cd $HOME
@@ -201,11 +202,13 @@ ${PULSAR_PATH}/pulsar-client-cpp/tests/
 
 # Execution
 # Start standalone broker
-export PULSAR_STANDALONE_CONF=${PULSAR_PATH}/pulsar-client-cpp/tests/standalone.conf
-${PULSAR_PATH}/bin/pulsar standalone
+${PULSAR_PATH}/pulsar-test-service-start.sh
 
 # Run the tests
 ${PULSAR_PATH}/pulsar-client-cpp/tests/main
+
+# When no longer needed, stop standalone broker
+${PULSAR_PATH}/pulsar-test-service-stop.sh
 ```
 
 ## Requirements for Contributors

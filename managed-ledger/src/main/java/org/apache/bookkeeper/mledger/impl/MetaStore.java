@@ -22,18 +22,12 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.pulsar.metadata.api.Stat;
 
 /**
  * Interface that describes the operations that the ManagedLedger need to do on the metadata store.
  */
 public interface MetaStore {
-
-    @SuppressWarnings("checkstyle:javadoctype")
-    interface Stat {
-        int getVersion();
-        long getCreationTimestamp();
-        long getModificationTimestamp();
-    }
 
     @SuppressWarnings("checkstyle:javadoctype")
     interface UpdateLedgersIdsCallback {
@@ -64,12 +58,12 @@ public interface MetaStore {
      *            the name of the ManagedLedger
      * @param mlInfo
      *            managed ledger info
-     * @param version
+     * @param stat
      *            version object associated with current state
      * @param callback
      *            callback object
      */
-    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat version,
+    void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat stat,
             MetaStoreCallback<Void> callback);
 
     /**
@@ -98,12 +92,12 @@ public interface MetaStore {
      *            the name of the ManagedLedger
      * @param cursorName
      * @param info
-     * @param version
+     * @param stat
      * @param callback
      *            the callback
      * @throws MetaStoreException
      */
-    void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat version,
+    void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback);
 
     /**

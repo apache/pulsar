@@ -234,7 +234,8 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             try {
                 bk.openLedger(ledgerId).close();
                 return true;
-            } catch (BKException.BKNoSuchLedgerExistsException e) {
+            } catch (BKException.BKNoSuchLedgerExistsException
+                | BKException.BKNoSuchLedgerExistsOnMetadataServerException e) {
                 return false;
             }
         }

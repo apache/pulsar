@@ -36,7 +36,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetad
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,6 +170,11 @@ public class LookupProxyHandler {
                     // client
                     // to use the appropriate target broker (and port) when it
                     // will connect back.
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "Successfully perform lookup '{}' for topic '{}' with clientReq Id '{}' and lookup-broker {}",
+                                addr, topic, clientRequestId, brokerUrl);
+                    }
                     proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
                             LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
                 }
@@ -347,11 +351,12 @@ public class LookupProxyHandler {
     public void handleGetSchema(CommandGetSchema commandGetSchema) {
         getSchemaRequests.inc();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received GetSchema", clientAddress);
+            log.debug("[{}] Received GetSchema {}", clientAddress, commandGetSchema);
         }
 
         final long clientRequestId = commandGetSchema.getRequestId();
         String serviceUrl = getServiceUrl(clientRequestId);
+        String topic = commandGetSchema.getTopic();
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
             return;
@@ -363,24 +368,24 @@ public class LookupProxyHandler {
         }
         if (log.isDebugEnabled()) {
             log.debug("Getting connections to '{}' for getting schema of topic '{}' with clientReq Id '{}'",
-                    addr, commandGetSchema.getTopic(), clientRequestId);
+                    addr, topic, clientRequestId);
         }
 
         proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            byte[] schemaVersion = commandGetSchema.getSchemaVersion().toByteArray();
-            command = Commands.newGetSchema(requestId, commandGetSchema.getTopic(),
-                    Optional.ofNullable(BytesSchemaVersion.of(schemaVersion)));
-            clientCnx.sendGetSchema(command, requestId).thenAccept(optionalSchemaInfo -> {
-                        SchemaInfo schemaInfo = optionalSchemaInfo.get();
-                        proxyConnection.ctx().writeAndFlush(
-                                Commands.newGetSchemaResponse(clientRequestId,
-                                        schemaInfo,
-                                        BytesSchemaVersion.of(schemaVersion)));
+            byte[] schemaVersion = null;
+            if (commandGetSchema.hasSchemaVersion()) {
+                schemaVersion = commandGetSchema.getSchemaVersion().toByteArray();
+            }
+            command = Commands.newGetSchema(requestId, topic,
+                    Optional.ofNullable(schemaVersion).map(BytesSchemaVersion::of));
+            clientCnx.sendGetRawSchema(command, requestId).thenAccept(response -> {
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newGetSchemaResponse(clientRequestId, response));
             }).exceptionally(ex -> {
-                log.warn("[{}] Failed to get schema {}: {}", clientAddress, commandGetSchema.getTopic(), ex.getMessage());
+                log.warn("[{}] Failed to get schema {}: {}", clientAddress, topic, ex);
                 proxyConnection.ctx().writeAndFlush(
                         Commands.newError(clientRequestId, ServerError.ServiceNotReady, ex.getMessage()));
                 return null;

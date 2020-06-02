@@ -158,4 +158,11 @@ public class ConsumerV1Impl implements Consumer {
         return consumer.unsubscribeAsync();
     }
 
+    public MessageId getLastMessageId() throws PulsarClientException {
+        return consumer.getLastMessageId();
+    }
+
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+        return consumer.getLastMessageIdAsync();
+    }
 }

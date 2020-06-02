@@ -20,18 +20,18 @@ package org.apache.pulsar.broker.service.schema;
 
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
-import static org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
+import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toMap;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,10 +44,15 @@ import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -57,7 +62,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks;
     private final SchemaStorage schemaStorage;
     private final Clock clock;
-    protected static final long NO_DELETED_VERSION = -1L;
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
@@ -86,15 +90,34 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
-        return schemaStorage.get(schemaId, version).thenCompose(stored -> {
-                if (isNull(stored)) {
-                    return completedFuture(null);
-                } else {
-                    return Functions.bytesToSchemaInfo(stored.data)
-                        .thenApply(Functions::schemaInfoToSchema)
-                        .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version));
+        CompletableFuture<StoredSchema> completableFuture;
+        if (version == SchemaVersion.Latest) {
+            completableFuture = schemaStorage.get(schemaId, version);
+        } else {
+            long longVersion = ((LongSchemaVersion) version).getVersion();
+            //If the schema has been deleted, it cannot be obtained
+            completableFuture = trimDeletedSchemaAndGetList(schemaId)
+                .thenApply(metadataList -> metadataList.stream().filter(schemaAndMetadata ->
+                        ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == longVersion)
+                        .collect(Collectors.toList())
+                ).thenCompose(metadataList -> {
+                        if (CollectionUtils.isNotEmpty(metadataList)) {
+                            return schemaStorage.get(schemaId, version);
+                        }
+                        return completedFuture(null);
+                    }
+                );
+        }
+
+        return completableFuture.thenCompose(stored -> {
+                    if (isNull(stored)) {
+                        return completedFuture(null);
+                    } else {
+                        return Functions.bytesToSchemaInfo(stored.data)
+                                .thenApply(Functions::schemaInfoToSchema)
+                                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version));
+                    }
                 }
-            }
         );
     }
 
@@ -112,60 +135,49 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return getSchema(schemaId, SchemaVersion.Latest)
-            .thenCompose(
-                (existingSchema) ->
-                {
-                    CompletableFuture<KeyValue<Long, Boolean>> keyValue;
-                    if (existingSchema == null) {
-                        keyValue = completedFuture(new KeyValue<>(NO_DELETED_VERSION, true));
-                    } else if (existingSchema.schema.isDeleted()) {
-                        keyValue = completedFuture(new KeyValue<>(((LongSchemaVersion)schemaStorage
-                                .versionFromBytes(existingSchema.version.bytes())).getVersion(), true));
-                    } else {
-                        if (isTransitiveStrategy(strategy)) {
-                            keyValue = checkCompatibilityWithAll(schemaId, schema, strategy);
-
-                        } else {
-                            keyValue = trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                                    completedFuture(((LongSchemaVersion)schemaStorage
-                                    .versionFromBytes(schemaAndMetadataList.get(0).version.bytes())).getVersion() - 1L))
-                                    .thenCompose(maxDeleteVersion -> isCompatible(schemaId, schema, strategy)
-                                            .thenCompose(isCompatible -> completedFuture(new KeyValue<>(maxDeleteVersion, isCompatible))));
-                        }
-                    }
-                    return keyValue;
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
+                getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
+            if (schemaVersion != null) {
+                return CompletableFuture.completedFuture(schemaVersion);
+            }
+            CompletableFuture<Void> checkCompatibilityFurture = new CompletableFuture<>();
+            if (schemaAndMetadataList.size() != 0) {
+                if (isTransitiveStrategy(strategy)) {
+                    checkCompatibilityFurture = checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList);
+                } else {
+                    checkCompatibilityFurture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                 }
-            )
-            .thenCompose(keyValue -> {
-                    if (keyValue.getValue()) {
-                        byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                        SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                            .setType(Functions.convertFromDomainType(schema.getType()))
-                            .setSchema(ByteString.copyFrom(schema.getData()))
-                            .setSchemaId(schemaId)
-                            .setUser(schema.getUser())
-                            .setDeleted(false)
-                            .setTimestamp(clock.millis())
-                            .addAllProps(toPairs(schema.getProps()))
-                            .build();
-                        
-                        return schemaStorage.put(schemaId, info.toByteArray(), context, keyValue.getKey());
+            } else {
+                checkCompatibilityFurture.complete(null);
+            }
+            return checkCompatibilityFurture.thenCompose(v -> {
+                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                        .setType(Functions.convertFromDomainType(schema.getType()))
+                        .setSchema(ByteString.copyFrom(schema.getData()))
+                        .setSchemaId(schemaId)
+                        .setUser(schema.getUser())
+                        .setDeleted(false)
+                        .setTimestamp(clock.millis())
+                        .addAllProps(toPairs(schema.getProps()))
+                        .build();
+                return schemaStorage.put(schemaId, info.toByteArray(), context);
 
-                    } else {
-                        return FutureUtil.failedFuture(new IncompatibleSchemaException());
-                    }
-                });
+            });
+
+        }));
     }
 
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                schemaStorage.put(schemaId, deletedEntry, new byte[]{}, ((LongSchemaVersion)schemaStorage
-                .versionFromBytes(schemaAndMetadataList.get(0).version.bytes())).getVersion() - 1L));
+        return schemaStorage.put(schemaId, deletedEntry, new byte[]{});
+    }
 
+    @Override
+    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema, SchemaCompatibilityStrategy strategy) {
+        return checkCompatible(schemaId, schema, strategy).thenApply(v -> true);
     }
 
     private static boolean isTransitiveStrategy(SchemaCompatibilityStrategy strategy) {
@@ -178,14 +190,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
                                                                     SchemaCompatibilityStrategy strategy) {
         switch (strategy) {
             case FORWARD_TRANSITIVE:
             case BACKWARD_TRANSITIVE:
             case FULL_TRANSITIVE:
-                return checkCompatibilityWithAll(schemaId, schema, strategy)
-                        .thenCompose(keyValue -> completedFuture(keyValue.getValue()));
+                return checkCompatibilityWithAll(schemaId, schema, strategy);
             default:
                 return checkCompatibilityWithLatest(schemaId, schema, strategy);
         }
@@ -212,20 +223,29 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .build();
     }
 
-    private boolean isCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
-                                 SchemaCompatibilityStrategy strategy) {
-        HashCode existingHash = hashFunction.hashBytes(existingSchema.schema.getData());
-        HashCode newHash = hashFunction.hashBytes(newSchema.getData());
-        return newHash.equals(existingHash) ||
-            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-            .isCompatible(existingSchema.schema, newSchema, strategy);
+    private void checkCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
+                                 SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
+        SchemaHash newHash = SchemaHash.of(newSchema);
+        SchemaData existingSchemaData = existingSchema.schema;
+        if (existingSchemaData.getType().isPrimitive()) {
+            if (newSchema.getType() != existingSchemaData.getType()) {
+                throw new IncompatibleSchemaException(String.format("Incompatible primitive schema: " +
+                        "exists schema type %s, new schema type %s", existingSchemaData.getType(), newSchema.getType()));
+            }
+        } else {
+            if (!newHash.equals(existingHash)) {
+                compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                        .checkCompatible(existingSchemaData, newSchema, strategy);
+            }
+        }
     }
 
     public CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData) {
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
-            HashCode newHash = hashFunction.hashBytes(schemaData.getData());
+            SchemaHash newHash = SchemaHash.of(schemaData);
             for (SchemaAndMetadata schemaAndMetadata:schemaAndMetadataList) {
-                if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(), newHash.asBytes())) {
+                if (newHash.equals(SchemaHash.of(schemaAndMetadata.schema))) {
                     return completedFuture(((LongSchemaVersion)schemaStorage
                             .versionFromBytes(schemaAndMetadata.version.bytes())).getVersion());
                 }
@@ -234,25 +254,86 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         });
     }
 
-    private CompletableFuture<Boolean> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
-                                                                    SchemaCompatibilityStrategy strategy) {
-        return getSchema(schemaId)
-            .thenApply(
-                    (existingSchema) ->
-                        !(existingSchema == null || existingSchema.schema.isDeleted())
-                            && isCompatible(existingSchema, schema, strategy));
+    @Override
+    public CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                              SchemaCompatibilityStrategy strategy) {
+        return getSchema(schemaId).thenCompose(existingSchema -> {
+            if (existingSchema != null && !existingSchema.schema.isDeleted()) {
+                    if (strategy == SchemaCompatibilityStrategy.BACKWARD ||
+                            strategy == SchemaCompatibilityStrategy.FORWARD ||
+                            strategy == SchemaCompatibilityStrategy.FORWARD_TRANSITIVE ||
+                            strategy == SchemaCompatibilityStrategy.FULL) {
+                        return checkCompatibilityWithLatest(schemaId, schemaData, SchemaCompatibilityStrategy.BACKWARD);
+                    } else {
+                        return checkCompatibilityWithAll(schemaId, schemaData, strategy);
+                    }
+            } else {
+                return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
+            }
+        });
     }
 
-    private CompletableFuture<KeyValue<Long, Boolean>> checkCompatibilityWithAll(String schemaId, SchemaData schema,
-                                                                                 SchemaCompatibilityStrategy strategy) {
+    @Override
+    public CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(
+            List<SchemaAndMetadata> schemaAndMetadataList,
+            SchemaData schemaData) {
+        final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
+        SchemaVersion schemaVersion;
+        for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
+            if (Arrays.equals(hashFunction.hashBytes(schemaAndMetadata.schema.getData()).asBytes(),
+                    hashFunction.hashBytes(schemaData.getData()).asBytes())) {
+                schemaVersion = schemaAndMetadata.version;
+                completableFuture.complete(schemaVersion);
+                return completableFuture;
+            }
+        }
+        completableFuture.complete(null);
+        return completableFuture;
+    }
+
+    private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
+                                                                    SchemaCompatibilityStrategy strategy) {
+        return getSchema(schemaId).thenCompose(existingSchema -> {
+            if (existingSchema != null && !existingSchema.schema.isDeleted()) {
+                CompletableFuture<Void> result = new CompletableFuture<>();
+                try {
+                    checkCompatible(existingSchema, schema, strategy);
+                    result.complete(null);
+                } catch (IncompatibleSchemaException e) {
+                    result.completeExceptionally(e);
+                }
+                return result;
+            } else {
+                return FutureUtils.exception(new IncompatibleSchemaException("Do not have existing schema."));
+            }
+        });
+    }
+
+    private CompletableFuture<Void> checkCompatibilityWithAll(String schemaId, SchemaData schema,
+                                                                     SchemaCompatibilityStrategy strategy) {
+
         return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                 completedFuture(new KeyValue<>(((LongSchemaVersion)schemaStorage.versionFromBytes(schemaAndMetadataList.get(0).version.bytes())).getVersion() - 1L,
-                        compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                        .isCompatible(schemaAndMetadataList
-                                .stream()
-                                .map(schemaAndMetadata -> schemaAndMetadata.schema)
-                                .collect(Collectors.toList()), schema, strategy)))
-            );
+                checkCompatibilityWithAll(schema, strategy, schemaAndMetadataList));
+    }
+
+    private CompletableFuture<Void> checkCompatibilityWithAll(SchemaData schema,
+                                                              SchemaCompatibilityStrategy strategy,
+                                                              List<SchemaAndMetadata> schemaAndMetadataList) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            compatibilityChecks.getOrDefault(schema.getType(), SchemaCompatibilityCheck.DEFAULT).checkCompatible(schemaAndMetadataList
+                    .stream()
+                    .map(schemaAndMetadata -> schemaAndMetadata.schema)
+                    .collect(Collectors.toList()), schema, strategy);
+            result.complete(null);
+        } catch (Exception e) {
+            if (e instanceof IncompatibleSchemaException) {
+                result.completeExceptionally(e);
+            } else {
+                result.completeExceptionally(new IncompatibleSchemaException(e));
+            }
+        }
+        return result;
     }
 
     public CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId) {
@@ -262,7 +343,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             for (int i = lastIndex; i >= 0; i--) {
                 if (list.get(i).schema.isDeleted()) {
                     if (i == lastIndex) { // if the latest schema is a delete, there's no schemas to compare
-                        return Collections.<SchemaAndMetadata>emptyList();
+                        return Collections.emptyList();
                     } else {
                         return list.subList(i + 1, list.size());
                     }

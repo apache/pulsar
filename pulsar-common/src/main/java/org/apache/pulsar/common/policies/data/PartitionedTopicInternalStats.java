@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.collect.Maps;
 import java.util.Map;
-
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
-import com.google.common.collect.Maps;
-
+/**
+ * Internal statistics for a partitioned topic.
+ */
 public class PartitionedTopicInternalStats {
 
     public PartitionedTopicMetadata metadata;

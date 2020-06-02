@@ -144,6 +144,7 @@ public class PulsarCluster {
                         .withEnv("journalSyncData", "false")
                         .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
+                        .withEnv("diskUsageThreshold", "0.99")
                 )
         );
 
@@ -163,13 +164,13 @@ public class PulsarCluster {
                 )
         );
 
-        spec.classPathVolumeMounts.entrySet().forEach(e -> {
-            zkContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
-            proxyContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+        spec.classPathVolumeMounts.forEach((key, value) -> {
+            zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            proxyContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
 
-            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
-            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
-            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
         });
 
     }
@@ -313,7 +314,7 @@ public class PulsarCluster {
             containers.add(prestoWorkerContainer);
         }
 
-        containers.parallelStream()
+        containers = containers.parallelStream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 

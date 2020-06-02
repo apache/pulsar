@@ -30,7 +30,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +47,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -72,21 +76,36 @@ public class CmdProduce {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions;
 
-    @Parameter(names = { "-m", "--messages" }, description = "Comma separated string messages to send, "
-            + "either -m or -f must be specified.")
+    @Parameter(names = { "-m", "--messages" },
+               description = "Messages to send, either -m or -f must be specified. The default separator is comma",
+               splitter = NoSplitter.class)
     private List<String> messages = Lists.newArrayList();
 
-    @Parameter(names = { "-f", "--files" }, description = "Comma separated file paths to send, either "
-            + "-m or -f must be specified.")
+    @Parameter(names = { "-f", "--files" },
+               description = "Comma separated file paths to send, either -m or -f must be specified.")
     private List<String> messageFileNames = Lists.newArrayList();
 
-    @Parameter(names = { "-n", "--num-produce" }, description = "Number of times to send message(s), "
-            + "the count of messages/files * num-produce should below than " + MAX_MESSAGES + ".")
+    @Parameter(names = { "-n", "--num-produce" },
+               description = "Number of times to send message(s), the count of messages/files * num-produce " +
+                       "should below than " + MAX_MESSAGES + ".")
     private int numTimesProduce = 1;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to produce, "
-            + "value 0 means to produce messages as fast as possible.")
+    @Parameter(names = { "-r", "--rate" },
+               description = "Rate (in msg/sec) at which to produce," +
+                       " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
+
+    @Parameter(names = { "-s", "--separator" },
+               description = "Character to split messages string on default is comma")
+    private String separator = ",";
+
+    @Parameter(names = { "-p", "--properties"}, description = "Properties to add, Comma separated "
+            + "key=value string, like k1=v1,k2=v2.")
+    private List<String> properties = Lists.newArrayList();
+
+    @Parameter(names = { "-k", "--key"}, description = "message key to add ")
+    private String key;
+
 
     private ClientBuilder clientBuilder;
     private Authentication authentication;
@@ -116,7 +135,7 @@ public class CmdProduce {
      * @return list of message bodies
      */
     private List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames) {
-        List<byte[]> messageBodies = new ArrayList<byte[]>();
+        List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
             messageBodies.add(m.getBytes());
@@ -147,6 +166,11 @@ public class CmdProduce {
         if (this.numTimesProduce <= 0) {
             throw (new ParameterException("Number of times need to be positive number."));
         }
+
+        if (messages.size() > 0){
+            messages = Collections.unmodifiableList(Arrays.asList(messages.get(0).split(separator)));
+        }
+
         if (messages.size() == 0 && messageFileNames.size() == 0) {
             throw (new ParameterException("Please supply message content with either --messages or --files"));
         }
@@ -177,13 +201,31 @@ public class CmdProduce {
 
             List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
+
+            Map<String, String> kvMap = new HashMap<>();
+            for (String property : properties) {
+                String [] kv = property.split("=");
+                kvMap.put(kv[0], kv[1]);
+            }
+
             for (int i = 0; i < this.numTimesProduce; i++) {
                 for (byte[] content : messageBodies) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
 
-                    producer.send(content);
+                    TypedMessageBuilder<byte[]> message = producer.newMessage();
+
+                    if (!kvMap.isEmpty()) {
+                        message.properties(kvMap);
+                    }
+
+                    if (key != null && !key.isEmpty()) {
+                        message.key(key);
+                    }
+
+                    message.value(content).send();
+
                     numMessagesSent++;
                 }
             }
@@ -307,7 +349,7 @@ public class CmdProduce {
         }
 
         @OnWebSocketConnect
-        public void onConnect(Session session) throws Exception {
+        public void onConnect(Session session) {
             LOG.info("Got connect: {}", session);
             this.session = session;
             this.connected.complete(null);

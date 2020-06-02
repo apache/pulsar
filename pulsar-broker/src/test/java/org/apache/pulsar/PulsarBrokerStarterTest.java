@@ -78,6 +78,7 @@ public class PulsarBrokerStarterTest {
         printWriter.println("bookkeeperClientTimeoutInSeconds=12345");
         printWriter.println("bookkeeperClientSpeculativeReadTimeoutInMillis=3000");
         printWriter.println("enableRunBookieTogether=true");
+        printWriter.println("bookkeeperExplicitLacIntervalInMills=5");
 
         printWriter.close();
         testConfigFile.deleteOnExit();
@@ -127,6 +128,7 @@ public class PulsarBrokerStarterTest {
         assertEquals(serviceConfig.getBookkeeperClientIsolationGroups(), "group1,group2");
         assertEquals(serviceConfig.getBookkeeperClientSpeculativeReadTimeoutInMillis(), 3000);
         assertEquals(serviceConfig.getBookkeeperClientTimeoutInSeconds(), 12345);
+        assertEquals(serviceConfig.getBookkeeperExplicitLacIntervalInMills(), 5);
     }
 
     @Test

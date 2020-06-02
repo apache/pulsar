@@ -24,24 +24,28 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
-
 import java.io.IOException;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 
+/**
+ * Helper class to work with a raw Pulsar entry payload.
+ */
 @UtilityClass
 @Slf4j
 public class MessageParser {
+
+    /**
+     * Definition of an interface to process a raw Pulsar entry payload.
+     */
     public interface MessageProcessor {
-        void process(RawMessage message);
+        void process(RawMessage message) throws IOException;
     }
 
     /**
@@ -64,7 +68,8 @@ public class MessageParser {
             try {
                 msgMetadata = Commands.parseMessageMetadata(payload);
             } catch (Throwable t) {
-                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring", topicName, ledgerId, entryId);
+                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring",
+                    topicName, ledgerId, entryId);
                 return;
             }
 
@@ -90,10 +95,11 @@ public class MessageParser {
 
             if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
                 processor.process(
-                        RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload.retain(), ledgerId, entryId, 0));
+                    RawMessageImpl.get(refCntMsgMetadata, null, uncompressedPayload.retain(), ledgerId, entryId, 0));
             } else {
                 // handle batch message enqueuing; uncompressed payload has all messages in batch
-                receiveIndividualMessagesFromBatch(refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);
+                receiveIndividualMessagesFromBatch(
+                    refCntMsgMetadata, uncompressedPayload, ledgerId, entryId, processor);
             }
 
 

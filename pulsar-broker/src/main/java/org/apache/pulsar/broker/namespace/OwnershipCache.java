@@ -32,6 +32,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
@@ -72,7 +73,7 @@ public class OwnershipCache {
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner
      */
-    private final NamespaceEphemeralData selfOwnerInfo;
+    private NamespaceEphemeralData selfOwnerInfo;
 
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner, when the broker is disabled.
@@ -104,6 +105,13 @@ public class OwnershipCache {
      * The <code>NamespaceBundleFactory</code> to construct <code>NamespaceBundles</code>
      */
     private final NamespaceBundleFactory bundleFactory;
+
+    /**
+     * The <code>NamespaceService</code> which using <code>OwnershipCache</code>
+     */
+    private NamespaceService namespaceService;
+
+    private final PulsarService pulsar;
 
     private class OwnedServiceUnitCacheLoader implements AsyncCacheLoader<String, OwnedBundle> {
 
@@ -148,7 +156,9 @@ public class OwnershipCache {
      * @param ownerUrl
      *            the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory) {
+    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory, NamespaceService namespaceService) {
+        this.namespaceService = namespaceService;
+        this.pulsar = pulsar;
         this.ownerBrokerUrl = pulsar.getSafeBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
@@ -159,8 +169,11 @@ public class OwnershipCache {
         this.localZkCache = pulsar.getLocalZkCache();
         this.ownershipReadOnlyCache = pulsar.getLocalZkCacheService().ownerInfoCache();
         // ownedBundlesCache contains all namespaces that are owned by the local broker
-        this.ownedBundlesCache = Caffeine.newBuilder().executor(MoreExecutors.directExecutor())
+        this.ownedBundlesCache = Caffeine.newBuilder()
+                .executor(MoreExecutors.directExecutor())
+                .recordStats()
                 .buildAsync(new OwnedServiceUnitCacheLoader());
+        CacheMetricsCollector.CAFFEINE.addCache("owned-bundles", this.ownedBundlesCache);
     }
 
     /**
@@ -201,12 +214,20 @@ public class OwnershipCache {
 
         CompletableFuture<NamespaceEphemeralData> future = new CompletableFuture<>();
 
+        if (!refreshSelfOwnerInfo()) {
+            future.completeExceptionally(new RuntimeException("Namespace service does not ready for acquiring ownership"));
+            return future;
+        }
+
         LOG.info("Trying to acquire ownership of {}", bundle);
 
         // Doing a get() on the ownedBundlesCache will trigger an async ZK write to acquire the lock over the
         // service unit
         ownedBundlesCache.get(path).thenAccept(namespaceBundle -> {
             LOG.info("Successfully acquired ownership of {}", path);
+            if (namespaceService != null) {
+                namespaceService.onNamespaceBundleOwned(bundle);
+            }
             future.complete(selfOwnerInfo);
         }).exceptionally(exception -> {
             // Failed to acquire ownership
@@ -256,6 +277,9 @@ public class OwnershipCache {
                 LOG.info("[{}] Removed zk lock for service unit: {}", key, KeeperException.Code.get(rc));
                 ownedBundlesCache.synchronous().invalidate(key);
                 ownershipReadOnlyCache.invalidate(key);
+                if (namespaceService != null) {
+                    namespaceService.onNamespaceBundleUnload(bundle);
+                }
                 result.complete(null);
             } else {
                 LOG.warn("[{}] Failed to delete the namespace ephemeral node. key={}", key,
@@ -283,7 +307,7 @@ public class OwnershipCache {
         }
         return FutureUtil.waitForAll(allFutures);
     }
-    
+
 
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker
@@ -322,7 +346,7 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk
-     * 
+     *
      * @param bundle
      * @throws Exception
      */
@@ -332,10 +356,10 @@ public class OwnershipCache {
         localZkCache.getZooKeeper().setData(path, jsonMapper.writeValueAsBytes(selfOwnerInfoDisabled), -1);
         ownershipReadOnlyCache.invalidate(path);
     }
-    
+
     /**
      * Update bundle state in a local cache
-     * 
+     *
      * @param bundle
      * @throws Exception
      */
@@ -350,5 +374,13 @@ public class OwnershipCache {
 
     public NamespaceEphemeralData getSelfOwnerInfo() {
         return selfOwnerInfo;
+    }
+
+    public synchronized boolean refreshSelfOwnerInfo() {
+        if (selfOwnerInfo.getNativeUrl() == null) {
+            this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
+                    pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(), false);
+        }
+        return selfOwnerInfo.getNativeUrl() != null;
     }
 }

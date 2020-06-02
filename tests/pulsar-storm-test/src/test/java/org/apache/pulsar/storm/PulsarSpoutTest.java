@@ -47,7 +47,7 @@ import org.testng.collections.Maps;
 
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
-    public final String serviceUrl = "http://127.0.0.1:" + BROKER_WEBSERVICE_PORT;
+    public String serviceUrl;
     public final String topic = "persistent://my-property/my-ns/my-topic1";
     public final String subscriptionName = "my-subscriber-name";
 
@@ -67,6 +67,8 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+
+        serviceUrl = pulsar.getWebServiceAddress();
 
         pulsarSpoutConf = new PulsarSpoutConfiguration();
         pulsarSpoutConf.setServiceUrl(serviceUrl);

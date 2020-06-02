@@ -22,10 +22,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
+/**
+ * This class is aimed at simplifying work with {@code CompletableFuture}.
+ */
 public class FutureUtil {
 
     /**
-     * Return a future that represents the completion of the futures in the provided list
+     * Return a future that represents the completion of the futures in the provided list.
      *
      * @param futures
      * @return

@@ -22,7 +22,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.HashRangeStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
@@ -40,10 +39,10 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
 
     private final StickyKeyConsumerSelector selector;
 
-    public NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
+    public NonPersistentStickyKeyDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription,
+                                                             StickyKeyConsumerSelector selector) {
         super(topic, subscription);
-        //TODO: Consumer selector Pluggable
-        selector = new HashRangeStickyKeyConsumerSelector();
+        this.selector = selector;
     }
 
     @Override
@@ -76,15 +75,12 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             while (iterator.hasNext()) {
                 final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
                 //TODO: None key policy
-                Consumer consumer = null;
-                if (selector instanceof HashRangeStickyKeyConsumerSelector) {
-                    consumer = ((HashRangeStickyKeyConsumerSelector)selector).select(entriesWithSameKey.getKey());
-                }
+                Consumer consumer = selector.select(entriesWithSameKey.getKey());
                 if (consumer != null) {
                     SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                     EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesWithSameKey.getValue().size());
-                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo);
-                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo.getTotalMessages(),
+                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo, null, null);
+                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, null, sendMessageInfo.getTotalMessages(),
                             sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
                     TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
                 } else {

@@ -251,6 +251,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .topic("persistent://my-property/use/my-ns/my-topic4")
                 .subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Exclusive)
+                .startMessageIdInclusive()
                 .subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://my-property/use/my-ns/my-topic4")
@@ -338,7 +339,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT).build();
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         client1.close();
 
         try {
@@ -496,13 +497,14 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
+        String topic = "persistent://my-property/use/my-ns/my-topic-" + UUID.randomUUID().toString();
 
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/my-topic7")
+                .topic(topic)
                 .subscriptionName(subName)
-                .receiverQueueSize(recvQueueSize)
-                .subscribe();
+                .startMessageIdInclusive()
+                .receiverQueueSize(recvQueueSize).subscribe();
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -527,7 +529,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // publish 100 messages so that the consumers blocked on receive() will now get the messages
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic7")
+                .topic(topic)
                 .batchingMaxPublishDelay(BATCHING_MAX_PUBLISH_DELAY_THRESHOLD, TimeUnit.MILLISECONDS)
                 .batchingMaxMessages(5)
                 .enableBatching(batchMessageDelayMs != 0)
@@ -634,7 +636,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         final long batchMessageDelayMs = 100;
         final int receiverSize = 10;
-        final String topicName = "cache-topic";
+        final String topicName = "cache-topic-" + UUID.randomUUID().toString();
         final String sub1 = "faster-sub1";
         final String sub2 = "slower-sub2";
 
@@ -715,6 +717,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
+        retryStrategically((test) -> entryCache.getSize() > 0, 10, 100);
         assertTrue(entryCache.getSize() != 0);
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache
@@ -770,6 +773,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -813,6 +817,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        executor.shutdownNow();
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -2040,7 +2045,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (1) simple consumers
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/my-ns/failAsyncReceive")
+                .topic("persistent://my-property/use/my-ns/failAsyncReceive-1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
         consumer.close();
@@ -2054,7 +2059,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
 
         // (2) Partitioned-consumer
         int numPartitions = 4;
-        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/failAsyncReceive");
+        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/failAsyncReceive-2");
         admin.topics().createPartitionedTopic(topicName.toString(), numPartitions);
         Consumer<byte[]> partitionedConsumer = pulsarClient.newConsumer().topic(topicName.toString())
                 .subscriptionName("my-partitioned-subscriber")

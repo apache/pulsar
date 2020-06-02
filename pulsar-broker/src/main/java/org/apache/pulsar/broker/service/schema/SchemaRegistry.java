@@ -23,6 +23,8 @@ import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
@@ -40,11 +42,20 @@ public interface SchemaRegistry extends AutoCloseable {
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
 
     CompletableFuture<Boolean> isCompatible(String schemaId, SchemaData schema,
+                                            SchemaCompatibilityStrategy strategy);
+
+    CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
                                                              SchemaCompatibilityStrategy strategy);
 
     CompletableFuture<List<SchemaAndMetadata>> trimDeletedSchemaAndGetList(String schemaId);
 
     CompletableFuture<Long> findSchemaVersion(String schemaId, SchemaData schemaData);
+
+    CompletableFuture<Void> checkConsumerCompatibility(String schemaId, SchemaData schemaData,
+                                                       SchemaCompatibilityStrategy strategy);
+
+    CompletableFuture<SchemaVersion> getSchemaVersionBySchemaData(List<SchemaAndMetadata> schemaAndMetadataList,
+                                                                  SchemaData schemaData);
 
     SchemaVersion versionFromBytes(byte[] version);
 

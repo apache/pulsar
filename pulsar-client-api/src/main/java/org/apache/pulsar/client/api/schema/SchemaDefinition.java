@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.api.schema;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.pulsar.client.internal.DefaultImplementation;
 
-import java.util.Map;
-
-
+/**
+ * Interface for schema definition.
+ */
 public interface SchemaDefinition<T> {
 
     /**
@@ -30,42 +33,63 @@ public interface SchemaDefinition<T> {
      *
      * @return the {@link SchemaDefinition}
      */
-    static  <T> SchemaDefinitionBuilder<T> builder() {
+    static <T> SchemaDefinitionBuilder<T> builder() {
         return DefaultImplementation.newSchemaDefinitionBuilder();
     }
 
     /**
-     * get schema whether always allow null or not
+     * Get schema whether always allow null or not.
      *
      * @return schema always null or not
      */
-    public boolean getAlwaysAllowNull();
+    boolean getAlwaysAllowNull();
 
     /**
-     * Get schema class
+     * Get JSR310 conversion enabled.
+     *
+     * @return return true if enable JSR310 conversion. false means use Joda time conversion.
+     */
+    boolean isJsr310ConversionEnabled();
+
+    /**
+     * Get schema class.
      *
      * @return schema class
      */
-    public Map<String, String> getProperties();
+    Map<String, String> getProperties();
 
     /**
-     * Get json schema definition
+     * Get json schema definition.
      *
      * @return schema class
      */
-    public String getJsonDef();
+    String getJsonDef();
 
     /**
-     * Get pojo schema definition
+     * Get pojo schema definition.
      *
      * @return pojo schema
      */
-    public Class<T> getPojo();
+    Class<T> getPojo();
 
     /**
-     * Get supportSchemaVersioning schema definition
+     * Get supportSchemaVersioning schema definition.
      *
      * @return the flag of supportSchemaVersioning
      */
-    public boolean getSupportSchemaVersioning();
+    boolean getSupportSchemaVersioning();
+
+    /**
+     * Get a configured schema reader.
+     *
+     * @return optional containing configured schema reader or empty optional if none is configure
+     */
+    Optional<SchemaReader<T>> getSchemaReaderOpt();
+
+    /**
+     * Get a configured schema writer.
+     *
+     * @return optional containing configured schema writer or empty optional if none is configure
+     */
+    Optional<SchemaWriter<T>> getSchemaWriterOpt();
 }

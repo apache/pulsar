@@ -25,6 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
+
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.AfterClass;
@@ -56,22 +58,24 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * It verifies that redelivered messages are sorted based on the ledger-ids.
      * <pre>
      * 1. client publishes 100 messages across 50 ledgers
-     * 2. broker deliveres 100 messages to consumer
-     * 3. consumer ack every alternative message and doesn't ack 50 messsages
+     * 2. broker delivers 100 messages to consumer
+     * 3. consumer ack every alternative message and doesn't ack 50 messages
      * 4. broker sorts replay messages based on ledger and redelivers messages ledger by ledger
      * </pre>
      * @throws Exception
      */
     @Test
     public void testOrderedRedelivery() throws Exception {
-        String topic = "persistent://my-property/my-ns/redelivery";
+        String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
         conf.setManagedLedgerMaxEntriesPerLedger(2);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
-                .producerName("my-producer-name");
-        Producer<byte[]> producer = producerBuilder.create();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .producerName("my-producer-name")
+                .create();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
                 .subscriptionType(SubscriptionType.Shared);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
@@ -113,6 +117,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         // close consumer so, this consumer's unack messages will be redelivered to new consumer
         consumer1.close();
 
+        @Cleanup
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         lastMsgId = null;
         for (int i = 0; i < totalMsgs / 2; i++) {
@@ -123,9 +128,6 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             }
             lastMsgId = msgId;
         }
-
-        producer.close();
-        consumer2.close();
     }
 
     @Test

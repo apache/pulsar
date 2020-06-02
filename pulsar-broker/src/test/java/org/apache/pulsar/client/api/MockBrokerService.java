@@ -18,7 +18,20 @@
  */
 package org.apache.pulsar.client.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 
@@ -26,7 +39,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -38,8 +50,6 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSubscribeHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -47,6 +57,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetad
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.eclipse.jetty.server.Request;
@@ -55,26 +67,15 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
 /**
  */
 public class MockBrokerService {
+    private LookupData lookupData;
+
     private class genericResponseHandler extends AbstractHandler {
         private final ObjectMapper objectMapper = new ObjectMapper();
         private final String lookupURI = "/lookup/v2/destination/persistent";
         private final String partitionMetadataURI = "/admin/persistent";
-        private final LookupData lookupData = new LookupData("pulsar://127.0.0.1:" + brokerServicePort,
-                "pulsar://127.0.0.1:" + brokerServicePortTls, "http://127.0.0.1:" + webServicePort, null);
         private final PartitionedTopicMetadata singlePartitionedTopicMetadata = new PartitionedTopicMetadata(1);
         private final PartitionedTopicMetadata multiPartitionedTopicMetadata = new PartitionedTopicMetadata(4);
         private final PartitionedTopicMetadata nonPartitionedTopicMetadata = new PartitionedTopicMetadata();
@@ -153,7 +154,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newLookupResponse("pulsar://127.0.0.1:" + brokerServicePort, null, true,
+            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerAddress(), null, true,
                     LookupType.Connect, lookup.getRequestId(), false));
         }
 
@@ -185,7 +186,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newSendReceipt(producerId, send.getSequenceId(), 0, 0));
+            ctx.writeAndFlush(Commands.newSendReceipt(producerId, send.getSequenceId(), 0, 0, 0));
         }
 
         @Override
@@ -243,10 +244,7 @@ public class MockBrokerService {
 
     private final Server server;
     EventLoopGroup workerGroup;
-
-    private final int webServicePort;
-    private final int brokerServicePort;
-    private final int brokerServicePortTls;
+    private Channel listenChannel;
 
     private CommandConnectHook handleConnect = null;
     private CommandTopicLookupHook handleTopiclookup = null;
@@ -261,27 +259,20 @@ public class MockBrokerService {
     private CommandCloseConsumerHook handleCloseConsumer = null;
 
     public MockBrokerService() {
-        this(PortManager.nextFreePort(), PortManager.nextFreePort(), PortManager.nextFreePort(),
-                PortManager.nextFreePort());
-    }
-
-    public MockBrokerService(int webServicePort, int webServicePortTls, int brokerServicePort,
-            int brokerServicePortTls) {
-        this.webServicePort = webServicePort;
-        this.brokerServicePort = brokerServicePort;
-        this.brokerServicePortTls = brokerServicePortTls;
-
-        server = new Server(webServicePort);
+        server = new Server(0);
         server.setHandler(new genericResponseHandler());
     }
 
     public void start() {
         try {
             server.start();
-            log.info("Started web service on http://127.0.0.1:{}", webServicePort);
+            log.info("Started web service on {}", getHttpAddress());
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on http://127.0.0.1:{}", brokerServicePort);
+            log.info("Started mock Pulsar service on ", getBrokerAddress());
+
+            lookupData = new LookupData(getBrokerAddress(), null,
+                    getHttpAddress(), null);
         } catch (Exception e) {
             log.error("Error starting mock service", e);
         }
@@ -316,7 +307,7 @@ public class MockBrokerService {
                 }
             });
             // Bind and start to accept incoming connections.
-            bootstrap.bind(brokerServicePort).sync();
+            listenChannel = bootstrap.bind(0).sync().channel();
         } catch (Exception e) {
             throw e;
         }
@@ -408,6 +399,14 @@ public class MockBrokerService {
 
     public void resetHandleCloseConsumer() {
         handleCloseConsumer = null;
+    }
+
+    public String getHttpAddress() {
+        return String.format("http://localhost:%d", server.getURI().getPort());
+    }
+
+    public String getBrokerAddress() {
+        return String.format("pulsar://localhost:%d", ((InetSocketAddress) listenChannel.localAddress()).getPort());
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockBrokerService.class);

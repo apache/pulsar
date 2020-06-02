@@ -4,6 +4,10 @@ title: Schema evolution and compatibility
 sidebar_label: Schema evolution and compatibility
 ---
 
+Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 
+
+This chapter examines how Pulsar schema evolves and what Pulsar schema compatibility check strategies are.
+
 ## Schema evolution
 
 Pulsar schema is defined in a data structure called `SchemaInfo`. 
@@ -436,7 +440,7 @@ Disable schema evolution, that is, any schema change is rejected.
 
 </tr>
 
-</table>
+</table> 
 
 #### Example 
   
@@ -622,6 +626,171 @@ None
 
 In some data formats, for example, Avro, you can define fields with default values. Consequently, adding or removing a field with a default value is a fully compatible change.
 
+## Schema verification
+
+When a producer or a consumer tries to connect to a topic, a broker performs some checks to verify a schema.
+
+### Producer
+
+When a producer tries to connect to a topic (suppose ignore the schema auto creation), a broker does the following checks:
+
+* Check if the schema carried by the producer exists in the schema registry or not.
+
+    * If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.
+    
+    * If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.
+    
+### Consumer
+When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.
+
+<table style="table">
+
+<tr>
+
+<th>
+
+Compatibility check strategy
+
+</th>
+
+<th>
+
+Check logic
+
+</th>
+
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_COMPATIBLE`
+
+</td> 
+
+<td> 
+
+All pass
+
+</td> 
+ 
+</tr>
+
+<tr>
+
+<td> 
+
+`ALWAYS_INCOMPATIBLE`
+
+</td> 
+
+<td> 
+
+No pass
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`BACKWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FORWARD_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL`
+
+</td> 
+
+<td> 
+
+Can read the last schema
+
+</td> 
+
+</tr>
+
+<tr>
+
+<td> 
+
+`FULL_TRANSITIVE`
+
+</td> 
+
+<td> 
+
+Can read all schemas
+
+</td> 
+
+</tr>
+
+</table>
+
 ## Order of upgrading clients
 
 The order of upgrading client applications is determined by the compatibility check strategy.
@@ -777,3 +946,7 @@ Consequently, you can upgrade the producers and consumers in **any order**.
 </tr>
 
 </table>
+
+
+
+

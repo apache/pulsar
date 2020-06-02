@@ -8,26 +8,26 @@ Pulsar's [topic compaction](concepts-topic-compaction.md#compaction) feature ena
 
 To use compaction:
 
-* You need to give messages keys, as topic compaction in Pulsar takes place on a *per-key basis* (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key (more on this [below](#when)). Messages without keys will be left alone by the compaction process.
-* Compaction can be configured to run [automatically](#automatic), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
-* Your consumers must be [configured](#config) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
+* You need to give messages keys, as topic compaction in Pulsar takes place on a *per-key basis* (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key (more on this [below](#when-should-i-use-compacted-topics)). Messages without keys will be left alone by the compaction process.
+* Compaction can be configured to run [automatically](#configuring-compaction-to-run-automatically), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
+* Your consumers must be [configured](#consumer-configuration) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
 
 
 > Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction.
 
-## When should I use compacted topics? {#when}
+## When should I use compacted topics?
 
 The classic example of a topic that could benefit from compaction would be a stock ticker topic through which consumers can access up-to-date values for specific stocks. Imagine a scenario in which messages carrying stock value data use the stock symbol as the key (`GOOG`, `AAPL`, `TWTR`, etc.). Compacting this topic would give consumers on the topic two options:
 
 * They can read from the "original," non-compacted topic in case they need access to "historical" values, i.e. the entirety of the topic's messages.
 * They can read from the compacted topic if they only want to see the most up-to-date messages.
 
-Thus, if you're using a Pulsar topic called `stock-values`, some consumers could have access to all messages in the topic (perhaps because they're performing some kind of number crunching of all values in the last hour) while the consumers used to power the real-time stock ticker only see the compacted topic (and thus aren't forced to process outdated messages). Which variant of the topic any given consumer pulls messages from is determined by the consumer's [configuration](#config).
+Thus, if you're using a Pulsar topic called `stock-values`, some consumers could have access to all messages in the topic (perhaps because they're performing some kind of number crunching of all values in the last hour) while the consumers used to power the real-time stock ticker only see the compacted topic (and thus aren't forced to process outdated messages). Which variant of the topic any given consumer pulls messages from is determined by the consumer's [configuration](#consumer-configuration).
 
 > One of the benefits of compaction in Pulsar is that you aren't forced to choose between compacted and non-compacted topics, as the compaction process leaves the original topic as-is and essentially adds an alternate topic. In other words, you can run compaction on a topic and consumers that need access to the non-compacted version of the topic will not be adversely affected.
 
 
-## Configuring compaction to run automatically {#automatic}
+## Configuring compaction to run automatically
 
 Tenant administrators can configure a policy for compaction at the namespace level. The policy specifies how large the topic backlog can grow before compaction is triggered.
 
@@ -40,7 +40,7 @@ $ bin/pulsar-admin namespaces set-compaction-threshold \
 
 Configuring the compaction threshold on a namespace will apply to all topics within that namespace.
 
-## Triggering compaction manually {#trigger}
+## Triggering compaction manually
 
 In order to run compaction on a topic, you need to use the [`topics compact`](reference-pulsar-admin.md#topics-compact) command for the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool. Here's an example:
 
@@ -72,16 +72,11 @@ $ bin/pulsar compact-topic \
 
 #### When should I trigger compaction?
 
-How often you [trigger compaction](#trigger) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
+How often you [trigger compaction](#triggering-compaction-manually) will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.
 
-## Consumer configuration {#config}
+## Consumer configuration
 
 Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the
-
-
-> #### Java only
-> Currently, only [Java](#java) clients can consume messages from compacted topics.
-
 
 ### Java
 

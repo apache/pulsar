@@ -18,28 +18,28 @@
  */
 package org.apache.pulsar.zookeeper;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
-import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
+import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.net.NetworkTopology;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -55,11 +55,12 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
 
     private ZooKeeperDataCache<BookiesRackConfiguration> bookieMappingCache = null;
-    private RackawareEnsemblePlacementPolicyImpl rackawarePolicy = null;
+    private ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
 
     private static final ObjectMapper jsonMapper = ObjectMapperFactory.create();
 
     private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
+    private volatile Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
 
     @Override
     public void setConf(Configuration conf) {
@@ -79,17 +80,32 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         // for just the IP/hostname when trying to get the rack for a bookie.
         // To work around this issue, we insert in the map the bookie ip/hostname with same rack-info
         BookiesRackConfiguration newRacksWithHost = new BookiesRackConfiguration();
+        Map<String, BookieInfo> newBookieInfoMap = new HashMap<>();
         racks.forEach((group, bookies) ->
                 bookies.forEach((addr, bi) -> {
                     try {
                         BookieSocketAddress bsa = new BookieSocketAddress(addr);
-                        newRacksWithHost.updateBookie(group, bsa.getHostName(), bi);
+                        newRacksWithHost.updateBookie(group, bsa.toString(), bi);
+
+                        String hostname = bsa.getSocketAddress().getHostName();
+                        newBookieInfoMap.put(hostname, bi);
+
+                        InetAddress address = bsa.getSocketAddress().getAddress();
+                        if (null != address) {
+                            String hostIp = address.getHostAddress();
+                            if (null != hostIp) {
+                                newBookieInfoMap.put(hostIp, bi);
+                            }
+                        } else {
+                            LOG.info("Network address for {} is unresolvable yet.", addr);
+                        }
                     } catch (UnknownHostException e) {
                         throw new RuntimeException(e);
                     }
                 })
         );
         racksWithHost = newRacksWithHost;
+        bookieInfoMap = newBookieInfoMap;
     }
 
     private ZooKeeperDataCache<BookiesRackConfiguration> getAndSetZkCache(Configuration conf) {
@@ -105,7 +121,8 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 try {
                     ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
                             .sessionTimeoutMs(zkTimeout).build();
-                    zkCache = new ZooKeeperCache(zkClient, (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
+                    zkCache = new ZooKeeperCache("bookies-racks", zkClient,
+                            (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
                     };
                     conf.addProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, zkCache);
                 } catch (Exception e) {
@@ -155,22 +172,35 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             // Trigger load of z-node in case it didn't exist
             Optional<BookiesRackConfiguration> racks = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH);
             if (!racks.isPresent()) {
-                return NetworkTopology.DEFAULT_RACK;
+                // since different placement policy will have different default rack,
+                // don't be smart here and just return null
+                return null;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
+        BookieInfo bi = bookieInfoMap.get(bookieAddress);
+        if (bi == null) {
+            Optional<BookieInfo> biOpt = racksWithHost.getBookie(bookieAddress);
+            if (biOpt.isPresent()) {
+                bi = biOpt.get();
+            } else {
+                updateRacksWithHost(racksWithHost);
+                bi = bookieInfoMap.get(bookieAddress);
+            }
+        }
 
-        Optional<BookieInfo> bi = racksWithHost.getBookie(bookieAddress);
-        if (bi.isPresent()) {
-            String rack = bi.get().getRack();
+        if (bi != null) {
+            String rack = bi.getRack();
             if (!rack.startsWith("/")) {
                 rack = "/" + rack;
             }
             return rack;
         } else {
-            return NetworkTopology.DEFAULT_RACK;
+            // since different placement policy will have different default rack,
+            // don't be smart here and just return null
+            return null;
         }
     }
 
@@ -182,6 +212,11 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     @Override
     public void reloadCachedMappings() {
         // no-op
+    }
+
+    @Override
+    public boolean useHostName() {
+        return false;
     }
 
     @Override
@@ -203,8 +238,7 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public void registerRackChangeListener(RackawareEnsemblePlacementPolicyImpl rackawarePolicy) {
+    public void registerRackChangeListener(ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy) {
         this.rackawarePolicy = rackawarePolicy;
-
     }
 }

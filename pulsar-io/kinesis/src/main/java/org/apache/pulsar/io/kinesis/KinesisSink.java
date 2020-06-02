@@ -24,23 +24,18 @@ import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kinesis.producer.KinesisProducer;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
 import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -49,6 +44,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.aws.AbstractAwsConnector;
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -88,7 +85,7 @@ import org.slf4j.LoggerFactory;
     help = "A sink connector that copies messages from Pulsar to Kinesis",
     configClass = KinesisSinkConfig.class
 )
-public class KinesisSink implements Sink<byte[]> {
+public class KinesisSink extends AbstractAwsConnector implements Sink<byte[]> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
 
@@ -104,9 +101,6 @@ public class KinesisSink implements Sink<byte[]> {
     private volatile int previousPublishFailed = FALSE;
     private static final AtomicIntegerFieldUpdater<KinesisSink> IS_PUBLISH_FAILED =
             AtomicIntegerFieldUpdater.newUpdater(KinesisSink.class, "previousPublishFailed");
-
-    public static final String ACCESS_KEY_NAME = "accessKey";
-    public static final String SECRET_KEY_NAME = "secretKey";
 
     public static final String METRICS_TOTAL_INCOMING = "_kinesis_total_incoming_";
     public static final String METRICS_TOTAL_INCOMING_BYTES = "_kinesis_total_incoming_bytes_";
@@ -155,9 +149,9 @@ public class KinesisSink implements Sink<byte[]> {
         this.sinkContext = sinkContext;
 
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()), "empty aws-end-point");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsRegion()), "empty aws region name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis stream name");
+        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint()) || 
+                      isNotBlank(kinesisSinkConfig.getAwsRegion()), 
+                      "Either the aws-end-point or aws-region must be set");
         checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
 
         KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
@@ -167,7 +161,9 @@ public class KinesisSink implements Sink<byte[]> {
         kinesisConfig.setThreadPoolSize(4);
         kinesisConfig.setCollectionMaxCount(1);
         AWSCredentialsProvider credentialsProvider = createCredentialProvider(
-                kinesisSinkConfig.getAwsCredentialPluginName(), kinesisSinkConfig.getAwsCredentialPluginParam());
+                kinesisSinkConfig.getAwsCredentialPluginName(),
+                kinesisSinkConfig.getAwsCredentialPluginParam())
+            .getCredentialProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
@@ -175,15 +171,6 @@ public class KinesisSink implements Sink<byte[]> {
         IS_PUBLISH_FAILED.set(this, FALSE);
 
         LOG.info("Kinesis sink started. {}", (ReflectionToStringBuilder.toString(kinesisConfig, ToStringStyle.SHORT_PREFIX_STYLE)));
-    }
-
-    protected AWSCredentialsProvider createCredentialProvider(String awsCredentialPluginName,
-            String awsCredentialPluginParam) {
-        if (isNotBlank(awsCredentialPluginName)) {
-            return createCredentialProviderWithPlugin(awsCredentialPluginName, awsCredentialPluginParam);
-        } else {
-            return defaultCredentialProvider(awsCredentialPluginParam);
-        }
     }
 
     private static final class ProducerSendCallback implements FutureCallback<UserRecordResult> {
@@ -247,73 +234,6 @@ public class KinesisSink implements Sink<byte[]> {
             }
             recycle();
         }
-    }
-
-    /**
-     * Creates a instance of credential provider which can return {@link AWSCredentials} or {@link BasicAWSCredentials}
-     * based on IAM user/roles.
-     *
-     * @param pluginFQClassName
-     * @param param
-     * @return
-     * @throws IllegalArgumentException
-     */
-    public static AWSCredentialsProvider createCredentialProviderWithPlugin(String pluginFQClassName, String param)
-            throws IllegalArgumentException {
-        try {
-            Class<?> clazz = Class.forName(pluginFQClassName);
-            Constructor<?> ctor = clazz.getConstructor();
-            final AwsCredentialProviderPlugin plugin = (AwsCredentialProviderPlugin) ctor.newInstance(new Object[] {});
-            plugin.init(param);
-            return plugin.getCredentialProvider();
-        } catch (Exception e) {
-            LOG.error("Failed to initialize AwsCredentialProviderPlugin {}", pluginFQClassName, e);
-            throw new IllegalArgumentException(
-                    String.format("invalid authplugin name %s , failed to init %s", pluginFQClassName, e.getMessage()));
-        }
-    }
-
-    /**
-     * It creates a default credential provider which takes accessKey and secretKey form configuration and creates
-     * {@link AWSCredentials}
-     *
-     * @param awsCredentialPluginParam
-     * @return
-     */
-    protected AWSCredentialsProvider defaultCredentialProvider(String awsCredentialPluginParam) {
-        Map<String, String> credentialMap = new Gson().fromJson(awsCredentialPluginParam,
-                new TypeToken<Map<String, String>>() {
-                }.getType());
-        String accessKey = credentialMap.get(ACCESS_KEY_NAME);
-        String secretKey = credentialMap.get(SECRET_KEY_NAME);
-        checkArgument(isNotBlank(accessKey) && isNotBlank(secretKey),
-                String.format(
-                        "Default %s and %s must be present into json-map if AwsCredentialProviderPlugin not provided",
-                        ACCESS_KEY_NAME, SECRET_KEY_NAME));
-        return defaultCredentialProvider(accessKey, secretKey);
-    }
-
-    private AWSCredentialsProvider defaultCredentialProvider(String accessKey, String secretKey) {
-        return new AWSCredentialsProvider() {
-            @Override
-            public AWSCredentials getCredentials() {
-                return new AWSCredentials() {
-                    @Override
-                    public String getAWSAccessKeyId() {
-                        return accessKey;
-                    }
-
-                    @Override
-                    public String getAWSSecretKey() {
-                        return secretKey;
-                    }
-                };
-            }
-            @Override
-            public void refresh() {
-                // no-op
-            }
-        };
     }
 
     public static ByteBuffer createKinesisMessage(MessageFormat msgFormat, Record<byte[]> record) {

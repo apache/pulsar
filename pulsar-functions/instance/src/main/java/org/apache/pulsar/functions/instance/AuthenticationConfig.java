@@ -20,19 +20,11 @@ package org.apache.pulsar.functions.instance;
 
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * Configuration to aggregate various authentication params.
  */
 @Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
 @Builder
 public class AuthenticationConfig {
     private String clientAuthenticationPlugin;

@@ -18,27 +18,31 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import static java.util.Objects.requireNonNull;
+
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Arrays;
+import java.util.Objects;
 
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This class represents the basic information about a presto column.
+ */
 public class PulsarColumnHandle implements ColumnHandle {
 
     private final String connectorId;
 
     /**
-     * Column Name
+     * Column Name.
      */
     private final String name;
 
     /**
-     * Column type
+     * Column type.
      */
     private final Type type;
 
@@ -56,6 +60,26 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     private final Integer[] positionIndices;
 
+    private HandleKeyValueType handleKeyValueType;
+
+    /**
+     * Column Handle keyValue type, used for keyValue schema.
+     */
+    public enum HandleKeyValueType {
+        /**
+         * The handle not for keyValue schema.
+         */
+        NONE,
+        /**
+         * The key schema handle for keyValue schema.
+         */
+        KEY,
+        /**
+         * The value schema handle for keyValue schema.
+         */
+        VALUE
+    }
+
     @JsonCreator
     public PulsarColumnHandle(
             @JsonProperty("connectorId") String connectorId,
@@ -64,7 +88,8 @@ public class PulsarColumnHandle implements ColumnHandle {
             @JsonProperty("hidden") boolean hidden,
             @JsonProperty("internal") boolean internal,
             @JsonProperty("fieldNames") String[] fieldNames,
-            @JsonProperty("positionIndices") Integer[] positionIndices) {
+            @JsonProperty("positionIndices") Integer[] positionIndices,
+            @JsonProperty("handleKeyValueType") HandleKeyValueType handleKeyValueType) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null");
         this.name = requireNonNull(name, "name is null");
         this.type = requireNonNull(type, "type is null");
@@ -72,6 +97,11 @@ public class PulsarColumnHandle implements ColumnHandle {
         this.internal = internal;
         this.fieldNames = fieldNames;
         this.positionIndices = positionIndices;
+        if (handleKeyValueType == null) {
+            this.handleKeyValueType = HandleKeyValueType.NONE;
+        } else {
+            this.handleKeyValueType = handleKeyValueType;
+        }
     }
 
     @JsonProperty
@@ -109,6 +139,20 @@ public class PulsarColumnHandle implements ColumnHandle {
         return positionIndices;
     }
 
+    @JsonProperty
+    public HandleKeyValueType getHandleKeyValueType() {
+        return handleKeyValueType;
+    }
+
+    @JsonIgnore
+    public boolean isKey() {
+        return Objects.equals(handleKeyValueType, HandleKeyValueType.KEY);
+    }
+
+    @JsonIgnore
+    public boolean isValue() {
+        return Objects.equals(handleKeyValueType, HandleKeyValueType.VALUE);
+    }
 
     ColumnMetadata getColumnMetadata() {
         return new ColumnMetadata(name, type, null, hidden);
@@ -116,18 +160,37 @@ public class PulsarColumnHandle implements ColumnHandle {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         PulsarColumnHandle that = (PulsarColumnHandle) o;
 
-        if (hidden != that.hidden) return false;
-        if (internal != that.internal) return false;
-        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) return false;
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        if (type != null ? !type.equals(that.type) : that.type != null) return false;
-        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) return false;
-        return Arrays.deepEquals(positionIndices, that.positionIndices);
+        if (hidden != that.hidden) {
+            return false;
+        }
+        if (internal != that.internal) {
+            return false;
+        }
+        if (connectorId != null ? !connectorId.equals(that.connectorId) : that.connectorId != null) {
+            return false;
+        }
+        if (name != null ? !name.equals(that.name) : that.name != null) {
+            return false;
+        }
+        if (type != null ? !type.equals(that.type) : that.type != null) {
+            return false;
+        }
+        if (!Arrays.deepEquals(fieldNames, that.fieldNames)) {
+            return false;
+        }
+        if (!Arrays.deepEquals(positionIndices, that.positionIndices)) {
+            return false;
+        }
+        return Objects.equals(handleKeyValueType, that.handleKeyValueType);
     }
 
     @Override
@@ -139,19 +202,21 @@ public class PulsarColumnHandle implements ColumnHandle {
         result = 31 * result + (internal ? 1 : 0);
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(positionIndices);
+        result = 31 * result + (handleKeyValueType != null ? handleKeyValueType.hashCode() : 0);
         return result;
     }
 
     @Override
     public String toString() {
-        return "PulsarColumnHandle{" +
-                "connectorId='" + connectorId + '\'' +
-                ", name='" + name + '\'' +
-                ", type=" + type +
-                ", hidden=" + hidden +
-                ", internal=" + internal +
-                ", fieldNames=" + Arrays.toString(fieldNames) +
-                ", positionIndices=" + Arrays.toString(positionIndices) +
-                '}';
+        return "PulsarColumnHandle{"
+            + "connectorId='" + connectorId + '\''
+            + ", name='" + name + '\''
+            + ", type=" + type
+            + ", hidden=" + hidden
+            + ", internal=" + internal
+            + ", fieldNames=" + Arrays.toString(fieldNames)
+            + ", positionIndices=" + Arrays.toString(positionIndices)
+            + ", handleKeyValueType=" + handleKeyValueType
+            + '}';
     }
 }

@@ -97,6 +97,7 @@ public class CmdSources extends CmdBase {
         jcommander.addCommand("restart", restartSource);
         jcommander.addCommand("localrun", localSourceRunner);
         jcommander.addCommand("available-sources", new ListBuiltInSources());
+        jcommander.addCommand("reload", new ReloadBuiltInSources());
     }
 
     /**
@@ -298,6 +299,8 @@ public class CmdSources extends CmdBase {
         protected String DEPRECATED_sourceConfigString;
         @Parameter(names = "--source-config", description = "Source config key/values")
         protected String sourceConfigString;
+        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        protected String customRuntimeOptions;
 
         protected SourceConfig sourceConfig;
 
@@ -391,6 +394,9 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setConfigs(parseConfigs(sourceConfigString));
             }
 
+            if (customRuntimeOptions != null) {
+                sourceConfig.setCustomRuntimeOptions(customRuntimeOptions);
+            }
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
         }
@@ -603,6 +609,15 @@ public class CmdSources extends CmdBase {
                         System.out.println(WordUtils.wrap(connector.getDescription(), 80));
                         System.out.println("----------------------------------------");
                     });
+        }
+    }
+
+    @Parameters(commandDescription = "Reload the available built-in connectors")
+    public class ReloadBuiltInSources extends BaseCommand {
+
+        @Override
+        void runCmd() throws Exception {
+            admin.sources().reloadBuiltInSources();
         }
     }
 }

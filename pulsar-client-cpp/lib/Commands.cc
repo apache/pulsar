@@ -215,6 +215,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
+
+    FeatureFlags* flags = connect->mutable_feature_flags();
+    flags->set_supports_auth_refresh(true);
     if (connectingThroughProxy) {
         Url logicalAddressUrl;
         Url::parse(logicalAddress, logicalAddressUrl);
@@ -225,6 +228,23 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::AUTH_RESPONSE);
+    CommandAuthResponse* authResponse = cmd.mutable_authresponse();
+    authResponse->set_client_version(_PULSAR_VERSION_);
+
+    AuthData* authData = authResponse->mutable_response();
+    authData->set_auth_method_name(authentication->getAuthMethodName());
+
+    AuthenticationDataPtr authDataContent;
+    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+        authData->set_auth_data(authDataContent->getCommandData());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
@@ -393,6 +413,16 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+    commandSeek->set_message_publish_time(timestamp);
+    return writeMessageWithSize(cmd);
+}
+
 SharedBuffer Commands::newGetLastMessageId(uint64_t consumerId, uint64_t requestId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::GET_LAST_MESSAGE_ID);
@@ -526,6 +556,49 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::AUTH_RESPONSE:
             return "AUTH_RESPONSE";
+            break;
+        case BaseCommand::ACK_RESPONSE:
+            return "ACK_RESPONSE";
+            break;
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
+            return "GET_OR_CREATE_SCHEMA";
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
+            return "GET_OR_CREATE_SCHEMA_RESPONSE";
+        case BaseCommand::NEW_TXN:
+            return "NEW_TXN";
+            break;
+        case BaseCommand::NEW_TXN_RESPONSE:
+            return "NEW_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN:
+            return "ADD_PARTITION_TO_TXN";
+            break;
+        case BaseCommand::ADD_PARTITION_TO_TXN_RESPONSE:
+            return "ADD_PARTITION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN:
+            return "ADD_SUBSCRIPTION_TO_TXN";
+            break;
+        case BaseCommand::ADD_SUBSCRIPTION_TO_TXN_RESPONSE:
+            return "ADD_SUBSCRIPTION_TO_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN:
+            return "END_TXN";
+            break;
+        case BaseCommand::END_TXN_RESPONSE:
+            return "END_TXN_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION:
+            return "END_TXN_ON_PARTITION";
+            break;
+        case BaseCommand::END_TXN_ON_PARTITION_RESPONSE:
+            return "END_TXN_ON_PARTITION_RESPONSE";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION:
+            return "END_TXN_ON_SUBSCRIPTION";
+            break;
+        case BaseCommand::END_TXN_ON_SUBSCRIPTION_RESPONSE:
+            return "END_TXN_ON_SUBSCRIPTION_RESPONSE";
             break;
     };
 }

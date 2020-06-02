@@ -23,6 +23,11 @@ import java.util.BitSet;
 
 class BatchMessageAcker {
 
+    private BatchMessageAcker() {
+        this.bitSet = new BitSet();
+        this.batchSize = 0;
+    }
+
     static BatchMessageAcker newAcker(int batchSize) {
         BitSet bitSet = new BitSet(batchSize);
         bitSet.set(0, batchSize);

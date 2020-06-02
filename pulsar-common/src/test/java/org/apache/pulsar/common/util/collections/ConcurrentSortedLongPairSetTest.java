@@ -85,8 +85,8 @@ public class ConcurrentSortedLongPairSetTest {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        final int nThreads = 16;
-        final int N = 100_000;
+        final int nThreads = 8;
+        final int N = 1000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {

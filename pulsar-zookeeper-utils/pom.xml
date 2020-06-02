@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -78,12 +78,11 @@
       <scope>test</scope>
     </dependency>
 
-     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
-      <classifier>tests</classifier>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
-      <version>${project.parent.version}</version>
     </dependency>
 
     <dependency>
@@ -102,20 +101,9 @@
       <artifactId>aspectjweaver</artifactId>
     </dependency>
 
-
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
-      <version>${project.parent.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_caffeine</artifactId>
     </dependency>
 
   </dependencies>

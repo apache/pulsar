@@ -18,10 +18,19 @@
  */
 package org.apache.pulsar.client.cli;
 
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
+import com.google.common.util.concurrent.RateLimiter;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +38,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import org.apache.commons.io.HexDump;
 import org.apache.commons.lang3.StringUtils;
@@ -36,9 +46,11 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
@@ -54,14 +66,6 @@ import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-
 /**
  * pulsar-client consume command implementation.
  *
@@ -75,8 +79,11 @@ public class CmdConsume {
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type: Exclusive, Shared, Failover.")
+    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
     private String subscriptionName;
@@ -91,7 +98,10 @@ public class CmdConsume {
     @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
-    
+
+    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
+    private boolean isRegex = false;
+
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -120,14 +130,30 @@ public class CmdConsume {
      * @return String representation of the message
      */
     private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
+        StringBuilder sb = new StringBuilder();
+
+        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
+
+        String data;
         byte[] msgData = message.getData();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
-            return new String(msgData);
+            data = new String(msgData);
         } else {
             HexDump.dump(msgData, 0, out, 0);
-            return new String(out.toByteArray());
+            data = new String(out.toByteArray());
         }
+
+        String key = null;
+        if (message.hasKey()) {
+            key = message.getKey();
+        }
+
+        sb.append("key:[").append(key).append("], ");
+        sb.append("properties:").append(properties).append(", ");
+        sb.append("content:").append(data);
+
+        return sb.toString();
     }
 
     /**
@@ -144,7 +170,7 @@ public class CmdConsume {
             throw (new ParameterException("Number of messages should be zero or positive."));
 
         String topic = this.mainOptions.get(0);
-        
+
         if(this.serviceURL.startsWith("ws")) {
             return consumeFromWebSocket(topic);
         }else {
@@ -158,8 +184,18 @@ public class CmdConsume {
 
         try {
             PulsarClient client = clientBuilder.build();
-            Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(this.subscriptionName)
-                    .subscriptionType(subscriptionType).subscribe();
+            ConsumerBuilder<byte[]> builder = client.newConsumer()
+                    .subscriptionName(this.subscriptionName)
+                    .subscriptionType(subscriptionType)
+                    .subscriptionInitialPosition(subscriptionInitialPosition);
+
+            if (isRegex) {
+                builder.topicsPattern(Pattern.compile(topic));
+            } else {
+                builder.topic(topic);
+            }
+
+            Consumer<byte[]> consumer = builder.subscribe();
 
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
@@ -197,13 +233,13 @@ public class CmdConsume {
         int returnCode = 0;
 
         TopicName topicName = TopicName.get(topic);
-        
+
         String wsTopic = String.format(
                 "%s/%s/" + (StringUtils.isEmpty(topicName.getCluster()) ? "" : topicName.getCluster() + "/")
                         + "%s/%s/%s?subscriptionType=%s",
                 topicName.getDomain(), topicName.getTenant(), topicName.getNamespacePortion(), topicName.getLocalName(),
                 subscriptionName, subscriptionType.toString());
-        
+
         String consumerBaseUri = serviceURL + (serviceURL.endsWith("/") ? "" : "/") + "ws/consumer/" + wsTopic;
         URI consumerUri = URI.create(consumerBaseUri);
 
@@ -252,7 +288,7 @@ public class CmdConsume {
                     LOG.debug("No message to consume after waiting for 5 seconds.");
                 } else {
                     try {
-                        System.out.println(Base64.getDecoder().decode(msg));    
+                        System.out.println(Base64.getDecoder().decode(msg));
                     }catch(Exception e) {
                         System.out.println(msg);
                     }

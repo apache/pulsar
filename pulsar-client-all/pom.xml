@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -42,6 +42,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 
@@ -147,10 +153,12 @@
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -311,10 +319,6 @@
                 <relocation>
                   <pattern>com.thoughtworks.paranamer</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>

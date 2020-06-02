@@ -61,21 +61,9 @@ public class BackoffBuilder {
     	this.unitMandatoryStop = unitMandatoryStop;
     	return this;
     }
-    
-    public BackoffBuilder useDefaultBackoffIntervals() {
-    	return useUserConfiguredIntervals(Backoff.DEFAULT_INTERVAL_IN_NANOSECONDS, 
-    			                          Backoff.MAX_BACKOFF_INTERVAL_NANOSECONDS );
-    }
-    
-    public BackoffBuilder useUserConfiguredIntervals(long backoffIntervalNanos, 
-                                                     long maxBackoffIntervalNanos) {
-    	this.backoffIntervalNanos = backoffIntervalNanos;
-    	this.maxBackoffIntervalNanos = maxBackoffIntervalNanos;
-    	return this;
-    }
+
     
     public Backoff create() {
-    	return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock, 
-    			           backoffIntervalNanos, maxBackoffIntervalNanos);
+    	return new Backoff(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, clock);
     }
 }

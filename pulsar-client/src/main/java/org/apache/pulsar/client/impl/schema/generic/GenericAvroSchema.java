@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -31,6 +32,8 @@ import org.apache.pulsar.common.schema.SchemaInfo;
  */
 @Slf4j
 public class GenericAvroSchema extends GenericSchemaImpl {
+
+    public final static String OFFSET_PROP = "__AVRO_READ_OFFSET__";
 
     public GenericAvroSchema(SchemaInfo schemaInfo) {
         this(schemaInfo, true);
@@ -54,21 +57,33 @@ public class GenericAvroSchema extends GenericSchemaImpl {
     }
 
     @Override
-    protected SchemaReader<GenericRecord> loadReader(byte[] schemaVersion) {
-         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion);
+    public org.apache.pulsar.client.api.Schema<GenericRecord> clone() {
+        org.apache.pulsar.client.api.Schema<GenericRecord> schema =
+                GenericAvroSchema.of(schemaInfo, useProvidedSchemaAsReaderSchema);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
+    }
+
+    @Override
+    protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
+         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
          if (schemaInfo != null) {
              log.info("Load schema reader for version({}), schema is : {}",
-                 SchemaUtils.getStringSchemaVersion(schemaVersion),
+                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                  schemaInfo);
              Schema writerSchema = parseAvroSchema(schemaInfo.getSchemaDefinition());
              Schema readerSchema = useProvidedSchemaAsReaderSchema ? schema : writerSchema;
+             readerSchema.addProp(OFFSET_PROP, schemaInfo.getProperties().getOrDefault(OFFSET_PROP, "0"));
+
              return new GenericAvroReader(
                      writerSchema,
                      readerSchema,
-                     schemaVersion);
+                     schemaVersion.get());
          } else {
              log.warn("No schema found for version({}), use latest schema : {}",
-                 SchemaUtils.getStringSchemaVersion(schemaVersion),
+                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                  this.schemaInfo);
              return reader;
          }

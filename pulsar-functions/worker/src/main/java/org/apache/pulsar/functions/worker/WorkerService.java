@@ -34,6 +34,7 @@ import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -124,9 +125,18 @@ public class WorkerService {
                     : workerConfig.getWorkerWebAddress();
 
             if (workerConfig.isAuthenticationEnabled()) {
+                // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
+                // otherwise we will use brokerClientTrustCertsFilePath
+                final String pulsarClientTlsTrustCertsFilePath;
+                if (StringUtils.isNotBlank(workerConfig.getBrokerClientTrustCertsFilePath())) {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getBrokerClientTrustCertsFilePath();
+                } else {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getTlsTrustCertsFilePath();
+                }
+
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                     workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
+                    pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
                     workerConfig.isTlsHostnameVerificationEnable());
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
@@ -137,7 +147,7 @@ public class WorkerService {
                 this.client = WorkerUtils.getPulsarClient(this.workerConfig.getPulsarServiceUrl(),
                         workerConfig.getClientAuthenticationPlugin(),
                         workerConfig.getClientAuthenticationParameters(),
-                        workerConfig.isUseTls(), workerConfig.getTlsTrustCertsFilePath(),
+                        workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
                         workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsHostnameVerificationEnable());
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
@@ -148,6 +158,9 @@ public class WorkerService {
             }
             log.info("Created Pulsar client");
 
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionAssignmentTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
+            brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
             this.schedulerManager = new SchedulerManager(this.workerConfig, this.client, this.brokerAdmin,
                     this.executor);
@@ -159,6 +172,10 @@ public class WorkerService {
             this.connectorsManager = new ConnectorsManager(workerConfig);
 
             //create membership manager
+            String coordinationTopic = workerConfig.getClusterCoordinationTopic();
+            if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
+                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.earliest);
+            }
             this.membershipManager = new MembershipManager(this, this.client, this.brokerAdmin);
 
             // create function runtime manager
@@ -198,9 +215,6 @@ public class WorkerService {
 
             // indicate function worker service is done initializing
             this.isInitialized = true;
-
-            this.connectorsManager = new ConnectorsManager(workerConfig);
-
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);
@@ -249,7 +263,7 @@ public class WorkerService {
         if (null != this.brokerAdmin) {
             this.brokerAdmin.close();
         }
-        
+
         if (null != this.functionAdmin) {
             this.functionAdmin.close();
         }
@@ -261,9 +275,13 @@ public class WorkerService {
         if (null != this.dlogNamespace) {
             this.dlogNamespace.close();
         }
-        
+
         if(this.executor != null) {
             this.executor.shutdown();
+        }
+
+        if (this.statsUpdater != null) {
+            statsUpdater.shutdownNow();
         }
     }
 

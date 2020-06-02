@@ -20,6 +20,8 @@ package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
@@ -29,22 +31,16 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
- * {@link com.google.common.collect.RangeSet} and can be used if {@code range} type is {@link LongPair} </br>
- * 
+ * {@link com.google.common.collect.RangeSet} and can be used if {@code range} type is {@link LongPair}
+ *
  * <pre>
- *  
  * Usage:
  * a. This can be used if one doesn't want to create object for every new inserted {@code range}
- * b. It creates {@link BitSet} for every unique first-key of the range. 
+ * b. It creates {@link BitSet} for every unique first-key of the range.
  * So, this rangeSet is not suitable for large number of unique keys.
  * </pre>
- * 
- *
  */
 public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
@@ -56,7 +52,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     // caching place-holder for cpu-optimization to avoid calculating ranges again
     private volatile int cachedSize = 0;
     private volatile String cachedToString = "[]";
-    private volatile boolean updatedAfterCached = true;
+    private volatile boolean updatedAfterCachedForSize = true;
+    private volatile boolean updatedAfterCachedForToString = true;
 
     public ConcurrentOpenLongPairRangeSet(LongPairConsumer<T> consumer) {
         this(1024, true, consumer);
@@ -76,8 +73,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
      * Adds the specified range to this {@code RangeSet} (optional operation). That is, for equal range sets a and b,
      * the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which both
      * {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
-     * <p>
-     * Note that {@code range} will merge given {@code range} with any ranges in the range set that are
+     *
+     * <p>Note that {@code range} will merge given {@code range} with any ranges in the range set that are
      * {@linkplain Range#isConnected(Range) connected} with it. Moreover, if {@code range} is empty, this is a no-op.
      */
     @Override
@@ -110,7 +107,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             BitSet rangeBitSet = rangeBitSetMap.computeIfAbsent(key, (k) -> createNewBitSet());
             rangeBitSet.set((int) lowerValue, (int) upperValue + 1);
         }
-        updatedAfterCached = true;
+        updatedAfterCachedForSize = true;
+        updatedAfterCachedForToString = true;
     }
 
     private boolean isValid(long key, long value) {
@@ -168,7 +166,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     @Override
     public void clear() {
         rangeBitSetMap.clear();
-        updatedAfterCached = true;
+        updatedAfterCachedForSize = true;
+        updatedAfterCachedForToString = true;
     }
 
     @Override
@@ -223,6 +222,9 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
 
     @Override
     public Range<T> firstRange() {
+        if (rangeBitSetMap.isEmpty()) {
+            return null;
+        }
         Entry<Long, BitSet> firstSet = rangeBitSetMap.firstEntry();
         int lower = firstSet.getValue().nextSetBit(0);
         int upper = Math.max(lower, firstSet.getValue().nextClearBit(lower) - 1);
@@ -230,22 +232,33 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
+    public Range<T> lastRange() {
+        if (rangeBitSetMap.isEmpty()) {
+            return null;
+        }
+        Entry<Long, BitSet> lastSet = rangeBitSetMap.lastEntry();
+        int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
+        int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
+        return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
     public int size() {
-        if (updatedAfterCached) {
+        if (updatedAfterCachedForSize) {
             AtomicInteger size = new AtomicInteger(0);
             forEach((range) -> {
                 size.getAndIncrement();
                 return true;
             });
             cachedSize = size.get();
-            updatedAfterCached = false;
+            updatedAfterCachedForSize = false;
         }
         return cachedSize;
     }
 
     @Override
     public String toString() {
-        if (updatedAfterCached) {
+        if (updatedAfterCachedForToString) {
             StringBuilder toString = new StringBuilder();
             AtomicBoolean first = new AtomicBoolean(true);
             if (toString != null) {
@@ -261,7 +274,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             });
             toString.append("]");
             cachedToString = toString.toString();
-            updatedAfterCached = false;
+            updatedAfterCachedForToString = false;
         }
         return cachedToString;
     }
@@ -271,8 +284,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
      * the result of {@code a.add(range)} is that {@code a} will be the minimal range set for which both
      * {@code a.enclosesAll(b)} and {@code a.encloses(range)}.
      *
-     * <p>
-     * Note that {@code range} will merge given {@code range} with any ranges in the range set that are
+     * <p>Note that {@code range} will merge given {@code range} with any ranges in the range set that are
      * {@linkplain Range#isConnected(Range) connected} with it. Moreover, if {@code range} is empty/invalid, this is a
      * no-op.
      */
@@ -352,7 +364,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
 
-        updatedAfterCached = true;
+        updatedAfterCachedForSize = true;
+        updatedAfterCachedForToString = true;
     }
 
     private int getSafeEntry(LongPair position) {

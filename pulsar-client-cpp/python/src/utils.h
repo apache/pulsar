@@ -19,6 +19,7 @@
 #include <boost/python.hpp>
 
 #include <pulsar/Client.h>
+#include <pulsar/MessageBatch.h>
 
 using namespace pulsar;
 

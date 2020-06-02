@@ -18,7 +18,8 @@
  */
 package org.apache.spark.streaming.receiver.example;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 
@@ -44,7 +45,7 @@ public class ProducerSparkReceiverData {
     try (PulsarClient client = PulsarClient.builder().serviceUrl(args[0]).build()) {
       try (Producer<byte[]> producer = client.newProducer().topic(args[1]).create()) {
         for (int i = 0; i < 100; i++) {
-          producer.send(("producer spark streaming msg").getBytes(Charset.forName("UTF-8")));
+          producer.send(("producer spark streaming msg").getBytes(StandardCharsets.UTF_8));
         }
       }
     }

@@ -23,13 +23,18 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+
+import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -94,8 +99,51 @@ public class SparkStreamingPulsarReceiverTest extends PulsarTestSuite {
             new AuthenticationDisabled());
 
         assertEquals(receiver.storageLevel(), StorageLevel.MEMORY_AND_DISK_2());
-        assertEquals(consConf.getAckTimeoutMillis(), 60_000);
         assertNotNull(consConf.getMessageListener());
+    }
+
+    @Test(dataProvider = "ServiceUrls")
+    public void testSharedSubscription(String serviceUrl) throws Exception {
+        ConsumerConfigurationData<byte[]> consConf = new ConsumerConfigurationData<>();
+
+        Set<String> set = new HashSet<>();
+        set.add(TOPIC);
+        consConf.setTopicNames(set);
+        consConf.setSubscriptionName(SUBS);
+        consConf.setSubscriptionType(SubscriptionType.Shared);
+        consConf.setReceiverQueueSize(1);
+
+        Map<String, MutableInt> receveidCounts = new HashMap<>();
+
+        consConf.setMessageListener((consumer, msg) -> {
+            receveidCounts.computeIfAbsent(consumer.getConsumerName(), x -> new MutableInt(0)).increment();
+        });
+
+        SparkStreamingPulsarReceiver receiver1 = new SparkStreamingPulsarReceiver(
+            serviceUrl,
+            consConf,
+            new AuthenticationDisabled());
+
+        SparkStreamingPulsarReceiver receiver2 = new SparkStreamingPulsarReceiver(
+                serviceUrl,
+                consConf,
+                new AuthenticationDisabled());
+
+        receiver1.onStart();
+        receiver2.onStart();
+        waitForTransmission();
+
+        PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+        Producer<byte[]> producer = client.newProducer().topic(TOPIC).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send(EXPECTED_MESSAGE.getBytes());
+        }
+
+        waitForTransmission();
+        receiver1.onStop();
+        receiver2.onStop();
+
+        assertEquals(receveidCounts.size(), 2);
     }
 
     @Test(expectedExceptions = NullPointerException.class,

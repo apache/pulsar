@@ -47,8 +47,11 @@ import org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.WireFormat;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class ByteBufCodedInputStream {
-    public static interface ByteBufMessageBuilder {
+
+    @SuppressWarnings("checkstyle:JavadocType")
+    public interface ByteBufMessageBuilder {
         ByteBufMessageBuilder mergeFrom(ByteBufCodedInputStream input, ExtensionRegistryLite ext)
                 throws java.io.IOException;
     }

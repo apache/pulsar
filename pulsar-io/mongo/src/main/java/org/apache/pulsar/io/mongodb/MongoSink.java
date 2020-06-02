@@ -18,16 +18,26 @@
  */
 package org.apache.pulsar.io.mongodb;
 
-import static java.util.stream.Collectors.toList;
-
 import com.google.common.collect.Lists;
 import com.mongodb.MongoBulkWriteException;
-import com.mongodb.async.client.MongoClient;
-import com.mongodb.async.client.MongoClients;
-import com.mongodb.async.client.MongoCollection;
-import com.mongodb.async.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClient;
+import com.mongodb.reactivestreams.client.MongoCollection;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.Success;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.Sink;
+import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
+import org.bson.BSONException;
+import org.bson.Document;
+import org.bson.json.JsonParseException;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -38,16 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import lombok.extern.slf4j.Slf4j;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.Sink;
-import org.apache.pulsar.io.core.SinkContext;
-import org.apache.pulsar.io.core.annotations.Connector;
-import org.apache.pulsar.io.core.annotations.IOType;
-import org.bson.BSONException;
-import org.bson.Document;
-import org.bson.json.JsonParseException;
+import static java.util.stream.Collectors.toList;
 
 /**
  * The base class for MongoDB sinks.
@@ -88,7 +89,7 @@ public class MongoSink implements Sink<byte[]> {
         log.info("Open MongoDB Sink");
 
         mongoConfig = MongoConfig.load(config);
-        mongoConfig.validate();
+        mongoConfig.validate(true, true);
 
         if (clientProvider != null) {
             mongoClient = clientProvider.get();
@@ -107,7 +108,7 @@ public class MongoSink implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) {
-        final String recordValue = new String(record.getValue(), Charset.forName("UTF-8"));
+        final String recordValue = new String(record.getValue(), StandardCharsets.UTF_8);
 
         if (log.isDebugEnabled()) {
             log.debug("Received record: " + recordValue);
@@ -145,7 +146,7 @@ public class MongoSink implements Sink<byte[]> {
 
             try {
                 final byte[] docAsBytes = record.getValue();
-                final Document doc = Document.parse(new String(docAsBytes, Charset.forName("UTF-8")));
+                final Document doc = Document.parse(new String(docAsBytes, StandardCharsets.UTF_8));
                 docsToInsert.add(doc);
             }
             catch (JsonParseException | BSONException e) {
@@ -156,33 +157,55 @@ public class MongoSink implements Sink<byte[]> {
         }
 
         if (docsToInsert.size() > 0) {
+            collection.insertMany(docsToInsert).subscribe(new DocsToInsertSubscriber(docsToInsert,recordsToInsert));
+        }
+    }
+    private class DocsToInsertSubscriber implements Subscriber<Success>{
+        final List<Document> docsToInsert;
+        final List<Record<byte[]>> recordsToInsert;
+        final List<Integer> idxToAck ;
+        final List<Integer> idxToFail = Lists.newArrayList();
+        public DocsToInsertSubscriber(List<Document> docsToInsert,List<Record<byte[]>> recordsToInsert){
+            this.docsToInsert = docsToInsert;
+            this.recordsToInsert = recordsToInsert;
+            idxToAck = IntStream.range(0, this.docsToInsert.size()).boxed().collect(toList());
+        }
+        @Override
+        public void onSubscribe(Subscription subscription) {
+            subscription.request(Integer.MAX_VALUE);
+        }
 
-            collection.insertMany(docsToInsert, (result, t) -> {
-                final List<Integer> idxToAck = IntStream.range(0, docsToInsert.size()).boxed().collect(toList());
-                final List<Integer> idxToFail = Lists.newArrayList();
+        @Override
+        public void onNext(Success success) {
 
-                if (t != null) {
-                    log.error("MongoDB insertion error", t);
+        }
 
-                    if (t instanceof MongoBulkWriteException) {
-                        // With this exception, we are aware of the items that have not been inserted.
-                        ((MongoBulkWriteException) t).getWriteErrors().forEach(err -> {
-                            idxToFail.add(err.getIndex());
-                        });
-                        idxToAck.removeAll(idxToFail);
-                    } else {
-                        idxToFail.addAll(idxToAck);
-                        idxToAck.clear();
-                    }
+        @Override
+        public void onError(Throwable t) {
+            if (t != null) {
+                log.error("MongoDB insertion error", t);
+
+                if (t instanceof MongoBulkWriteException) {
+                    // With this exception, we are aware of the items that have not been inserted.
+                    ((MongoBulkWriteException) t).getWriteErrors().forEach(err -> {
+                        idxToFail.add(err.getIndex());
+                    });
+                    idxToAck.removeAll(idxToFail);
+                } else {
+                    idxToFail.addAll(idxToAck);
+                    idxToAck.clear();
                 }
+            }
+            this.onComplete();
+        }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Nb ack={}, nb fail={}", idxToAck.size(), idxToFail.size());
-                }
-
-                idxToAck.forEach(idx -> recordsToInsert.get(idx).ack());
-                idxToFail.forEach(idx -> recordsToInsert.get(idx).fail());
-            });
+        @Override
+        public void onComplete() {
+            if (log.isDebugEnabled()) {
+                log.debug("Nb ack={}, nb fail={}", idxToAck.size(), idxToFail.size());
+            }
+            idxToAck.forEach(idx -> recordsToInsert.get(idx).ack());
+            idxToFail.forEach(idx -> recordsToInsert.get(idx).fail());
         }
     }
 

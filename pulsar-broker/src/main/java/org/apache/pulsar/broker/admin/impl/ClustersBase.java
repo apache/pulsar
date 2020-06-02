@@ -84,10 +84,9 @@ public class ClustersBase extends AdminResource {
     })
     public Set<String> getClusters() throws Exception {
         try {
-            Set<String> clusters = clustersListCache().get();
-
             // Remove "global" cluster from returned list
-            clusters.remove(Constants.GLOBAL_CLUSTER);
+            Set<String> clusters = clustersListCache().get().stream()
+                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
             return clusters;
         } catch (Exception e) {
             log.error("[{}] Failed to get clusters list", clientAppId(), e);
@@ -631,18 +630,8 @@ public class ClustersBase extends AdminResource {
         validateSuperUserAccess();
         validateClusterExists(cluster);
 
-        Set<String> availableBrokers;
         final String nsIsolationPoliciesPath = AdminResource.path("clusters", cluster, NAMESPACE_ISOLATION_POLICIES);
         Map<String, NamespaceIsolationData> nsPolicies;
-        try {
-            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        if (availableBrokers == null || !availableBrokers.contains(broker)) {
-            throw new RestException(Status.NOT_FOUND, "Broker is not part of active broker list " + broker);
-        }
         try {
             Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPoliciesCache()
                     .get(nsIsolationPoliciesPath);
@@ -659,11 +648,14 @@ public class ClustersBase extends AdminResource {
         if (nsPolicies != null) {
             nsPolicies.forEach((name, policyData) -> {
                 NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-                if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                boolean isPrimary = nsPolicyImpl.isPrimaryBroker(broker);
+                if (isPrimary || nsPolicyImpl.isSecondaryBroker(broker)) {
                     if (brokerIsolationData.namespaceRegex == null) {
                         brokerIsolationData.namespaceRegex = Lists.newArrayList();
                     }
                     brokerIsolationData.namespaceRegex.addAll(policyData.namespaces);
+                    brokerIsolationData.isPrimary = isPrimary;
+                    brokerIsolationData.policyName = name;
                 }
             });
         }
@@ -905,9 +897,7 @@ public class ClustersBase extends AdminResource {
                 try {
                     Optional<FailureDomain> domain = failureDomainCache()
                             .get(joinPath(failureDomainRootPath, domainName));
-                    if (domain.isPresent()) {
-                        domains.put(domainName, domain.get());
-                    }
+                    domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
                 } catch (Exception e) {
                     log.warn("Failed to get domain {}", domainName, e);
                 }

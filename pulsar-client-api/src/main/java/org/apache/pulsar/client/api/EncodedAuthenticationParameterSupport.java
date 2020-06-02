@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+/**
+ * Support for encoded authentication configuration parameters.
+ */
 public interface EncodedAuthenticationParameterSupport {
 
     /**

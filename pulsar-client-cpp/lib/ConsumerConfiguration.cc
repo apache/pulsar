@@ -33,6 +33,12 @@ ConsumerConfiguration& ConsumerConfiguration::operator=(const ConsumerConfigurat
     return *this;
 }
 
+ConsumerConfiguration ConsumerConfiguration::clone() const {
+    ConsumerConfiguration newConf;
+    newConf.impl_.reset(new ConsumerConfigurationImpl(*this->impl_));
+    return newConf;
+}
+
 ConsumerConfiguration& ConsumerConfiguration::setSchema(const SchemaInfo& schemaInfo) {
     impl_->schemaInfo = schemaInfo;
     return *this;
@@ -92,12 +98,18 @@ void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeco
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
 
+long ConsumerConfiguration::getTickDurationInMs() const { return impl_->tickDurationInMs; }
+
+void ConsumerConfiguration::setTickDurationInMs(const uint64_t milliSeconds) {
+    impl_->tickDurationInMs = milliSeconds;
+}
+
 void ConsumerConfiguration::setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis) {
-    impl_->negativeAckRedeliveryDelay = std::chrono::milliseconds(redeliveryDelayMillis);
+    impl_->negativeAckRedeliveryDelayMs = redeliveryDelayMillis;
 }
 
 long ConsumerConfiguration::getNegativeAckRedeliveryDelayMs() const {
-    return impl_->negativeAckRedeliveryDelay.count();
+    return impl_->negativeAckRedeliveryDelayMs;
 }
 
 bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }

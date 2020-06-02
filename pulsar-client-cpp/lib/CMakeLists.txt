@@ -25,11 +25,18 @@ set (CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -D_PULSAR_VERSION_=\\\"${PV}\\\"")
 if (NOT PROTOC_PATH)
     set(PROTOC_PATH protoc)
 endif()
+
+set(LIB_AUTOGEN_DIR ${AUTOGEN_DIR}/lib)
+file(MAKE_DIRECTORY ${LIB_AUTOGEN_DIR})
+include_directories(${LIB_AUTOGEN_DIR})
+
 # Protobuf generation is only supported natively starting from CMake 3.8
 # Using custom command for now
+set(PROTO_SOURCES ${LIB_AUTOGEN_DIR}/PulsarApi.pb.cc ${LIB_AUTOGEN_DIR}/PulsarApi.pb.h)
+set(PULSAR_SOURCES ${PULSAR_SOURCES} ${PROTO_SOURCES})
 ADD_CUSTOM_COMMAND(
-         OUTPUT ${CMAKE_SOURCE_DIR}/lib/PulsarApi.pb.h ${CMAKE_SOURCE_DIR}/lib/PulsarApi.pb.cc
-         COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${CMAKE_SOURCE_DIR}/lib
+         OUTPUT ${PROTO_SOURCES}
+         COMMAND ${PROTOC_PATH} -I ../../pulsar-common/src/main/proto ../../pulsar-common/src/main/proto/PulsarApi.proto --cpp_out=${LIB_AUTOGEN_DIR}
          DEPENDS
          ../../pulsar-common/src/main/proto/PulsarApi.proto
          WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -50,12 +57,32 @@ if (WIN32)
     string(APPEND LIB_NAME_SHARED dll)
 endif()
 
-add_library(pulsarShared SHARED ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-set_target_properties(pulsarShared PROPERTIES OUTPUT_NAME ${LIB_NAME_SHARED} VERSION ${LIBRARY_VERSION})
+add_library(pulsarShared SHARED ${PULSAR_SOURCES})
+set_property(TARGET pulsarShared PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED})
+set_property(TARGET pulsarShared PROPERTY VERSION ${LIBRARY_VERSION})
 target_link_libraries(pulsarShared ${COMMON_LIBS} ${CMAKE_DL_LIBS})
 
-add_library(pulsarStatic STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
-set_target_properties(pulsarStatic PROPERTIES OUTPUT_NAME ${LIB_NAME} VERSION ${LIBRARY_VERSION})
+
+### pulsarSharedNossl not static link ssl, it could avoid rebuild libpulsar when ssl lib need update.
+### pulsarSharedNossl is build under condition LINK_STATIC=ON, we should replace static ssl libs with dynamic libs.
+SET(COMMON_LIBS_NOSSL ${COMMON_LIBS})
+if (NOT ${RECORD_OPENSSL_SSL_LIBRARY} MATCHES ".+\\.a$")
+    LIST(REMOVE_ITEM COMMON_LIBS_NOSSL ${OPENSSL_SSL_LIBRARY})
+    LIST(APPEND COMMON_LIBS_NOSSL ${RECORD_OPENSSL_SSL_LIBRARY})
+endif ()
+if (NOT ${RECORD_OPENSSL_CRYPTO_LIBRARY} MATCHES ".+\\.a$")
+    LIST(REMOVE_ITEM COMMON_LIBS_NOSSL  ${OPENSSL_CRYPTO_LIBRARY})
+    LIST(APPEND COMMON_LIBS_NOSSL ${RECORD_OPENSSL_CRYPTO_LIBRARY})
+endif ()
+
+add_library(pulsarSharedNossl SHARED ${PULSAR_SOURCES})
+set_property(TARGET pulsarSharedNossl PROPERTY OUTPUT_NAME ${LIB_NAME_SHARED}nossl)
+set_property(TARGET pulsarSharedNossl PROPERTY VERSION ${LIBRARY_VERSION})
+target_link_libraries(pulsarSharedNossl ${COMMON_LIBS_NOSSL} ${CMAKE_DL_LIBS})
+
+add_library(pulsarStatic STATIC ${PULSAR_SOURCES})
+set_property(TARGET pulsarStatic PROPERTY OUTPUT_NAME ${LIB_NAME})
+set_property(TARGET pulsarStatic PROPERTY VERSION ${LIBRARY_VERSION})
 target_compile_definitions(pulsarStatic PRIVATE PULSAR_STATIC)
 
 if (MSVC)
@@ -65,10 +92,10 @@ if (MSVC)
 endif()
 
 # When linking statically, install a libpulsar.a that contains all the
-# required dependencies
+# required dependencies except ssl
 if (LINK_STATIC)
     if (MSVC)
-        
+
         # This function is to remove either "debug" or "optimized" library names
         # out of the COMMON_LIBS list and return the sanitized list of libraries
         function(remove_libtype LIBLIST LIBTYPE OUTLIST)
@@ -84,17 +111,20 @@ if (LINK_STATIC)
             set(${OUTLIST} ${TEMP_OUT} PARENT_SCOPE)
         endfunction(remove_libtype)
 
-        add_library(pulsarStaticWithDeps STATIC ${PULSAR_SOURCES} PulsarApi.pb.h PulsarApi.pb.cc)
+        add_library(pulsarStaticWithDeps STATIC ${PULSAR_SOURCES})
         target_include_directories(pulsarStaticWithDeps PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
         remove_libtype("${COMMON_LIBS}" "optimized" DEBUG_STATIC_LIBS)
         remove_libtype("${COMMON_LIBS}" "debug" STATIC_LIBS)
-        set_target_properties(pulsarStaticWithDeps PROPERTIES STATIC_LIBRARY_FLAGS_DEBUG ${DEBUG_STATIC_LIBS} STATIC_LIBRARY_FLAGS_RELEASE ${STATIC_LIBS} OUTPUT_NAME ${LIB_NAME}WithDeps VERSION ${LIBRARY_VERSION})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY STATIC_LIBRARY_FLAGS_DEBUG ${DEBUG_STATIC_LIBS})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY STATIC_LIBRARY_FLAGS_RELEASE ${STATIC_LIBS})
+        set_property(TARGET pulsarStaticWithDeps PROPERTY OUTPUT_NAME ${LIB_NAME}WithDeps)
+        set_property(TARGET pulsarStaticWithDeps PROPERTY VERSION ${LIBRARY_VERSION})
         install(TARGETS pulsarStaticWithDeps DESTINATION lib)
     else()
-        # Build a list of the requird .a libs to merge
+        # Build a list of the requird .a libs (except ssl) to merge
         SET(STATIC_LIBS "")
         foreach (LIB IN LISTS COMMON_LIBS)
-            if (${LIB} MATCHES ".+\\.a$")
+            if (${LIB} MATCHES ".+\\.a$" AND NOT ${LIB} MATCHES ${OPENSSL_SSL_LIBRARY} AND NOT ${LIB} MATCHES ${OPENSSL_CRYPTO_LIBRARY})
                 set(STATIC_LIBS "${STATIC_LIBS} ${LIB}")
             endif()
         endforeach()
@@ -102,10 +132,9 @@ if (LINK_STATIC)
         add_custom_target(pulsarStaticWithDeps
                 ALL
                 BYPRODUCTS merged-library
-                COMMAND ./build-support/merge_archives.sh libpulsar.a $<TARGET_FILE:pulsarStatic> ${STATIC_LIBS}
+                COMMAND ./build-support/merge_archives.sh libpulsar.a $<TARGET_FILE:pulsarStatic> ${STATIC_LIBS} && mv merged-library/libpulsar.a lib/libpulsarwithdeps.a
                 DEPENDS pulsarStatic
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
-        install(FILES ../merged-library/libpulsar.a DESTINATION lib)
     endif(MSVC)
 else()
     # Install regular libpulsar.a
@@ -113,5 +142,7 @@ else()
     install(TARGETS pulsarStatic DESTINATION lib)
 endif(LINK_STATIC)
 
-install(TARGETS pulsarShared pulsarStatic DESTINATION lib)
+install(TARGETS pulsarStatic DESTINATION lib)
+install(TARGETS pulsarShared RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+install(TARGETS pulsarSharedNossl RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(DIRECTORY "../include/pulsar" DESTINATION include)

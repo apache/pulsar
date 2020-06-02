@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -27,16 +27,22 @@ import java.sql.Time;
 /**
  * A schema for `java.sql.Time`.
  */
-public class TimeSchema implements Schema<Time> {
+public class TimeSchema extends AbstractSchema<Time> {
+
+   private static final TimeSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Time")
+             .setType(SchemaType.TIME)
+             .setSchema(new byte[0]);
+       INSTANCE = new TimeSchema();
+   }
+
    public static TimeSchema of() {
       return INSTANCE;
    }
-
-   private static final TimeSchema INSTANCE = new TimeSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Time")
-         .setType(SchemaType.TIME)
-         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Time message) {
@@ -55,6 +61,16 @@ public class TimeSchema implements Schema<Time> {
       }
 
       Long decode = LongSchema.of().decode(bytes);
+      return new Time(decode);
+   }
+
+   @Override
+   public Time decode(ByteBuf byteBuf) {
+      if (null == byteBuf) {
+         return null;
+      }
+
+      Long decode = LongSchema.of().decode(byteBuf);
       return new Time(decode);
    }
 

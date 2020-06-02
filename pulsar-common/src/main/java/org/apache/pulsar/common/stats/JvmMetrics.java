@@ -20,13 +20,10 @@ package org.apache.pulsar.common.stats;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.util.internal.PlatformDependent;
-
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -40,11 +37,13 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This class is responsible for providing JVM metrics.
+ */
 public class JvmMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
@@ -55,7 +54,8 @@ public class JvmMetrics {
     private final static Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
     static {
         try {
-            directMemoryUsage = PlatformDependent.class.getDeclaredField("DIRECT_MEMORY_COUNTER");
+            directMemoryUsage = io.netty.util.internal.PlatformDependent.class
+                .getDeclaredField("DIRECT_MEMORY_COUNTER");
             directMemoryUsage.setAccessible(true);
         } catch (Exception e) {
             log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
@@ -111,7 +111,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
+        m.put("jvm_max_direct_memory", io.netty.util.internal.PlatformDependent.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         this.gcLogger.logMetrics(m);

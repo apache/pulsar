@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 
@@ -27,7 +33,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
-import org.apache.pulsar.common.policies.data.ErrorData;
 
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
@@ -40,38 +45,109 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
         try {
-            return request(adminBookies.path("racks-info")).get(BookiesRackConfiguration.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getBookiesRackInfoAsync().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
+        WebTarget path = adminBookies.path("racks-info");
+        final CompletableFuture<BookiesRackConfiguration> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<BookiesRackConfiguration>() {
+                    @Override
+                    public void completed(BookiesRackConfiguration bookiesRackConfiguration) {
+                        future.complete(bookiesRackConfiguration);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public BookieInfo getBookieRackInfo(String bookieAddress) throws PulsarAdminException {
         try {
-            return request(adminBookies.path("racks-info").path(bookieAddress)).get(BookieInfo.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getBookieRackInfoAsync(bookieAddress).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
+        final CompletableFuture<BookieInfo> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<BookieInfo>() {
+                    @Override
+                    public void completed(BookieInfo bookieInfo) {
+                        future.complete(bookieInfo);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public void deleteBookieRackInfo(String bookieAddress) throws PulsarAdminException {
         try {
-            request(adminBookies.path("racks-info").path(bookieAddress)).delete(ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            deleteBookieRackInfoAsync(bookieAddress).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
+        return asyncDeleteRequest(path);
     }
 
     @Override
     public void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo)
             throws PulsarAdminException {
         try {
-            request(adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group))
-                    .post(Entity.entity(bookieInfo, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            updateBookieRackInfoAsync(bookieAddress, group, bookieInfo).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
+
+    @Override
+    public CompletableFuture<Void> updateBookieRackInfoAsync(
+            String bookieAddress, String group, BookieInfo bookieInfo) {
+        WebTarget path = adminBookies.path("racks-info").path(bookieAddress).queryParam("group", group);
+        return asyncPostRequest(path, Entity.entity(bookieInfo, MediaType.APPLICATION_JSON));
+    }
+
 }

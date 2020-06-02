@@ -18,21 +18,23 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import org.apache.avro.Schema;
-import org.apache.commons.lang3.exception.ExceptionUtils;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.TopicName;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.Properties;
+import org.apache.avro.Schema;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.TopicName;
 
+/**
+ * A helper class containing repeatable logic used in the other classes.
+ */
 public class PulsarConnectorUtils {
 
     public static Schema parseSchema(String schemaJson) {
         Schema.Parser parser = new Schema.Parser();
+        parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }
 
@@ -55,7 +57,7 @@ public class PulsarConnectorUtils {
         Class<?> theCls;
         try {
             theCls = Class.forName(userClassName, true, classLoader);
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException("User class must be in class path", cnfe);
         }
         if (!xface.isAssignableFrom(theCls)) {

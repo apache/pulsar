@@ -23,9 +23,10 @@
     <test name="pulsar-cli-test-suite" preserve-order="true" >
         <classes>
             <class name="org.apache.pulsar.tests.integration.cli.CLITest" />
-            <class name="org.apache.pulsar.tests.integration.cli.HealthcheckTest" />
+            <class name="org.apache.pulsar.tests.integration.cli.HealthCheckTest" />
             <class name="org.apache.pulsar.tests.integration.compaction.TestCompaction" />
             <class name="org.apache.pulsar.tests.integration.cli.AdminMultiHostTest"/>
+            <class name="org.apache.pulsar.tests.integration.cli.FunctionsCLITest"/>
         </classes>
     </test>
 </suite>

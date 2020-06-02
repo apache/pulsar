@@ -191,7 +191,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     public void incrementNumAcksReceived(long latencyNs) {
         numAcksReceived.increment();
         synchronized (ds) {
-            ds.update(TimeUnit.NANOSECONDS.toMicros(latencyNs));
+            ds.update(TimeUnit.NANOSECONDS.toMillis(latencyNs));
         }
     }
 
@@ -214,10 +214,10 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
         numBytesSent.add(stats.getNumBytesSent());
         numSendFailed.add(stats.getNumSendFailed());
         numAcksReceived.add(stats.getNumAcksReceived());
-        totalMsgsSent.add(stats.getNumMsgsSent());
-        totalBytesSent.add(stats.getNumBytesSent());
-        totalSendFailed.add(stats.getNumSendFailed());
-        totalAcksReceived.add(stats.getNumAcksReceived());
+        totalMsgsSent.add(stats.getTotalMsgsSent());
+        totalBytesSent.add(stats.getTotalBytesSent());
+        totalSendFailed.add(stats.getTotalSendFailed());
+        totalAcksReceived.add(stats.getTotalAcksReceived());
     }
 
     @Override

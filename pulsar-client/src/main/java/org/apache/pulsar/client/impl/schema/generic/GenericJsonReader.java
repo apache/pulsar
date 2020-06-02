@@ -24,9 +24,12 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.common.schema.SchemaInfo;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -48,12 +51,30 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
         this.schemaVersion = schemaVersion;
     }
     @Override
-    public GenericJsonRecord read(byte[] bytes) {
+    public GenericJsonRecord read(byte[] bytes, int offset, int length) {
         try {
-            JsonNode jn = objectMapper.readTree(new String(bytes, UTF_8));
+            JsonNode jn = objectMapper.readTree(new String(bytes, offset, length, UTF_8));
             return new GenericJsonRecord(schemaVersion, fields, jn);
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }
     }
+
+    @Override
+    public GenericRecord read(InputStream inputStream) {
+        try {
+            JsonNode jn = objectMapper.readTree(inputStream);
+            return new GenericJsonRecord(schemaVersion, fields, jn);
+        } catch (IOException ioe) {
+            throw new SchemaSerializationException(ioe);
+        } finally {
+            try {
+                inputStream.close();
+            } catch (IOException e) {
+                log.error("GenericJsonReader close inputStream close error", e);
+            }
+        }
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(GenericJsonReader.class);
 }

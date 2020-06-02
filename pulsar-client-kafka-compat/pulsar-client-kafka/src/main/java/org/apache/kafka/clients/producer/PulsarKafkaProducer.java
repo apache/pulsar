@@ -57,7 +57,7 @@ import org.apache.pulsar.client.kafka.compat.PulsarKafkaSchema;
 import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.KafkaMessageRouter;
 import org.apache.pulsar.client.kafka.compat.KafkaProducerInterceptorWrapper;
-import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
+import org.apache.pulsar.client.util.MessageIdUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -168,7 +168,9 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         // Kafka blocking semantic when blockOnBufferFull=false is different from Pulsar client
         // Pulsar throws error immediately when the queue is full and blockIfQueueFull=false
         // Kafka, on the other hand, still blocks for "max.block.ms" time and then gives error.
-        boolean shouldBlockPulsarProducer = sendTimeoutMillis > 0;
+        Boolean sendTimeOutConfigured = sendTimeoutMillis > 0;
+        boolean shouldBlockPulsarProducer = Boolean.getBoolean(properties
+                .getProperty(PulsarProducerKafkaConfig.BLOCK_IF_PRODUCER_QUEUE_FULL, sendTimeOutConfigured.toString()));
         pulsarProducerBuilder.blockIfQueueFull(shouldBlockPulsarProducer);
 
         interceptors = (List) producerConfig.getConfiguredInstances(

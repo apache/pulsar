@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.common.util;
 
+/**
+ * This interface declares a hash function.
+ */
 public interface Hash {
 
     /**
-     * Generate the hash of a given byte array
+     * Generate the hash of a given byte array.
      *
-     * @return The hash of {@param b}, which is non-negative integer.
+     * @return The hash of {@code b}, which is non-negative integer.
      */
     int makeHash(byte[] b);
 }

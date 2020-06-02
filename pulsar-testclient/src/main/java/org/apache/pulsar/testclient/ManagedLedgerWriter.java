@@ -197,7 +197,7 @@ public class ManagedLedgerWriter {
                 public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                     future.completeExceptionally(exception);
                 }
-            }, null);
+            }, null, null);
         }
 
         List<ManagedLedger> managedLedgers = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());

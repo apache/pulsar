@@ -22,13 +22,21 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
@@ -80,6 +88,17 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 // start-inclusive / num-of-messages
                 {true, 20},
                 {false, 20}
+        };
+    }
+
+    @DataProvider
+    public static Object[][] variationsForHasMessageAvailable() {
+        return new Object[][] {
+                // batching / start-inclusive
+                {true,  true},
+                {true,  false},
+                {false, true},
+                {false, false},
         };
     }
 
@@ -510,7 +529,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopicReference(topic).get().close().get();
+        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
             .startMessageId(MessageId.earliest).create()) {
@@ -521,6 +540,68 @@ public class TopicReaderTest extends ProducerConsumerBase {
             assertFalse(reader.hasMessageAvailable());
         }
 
+    }
+
+    @Test(dataProvider = "variationsForHasMessageAvailable")
+    public void testHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/HasMessageAvailable";
+        final int numOfMessage = 100;
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic(topicName);
+
+        if (enableBatch) {
+            producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxMessages(10);
+        } else {
+            producerBuilder
+                    .enableBatching(false);
+        }
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
+
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    Assert.fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+
+        latch.await();
+
+        allIds.sort(null); // make sure the largest mid appears at last.
+
+        for (MessageId id : allIds) {
+            Reader<byte[]> reader;
+
+            if (startInclusive) {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).startMessageIdInclusive().create();
+            } else {
+                reader = pulsarClient.newReader().topic(topicName)
+                        .startMessageId(id).create();
+            }
+
+            if (startInclusive) {
+                assertTrue(reader.hasMessageAvailable());
+            } else if (id != allIds.get(allIds.size() - 1)) {
+                assertTrue(reader.hasMessageAvailable());
+            } else {
+                assertFalse(reader.hasMessageAvailable());
+            }
+            reader.close();
+        }
+
+        producer.close();
     }
 
     @Test
@@ -673,7 +754,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         reader.seek(l + plusTime);
 
         Set<String> messageSet = Sets.newHashSet();
-        for (int i = halfMessages; i < numOfMessage; i++) {
+        for (int i = halfMessages + 1; i < numOfMessage; i++) {
             Message<byte[]> message = reader.readNext();
             String receivedMessage = new String(message.getData());
             String expectedMessage = String.format("msg num %d", i);
@@ -696,17 +777,33 @@ public class TopicReaderTest extends ProducerConsumerBase {
                 .enableBatching(batching)
                 .create();
 
-        MessageId resetPos = null;
+        CountDownLatch latch = new CountDownLatch(numOfMessages);
+
+        final AtomicReference<MessageId> resetPos = new AtomicReference<>();
+
         for (int i = 0; i < numOfMessages; i++) {
-            MessageId msgId = producer.send(String.format("msg num %d", i).getBytes());
-            if (resetIndex == i) {
-                resetPos = msgId;
-            }
+
+            final int j = i;
+
+            producer.sendAsync(String.format("msg num %d", i).getBytes())
+                    .thenCompose(messageId -> FutureUtils.value(Pair.of(j, messageId)))
+                    .whenComplete((p, e) -> {
+                        if (e != null) {
+                            fail("send msg failed due to " + e.getMessage());
+                        } else {
+                            if (p.getLeft() == resetIndex) {
+                                resetPos.set(p.getRight());
+                            }
+                        }
+                        latch.countDown();
+                    });
         }
+
+        latch.await();
 
         ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader()
                 .topic(topicName)
-                .startMessageId(resetPos);
+                .startMessageId(resetPos.get());
 
         if (startInclusive) {
             readerBuilder.startMessageIdInclusive();
@@ -728,6 +825,73 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertEquals(messageSet.size(), numOfMessages - firstMessage);
 
         reader.close();
+        producer.close();
+    }
+
+    @Test
+    public void testReaderBuilderConcurrentCreate() throws Exception {
+        String topicName = "persistent://my-property/my-ns/testReaderBuilderConcurrentCreate_";
+        int numTopic = 30;
+        ReaderBuilder<byte[]> builder = pulsarClient.newReader().startMessageId(MessageId.earliest);
+
+        List<CompletableFuture<Reader<byte[]>>> readers = Lists.newArrayListWithExpectedSize(numTopic);
+        List<Producer<byte[]>> producers = Lists.newArrayListWithExpectedSize(numTopic);
+        // create producer firstly
+        for (int i = 0; i < numTopic; i++) {
+            producers.add(pulsarClient.newProducer()
+                .topic(topicName + i)
+                .create());
+        }
+
+        // create reader concurrently
+        for (int i = 0; i < numTopic; i++) {
+            readers.add(builder.clone().topic(topicName + i).createAsync());
+        }
+
+        // verify readers config are different for topic name.
+        for (int i = 0; i < numTopic; i++) {
+            assertEquals(readers.get(i).get().getTopic(), topicName + i);
+            readers.get(i).get().close();
+            producers.get(i).close();
+        }
+    }
+
+    @Test
+    public void testReaderStartInMiddleOfBatch() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ReaderStartInMiddleOfBatch";
+        final int numOfMessage = 100;
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(true)
+                .batchingMaxMessages(10)
+                .create();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessage);
+
+        List<MessageId> allIds = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < numOfMessage; i++) {
+            producer.sendAsync(String.format("msg num %d", i).getBytes()).whenComplete((mid, e) -> {
+                if (e != null) {
+                    fail();
+                } else {
+                    allIds.add(mid);
+                }
+                latch.countDown();
+            });
+        }
+
+        latch.await();
+
+        for (MessageId id : allIds) {
+            Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                    .startMessageId(id).startMessageIdInclusive().create();
+            MessageId idGot = reader.readNext().getMessageId();
+            assertEquals(idGot, id);
+            reader.close();
+        }
+
         producer.close();
     }
 }

@@ -28,10 +28,10 @@ import org.apache.pulsar.functions.utils.io.Connectors;
 
 public class ConnectorsManager {
 
-    private final Connectors connectors;
+    private Connectors connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory());
+        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 
     public List<ConnectorDefinition> getConnectors() {
@@ -44,5 +44,9 @@ public class ConnectorsManager {
 
     public Path getSinkArchive(String sinkType) {
         return connectors.getSinks().get(sinkType);
+    }
+
+    public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
+        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 }

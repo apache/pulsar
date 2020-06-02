@@ -20,38 +20,33 @@ package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.MoreObjects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.base.MoreObjects;
+import java.util.function.Supplier;
 
 /**
- *
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
  * permit is available, and then takes it. Each {@link #tryAcquire()} tries to acquire permits from available permits,
  * it returns true if it succeed else returns false. Rate limiter release configured permits at every configured rate
  * time, so, on next ticket new fresh permits will be available.
- * <p>
- * For example: if RateLimiter is configured to release 10 permits at every 1 second then RateLimiter will allow to
+ *
+ * <p>For example: if RateLimiter is configured to release 10 permits at every 1 second then RateLimiter will allow to
  * acquire 10 permits at any time with in that 1 second.
- * <p>
- * <b>comparison with other RateLimiter such as {@link com.google.common.util.concurrent.RateLimiter}</b>
- * </p>
+ *
+ * <p>Comparison with other RateLimiter such as {@link com.google.common.util.concurrent.RateLimiter}
  * <ul>
- * <li><b>Per second rate-limiting:</b> Per second rate-limiting not satisfied by Guava-RateLimiter
- * <p>
- * <b>Guava RateLimiter:</b> For X permits: it releases X/1000 permits every msec. therefore, for permits=2/sec => it
- * release 1st permit on first 500msec and 2nd permit on next 500ms. therefore, if 2 request comes with in 500msec
- * duration then 2nd request fails to acquire permit though we have configured 2 permits/second.
- * <p>
- * <b>RateLimiter:</b> it releases X permits every second. so, in above usecase: if 2 requests comes at the same time
- * then both will acquire the permit.
+ * <li><b>Per second rate-limiting:</b> Per second rate-limiting not satisfied by Guava-RateLimiter</li>
+ * <li><b>Guava RateLimiter:</b> For X permits: it releases X/1000 permits every msec. therefore,
+ * for permits=2/sec =&gt; it release 1st permit on first 500msec and 2nd permit on next 500ms. therefore,
+ * if 2 request comes with in 500msec duration then 2nd request fails to acquire permit
+ * though we have configured 2 permits/second.</li>
+ * <li><b>RateLimiter:</b> it releases X permits every second. so, in above usecase:
+ * if 2 requests comes at the same time then both will acquire the permit.</li>
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
- *
- *
  */
 public class RateLimiter implements AutoCloseable{
 
@@ -63,19 +58,22 @@ public class RateLimiter implements AutoCloseable{
     private long permits;
     private long acquiredPermits;
     private boolean isClosed;
+    // permitUpdate helps to update permit-rate at runtime
+    private Supplier<Long> permitUpdater;
 
     public RateLimiter(final long permits, final long rateTime, final TimeUnit timeUnit) {
-        this(null, permits, rateTime, timeUnit);
+        this(null, permits, rateTime, timeUnit, null);
     }
 
     public RateLimiter(final ScheduledExecutorService service, final long permits, final long rateTime,
-            final TimeUnit timeUnit) {
+            final TimeUnit timeUnit, Supplier<Long> permitUpdater) {
         checkArgument(permits > 0, "rate must be > 0");
         checkArgument(rateTime > 0, "Renew permit time must be > 0");
 
         this.rateTime = rateTime;
         this.timeUnit = timeUnit;
         this.permits = permits;
+        this.permitUpdater = permitUpdater;
 
         if (service != null) {
             this.executorService = service;
@@ -110,10 +108,7 @@ public class RateLimiter implements AutoCloseable{
     /**
      * Acquires the given number of permits from this {@code RateLimiter}, blocking until the request be granted.
      *
-     * This method is equivalent to {@code acquire(1)}.
-     *
-     * @param permits
-     *            the number of permits to acquire
+     * <p>This method is equivalent to {@code acquire(1)}.
      */
     public synchronized void acquire() throws InterruptedException {
         acquire(1);
@@ -122,7 +117,7 @@ public class RateLimiter implements AutoCloseable{
     /**
      * Acquires the given number of permits from this {@code RateLimiter}, blocking until the request be granted.
      *
-     * @param permits
+     * @param acquirePermit
      *            the number of permits to acquire
      */
     public synchronized void acquire(long acquirePermit) throws InterruptedException {
@@ -149,11 +144,8 @@ public class RateLimiter implements AutoCloseable{
     /**
      * Acquires permits from this {@link RateLimiter} if it can be acquired immediately without delay.
      *
-     * <p>
-     * This method is equivalent to {@code tryAcquire(1)}.
+     * <p>This method is equivalent to {@code tryAcquire(1)}.
      *
-     * @param permits
-     *            the number of permits to acquire
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
     public synchronized boolean tryAcquire() {
@@ -163,7 +155,7 @@ public class RateLimiter implements AutoCloseable{
     /**
      * Acquires permits from this {@link RateLimiter} if it can be acquired immediately without delay.
      *
-     * @param permits
+     * @param acquirePermit
      *            the number of permits to acquire
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
@@ -187,7 +179,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     /**
-     * Return available permits for this {@link RateLimiter}
+     * Return available permits for this {@link RateLimiter}.
      *
      * @return returns 0 if permits is not available
      */
@@ -196,7 +188,7 @@ public class RateLimiter implements AutoCloseable{
     }
 
     /**
-     * Resets new rate by configuring new value for permits per configured rate-period
+     * Resets new rate by configuring new value for permits per configured rate-period.
      *
      * @param permits
      */
@@ -210,14 +202,16 @@ public class RateLimiter implements AutoCloseable{
      * @param permits
      * @param rateTime
      * @param timeUnit
+     * @param permitUpdaterByte
      */
-    public synchronized void setRate(long permits, long rateTime, TimeUnit timeUnit) {
-        if(renewTask != null) {
+    public synchronized void setRate(long permits, long rateTime, TimeUnit timeUnit, Supplier<Long> permitUpdaterByte) {
+        if (renewTask != null) {
             renewTask.cancel(false);
         }
         this.permits = permits;
         this.rateTime = rateTime;
         this.timeUnit = timeUnit;
+        this.permitUpdater = permitUpdaterByte;
         this.renewTask = createTask();
     }
 
@@ -244,6 +238,12 @@ public class RateLimiter implements AutoCloseable{
 
     synchronized void renew() {
         acquiredPermits = 0;
+        if (permitUpdater != null) {
+            long newPermitRate = permitUpdater.get();
+            if (newPermitRate > 0) {
+                setRate(newPermitRate);
+            }
+        }
         notifyAll();
     }
 

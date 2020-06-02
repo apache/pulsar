@@ -23,14 +23,14 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.stats.Rate;
 
 
-public interface NonPersistentDispatcher extends Dispatcher{
+public interface NonPersistentDispatcher extends Dispatcher {
 
     void addConsumer(Consumer consumer) throws BrokerServiceException;
 
@@ -44,7 +44,7 @@ public interface NonPersistentDispatcher extends Dispatcher{
 
     CompletableFuture<Void> close() ;
 
-    CompletableFuture<Void> disconnectAllConsumers();
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
 
     void reset();
 
@@ -52,7 +52,7 @@ public interface NonPersistentDispatcher extends Dispatcher{
 
     void sendMessages(List<Entry> entries);
 
-    Rate getMesssageDropRate();
+    Rate getMessageDropRate();
 
     boolean hasPermits();
 

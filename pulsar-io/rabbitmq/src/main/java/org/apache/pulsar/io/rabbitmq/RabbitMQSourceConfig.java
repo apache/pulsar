@@ -23,9 +23,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -35,14 +32,17 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
-@Setter
-@Getter
 @EqualsAndHashCode(callSuper = false)
-@ToString
 @Accessors(chain = true)
 public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
+
+    @FieldDoc(
+        required = true,
+        defaultValue = "",
+        help = "The RabbitMQ queue name from which messages should be read from or written to")
+    private String queueName;
 
     @FieldDoc(
         required = false,
@@ -69,6 +69,7 @@ public class RabbitMQSourceConfig extends RabbitMQAbstractConfig implements Seri
     @Override
     public void validate() {
         super.validate();
+        Preconditions.checkNotNull(queueName, "queueName property not set.");
         Preconditions.checkArgument(prefetchCount >= 0, "prefetchCount must be non-negative.");
     }
 }

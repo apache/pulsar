@@ -20,6 +20,9 @@ package org.apache.pulsar.sql.presto;
 
 import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
 
+/**
+ * A handle for transactions.
+ */
 public enum PulsarTransactionHandle implements ConnectorTransactionHandle {
     INSTANCE
 }

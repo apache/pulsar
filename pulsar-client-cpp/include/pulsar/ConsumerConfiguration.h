@@ -55,6 +55,12 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& operator=(const ConsumerConfiguration&);
 
     /**
+     * Create a new instance of ConsumerConfiguration with the same
+     * initial settings as the current one.
+     */
+    ConsumerConfiguration clone() const;
+
+    /**
      * Declare the schema of the data that this consumer will be accepting.
      *
      * The schema will be checked against the schema of the topic, and the
@@ -148,6 +154,10 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * @return the configured timeout in milliseconds for unacked messages.
      */
     long getUnAckedMessagesTimeoutMs() const;
+
+    void setTickDurationInMs(const uint64_t milliSeconds);
+
+    long getTickDurationInMs() const;
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.

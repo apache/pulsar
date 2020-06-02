@@ -62,4 +62,16 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     public void clear() {
         trackerCache.clear();
     }
+
+    @Override
+    public boolean contains(Position position) {
+        PositionImpl positionImpl = (PositionImpl) position;
+        return trackerCache.containsKey(positionImpl.getLedgerId(), positionImpl.getEntryId());
+    }
+
+    @Override
+    public void addIfAbsent(Position position) {
+        PositionImpl positionImpl = (PositionImpl) position;
+        trackerCache.putIfAbsent(positionImpl.getLedgerId(), positionImpl.getEntryId(), 0, 0L);
+    }
 }

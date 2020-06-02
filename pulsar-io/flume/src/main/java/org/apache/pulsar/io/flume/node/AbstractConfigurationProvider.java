@@ -109,8 +109,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                 for (String channelName : channelNames) {
                     ChannelComponent channelComponent = channelComponentMap.get(channelName);
                     if (channelComponent.components.isEmpty()) {
-                        LOGGER.warn(String.format("Channel %s has no components connected" +
-                                " and has been removed.", channelName));
+                        LOGGER.warn("Channel {} has no components connected" +
+                                " and has been removed.", channelName);
                         channelComponentMap.remove(channelName);
                         Map<String, Channel> nameChannelMap =
                                 channelCache.get(channelComponent.channel.getClass());
@@ -118,8 +118,8 @@ public abstract class AbstractConfigurationProvider implements ConfigurationProv
                             nameChannelMap.remove(channelName);
                         }
                     } else {
-                        LOGGER.info(String.format("Channel %s connected to %s",
-                                channelName, channelComponent.components.toString()));
+                        LOGGER.info("Channel {} connected to {}",
+                                channelName, channelComponent.components.toString());
                         conf.addChannel(channelName, channelComponent.channel);
                     }
                 }

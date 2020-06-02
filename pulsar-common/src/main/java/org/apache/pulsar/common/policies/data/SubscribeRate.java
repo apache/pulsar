@@ -22,6 +22,9 @@ import com.google.common.base.MoreObjects;
 
 import java.util.Objects;
 
+/**
+ * Information about subscription rate.
+ */
 public class SubscribeRate {
 
     public int subscribeThrottlingRatePerConsumer = -1;

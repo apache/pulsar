@@ -43,9 +43,61 @@
 {% endblock %}
 
 {% block content %}
-{% for i in subscription.msgBacklog|times %}
-<li><a class ='btn' href="{% url 'peek' topic.url_name subscription.name i %}" rel="modal:open">view message {{ i }}</a></li>
+<form id="view-message-form" method="get" action="{% url 'messages' topic.url_name subscription.name %}">
+    <label for="message-position">Total <span class="em">{{subscription.msgBacklog}}</span> messages in backlog, view Message:</label>
+ <input name="message-position"
+        id="message-position"
+        value="{{ position }}"
+        type="number"
+        min="1" max="{{subscription.msgBacklog}}"/>
+</form>
+
+{% if message %}
+<script>
+function init_message_tab(id) {
+    function activeTab(tab) {
+        tab.addClass('active');
+        $("#message-" + tab.attr('id')).show();
+    }
+    let tabId = "#message-tab-" + id;
+    let tabSel = tabId + " .tab span";
+    let tabContentSel = tabId + " .tab-content";
+    let firstTab = $(tabSel).eq(0);
+    if (id === 0) {
+        activeTab(firstTab);
+    }
+    $(tabSel).bind('click', function(){
+        $(tabSel).removeClass('active');
+        $(tabContentSel).hide();
+        activeTab($(this))
+    });
+}
+$(function () {
+    for (let i = 0; i < {{ message | length }}; ++i) {
+        init_message_tab(i)
+    }
+})
+</script>
+
+{% for msg in message %}
+<div id="message-tab-{{ forloop.counter0 }}" class="message">
+  <div class="tab clearfix message-title">
+{% for type in msg.keys %}
+    {% with tab_key=type|lower|cut:':' %}
+    <span id="tab-{{tab_key}}-{{forloop.parentloop.counter0}}"{% if type == 'ERROR' %} class="warn"{% endif %}>{{type}}</span>
+    {% endwith %}
+{% endfor %}
+  </div>
+{% for type, content in msg.items %}
+  {% with tab_key=type|lower|cut:':' %}
+  <div class="tab-content autoscroll message-content" id="message-tab-{{ tab_key }}-{{ forloop.parentloop.counter0 }}">
+    <pre>{{content}}</pre>
+  </div>
+  {% endwith %}
+{% endfor %}
+</div>
 
 {% endfor %}
 
+{% endif %}
 {% endblock %}

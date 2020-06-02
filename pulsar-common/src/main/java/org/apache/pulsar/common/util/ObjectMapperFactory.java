@@ -25,6 +25,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.netty.util.concurrent.FastThreadLocal;
 
+@SuppressWarnings("checkstyle:JavadocType")
 public class ObjectMapperFactory {
     public static ObjectMapper create() {
         ObjectMapper mapper = new ObjectMapper();

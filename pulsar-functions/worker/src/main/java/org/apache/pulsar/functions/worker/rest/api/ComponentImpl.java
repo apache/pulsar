@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
+import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -50,6 +61,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -68,14 +80,8 @@ import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.functions.worker.rest.RestException;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -93,16 +99,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace;
-import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
-import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriBuilder;
 
 @Slf4j
 public abstract class ComponentImpl {
@@ -365,7 +366,7 @@ public abstract class ComponentImpl {
             } catch (NamespaceNotFoundException | StreamNotFoundException e) {
                 // ignored if the state table doesn't exist
             } catch (Exception e) {
-                log.error("{}/{}/{} Failed to delete state table", e);
+                log.error("{}/{}/{} Failed to delete state table: {}", tenant, namespace, componentName, e.getMessage());
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
@@ -407,6 +408,16 @@ public abstract class ComponentImpl {
             log.error("Interrupted Exception while deregistering {} @ /{}/{}/{}",
                     ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
             throw new RestException(Status.REQUEST_TIMEOUT, e.getMessage());
+        }
+
+        // clean up component files stored in BK
+        if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
+            try {
+                WorkerUtils.deleteFromBookkeeper(worker().getDlogNamespace(), functionMetaData.getPackageLocation().getPackagePath());
+            } catch (IOException e) {
+                log.error("{}/{}/{} Failed to cleanup package in BK with path {}", tenant, namespace, componentName,
+                  functionMetaData.getPackageLocation().getPackagePath(), e);
+            }
         }
     }
 
@@ -895,6 +906,23 @@ public abstract class ComponentImpl {
         }
 
         return this.worker().getConnectorsManager().getConnectors();
+    }
+
+    public void reloadConnectors(String clientRole) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            // Only superuser has permission to do this operation.
+            if (!isSuperUser(clientRole)) {
+                throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
+            }
+        }
+        try {
+            this.worker().getConnectorsManager().reloadConnectors(worker().getWorkerConfig());
+        } catch (IOException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     public String triggerFunction(final String tenant,
@@ -1432,10 +1460,10 @@ public abstract class ComponentImpl {
             if (clientRole != null) {
                 try {
                     TenantInfo tenantInfo = worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
-                    if (tenantInfo != null && tenantInfo.getAdminRoles() != null && tenantInfo.getAdminRoles().contains(clientRole)) {
+                    if (tenantInfo != null && worker().getAuthorizationService().isTenantAdmin(tenant, clientRole, tenantInfo, authenticationData).get()) {
                         return true;
                     }
-                } catch (PulsarAdminException.NotFoundException e) {
+                } catch (PulsarAdminException.NotFoundException | InterruptedException | ExecutionException e) {
 
                 }
             }

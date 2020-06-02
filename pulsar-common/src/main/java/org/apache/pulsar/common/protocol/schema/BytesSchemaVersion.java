@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 /**
- * Bytes schema version
+ * Bytes schema version.
  */
 public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchemaVersion> {
 
@@ -106,7 +106,7 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
      * characters are hex escaped in the format \\x%02X, eg:
      * \x00 \x05 etc.
      *
-     * This function is brought from org.apache.hadoop.hbase.util.Bytes
+     * <p>This function is brought from org.apache.hadoop.hbase.util.Bytes
      *
      * @param b array to write out
      * @param off offset to start at
@@ -116,15 +116,18 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
     private static String toString(final byte[] b, int off, int len) {
         StringBuilder result = new StringBuilder();
 
-        if (b == null)
+        if (b == null) {
             return result.toString();
+        }
 
         // just in case we are passed a 'len' that is > buffer length...
-        if (off >= b.length)
+        if (off >= b.length) {
             return result.toString();
+        }
 
-        if (off + len > b.length)
+        if (off + len > b.length) {
             len = b.length - off;
+        }
 
         for (int i = off; i < off + len; ++i) {
             int ch = b[i] & 0xFF;
@@ -144,6 +147,9 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
      */
     public final static ByteArrayComparator BYTES_LEXICO_COMPARATOR = new LexicographicByteArrayComparator();
 
+    /**
+     * This interface helps to compare byte arrays.
+     */
     public interface ByteArrayComparator extends Comparator<byte[]>, Serializable {
 
         int compare(final byte[] buffer1, int offset1, int length1,
@@ -163,9 +169,9 @@ public class BytesSchemaVersion implements SchemaVersion, Comparable<BytesSchema
                            final byte[] buffer2, int offset2, int length2) {
 
             // short circuit equal case
-            if (buffer1 == buffer2 &&
-                    offset1 == offset2 &&
-                    length1 == length2) {
+            if (buffer1 == buffer2
+                && offset1 == offset2
+                && length1 == length2) {
                 return 0;
             }
 

@@ -38,7 +38,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -136,24 +135,31 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    private static final File NAR_CACHE_DIR = new File(System.getProperty("java.io.tmpdir") + "/" + TMP_DIR_PREFIX);
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
+                                                String narExtractionDirectory) throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
         try {
-            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader() );
-        } catch (ClassNotFoundException e) {
+            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader());
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
     }
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+                                                String narExtractionDirectory)
+        throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
         try {
             return new NarClassLoader(unpacked, additionalJars, parent);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
+    }
+
+    private static File getNarExtractionDirectory(String configuredDirectory) {
+        return new File(configuredDirectory + "/" + TMP_DIR_PREFIX);
     }
 
     /**
@@ -198,7 +204,7 @@ public class NarClassLoader extends URLClassLoader {
     }
 
     /**
-     * Read a service definition as a String
+     * Read a service definition as a String.
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;

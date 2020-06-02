@@ -22,7 +22,6 @@ import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
-
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -34,9 +33,9 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
 /**
- * Message schema definition
+ * Message schema definition.
  */
-public interface Schema<T> {
+public interface Schema<T> extends Cloneable{
 
     /**
      * Check if the message is a valid object for this schema.
@@ -47,7 +46,6 @@ public interface Schema<T> {
      * the bytes.
      *
      * @param message the messages to verify
-     * @return true if it is a valid message
      * @throws SchemaSerializationException if it is not a valid message
      */
     default void validate(byte[] message) {
@@ -86,7 +84,7 @@ public interface Schema<T> {
     }
 
     /**
-     * Decode a byte array into an object using the schema definition and deserializer implementation
+     * Decode a byte array into an object using the schema definition and deserializer implementation.
      *
      * @param bytes
      *            the byte array to decode
@@ -139,6 +137,13 @@ public interface Schema<T> {
     }
 
     /**
+     * Duplicates the schema.
+     *
+     * @return The duplicated schema.
+     */
+    Schema<T> clone();
+
+    /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.
      */
     Schema<byte[]> BYTES = DefaultImplementation.newBytesSchema();
@@ -154,54 +159,56 @@ public interface Schema<T> {
     Schema<String> STRING = DefaultImplementation.newStringSchema();
 
     /**
-     * INT8 Schema
+     * INT8 Schema.
      */
     Schema<Byte> INT8 = DefaultImplementation.newByteSchema();
 
     /**
-     * INT16 Schema
+     * INT16 Schema.
      */
     Schema<Short> INT16 = DefaultImplementation.newShortSchema();
 
     /**
-     * INT32 Schema
+     * INT32 Schema.
      */
     Schema<Integer> INT32 = DefaultImplementation.newIntSchema();
 
     /**
-     * INT64 Schema
+     * INT64 Schema.
      */
     Schema<Long> INT64 = DefaultImplementation.newLongSchema();
 
     /**
-     * Boolean Schema
+     * Boolean Schema.
      */
     Schema<Boolean> BOOL = DefaultImplementation.newBooleanSchema();
 
     /**
-     * Float Schema
+     * Float Schema.
      */
     Schema<Float> FLOAT = DefaultImplementation.newFloatSchema();
 
     /**
-     * Double Schema
+     * Double Schema.
      */
     Schema<Double> DOUBLE = DefaultImplementation.newDoubleSchema();
 
     /**
-     * Date Schema
+     * Date Schema.
      */
     Schema<Date> DATE = DefaultImplementation.newDateSchema();
 
     /**
-     * Time Schema
+     * Time Schema.
      */
     Schema<Time> TIME = DefaultImplementation.newTimeSchema();
 
     /**
-     * Timestamp Schema
+     * Timestamp Schema.
      */
     Schema<Timestamp> TIMESTAMP = DefaultImplementation.newTimestampSchema();
+
+    // CHECKSTYLE.OFF: MethodName
 
     /**
      * Create a Protobuf schema type by extracting the fields of the specified class.
@@ -224,7 +231,7 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a  Avro schema type by default configuration of the class
+     * Create a  Avro schema type by default configuration of the class.
      *
      * @param pojo the POJO class to be used to extract the Avro schema
      * @return a Schema instance
@@ -234,7 +241,7 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a Avro schema type with schema definition
+     * Create a Avro schema type with schema definition.
      *
      * @param schemaDefinition the definition of the schema
      * @return a Schema instance
@@ -254,7 +261,7 @@ public interface Schema<T> {
     }
 
     /**
-     * Create a JSON schema type with schema definition
+     * Create a JSON schema type with schema definition.
      *
      * @param schemaDefinition the definition of the schema
      * @return a Schema instance
@@ -294,7 +301,8 @@ public interface Schema<T> {
     /**
      * Key Value Schema using passed in key, value and encoding type schemas.
      */
-    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value, KeyValueEncodingType keyValueEncodingType) {
+    static <K, V> Schema<KeyValue<K, V>> KeyValue(Schema<K> key, Schema<V> value,
+        KeyValueEncodingType keyValueEncodingType) {
         return DefaultImplementation.newKeyValueSchema(key, value, keyValueEncodingType);
     }
 
@@ -306,10 +314,10 @@ public interface Schema<T> {
     /**
      * Create a schema instance that automatically deserialize messages
      * based on the current topic schema.
-     * <p>
-     * The messages values are deserialized into a {@link GenericRecord} object.
-     * <p>
-     * Currently this is only supported with Avro and JSON schema types.
+     *
+     * <p>The messages values are deserialized into a {@link GenericRecord} object.
+     *
+     * <p>Currently this is only supported with Avro and JSON schema types.
      *
      * @return the auto schema instance
      */
@@ -320,17 +328,31 @@ public interface Schema<T> {
     /**
      * Create a schema instance that accepts a serialized payload
      * and validates it against the topic schema.
-     * <p>
-     * Currently this is only supported with Avro and JSON schema types.
-     * <p>
-     * This method can be used when publishing a raw JSON payload,
-     * for which the format is known and a POJO class is not avaialable.
+     *
+     * <p>Currently this is only supported with Avro and JSON schema types.
+     *
+     * <p>This method can be used when publishing a raw JSON payload,
+     * for which the format is known and a POJO class is not available.
      *
      * @return the auto schema instance
      */
     static Schema<byte[]> AUTO_PRODUCE_BYTES() {
         return DefaultImplementation.newAutoProduceSchema();
     }
+
+    /**
+     * Create a schema instance that accepts a serialized payload
+     * and validates it against the schema specified.
+     *
+     * @return the auto schema instance
+     * @since 2.5.0
+     * @see #AUTO_PRODUCE_BYTES()
+     */
+    static Schema<byte[]> AUTO_PRODUCE_BYTES(Schema<?> schema) {
+        return DefaultImplementation.newAutoProduceSchema(schema);
+    }
+
+    // CHECKSTYLE.ON: MethodName
 
     static Schema<?> getSchema(SchemaInfo schemaInfo) {
         return DefaultImplementation.getSchema(schemaInfo);

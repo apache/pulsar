@@ -20,13 +20,15 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Objects;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.google.common.base.Objects;
-
+/**
+ * The data of namespace isolation configuration.
+ */
 @ApiModel(
     value = "NamespaceIsolationData",
     description = "The data of namespace isolation configuration"
@@ -59,6 +61,7 @@ public class NamespaceIsolationData {
             + "  }"
             + "}"
     )
+    @SuppressWarnings("checkstyle:MemberName")
     public AutoFailoverPolicyData auto_failover_policy;
 
     @Override

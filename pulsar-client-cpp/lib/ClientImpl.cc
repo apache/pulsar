@@ -54,7 +54,7 @@ const std::string generateRandomName() {
     ss << nanoSeconds;
     SHA1(reinterpret_cast<const unsigned char*>(ss.str().c_str()), ss.str().length(), hash);
 
-    const int nameLength = 6;
+    const int nameLength = 10;
     std::stringstream hexHash;
     for (int i = 0; i < nameLength / 2; i++) {
         hexHash << hexDigits[(hash[i] & 0xF0) >> 4];
@@ -94,7 +94,8 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       pool_(clientConfiguration_, ioExecutorProvider_, clientConfiguration_.getAuthPtr(), poolConnections),
       producerIdGenerator_(0),
       consumerIdGenerator_(0),
-      requestIdGenerator_(0) {
+      requestIdGenerator_(0),
+      closingError(ResultOk) {
     if (clientConfiguration_.getLogger()) {
         // A logger factory was explicitely configured. Let's just use that
         LogUtils::setLoggerFactory(clientConfiguration_.getLogger());
@@ -164,7 +165,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
                                       CreateProducerCallback callback) {
     if (!result) {
         ProducerImplBasePtr producer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             producer = std::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                  partitionMetadata->getPartitions(), conf);
         } else {
@@ -221,7 +222,7 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
         return;
     }
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << topicName->toString());
         callback(ResultOperationNotSupported, Reader());
         return;
@@ -360,7 +361,7 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
             conf.setConsumerName(generateRandomName());
         }
         ConsumerImplBasePtr consumer;
-        if (partitionMetadata->getPartitions() > 1) {
+        if (partitionMetadata->getPartitions() > 0) {
             if (conf.getReceiverQueueSize() == 0) {
                 LOG_ERROR("Can't use partitioned topic if the queue size is 0.");
                 callback(ResultInvalidConfiguration, Consumer());
@@ -435,7 +436,7 @@ void ClientImpl::handleGetPartitions(const Result result, const LookupDataResult
 
     StringList partitions;
 
-    if (partitionMetadata->getPartitions() > 1) {
+    if (partitionMetadata->getPartitions() > 0) {
         for (unsigned int i = 0; i < partitionMetadata->getPartitions(); i++) {
             partitions.push_back(topicName->getTopicPartitionName(i));
         }
@@ -510,12 +511,12 @@ void ClientImpl::closeAsync(CloseCallback callback) {
 }
 
 void ClientImpl::handleClose(Result result, SharedInt numberOfOpenHandlers, ResultCallback callback) {
-    static bool errorClosing = false;
-    static Result failResult = ResultOk;
-    if (result != ResultOk) {
-        errorClosing = true;
-        failResult = result;
+    Result expected = ResultOk;
+    if (!closingError.compare_exchange_strong(expected, result)) {
+        LOG_DEBUG("Tried to updated closingError, but already set to "
+                  << expected << ". This means multiple errors have occurred while closing the client");
     }
+
     if (*numberOfOpenHandlers > 0) {
         --(*numberOfOpenHandlers);
     }
@@ -523,17 +524,14 @@ void ClientImpl::handleClose(Result result, SharedInt numberOfOpenHandlers, Resu
         Lock lock(mutex_);
         state_ = Closed;
         lock.unlock();
-        if (errorClosing) {
-            LOG_DEBUG("Problem in closing client, could not close one or more consumers or producers");
-            if (callback) {
-                callback(failResult);
-            }
-        }
 
         LOG_DEBUG("Shutting down producers and consumers for client");
         shutdown();
         if (callback) {
-            callback(ResultOk);
+            if (closingError != ResultOk) {
+                LOG_DEBUG("Problem in closing client, could not close one or more consumers or producers");
+            }
+            callback(closingError);
         }
     }
 }
@@ -561,6 +559,7 @@ void ClientImpl::shutdown() {
         }
     }
 
+    pool_.close();
     ioExecutorProvider_->close();
     listenerExecutorProvider_->close();
     partitionListenerExecutorProvider_->close();

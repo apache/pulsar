@@ -23,6 +23,7 @@ import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLe
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
 
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
@@ -48,7 +49,7 @@ public class FileStoreTestBase {
         hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         fileSystemManagedLedgerOffloader = new FileSystemManagedLedgerOffloader(
-                FileSystemConfigurationData.create(properties),
+                OffloadPolicies.create(properties),
                 scheduler, hdfsURI, basePath);
     }
 

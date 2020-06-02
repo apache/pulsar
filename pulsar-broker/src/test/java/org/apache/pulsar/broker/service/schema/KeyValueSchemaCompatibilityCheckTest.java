@@ -20,13 +20,12 @@ package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.collect.Maps;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
@@ -40,8 +39,6 @@ public class KeyValueSchemaCompatibilityCheckTest {
     private final Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;
@@ -50,8 +47,6 @@ public class KeyValueSchemaCompatibilityCheckTest {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Bar {
         private boolean field1;
     }

@@ -22,7 +22,7 @@
 
 namespace pulsar {
 
-class CompressionCodecSnappy : public CompressionCodec {
+class PULSAR_PUBLIC CompressionCodecSnappy : public CompressionCodec {
    public:
     SharedBuffer encode(const SharedBuffer& raw);
 

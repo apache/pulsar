@@ -31,7 +31,7 @@ import java.util.zip.Inflater;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
- * ZLib Compression
+ * ZLib Compression.
  */
 public class CompressionCodecZLib implements CompressionCodec {
 

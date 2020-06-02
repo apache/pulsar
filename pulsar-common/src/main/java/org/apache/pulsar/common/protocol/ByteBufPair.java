@@ -54,9 +54,9 @@ public final class ByteBufPair extends AbstractReferenceCounted {
 
     /**
      * Get a new {@link ByteBufPair} from the pool and assign 2 buffers to it.
-     * <p>
-     * The buffers b1 and b2 lifecycles are now managed by the ByteBufPair: when the {@link ByteBufPair} is deallocated,
-     * b1 and b2 will be released as well.
+     *
+     * <p>The buffers b1 and b2 lifecycles are now managed by the ByteBufPair:
+     * when the {@link ByteBufPair} is deallocated, b1 and b2 will be released as well.
      *
      * @param b1
      * @param b2
@@ -112,6 +112,7 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     public static final CopyingEncoder COPYING_ENCODER = new CopyingEncoder();
 
     @Sharable
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class Encoder extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
@@ -134,6 +135,7 @@ public final class ByteBufPair extends AbstractReferenceCounted {
     }
 
     @Sharable
+    @SuppressWarnings("checkstyle:JavadocType")
     public static class CopyingEncoder extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {

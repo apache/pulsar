@@ -50,7 +50,6 @@ public interface Authentication extends Closeable, Serializable {
     }
 
     /**
-     *
      * Get/Create an authentication data provider which provides the data that this client will be sent to the broker.
      * Some authentication method need to auth between each client channel. So it need the broker, who it will talk to.
      *
@@ -64,7 +63,7 @@ public interface Authentication extends Closeable, Serializable {
     }
 
     /**
-     * Configure the authentication plugins with the supplied parameters
+     * Configure the authentication plugins with the supplied parameters.
      *
      * @param authParams
      * @deprecated This method will be deleted on version 2.0, instead please use configure(String
@@ -75,7 +74,7 @@ public interface Authentication extends Closeable, Serializable {
     void configure(Map<String, String> authParams);
 
     /**
-     * Initialize the authentication provider
+     * Initialize the authentication provider.
      */
     void start() throws PulsarClientException;
 
@@ -91,7 +90,7 @@ public interface Authentication extends Closeable, Serializable {
     }
 
     /**
-     * Add an authenticationStage that will complete along with authFuture
+     * Add an authenticationStage that will complete along with authFuture.
      */
     default Set<Entry<String, String>> newRequestHeader(String hostName,
                                                         AuthenticationDataProvider authData,

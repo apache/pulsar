@@ -196,10 +196,10 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providersClassNames);
 
         super.init();
-        URI brokerServiceUrl = new URI("pulsar://localhost:" + BROKER_PORT);
-        pulsarClient = PulsarClient.builder().serviceUrl(brokerServiceUrl.toString())
-            .authentication(mutualAuth)
-            .build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(mutualAuth)
+                .build();
         super.producerBaseSetup();
     }
 

@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 /**
- * Maintain compatibility with previous class name
+ * Maintain compatibility with previous class name.
  */
 public class PersistentTopicStats extends TopicStats {
 

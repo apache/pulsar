@@ -23,6 +23,7 @@ import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.AWSSessionCredentials;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -44,11 +45,11 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
+import org.apache.bookkeeper.mledger.offload.jcloud.CredentialsUtil;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
-import org.apache.bookkeeper.mledger.offload.jcloud.TieredStorageConfigurationData;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.jcloud.shade.com.google.common.base.Supplier;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.jclouds.Constants;
 import org.jclouds.ContextBuilder;
 import org.jclouds.aws.domain.SessionCredentials;
@@ -181,16 +182,19 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     // offload driver metadata to be stored as part of the original ledger metadata
     private final String offloadDriverName;
 
+    private static OffloadPolicies offloadPolicies;
+
     @VisibleForTesting
-    static BlobStoreManagedLedgerOffloader create(TieredStorageConfigurationData conf,
+    static BlobStoreManagedLedgerOffloader create(OffloadPolicies conf,
                                                   OrderedScheduler scheduler) throws IOException {
         return create(conf, Maps.newHashMap(), scheduler);
     }
 
-    public static BlobStoreManagedLedgerOffloader create(TieredStorageConfigurationData conf,
+    public static BlobStoreManagedLedgerOffloader create(OffloadPolicies conf,
                                                          Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler)
             throws IOException {
+        offloadPolicies = conf;
         String driver = conf.getManagedLedgerOffloadDriver();
         if (!driverSupported(driver)) {
             throw new IOException(
@@ -232,7 +236,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             maxBlockSize, readBufferSize, endpoint, region, credentials, userMetadata);
     }
 
-    public static Supplier<Credentials> getCredentials(String driver, TieredStorageConfigurationData conf) throws IOException {
+    public static Supplier<Credentials> getCredentials(String driver,
+               OffloadPolicies conf) throws IOException {
         // credentials:
         //   for s3, get by DefaultAWSCredentialsProviderChain.
         //   for gcs, use downloaded file 'google_creds.json', which contains service account key by
@@ -252,7 +257,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 throw new IOException(ioe);
             }
         } else if (isS3Driver(driver)) {
-            AWSCredentialsProvider credsChain = conf.getAWSCredentialProvider();
+            AWSCredentialsProvider credsChain = CredentialsUtil.getAWSCredentialProvider(conf);
             // try and get creds before starting... if we can't fetch
             // creds on boot, we want to fail
             try {
@@ -382,8 +387,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
             METADATA_FIELD_BUCKET, writeBucket,
-            METADATA_FIELD_REGION, writeRegion,
-            METADATA_FIELD_ENDPOINT, writeEndpoint
+            METADATA_FIELD_REGION, Strings.nullToEmpty(writeRegion),
+            METADATA_FIELD_ENDPOINT, Strings.nullToEmpty(writeEndpoint)
         );
     }
 
@@ -476,12 +481,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
-                indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
+                indexPayload.getContentMetadata().setContentLength(indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
                 Blob blob = blobBuilder
                     .payload(indexPayload)
-                    .contentLength((long)indexStream.getStreamSize())
+                    .contentLength(indexStream.getStreamSize())
                     .build();
 
                 writeBlobStore.putBlob(writeBucket, blob);
@@ -586,6 +591,23 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     public interface VersionCheck {
         void check(String key, Blob blob) throws IOException;
+    }
+
+    @Override
+    public OffloadPolicies getOffloadPolicies() {
+        return offloadPolicies;
+    }
+
+    @Override
+    public void close() {
+        if (writeBlobStore != null) {
+            writeBlobStore.getContext().close();
+        }
+        for (BlobStore readBlobStore : readBlobStores.values()) {
+            if (readBlobStore != null) {
+                readBlobStore.getContext().close();
+            }
+        }
     }
 }
 

@@ -44,13 +44,29 @@ public class PulsarTestSuite extends PulsarClusterTestBase implements ITest {
         return "pulsar-test-suite";
     }
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {
+        retryStrategically(predicate, retryCount, intSleepTimeInMillis, false);
+    }
+
+
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis, boolean throwException)
             throws Exception {
+
         for (int i = 0; i < retryCount; i++) {
-            if (predicate.test(null) || i == (retryCount - 1)) {
-                break;
+            if (throwException) {
+                if (i == (retryCount - 1)) {
+                    throw new RuntimeException("Action was not successful after " + retryCount + " retries");
+                }
+                if (predicate.test(null)) {
+                    break;
+                }
+            } else {
+                if (predicate.test(null) || i == (retryCount - 1)) {
+                    break;
+                }
             }
-            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
+
+           Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
     }
 }

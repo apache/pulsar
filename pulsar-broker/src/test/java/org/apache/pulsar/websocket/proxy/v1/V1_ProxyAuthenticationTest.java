@@ -37,7 +37,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.proxy.SimpleConsumerSocket;
@@ -57,7 +56,6 @@ import org.testng.annotations.Test;
 
 public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
-    private int port;
     private ProxyServer proxyServer;
     private WebSocketService service;
     private WebSocketClient consumeClient;
@@ -68,9 +66,8 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(port));
+        config.setWebServicePort(Optional.of(0));
         config.setClusterName("use");
         config.setAuthenticationEnabled(true);
         // If this is not set, 500 error occurs.
@@ -120,8 +117,8 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     public void socketTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic1";
-        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
-        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -171,8 +168,8 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
     @Test(timeOut=10000)
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
-        final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic + "/my-sub";
-        final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/producer/persistent/" + topic;
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 
@@ -181,7 +178,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
-        final String baseUrl = "http://localhost:" + port + "/admin/proxy-stats/";
+        final String baseUrl = "http://localhost:" + proxyServer.getListenPortHTTP().get() + "/admin/proxy-stats/";
         Client client = ClientBuilder.newClient();
 
         try {

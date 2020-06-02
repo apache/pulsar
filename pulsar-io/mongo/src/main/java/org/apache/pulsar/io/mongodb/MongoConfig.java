@@ -21,7 +21,7 @@ package org.apache.pulsar.io.mongodb;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
-import lombok.*;
+import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -32,13 +32,9 @@ import java.io.Serializable;
 import java.util.Map;
 
 /**
- * Configuration class for the MongoDB Sink Connector.
+ * Configuration class for the MongoDB Connectors.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class MongoConfig implements Serializable {
 
@@ -57,30 +53,28 @@ public class MongoConfig implements Serializable {
     private String mongoUri;
 
     @FieldDoc(
-        required = true,
         defaultValue = "",
-        help = "The name of the database to which the collection belongs to"
+        help = "The database name to which the collection belongs and which must be watched for the source connector"
+                + " (required for the sink connector)"
     )
     private String database;
 
     @FieldDoc(
-        required = true,
         defaultValue = "",
-        help = "The collection name that the connector writes messages to"
+        help = "The collection name where the messages are written or which is watched for the source connector"
+                + " (required for the sink connector)"
     )
     private String collection;
 
     @FieldDoc(
-        required = false,
         defaultValue = "" + DEFAULT_BATCH_SIZE,
-        help = "The batch size of write to the collection"
+        help = "The batch size of write to or read from the database"
     )
     private int batchSize = DEFAULT_BATCH_SIZE;
 
     @FieldDoc(
-            required = false,
-            defaultValue = "" + DEFAULT_BATCH_TIME_MS,
-            help = "The batch operation interval in milliseconds")
+        defaultValue = "" + DEFAULT_BATCH_TIME_MS,
+        help = "The batch operation interval in milliseconds")
     private long batchTimeMs = DEFAULT_BATCH_TIME_MS;
 
 
@@ -98,12 +92,15 @@ public class MongoConfig implements Serializable {
         return cfg;
     }
 
-    public void validate() {
-        if (StringUtils.isEmpty(mongoUri) || StringUtils.isEmpty(database) || StringUtils.isEmpty(collection)) {
+    public void validate(boolean dbRequired, boolean collectionRequired) {
+        if (StringUtils.isEmpty(getMongoUri()) ||
+                (dbRequired && StringUtils.isEmpty(getDatabase())) ||
+                (collectionRequired && StringUtils.isEmpty(getCollection()))) {
+
             throw new IllegalArgumentException("Required property not set.");
         }
 
-        Preconditions.checkArgument(batchSize > 0, "batchSize must be a positive integer.");
-        Preconditions.checkArgument(batchTimeMs > 0, "batchTimeMs must be a positive long.");
+        Preconditions.checkArgument(getBatchSize() > 0, "batchSize must be a positive integer.");
+        Preconditions.checkArgument(getBatchTimeMs() > 0, "batchTimeMs must be a positive long.");
     }
 }

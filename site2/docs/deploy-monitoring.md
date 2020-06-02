@@ -4,22 +4,23 @@ title: Monitoring
 sidebar_label: Monitoring
 ---
 
-There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the usage of topics and the overall health of the individual components of the cluster.
+You can use different ways to monitor a Pulsar cluster, exposing both metrics that relate to the usage of topics and the overall health of the individual components of the cluster.
 
-## Collecting metrics
+## Collect metrics
+
+You can collect broker stats, ZooKeeper stats, and BookKeeper stats. 
 
 ### Broker stats
 
-Pulsar broker metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:
+You can collect Pulsar broker metrics from brokers and export the metrics in JSON format. The Pulsar broker metrics mainly have two types:
 
-* *Destination dumps*, which containing stats for each individual topic. They can be fetched using
+* *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
   bin/pulsar-admin broker-stats destinations
   ```
 
-* Broker metrics, containing broker info and topics stats aggregated at namespace
-  level:
+* Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics using the command below:
 
   ```shell
   bin/pulsar-admin broker-stats monitoring-metrics
@@ -35,47 +36,39 @@ http://$BROKER_ADDRESS:8080/metrics
 
 ### ZooKeeper stats
 
-The local Zookeeper/configuration store server and clients that are shipped with Pulsar have been instrumented to expose
-detailed stats through Prometheus as well.
+The local Zookeeper and configuration store server and clients that are shipped with Pulsar have been instrumented to expose detailed stats through Prometheus as well.
 
 ```shell
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
 
-The default port of local ZooKeeper is `8000` and that of configuration store is `8001`.
-These can be changed by specifying system property `stats_server_port`.
+The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local Zookeeper and configuration store by specifying system property `stats_server_port`.
 
 ### BookKeeper stats
 
 For BookKeeper you can configure the stats frameworks by changing the `statsProviderClass` in
 `conf/bookkeeper.conf`.
 
-By default, the default BookKeeper configuration included with Pulsar distribution will enable
-the Prometheus exporter.
+The default BookKeeper configuration, which is included with Pulsar distribution, enables the Prometheus exporter.
 
 ```shell
 http://$BOOKIE_ADDRESS:8000/metrics
 ```
 
-For bookies, the default port is `8000` (instead of `8080`) and that can be configured by changing
-the `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
+The default port for bookie is `8000` (instead of `8080`). You can change the port by configuring `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
 
-## Configuring Prometheus
+## Configure Prometheus
 
-You can configure Prometheus to collect and store the metrics data by following the Prometheus
-[Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
+You can use Prometheus to collect and store the metrics data. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When running on bare metal, you can provide the list of nodes that needs to be probed. When deploying
-in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md)
-instructions.
+When you run Pulsar on bare metal, you can provide the list of nodes that needs to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md) instructions.
 
 ## Dashboards
 
-When collecting time series statistics, the major problem is to make sure the number of dimensions
-attached to the data does not explode.
+When you collect time series statistics, the major problem is to make sure the number of dimensions attached to the data does not explode.
 
-For that reason we only collect time series of metrics aggregated at the namespace level.
+For that reason you only need to collect time series of metrics aggregated at the namespace level.
 
 ### Pulsar per-topic dashboard
 
@@ -83,12 +76,11 @@ The per-topic dashboard instructions are available at [Dashboard](administration
 
 ### Grafana
 
-You can use grafana to easily create dashboard driven by the data stored in Prometheus.
+You can use grafana to easily create dashboard driven by the data that is stored in Prometheus.
 
-There is a `pulsar-grafana` Docker image that is ready to use with the principal dashboards already
-in place. This is enabled by default when deploying Pulsar on Kubernetes.
+When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
 
-To use the dashboard manually:
+Enter the command below to use the dashboard manually:
 
 ```shell
 docker run -p3000:3000 \

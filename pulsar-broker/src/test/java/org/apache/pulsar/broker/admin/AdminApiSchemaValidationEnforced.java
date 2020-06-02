@@ -54,7 +54,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schema-validation-enforced", tenantInfo);
     }
@@ -148,7 +148,7 @@ public class AdminApiSchemaValidationEnforced extends MockedPulsarServiceBaseTes
         schemaInfo.setProperties(properties);
         schemaInfo.setName("test");
         schemaInfo.setSchema("".getBytes());
-        PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "{'key':'value'}", properties);
+        PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
         try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
             fail("Client no schema, but topic has schema, should fail");

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -27,16 +27,22 @@ import java.util.Date;
 /**
  * A schema for `java.util.Date` or `java.sql.Date`.
  */
-public class DateSchema implements Schema<Date> {
+public class DateSchema extends AbstractSchema<Date> {
+
+   private static final DateSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Date")
+             .setType(SchemaType.DATE)
+             .setSchema(new byte[0]);
+       INSTANCE = new DateSchema();
+   }
+
    public static DateSchema of() {
       return INSTANCE;
    }
-
-   private static final DateSchema INSTANCE = new DateSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Date")
-         .setType(SchemaType.DATE)
-         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Date message) {
@@ -55,6 +61,16 @@ public class DateSchema implements Schema<Date> {
       }
 
       Long decode = LongSchema.of().decode(bytes);
+      return new Date(decode);
+   }
+
+   @Override
+   public Date decode(ByteBuf byteBuf) {
+      if (null == byteBuf) {
+         return null;
+      }
+
+      Long decode = LongSchema.of().decode(byteBuf);
       return new Date(decode);
    }
 

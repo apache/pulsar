@@ -21,11 +21,14 @@ package org.apache.pulsar.functions.instance.state;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.Options;
+import org.apache.bookkeeper.api.kv.result.DeleteResult;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.any;
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 
 /**
  * Unit test {@link StateContextImpl}.
@@ -74,6 +78,18 @@ public class StateContextImplTest {
     }
 
     @Test
+    public void testDelete() throws Exception {
+        DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
+        when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
+                .thenReturn(FutureUtils.value(result));
+        stateContext.delete("test-key");
+        verify(mockTable, times(1)).delete(
+                eq(Unpooled.copiedBuffer("test-key", UTF_8)),
+                eq(Options.delete())
+        );
+    }
+
+    @Test
     public void testGetValue() throws Exception {
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(mockTable.get(any(ByteBuf.class)))
@@ -93,6 +109,16 @@ public class StateContextImplTest {
         verify(mockTable, times(1)).getNumber(
             eq(Unpooled.copiedBuffer("test-key", UTF_8))
         );
+    }
+
+    @Test
+    public void testGetKeyNotPresent() throws Exception {
+        when(mockTable.get(any(ByteBuf.class)))
+                .thenReturn(FutureUtils.value(null));
+        CompletableFuture<ByteBuffer> result = stateContext.get("test-key");
+        assertTrue(result != null);
+        assertEquals(result.get(), null);
+
     }
 
 }

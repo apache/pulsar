@@ -46,10 +46,12 @@ import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -151,6 +153,15 @@ public class PulsarBrokerStarter {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 
+            if (!NamespaceBundleSplitAlgorithm.availableAlgorithms.containsAll(brokerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
+                throw new IllegalArgumentException("The given supported namespace bundle split algorithm has unavailable algorithm. " +
+                    "Available algorithms are " + NamespaceBundleSplitAlgorithm.availableAlgorithms);
+            }
+
+            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
+                throw new IllegalArgumentException("Supported namespace bundle split algorithms must contains the default namespace bundle split algorithm");
+            }
+
             // init functions worker
             if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
                 WorkerConfig workerConfig;
@@ -160,15 +171,6 @@ public class PulsarBrokerStarter {
                     workerConfig = WorkerConfig.load(starterArguments.fnWorkerConfigFile);
                 }
                 // worker talks to local broker
-                boolean useTls = workerConfig.isUseTls();
-                String pulsarServiceUrl = useTls
-                        ? PulsarService.brokerUrlTls(brokerConfig)
-                        : PulsarService.brokerUrl(brokerConfig);
-                String webServiceUrl = useTls
-                        ? PulsarService.webAddressTls(brokerConfig)
-                        : PulsarService.webAddress(brokerConfig);
-                workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
-                workerConfig.setPulsarWebServiceUrl(webServiceUrl);
                 String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
                     brokerConfig.getAdvertisedAddress());
                 workerConfig.setWorkerHostname(hostname);
@@ -187,7 +189,6 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setUseTls(brokerConfig.isTlsEnabled());
                 workerConfig.setTlsHostnameVerificationEnable(false);
 
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
@@ -206,7 +207,13 @@ public class PulsarBrokerStarter {
             }
 
             // init pulsar service
-            pulsarService = new PulsarService(brokerConfig, Optional.ofNullable(functionsWorkerService));
+            pulsarService = new PulsarService(brokerConfig,
+                                              Optional.ofNullable(functionsWorkerService),
+                                              (exitCode) -> {
+                                                  log.info("Halting broker process with code {}",
+                                                           exitCode);
+                                                  Runtime.getRuntime().halt(exitCode);
+                                              });
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
@@ -277,6 +284,12 @@ public class PulsarBrokerStarter {
         public void join() throws InterruptedException {
             pulsarService.waitUntilClosed();
 
+            try {
+                pulsarService.close();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException();
+            }
+
             if (bookieServer != null) {
                 bookieServer.join();
             }
@@ -324,8 +337,12 @@ public class PulsarBrokerStarter {
         );
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
-            log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
-            starter.shutdown();
+            if (starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
+                log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
+            } else {
+                log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+                starter.shutdown();
+            }
         });
 
         try {
@@ -333,9 +350,9 @@ public class PulsarBrokerStarter {
         } catch (Exception e) {
             log.error("Failed to start pulsar service.", e);
             Runtime.getRuntime().halt(1);
+        } finally {
+            starter.join();
         }
-
-        starter.join();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStarter.class);

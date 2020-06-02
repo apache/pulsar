@@ -22,13 +22,14 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
-import lombok.ToString;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
+/**
+ * Schema data.
+ */
 @Builder
 @Data
-@ToString
 public class SchemaData {
     private final SchemaType type;
     private final boolean isDeleted;
@@ -53,7 +54,7 @@ public class SchemaData {
     }
 
     /**
-     * Convert a schema info to a schema data
+     * Convert a schema info to a schema data.
      *
      * @param schemaInfo schema info
      * @return the converted schema schema data

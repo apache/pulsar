@@ -23,9 +23,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -35,10 +32,7 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
-@Setter
-@Getter
 @EqualsAndHashCode(callSuper = false)
-@ToString
 @Accessors(chain = true)
 public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serializable {
 
@@ -51,10 +45,16 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
     private String exchangeName;
 
     @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The routing key used for publishing the messages")
+            required = false,
+            defaultValue = "",
+            help = "The routing key used for publishing the messages")
     private String routingKey;
+
+    @FieldDoc(
+        required = false,
+        defaultValue = "topic",
+        help = "The exchange type to publish the messages on")
+    private String exchangeType = "topic";
 
     public static RabbitMQSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -70,6 +70,5 @@ public class RabbitMQSinkConfig extends RabbitMQAbstractConfig implements Serial
     public void validate() {
         super.validate();
         Preconditions.checkNotNull(exchangeName, "exchangeName property not set.");
-        Preconditions.checkNotNull(routingKey, "routingKey property not set.");
     }
 }

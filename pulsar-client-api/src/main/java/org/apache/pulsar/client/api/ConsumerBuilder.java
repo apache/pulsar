@@ -35,10 +35,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Create a copy of the current consumer builder.
-     * <p>
-     * Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
-     * example:
      *
+     * <p>Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
+     * example:
      * <pre>{@code
      * ConsumerBuilder<String> builder = client.newConsumer(Schema.STRING)
      *         .subscriptionName("my-subscription-name")
@@ -77,13 +76,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic.
      *
-     * <p>
-     * If the subscription does not exist, a new subscription will be created. By default the subscription
+     * <p>If the subscription does not exist, a new subscription will be created. By default the subscription
      * will be created at the end of the topic. See {@link #subscriptionInitialPosition(SubscriptionInitialPosition)}
      * to configure the initial position behavior.
-     * <p>
-     * Once a subscription is created, it will retain the data and the subscription cursor even if the consumer is not
-     * connected.
+     *
+     * <p>Once a subscription is created, it will retain the data and the subscription cursor even if the consumer
+     * is not connected.
      *
      * @return the consumer builder instance
      * @throws PulsarClientException
@@ -94,13 +92,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic in asynchronous mode.
      *
-     * <p>
-     * If the subscription does not exist, a new subscription will be created. By default the subscription
+     * <p>If the subscription does not exist, a new subscription will be created. By default the subscription
      * will be created at the end of the topic. See {@link #subscriptionInitialPosition(SubscriptionInitialPosition)}
      * to configure the initial position behavior.
-     * <p>
-     * Once a subscription is created, it will retain the data and the subscription cursor even if the consumer is not
-     * connected.
+     *
+     * <p>Once a subscription is created, it will retain the data and the subscription cursor even
+     * if the consumer is not connected.
      *
      * @return a future that will yield a {@link Consumer} instance
      * @throws PulsarClientException
@@ -110,7 +107,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify the topics this consumer will subscribe on.
-     * <p>
      *
      * @param topicNames a set of topic that the consumer will subscribe on
      * @return the consumer builder instance
@@ -119,7 +115,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify a list of topics that this consumer will subscribe on.
-     * <p>
      *
      * @param topicNames a list of topic that the consumer will subscribe on
      * @return the consumer builder instance
@@ -128,11 +123,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify a pattern for topics that this consumer will subscribe on.
-     * <p>
-     * The pattern will be applied to subscribe to all the topics, within a single namespace, that will match the
+     *
+     * <p>The pattern will be applied to subscribe to all the topics, within a single namespace, that will match the
      * pattern.
-     * <p>
-     * The consumer will automatically subscribe to topics created after itself.
+     *
+     * <p>The consumer will automatically subscribe to topics created after itself.
      *
      * @param topicsPattern
      *            a regular expression to select a list of topics to subscribe to
@@ -142,14 +137,14 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify a pattern for topics that this consumer will subscribe on.
-     * <p>
-     * It accepts regular expression and will be compiled into a pattern internally. Eg.
+     *
+     * <p>It accepts regular expression and will be compiled into a pattern internally. Eg.
      * "persistent://public/default/pattern-topic-.*"
-     * <p>
-     * The pattern will be applied to subscribe to all the topics, within a single namespace, that will match the
+     *
+     * <p>The pattern will be applied to subscribe to all the topics, within a single namespace, that will match the
      * pattern.
-     * <p>
-     * The consumer will automatically subscribe to topics created after itself.
+     *
+     * <p>The consumer will automatically subscribe to topics created after itself.
      *
      * @param topicsPattern
      *            given regular expression for topics pattern
@@ -159,8 +154,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Specify the subscription name for this consumer.
-     * <p>
-     * This argument is required when constructing the consumer.
+     *
+     * <p>This argument is required when constructing the consumer.
      *
      * @param subscriptionName the name of the subscription that this consumer should attach to
      *
@@ -171,11 +166,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
      * 1 second.
-     * <p>
-     * By default, the acknowledge timeout is disabled and that means that messages delivered to a
+     *
+     * <p>By default, the acknowledge timeout is disabled and that means that messages delivered to a
      * consumer will not be re-delivered unless the consumer crashes.
-     * <p>
-     * When enabling ack timeout, if a message is not acknowledged within the specified timeout
+     *
+     * <p>When enabling ack timeout, if a message is not acknowledged within the specified timeout
      * it will be re-delivered to the consumer (possibly to a different consumer in case of
      * a shared subscription).
      *
@@ -189,8 +184,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Define the granularity of the ack-timeout redelivery.
-     * <p>
-     * By default, the tick time is set to 1 second. Using an higher tick time will
+     *
+     * <p>By default, the tick time is set to 1 second. Using an higher tick time will
      * reduce the memory overhead to track messages when the ack-timeout is set to
      * bigger values (eg: 1hour).
      *
@@ -204,8 +199,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
-     * <p>
-     * When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
+     *
+     * <p>When application uses {@link Consumer#negativeAcknowledge(Message)}, the failed message
      * will be redelivered after a fixed timeout. The default is 1 min.
      *
      * @param redeliveryDelay
@@ -219,9 +214,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Select the subscription type to be used when subscribing to the topic.
-     * <p>
-     * Options are:
      *
+     * <p>Options are:
      * <ul>
      *  <li>{@link SubscriptionType#Exclusive} (Default)</li>
      *  <li>{@link SubscriptionType#Failover}</li>
@@ -235,9 +229,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
+     * Select the subscription mode to be used when subscribing to the topic.
+     *
+     * <p>Options are:
+     * <ul>
+     *  <li>{@link SubscriptionMode#Durable} (Default)</li>
+     *  <li>{@link SubscriptionMode#NonDurable}</li>
+     * </ul>
+     *
+     * @param subscriptionMode
+     *            the subscription mode value
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> subscriptionMode(SubscriptionMode subscriptionMode);
+
+    /**
      * Sets a {@link MessageListener} for the consumer
-     * <p>
-     * When a {@link MessageListener} is set, application will receive messages through it. Calls to
+     *
+     * <p>When a {@link MessageListener} is set, application will receive messages through it. Calls to
      * {@link Consumer#receive()} will not be allowed.
      *
      * @param messageListener
@@ -248,8 +257,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Sets a {@link CryptoKeyReader}.
-     * <p>
-     * Configure the key reader to be used to decrypt the message payloads.
+     *
+     * <p>Configure the key reader to be used to decrypt the message payloads.
      *
      * @param cryptoKeyReader
      *            CryptoKeyReader object
@@ -258,7 +267,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
-     * Sets the ConsumerCryptoFailureAction to the value specified
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto
+     *            MessageCrypto object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+
+    /**
+     * Sets the ConsumerCryptoFailureAction to the value specified.
      *
      * @param action
      *            the action the consumer will take in case of decryption failures
@@ -268,13 +288,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Sets the size of the consumer receive queue.
-     * <p>
-     * The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
+     *
+     * <p>The consumer receive queue controls how many messages can be accumulated by the {@link Consumer} before the
      * application calls {@link Consumer#receive()}. Using a higher value could potentially increase the consumer
      * throughput at the expense of bigger memory utilization.
-     * </p>
-     * <p>
-     * <b>Setting the consumer queue size as zero</b>
+     *
+     * <p><b>Setting the consumer queue size as zero</b>
      * <ul>
      * <li>Decreases the throughput of the consumer, by disabling pre-fetching of messages. This approach improves the
      * message distribution on shared subscription, by pushing messages only to the consumers that are ready to process
@@ -286,7 +305,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * exception in callback. <b> consumer will not be able receive any further message unless batch-message in pipeline
      * is removed</b></li>
      * </ul>
-     * </p>
      * Default value is {@code 1000} messages and should be good for most use cases.
      *
      * @param receiverQueueSize
@@ -297,10 +315,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Group the consumer acknowledgments for the specified time.
-     * <p>
-     * By default, the consumer will use a 100 ms grouping time to send out the acknowledgments to the broker.
-     * <p>
-     * Setting a group time of 0, will send out the acknowledgments immediately. A longer ack group time
+     *
+     * <p>By default, the consumer will use a 100 ms grouping time to send out the acknowledgments to the broker.
+     *
+     * <p>Setting a group time of 0, will send out the acknowledgments immediately. A longer ack group time
      * will be more efficient at the expense of a slight increase in message re-deliveries after a failure.
      *
      * @param delay
@@ -319,8 +337,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Set the max total receiver queue size across partitons.
-     * <p>
-     * This setting will be used to reduce the receiver queue size for individual partitions
+     *
+     * <p>This setting will be used to reduce the receiver queue size for individual partitions
      * {@link #receiverQueueSize(int)} if the total exceeds this value (default: 50000).
      * The purpose of this setting is to have an upper-limit on the number
      * of messages that a consumer can be pushed at once from a broker, across all
@@ -334,8 +352,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Set the consumer name.
-     * <p>
-     * Consumer name is informative and it can be used to indentify a particular consumer
+     *
+     * <p>Consumer name is informative and it can be used to indentify a particular consumer
      * instance from the topic stats.
      *
      * @param consumerName
@@ -346,8 +364,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * Sets a {@link ConsumerEventListener} for the consumer.
      *
-     * <p>
-     * The consumer group listener is used for receiving consumer state change in a consumer group for failover
+     * <p>The consumer group listener is used for receiving consumer state change in a consumer group for failover
      * subscription. Application can then react to the consumer state changes.
      *
      * @param consumerEventListener
@@ -361,10 +378,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
      * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
      * point, the messages will be sent as normal.
-     * <p>
-     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer (i.e.
-     * failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
-     * shared subscription, will lead to the subscription call throwing a PulsarClientException.
+     *
+     * <p>readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer
+     * (i.e. failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics
+     * or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
      *
      * @param readCompacted
      *            whether to read from the compacted topic
@@ -383,16 +400,34 @@ public interface ConsumerBuilder<T> extends Cloneable {
      */
     ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
+
+    /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     *
+     * @param interval
+     *            the amount of delay between checks for
+     *            new topics matching pattern set with {@link #topicsPattern(String)}
+     * @param unit
+     *            the unit of the topics auto discovery period
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> patternAutoDiscoveryPeriod(int interval, TimeUnit unit);
+
+
     /**
      * <b>Shared subscription</b>
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
-     * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) </br>
-     * In Shared subscription mode, broker will first dispatch messages to max priority-level consumers if they have
-     * permits, else broker will consider next priority level consumers. </br>
-     * If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1 then broker will dispatch
-     * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
+     * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..)
      *
-     * <pre>
+     * <p>In Shared subscription mode, broker will first dispatch messages to max priority-level
+     * consumers if they have permits, else broker will consider next priority level consumers.
+     *
+     * <p>If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1
+     * then broker will dispatch messages to only consumer-A until it runs out permit and then broker
+     * starts dispatching messages to Consumer-B.
+     *
+     * <p><pre>
      * Consumer PriorityLevel Permits
      * C1       0             2
      * C2       0             1
@@ -402,8 +437,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
      *
-     * <b>Failover subscription</b>
-     * Broker selects active consumer for a failover-subscription based on consumer's priority-level and lexicographical sorting of a consumer name.
+     * <p><b>Failover subscription</b>
+     * Broker selects active consumer for a failover-subscription based on consumer's priority-level and
+     * lexicographical sorting of a consumer name.
      * eg:
      * <pre>
      * 1. Active consumer = C1 : Same priority-level and lexicographical sorting
@@ -418,7 +454,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * Partitioned-topics:
      * Broker evenly assigns partitioned topics to highest priority consumers.
-     *
      * </pre>
      *
      * @param priorityLevel the priority of this consumer
@@ -428,9 +463,9 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Set a name/value property with this consumer.
-     * <p>
-     * Properties are application defined metadata that can be attached to the consumer. When getting the topic stats,
-     * this metadata will be associated to the consumer stats for easier identification.
+     *
+     * <p>Properties are application defined metadata that can be attached to the consumer.
+     * When getting the topic stats, this metadata will be associated to the consumer stats for easier identification.
      *
      * @param key
      *            the property key
@@ -444,21 +479,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * Add all the properties in the provided map to the consumer.
-     * <p>
-     * Properties are application defined metadata that can be attached to the consumer. When getting the topic stats,
-     * this metadata will be associated to the consumer stats for easier identification.
      *
-     * @param key
-     *            the property key
-     * @param value
-     *            the property value
+     * <p>Properties are application defined metadata that can be attached to the consumer.
+     * When getting the topic stats, this metadata will be associated to the consumer stats for easier identification.
+     *
+     * @param properties the map with properties
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
     /**
      * Set the {@link SubscriptionInitialPosition} for the consumer.
-     * <p>
      *
      * @param subscriptionInitialPosition
      *            the position where to initialize a newly created subscription
@@ -483,13 +514,13 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**
-     * Set dead letter policy for consumer
+     * Set dead letter policy for consumer.
      *
-     * By default some message will redelivery so many times possible, even to the extent that it can be never stop.
+     * <p>By default some message will redelivery so many times possible, even to the extent that it can be never stop.
      * By using dead letter mechanism messages will has the max redelivery count, when message exceeding the maximum
      * number of redeliveries, message will send to the Dead Letter Topic and acknowledged automatic.
      *
-     * You can enable the dead letter mechanism by setting dead letter policy.
+     * <p>You can enable the dead letter mechanism by setting dead letter policy.
      * example:
      * <pre>
      * client.newConsumer()
@@ -500,11 +531,15 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * To setting a custom dead letter topic name
      * <pre>
      * client.newConsumer()
-     *          .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(10).deadLetterTopic("your-topic-name").build())
+     *          .deadLetterPolicy(DeadLetterPolicy
+     *              .builder()
+     *              .maxRedeliverCount(10)
+     *              .deadLetterTopic("your-topic-name")
+     *              .build())
      *          .subscribe();
      * </pre>
      * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
-     * then the ack timeout will be set to 30000 millisecond
+     * then the ack timeout will be set to 30000 millisecond.
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 
@@ -516,4 +551,62 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *            whether to auto update partition increasement
      */
     ConsumerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Set KeyShared subscription policy for consumer.
+     *
+     * <p>By default, KeyShared subscription use auto split hash range to maintain consumers. If you want to
+     * set a different KeyShared policy, you can set by following example:
+     *
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 10)))
+     *          .subscribe();
+     * </pre>
+     * Details about sticky hash range policy, please see {@link KeySharedPolicy.KeySharedPolicySticky}.
+     *
+     * <p>Or
+     * <pre>
+     * client.newConsumer()
+     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
+     *          .subscribe();
+     * </pre>
+     * Details about auto split hash range policy, please see {@link KeySharedPolicy.KeySharedPolicyAutoSplit}.
+     *
+     * @param keySharedPolicy The {@link KeySharedPolicy} want to specify
+     */
+    ConsumerBuilder<T> keySharedPolicy(KeySharedPolicy keySharedPolicy);
+
+    /**
+     * Set the consumer to include the given position of any reset operation like {@link Consumer#seek(long) or
+     * {@link Consumer#seek(MessageId)}}.
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> startMessageIdInclusive();
+
+    /**
+     * Set batch receive policy {@link BatchReceivePolicy} for consumer.
+     * By default, consumer will use {@link BatchReceivePolicy#DEFAULT_POLICY} as batch receive policy.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().batchReceivePolicy(BatchReceivePolicy.builder()
+     *              .maxNumMessages(100)
+     *              .maxNumBytes(5 * 1024 * 1024)
+     *              .timeout(100, TimeUnit.MILLISECONDS)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
+
+    /**
+     * If enabled, the consumer will auto retry message.
+     * default unabled.
+     *
+     * @param retryEnable
+     *            whether to auto retry message
+     */
+    ConsumerBuilder<T> enableRetry(boolean retryEnable);
+
 }

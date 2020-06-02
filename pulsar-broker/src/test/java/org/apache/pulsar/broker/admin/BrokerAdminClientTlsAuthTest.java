@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.ImmutableSet;
-
-import java.util.Optional;
-
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.ImmutableSet;
+
 import java.lang.reflect.Method;
+import java.util.Optional;
+
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.test.PortManager;
+
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -57,8 +58,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setBrokerServicePortTls(Optional.of(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.of(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         buildConf(conf);
         super.internalSetup();
     }
@@ -78,7 +79,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerClientAuthenticationParameters(str);
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
-        conf.setTlsAllowInsecureConnection(true); 
+        conf.setTlsAllowInsecureConnection(true);
     }
 
     @AfterMethod
@@ -99,26 +100,28 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Test case => Use Multiple Brokers 
+     * Test case => Use Multiple Brokers
      *           => Create a namespace with bundles distributed among these brokers.
      *           => Use Tls as authPlugin for everything.
      *           => Run list topics command
-     * @throws Exception 
+     * @throws Exception
      */
     @Test
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        
+
         /***** Start Broker 2 ******/
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setBrokerServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        conf.setBrokerServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
-        conf.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        conf.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(this.conf.getClusterName());
         conf.setZookeeperServers("localhost:2181");
         buildConf(conf);
+
+        @Cleanup
         PulsarService pulsar2 = startBroker(conf);
 
         /***** Broker 2 Started *****/
@@ -141,6 +144,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 fail("Should not have thrown an exception");
             }
         }
-        
+
     }
 }

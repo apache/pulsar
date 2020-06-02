@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.apache.pulsar.tests</groupId>
         <artifactId>tests-parent</artifactId>
-        <version>2.5.0-SNAPSHOT</version>
+        <version>2.6.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-spark-test</artifactId>
@@ -53,12 +53,6 @@
         <dependency>
           <groupId>org.testcontainers</groupId>
           <artifactId>mysql</artifactId>
-          <scope>test</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>org.mockito</groupId>
-          <artifactId>mockito-core</artifactId>
           <scope>test</scope>
         </dependency>
 

@@ -43,16 +43,19 @@ import java.util.function.Supplier;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
+import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
@@ -133,23 +136,24 @@ public class LocalBookkeeperEnsemble {
             String advertisedAddress,
             Supplier<Integer> portManager) {
         this.numberOfBookies = numberOfBookies;
-        this.HOSTPORT = "127.0.0.1:" + zkPort;
-        this.ZooKeeperDefaultPort = zkPort;
         this.portManager = portManager;
         this.streamStoragePort = streamStoragePort;
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
         this.clearOldData = clearOldData;
+        this.zkPort = zkPort;
         this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
         LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
     }
 
-    private final String HOSTPORT;
-    private final String advertisedAddress;
+    private String HOSTPORT;
+    private String advertisedAddress;
+    private int zkPort;
+
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
     ZooKeeper zkc;
-    final int ZooKeeperDefaultPort;
+
     static int zkSessionTimeOut = 5000;
     String zkDataDirName;
 
@@ -161,10 +165,6 @@ public class LocalBookkeeperEnsemble {
     // Stream/Table Storage
     StreamStorageLifecycleComponent streamStorage;
     Integer streamStoragePort = 4181;
-
-    /**
-     * @param args
-     */
 
     private void runZookeeper(int maxCC) throws IOException {
         // create a ZooKeeper server(dataDir, dataLogDir, port)
@@ -185,7 +185,7 @@ public class LocalBookkeeperEnsemble {
             zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
 
             serverFactory = new NIOServerCnxnFactory();
-            serverFactory.configure(new InetSocketAddress(ZooKeeperDefaultPort), maxCC);
+            serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
             serverFactory.startup(zks);
         } catch (Exception e) {
             LOG.error("Exception while instantiating ZooKeeper", e);
@@ -196,9 +196,13 @@ public class LocalBookkeeperEnsemble {
             throw new IOException(e);
         }
 
+        this.zkPort = serverFactory.getLocalPort();
+        this.HOSTPORT = "127.0.0.1:" + zkPort;
+
         boolean b = waitForServerUp(HOSTPORT, CONNECTION_TIMEOUT);
+
         LOG.info("ZooKeeper server up: {}", b);
-        LOG.debug("Local ZK started (port: {}, data_directory: {})", ZooKeeperDefaultPort, zkDataDir.getAbsolutePath());
+        LOG.debug("Local ZK started (port: {}, data_directory: {})", zkPort, zkDataDir.getAbsolutePath());
     }
 
     private void initializeZookeper() throws IOException {
@@ -264,9 +268,11 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
             bsConfs[i].setBookiePort(bookiePort);
-            bsConfs[i].setZkServers("127.0.0.1:" + ZooKeeperDefaultPort);
+            bsConfs[i].setZkServers("127.0.0.1:" + zkPort);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
+            bsConfs[i].setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+            bsConfs[i].setAllowEphemeralPorts(true);
 
             try {
                 bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
@@ -290,8 +296,8 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
-    private void runStreamStorage(CompositeConfiguration conf) throws Exception {
-        String zkServers = "127.0.0.1:" + ZooKeeperDefaultPort;
+    public void runStreamStorage(CompositeConfiguration conf) throws Exception {
+        String zkServers = "127.0.0.1:" + zkPort;
         String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
 
@@ -303,6 +309,9 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("dlog.bkcAckQuorumSize", 1);
         // stream storage port
         conf.setProperty("storageserver.grpc.port", streamStoragePort);
+
+        // storage server settings
+        conf.setProperty("storage.range.store.dirs", bkDataDirName + "/ranges/data");
 
         // initialize the stream storage metadata
         ClusterInitializer initializer = new ZkClusterInitializer(zkServers);
@@ -369,6 +378,7 @@ public class LocalBookkeeperEnsemble {
         conf.setNumJournalCallbackThreads(0);
         conf.setServerNumIOThreads(1);
         conf.setNumLongPollWorkerThreads(1);
+        conf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
 
         runZookeeper(1000);
         initializeZookeper();
@@ -396,6 +406,37 @@ public class LocalBookkeeperEnsemble {
         runBookies(conf);
         if (enableStreamStorage) {
             runStreamStorage(new CompositeConfiguration());
+        }
+    }
+
+    public void stopBK() {
+        LOG.debug("Local ZK/BK stopping ...");
+        for (BookieServer bookie : bs) {
+            bookie.shutdown();
+        }
+    }
+
+    public void startBK() throws Exception {
+        for (int i = 0; i < numberOfBookies; i++) {
+
+            try {
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            } catch (InvalidCookieException e) {
+                // InvalidCookieException can happen if the machine IP has changed
+                // Since we are running here a local bookie that is always accessed
+                // from localhost, we can ignore the error
+                for (String path : zkc.getChildren("/ledgers/cookies", false)) {
+                    zkc.delete("/ledgers/cookies/" + path, -1);
+                }
+
+                // Also clean the on-disk cookie
+                new File(new File(bsConfs[i].getJournalDirNames()[0], "current"), "VERSION").delete();
+
+                // Retry to start the bookie after cleaning the old left cookie
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+
+            }
+            bs[i].start();
         }
     }
 
@@ -492,5 +533,9 @@ public class LocalBookkeeperEnsemble {
 
     public BookieServer[] getBookies() {
         return bs;
+    }
+
+    public int getZookeeperPort() {
+        return zkPort;
     }
 }

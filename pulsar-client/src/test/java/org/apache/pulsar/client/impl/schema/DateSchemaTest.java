@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -46,7 +48,11 @@ public class DateSchemaTest {
     public void testSchemaEncodeDecodeFidelity() {
         DateSchema schema = DateSchema.of();
         Date date = new Date();
-        Assert.assertEquals(date, schema.decode(schema.encode(date)));
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
+        byte[] bytes = schema.encode(date);
+        byteBuf.writeBytes(bytes);
+        Assert.assertEquals(date, schema.decode(bytes));
+        Assert.assertEquals(date, schema.decode(byteBuf));
     }
 
     @Test
@@ -63,13 +69,20 @@ public class DateSchemaTest {
         };
         long expected = 10*65536 + 24*256 + 42;
         DateSchema schema = DateSchema.of();
+        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
+        byteBuf.writeBytes(byteData);
         Assert.assertEquals(expected, schema.decode(byteData).getTime());
+        Assert.assertEquals(expected, schema.decode(byteBuf).getTime());
     }
 
     @Test
     public void testNullEncodeDecode() {
+        ByteBuf byteBuf = null;
+        byte[] bytes = null;
+
         Assert.assertNull(DateSchema.of().encode(null));
-        Assert.assertNull(DateSchema.of().decode(null));
+        Assert.assertNull(DateSchema.of().decode(byteBuf));
+        Assert.assertNull(DateSchema.of().decode(bytes));
     }
 
 }

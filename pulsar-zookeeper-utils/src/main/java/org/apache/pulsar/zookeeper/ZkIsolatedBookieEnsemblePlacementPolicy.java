@@ -71,7 +71,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             Optional<DNSToSwitchMapping> optionalDnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
             StatsLogger statsLogger) {
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
-            String isolationGroupsString = (String) conf.getProperty(ISOLATION_BOOKIE_GROUPS);
+            String isolationGroupsString = castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
                 for (String isolationGroup : isolationGroupsString.split(",")) {
                     primaryIsolationGroups.add(isolationGroup);
@@ -80,7 +80,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             }
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
-            String secondaryIsolationGroupsString = (String) conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS);
+            String secondaryIsolationGroupsString = castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
             if (!secondaryIsolationGroupsString.isEmpty()) {
                 for (String isolationGroup : secondaryIsolationGroupsString.split(",")) {
                     secondaryIsolationGroups.add(isolationGroup);
@@ -88,6 +88,18 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             }
         }
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger);
+    }
+
+    private String castToString(Object obj) {
+        if (obj instanceof List<?>) {
+            List<String> result = new ArrayList<>();
+            for (Object o : (List<?>) obj) {
+                result.add((String) o);
+            }
+            return String.join(",", result);
+        } else {
+            return obj.toString();
+        }
     }
 
     private ZooKeeperCache getAndSetZkCache(Configuration conf) {
@@ -103,7 +115,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 try {
                     ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
                             .sessionTimeoutMs(zkTimeout).build();
-                    zkCache = new ZooKeeperCache(zkClient, (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
+                    zkCache = new ZooKeeperCache("bookies-isolation", zkClient,
+                            (int) TimeUnit.MILLISECONDS.toSeconds(zkTimeout)) {
                     };
                     conf.addProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, zkCache);
                 } catch (Exception e) {
@@ -186,7 +199,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                                 blacklistedBookies.remove(new BookieSocketAddress(bookieAddress));
                             }
                         }
-                    }   
+                    }
                 }
             }
         } catch (Exception e) {

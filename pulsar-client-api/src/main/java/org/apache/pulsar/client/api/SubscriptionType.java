@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.api;
 
 /**
- * Types of subscription supported by Pulsar
- *
- *
+ * Types of subscription supported by Pulsar.
  */
 public enum SubscriptionType {
     /**
@@ -30,31 +28,30 @@ public enum SubscriptionType {
     Exclusive,
 
     /**
-     * Multiple consumer will be able to use the same subscription name and the messages will be dispatched according to
-     * a round-robin rotation between the connected consumers.
-     * <p>
-     * In this mode, the consumption order is not guaranteed.
+     * Multiple consumer will be able to use the same subscription name and the messages will be dispatched
+     * according to a round-robin rotation between the connected consumers.
+     *
+     * <p>In this mode, the consumption order is not guaranteed.
      */
     Shared,
 
     /**
      * Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
      * If that consumer disconnects, one of the other connected consumers will start receiving messages.
-     * <p>
-     * In failover mode, the consumption ordering is guaranteed.
-     * <p>
-     * In case of partitioned topics, the ordering is guaranteed on a per-partition basis. The partitions assignments will
-     * be split across the available consumers. On each partition, at most one consumer will be active at a given point
-     * in time.
+     *
+     * <p>In failover mode, the consumption ordering is guaranteed.
+     *
+     * <p>In case of partitioned topics, the ordering is guaranteed on a per-partition basis.
+     * The partitions assignments will be split across the available consumers. On each partition,
+     * at most one consumer will be active at a given point in time.
      */
     Failover,
 
     /**
      * Multiple consumer will be able to use the same subscription and all messages with the same key
-     * will be dispatched to only one consumer
+     * will be dispatched to only one consumer.
      *
-     * Use ordering_key to overwrite the message key for message ordering.
-     *
+     * <p>Use ordering_key to overwrite the message key for message ordering.
      */
     Key_Shared
 }

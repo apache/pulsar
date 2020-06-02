@@ -73,6 +73,11 @@ class PULSAR_PUBLIC MessageId {
     bool operator==(const MessageId& other) const;
     bool operator!=(const MessageId& other) const;
 
+    int64_t ledgerId() const;
+    int64_t entryId() const;
+    int32_t batchIndex() const;
+    int32_t partition() const;
+
    private:
     friend class ConsumerImpl;
     friend class ReaderImpl;
@@ -89,11 +94,6 @@ class PULSAR_PUBLIC MessageId {
     friend class NegativeAcksTracker;
 
     friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
-
-    int64_t ledgerId() const;
-    int64_t entryId() const;
-    int32_t batchIndex() const;
-    int32_t partition() const;
 
     typedef std::shared_ptr<MessageIdImpl> MessageIdImplPtr;
     MessageIdImplPtr impl_;

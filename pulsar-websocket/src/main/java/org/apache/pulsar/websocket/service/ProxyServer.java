@@ -24,6 +24,7 @@ import java.net.MalformedURLException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.Servlet;
@@ -57,6 +58,9 @@ public class ProxyServer {
     private final WebSocketProxyConfiguration conf;
     private final WebExecutorThreadPool executorService;
 
+    private ServerConnector connector;
+    private ServerConnector connectorTls;
+
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
@@ -65,7 +69,7 @@ public class ProxyServer {
         List<ServerConnector> connectors = new ArrayList<>();
 
         if (config.getWebServicePort().isPresent()) {
-			ServerConnector connector = new ServerConnector(server);
+			connector = new ServerConnector(server);
 			connector.setPort(config.getWebServicePort().get());
 			connectors.add(connector);
         }
@@ -80,9 +84,9 @@ public class ProxyServer {
                         config.getTlsRequireTrustedClientCertOnConnect(),
                         true,
                         config.getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls().get());
-                connectors.add(tlsConnector);
+                connectorTls = new ServerConnector(server, -1, -1, sslCtxFactory);
+                connectorTls.setPort(config.getWebServicePortTls().get());
+                connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
@@ -118,23 +122,23 @@ public class ProxyServer {
 
     public void start() throws PulsarServerException {
         log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
+        RequestLogHandler requestLogHandler = new RequestLogHandler();
+        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        requestLog.setExtended(true);
+        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
+        requestLog.setLogLatency(true);
+        requestLogHandler.setRequestLog(requestLog);
+        handlers.add(0, new ContextHandlerCollection());
+        handlers.add(requestLogHandler);
+
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
+
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        server.setHandler(handlerCollection);
+
         try {
-            RequestLogHandler requestLogHandler = new RequestLogHandler();
-            Slf4jRequestLog requestLog = new Slf4jRequestLog();
-            requestLog.setExtended(true);
-            requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-            requestLog.setLogLatency(true);
-            requestLogHandler.setRequestLog(requestLog);
-            handlers.add(0, new ContextHandlerCollection());
-            handlers.add(requestLogHandler);
-
-            ContextHandlerCollection contexts = new ContextHandlerCollection();
-            contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
-
-            HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-            server.setHandler(handlerCollection);
-
             server.start();
         } catch (Exception e) {
             throw new PulsarServerException(e);
@@ -144,6 +148,22 @@ public class ProxyServer {
     public void stop() throws Exception {
         server.stop();
         executorService.stop();
+    }
+
+    public Optional<Integer> getListenPortHTTP() {
+        if (connector != null) {
+            return Optional.of(connector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (connectorTls != null) {
+            return Optional.of(connectorTls.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);

@@ -18,8 +18,15 @@
  */
 package org.apache.pulsar.common.functions;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
+/**
+ * Configuration of a consumer.
+ */
 @Data
 @Builder
 @NoArgsConstructor

@@ -1,13 +1,13 @@
 ---
 id: functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Admin: Pulsar Functions Worker
+sidebar_label: "Setup: Pulsar Functions Worker"
 ---
-This guide is used for administrator. 
+Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
 Pulsar `functions-worker` is a logic component to run Pulsar Functions in cluster mode. Two options are available, and you can select either of the two options based on your requirements. 
-- [run with brokers](#run-Functions-worker-with-brokers)
-- [run it separately](#run-Functions-worker-separately) in a different broker
+- [run with brokers](#run-functions-worker-with-brokers)
+- [run it separately](#run-functions-worker-separately) in a different broker
 
 > Note  
 > The `--- Service Urls---` lines in the following diagrams represent Pulsar service URLs that Pulsar client and admin use to connect to a Pulsar cluster.
@@ -26,7 +26,7 @@ functionsWorkerEnabled=true
 
 When you set `functionsWorkerEnabled` to `true`, it means that you start functions-worker as part of a broker. You need to configure the `conf/functions_worker.yml` file to customize your functions_worker.
 
-Before you run Functions-work with broker, you have to configure Functions-worker, and then start it with brokers.
+Before you run Functions-worker with broker, you have to configure Functions-worker, and then start it with brokers.
 
 ### Configure Functions-Worker to run with brokers
 In this mode, since `functions-worker` is running as part of broker, most of the settings already inherit from your broker configuration (for example, configurationStore settings, authentication settings, and so on).
@@ -100,7 +100,7 @@ If you want to enable security on functions workers, you *should*:
 - [Enable Authentication Provider](#enable-authentication-provider)
 - [Enable Authorization Provider](#enable-authorization-provider)
 
-**Enable TLS transport encryption**
+##### Enable TLS transport encryption
 
 To enable TLS transport encryption, configure the following settings.
 
@@ -113,7 +113,7 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 
 For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
 
-**Enable Authentication Provider**
+##### Enable Authentication Provider
 
 To enable authentication on Functions Worker, configure the following settings.
 > Note  
@@ -134,7 +134,7 @@ properties:
 ```
 
 For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
-See [Token Authentication](security-token-admin.md) for more details.
+See [Token Authentication](security-jwt.md) for more details.
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 
@@ -142,7 +142,7 @@ properties:
   # tokenPublicKey:     file:///path/to/public.key 
 ```
 
-**Enable Authorization Provider**
+##### Enable Authorization Provider
 
 To enable authorization on Functions Worker, you need to configure `authorizationEnabled` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
 

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,17 +26,22 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Double`.
  */
-public class DoubleSchema implements Schema<Double> {
+public class DoubleSchema extends AbstractSchema<Double> {
+
+    private static final DoubleSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("Double")
+            .setType(SchemaType.DOUBLE)
+            .setSchema(new byte[0]);
+        INSTANCE = new DoubleSchema();
+    }
 
     public static DoubleSchema of() {
         return INSTANCE;
     }
-
-    private static final DoubleSchema INSTANCE = new DoubleSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Double")
-        .setType(SchemaType.DOUBLE)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {
@@ -44,6 +49,14 @@ public class DoubleSchema implements Schema<Double> {
             throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
         }
     }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 8) {
+            throw new SchemaSerializationException("Size of data received by DoubleSchema is not 8");
+        }
+    }
+
 
     @Override
     public byte[] encode(Double message) {
@@ -74,6 +87,21 @@ public class DoubleSchema implements Schema<Double> {
         for (byte b : bytes) {
             value <<= 8;
             value |= b & 0xFF;
+        }
+        return Double.longBitsToDouble(value);
+    }
+
+    @Override
+    public Double decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        long value = 0;
+
+        for (int i = 0; i < 8; i ++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
         }
         return Double.longBitsToDouble(value);
     }

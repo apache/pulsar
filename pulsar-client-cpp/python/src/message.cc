@@ -18,7 +18,9 @@
  */
 #include "utils.h"
 
+#include <datetime.h>
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
+#include <boost/python/suite/indexing/vector_indexing_suite.hpp>
 
 std::string MessageId_str(const MessageId& msgId) {
     std::stringstream ss;
@@ -84,8 +86,34 @@ const MessageId& Message_getMessageId(const Message& msg) {
     return msg.getMessageId();
 }
 
+void deliverAfter(MessageBuilder* const builder, PyObject* obj_delta) {
+    PyDateTime_Delta const* pydelta = reinterpret_cast<PyDateTime_Delta*>(obj_delta);
+
+    long days = pydelta->days;
+    const bool is_negative = days < 0;
+    if (is_negative) {
+        days = -days;
+    }
+
+    // Create chrono duration object
+    std::chrono::milliseconds
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::hours(24)*days
+                + std::chrono::seconds(pydelta->seconds)
+                + std::chrono::microseconds(pydelta->microseconds)
+                );
+
+    if (is_negative) {
+        duration = duration * -1;
+    }
+
+    builder->setDeliverAfter(duration);
+}
+
 void export_message() {
     using namespace boost::python;
+
+    PyDateTime_IMPORT;
 
     MessageBuilder& (MessageBuilder::*MessageBuilderSetContentString)(const std::string&) = &MessageBuilder::setContent;
 
@@ -94,6 +122,8 @@ void export_message() {
             .def("property", &MessageBuilder::setProperty, return_self<>())
             .def("properties", &MessageBuilder::setProperties, return_self<>())
             .def("sequence_id", &MessageBuilder::setSequenceId, return_self<>())
+            .def("deliver_after", &deliverAfter, return_self<>())
+            .def("deliver_at", &MessageBuilder::setDeliverAt, return_self<>())
             .def("partition_key", &MessageBuilder::setPartitionKey, return_self<>())
             .def("event_timestamp", &MessageBuilder::setEventTimestamp, return_self<>())
             .def("replication_clusters", &MessageBuilder::setReplicationClusters, return_self<>())
@@ -109,6 +139,7 @@ void export_message() {
     static const MessageId& _MessageId_latest = MessageId::latest();
 
     class_<MessageId>("MessageId")
+            .def(init<int32_t, int64_t, int64_t, int32_t>())
             .def("__str__", &MessageId_str)
             .def("__eq__", &MessageId_eq)
             .def("__ne__", &MessageId_ne)
@@ -116,6 +147,10 @@ void export_message() {
             .def("__lt__", &MessageId_lt)
             .def("__ge__", &MessageId_ge)
             .def("__gt__", &MessageId_gt)
+            .def("ledger_id", &MessageId::ledgerId)
+            .def("entry_id", &MessageId::entryId)
+            .def("batch_index", &MessageId::batchIndex)
+            .def("partition", &MessageId::partition)
             .add_static_property("earliest", make_getter(&_MessageId_earliest))
             .add_static_property("latest", make_getter(&_MessageId_latest))
             .def("serialize", &MessageId_serialize)
@@ -132,5 +167,17 @@ void export_message() {
             .def("message_id", &Message_getMessageId, return_value_policy<copy_const_reference>())
             .def("__str__", &Message_str)
             .def("topic_name", &Topic_name_str)
+            .def("redelivery_count", &Message::getRedeliveryCount)
             ;
+
+    MessageBatch& (MessageBatch::*MessageBatchParseFromString)(const std::string& payload, uint32_t batchSize) = &MessageBatch::parseFrom;
+
+    class_<MessageBatch>("MessageBatch")
+            .def("with_message_id", &MessageBatch::withMessageId, return_self<>())
+            .def("parse_from", MessageBatchParseFromString, return_self<>())
+            .def("messages", &MessageBatch::messages, return_value_policy<copy_const_reference>())
+            ;
+
+    class_<std::vector<Message> >("Messages")
+        .def(vector_indexing_suite<std::vector<Message> >() );
 }

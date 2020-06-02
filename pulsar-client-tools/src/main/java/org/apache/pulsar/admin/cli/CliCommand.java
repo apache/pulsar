@@ -109,7 +109,7 @@ abstract class CliCommand {
             return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
         } catch (Exception e) {
             throw new PulsarAdminException(
-                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
+                    "Invalid message id (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
         }
     }
 
@@ -171,15 +171,7 @@ abstract class CliCommand {
 
     <T> void print(List<T> items) {
         for (T item : items) {
-            System.out.println(item);
-        }
-    }
-
-    <T> void printList(T item) {
-        try {
-            System.out.println(writer.writeValueAsString(item));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            print(item);
         }
     }
 

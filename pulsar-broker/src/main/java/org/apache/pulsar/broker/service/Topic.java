@@ -21,22 +21,25 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -51,7 +54,7 @@ public interface Topic {
         }
 
         default long getSequenceId() {
-            return -1;
+            return -1L;
         }
 
         default void setOriginalProducerName(String originalProducerName) {
@@ -71,10 +74,22 @@ public interface Topic {
         }
 
         default long getOriginalSequenceId() {
-            return -1;
+            return -1L;
         }
 
         void completed(Exception e, long ledgerId, long entryId);
+
+        default long getHighestSequenceId() {
+            return  -1L;
+        }
+
+        default void setOriginalHighestSequenceId(long originalHighestSequenceId) {
+
+        }
+
+        default long getOriginalHighestSequenceId() {
+            return  -1L;
+        }
     }
 
     void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
@@ -82,18 +97,16 @@ public interface Topic {
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
-    
+
     /**
-     * record add-latency in micro-seconds.
-     * 
-     * @param latencyUSec
+     * record add-latency
      */
-    void recordAddLatency(long latencyUSec);
+    void recordAddLatency(long latency, TimeUnit unit);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
             Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            long startMessageRollbackDurationSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
             boolean replicateSubscriptionState);
@@ -104,21 +117,37 @@ public interface Topic {
 
     CompletableFuture<Void> delete();
 
-    ConcurrentOpenHashSet<Producer> getProducers();
+    Map<String, Producer> getProducers();
 
     String getName();
 
     CompletableFuture<Void> checkReplication();
 
-    CompletableFuture<Void> close();
+    CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
-    void checkGC(int gcInterval);
+    void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode);
 
     void checkInactiveSubscriptions();
+
+    /**
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
+     * backlog.
+     */
+    void checkBackloggedCursors();
 
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
+
+    void checkTopicPublishThrottlingRate();
+
+    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+
+    void resetTopicPublishCountAndEnableReadIfRequired();
+
+    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
+
+    boolean isPublishRateExceeded();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -140,11 +169,13 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats();
+    TopicStats getStats(boolean getPreciseBacklog);
 
     PersistentTopicInternalStats getInternalStats();
 
-    Position getLastMessageId();
+    Position getLastPosition();
+
+    CompletableFuture<MessageId> getLastMessageId();
 
     /**
      * Whether a topic has had a schema defined for it.
@@ -165,18 +196,22 @@ public interface Topic {
     /**
      * Check if schema is compatible with current topic schema.
      */
-    CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema);
+    CompletableFuture<Void> checkSchemaCompatibleForConsumer(SchemaData schema);
 
     /**
      * If the topic is idle (no producers, no entries, no subscribers and no existing schema),
      * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
      * with what the topic already has.
      */
-    CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
+    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
+    }
+
+    default boolean isSystemTopic() {
+        return false;
     }
 }

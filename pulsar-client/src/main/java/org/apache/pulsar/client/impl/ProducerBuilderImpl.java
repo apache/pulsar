@@ -27,6 +27,9 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -37,9 +40,10 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
-import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -48,12 +52,13 @@ import lombok.NonNull;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+@Getter(AccessLevel.PUBLIC)
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private final PulsarClientImpl client;
     private ProducerConfigurationData conf;
     private Schema<T> schema;
-    private List<ProducerInterceptor<T>> interceptorList;
+    private List<ProducerInterceptor> interceptorList;
 
     @VisibleForTesting
     public ProducerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
@@ -104,7 +109,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
         return interceptorList == null || interceptorList.size() == 0 ?
                 client.createProducerAsync(conf, schema, null) :
-                client.createProducerAsync(conf, schema, new ProducerInterceptors<>(interceptorList));
+                client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
     }
 
     @Override
@@ -117,7 +122,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> topic(String topicName) {
         checkArgument(StringUtils.isNotBlank(topicName), "topicName cannot be blank");
-        conf.setTopicName(topicName);
+        conf.setTopicName(StringUtils.trim(topicName));
         return this;
     }
 
@@ -207,8 +212,20 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> roundRobinRouterBatchingPartitionSwitchFrequency(int frequency) {
+        conf.setBatchingPartitionSwitchFrequencyByPublishDelay(frequency);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> batchingMaxBytes(int batchingMaxBytes) {
+        conf.setBatchingMaxBytes(batchingMaxBytes);
         return this;
     }
 
@@ -244,16 +261,33 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> intercept(ProducerInterceptor<T>... interceptors) {
+    public ProducerBuilder<T> intercept(ProducerInterceptor... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }
         interceptorList.addAll(Arrays.asList(interceptors));
         return this;
     }
+
+    @Override
+    @Deprecated
+    public ProducerBuilder<T> intercept(org.apache.pulsar.client.api.ProducerInterceptor<T>... interceptors) {
+        if (interceptorList == null) {
+            interceptorList = new ArrayList<>();
+        }
+        interceptorList.addAll(Arrays.stream(interceptors).map(ProducerInterceptorWrapper::new)
+                                     .collect(Collectors.toList()));
+        return this;
+    }
     @Override
     public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> enableMultiSchema(boolean multiSchema) {
+        conf.setMultiSchema(multiSchema);
         return this;
     }
 
@@ -269,5 +303,10 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
                     "should be set as " + MessageRoutingMode.CustomPartition);
         }
+    }
+
+    @Override
+    public String toString() {
+        return conf != null ? conf.toString() : null;
     }
 }

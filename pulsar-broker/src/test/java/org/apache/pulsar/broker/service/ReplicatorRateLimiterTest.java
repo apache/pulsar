@@ -87,7 +87,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     public void testReplicatorRateLimiterDynamicallyChange() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/replicatorchange";
+        final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/ratechange";
 
         admin1.namespaces().createNamespace(namespace);
@@ -156,11 +156,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider =  "dispatchRateType", timeOut = 5000)
+    @Test(dataProvider =  "dispatchRateType")
     public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType) throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/replicatorbyteandmsg" + dispatchRateType.toString();
+        final String namespace = "pulsar/replicatorbyteandmsg-" + dispatchRateType.toString() + "-" + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/notReceivedAll";
 
         admin1.namespaces().createNamespace(namespace);
@@ -242,11 +242,11 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testReplicatorRateLimiterMessageReceivedAllMessages() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
-        final String namespace = "pulsar/replicatormsg";
+        final String namespace = "pulsar/replicatormsg-" + System.currentTimeMillis();
         final String topicName = "persistent://" + namespace + "/notReceivedAll";
 
         admin1.namespaces().createNamespace(namespace);

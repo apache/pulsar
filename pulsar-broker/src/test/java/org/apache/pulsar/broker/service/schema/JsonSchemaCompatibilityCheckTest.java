@@ -28,13 +28,12 @@ import java.util.Collections;
 import java.util.Map;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -62,8 +61,6 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;
@@ -72,8 +69,6 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Bar {
         private boolean field1;
     }
@@ -128,6 +123,11 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             info.setType(SchemaType.JSON);
             info.setSchema(mapper.writeValueAsBytes(schema));
             return new OldJSONSchema<>(info, pojo, mapper);
+        }
+
+        @Override
+        public Schema<T> clone() {
+            return this;
         }
     }
 }

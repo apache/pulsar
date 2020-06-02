@@ -79,7 +79,7 @@ def _fetch_broker_stats(cluster, broker_host_port, timestamp):
     active_broker.save()
 
     # Get topics stats
-    topics_stats = get(broker_url, '/admin/broker-stats/destinations')
+    topics_stats = get(broker_url, '/admin/v2/broker-stats/topics')
 
     clusters = dict((cluster.name, cluster) for cluster in Cluster.objects.all())
 
@@ -438,7 +438,7 @@ if __name__ == "__main__":
     parser.add_argument(action="store", dest="serviceUrl", help='Service URL of one cluster in the Pulsar instance')
 
     parser.add_argument('--proxy', action='store',
-                        help="Connect using a HTTP proxy", dest="proxy")
+                        help="Connect using an HTTP proxy", dest="proxy")
     parser.add_argument('--header', action="append", dest="header",
                         help='Add an additional HTTP header to all requests')
     parser.add_argument('--purge', action="store", dest="purge", type=int, default=60,
@@ -461,7 +461,7 @@ if __name__ == "__main__":
         logger.info(http_headers)
 
     global http_proxyes
-    http_proxyes = {}
+    http_proxyes = { "no_proxy": os.getenv("NO_PROXY", "") }
     if args.proxy:
         http_proxyes['http'] = args.proxy
         http_proxyes['https'] = args.proxy

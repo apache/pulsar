@@ -60,7 +60,9 @@ public interface FunctionCacheManager extends AutoCloseable {
                                   List<URL> requiredClasspaths)
         throws IOException;
 
-    void registerFunctionInstanceWithArchive(String fid, String eid, String narArchive) throws IOException;
+    void registerFunctionInstanceWithArchive(String fid, String eid,
+                                             String narArchive,
+                                             String narExtractionDirectory) throws IOException;
 
     /**
      * Unregisters a job from the function cache manager.
