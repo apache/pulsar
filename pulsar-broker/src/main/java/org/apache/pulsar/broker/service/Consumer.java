@@ -30,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
@@ -57,6 +59,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,8 +212,9 @@ public class Consumer {
      *
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, int totalMessages,
-            long totalBytes, RedeliveryTracker redeliveryTracker) {
+
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+               int totalMessages, long totalBytes, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -222,6 +226,9 @@ public class Consumer {
             }
             writePromise.setSuccess();
             batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
             return writePromise;
         }
 
@@ -245,7 +252,8 @@ public class Consumer {
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
-        MESSAGE_PERMITS_UPDATER.addAndGet(this, -totalMessages);
+        int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
+        MESSAGE_PERMITS_UPDATER.addAndGet(this, ackedCount - totalMessages);
         incrementUnackedMessages(totalMessages);
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
@@ -295,7 +303,8 @@ public class Consumer {
                 if (redeliveryTracker.contains(position)) {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload), ctx.voidPromise());
+                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
+                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -304,6 +313,9 @@ public class Consumer {
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
             batchSizes.recyle();
+            if (batchIndexesAcks != null) {
+                batchIndexesAcks.recycle();
+            }
         });
 
         return writePromise;
@@ -387,19 +399,30 @@ public class Consumer {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
                 return;
             }
-
-            MessageIdData msgId = ack.getMessageId(0);
-            PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            PositionImpl position = PositionImpl.earliest;
+            if (ack.getMessageIdCount() == 1) {
+                MessageIdData msgId = ack.getMessageId(0);
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
+            }
             subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
             for (int i = 0; i < ack.getMessageIdCount(); i++) {
                 MessageIdData msgId = ack.getMessageId(i);
-                PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                PositionImpl position;
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
                 positionsAcked.add(position);
 
-                if (Subscription.isIndividualAckMode(subType)) {
+                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
                     removePendingAcks(position);
                 }
 

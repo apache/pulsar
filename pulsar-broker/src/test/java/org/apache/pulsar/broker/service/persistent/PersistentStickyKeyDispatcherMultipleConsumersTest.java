@@ -100,6 +100,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(channelMock).when(consumerMock).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 anyInt(),
                 anyLong(),
                 any(RedeliveryTracker.class)
@@ -142,6 +143,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         verify(consumerMock, times(2)).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 totalMessagesCaptor.capture(),
                 anyLong(),
                 any(RedeliveryTracker.class)

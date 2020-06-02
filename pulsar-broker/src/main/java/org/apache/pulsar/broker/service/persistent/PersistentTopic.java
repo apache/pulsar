@@ -716,8 +716,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } catch (ManagedLedgerException e) {
                     subscriptionFuture.completeExceptionally(e);
                 }
-
-                return new PersistentSubscription(this, subscriptionName, cursor, false);
+            return new PersistentSubscription(this, subscriptionName, cursor, false);
             });
 
             if (!subscriptionFuture.isDone()) {

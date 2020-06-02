@@ -16,27 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util;
 
-import java.util.Map;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * Acknowledgments grouping tracker.
+ * Safe collection utils.
  */
-public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
+public class SafeCollectionUtils {
 
-    boolean isDuplicate(MessageId messageId);
+    public static List<Long> longArrayToList(long[] array) {
+        return array == null || array.length == 0 ? Collections.emptyList()
+            : Arrays.stream(array).boxed().collect(Collectors.toList());
+    }
 
-    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
-
-    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties);
-
-    void flush();
-
-    @Override
-    void close();
-
-    void flushAndClean();
+    public static long[] longListToArray(List<Long> list) {
+        return list == null || list.size() == 0 ? new long[0] : list.stream().mapToLong(l->l).toArray();
+    }
 }
