@@ -87,6 +87,7 @@ public class Consumer {
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
+    private Rate chuckedMessageRate;
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -146,6 +147,7 @@ public class Consumer {
         this.keySharedMeta = keySharedMeta;
         this.cnx = cnx;
         this.msgOut = new Rate();
+        this.chuckedMessageRate = new Rate();
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
@@ -214,7 +216,7 @@ public class Consumer {
      */
 
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-               int totalMessages, long totalBytes, RedeliveryTracker redeliveryTracker) {
+               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -258,6 +260,7 @@ public class Consumer {
         msgOut.recordMultipleEvents(totalMessages, totalBytes);
         msgOutCounter.add(totalMessages);
         bytesOutCounter.add(totalBytes);
+        chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
         ctx.channel().eventLoop().execute(() -> {
             for (int i = 0; i < entries.size(); i++) {
@@ -505,10 +508,12 @@ public class Consumer {
 
     public void updateRates() {
         msgOut.calculateRate();
+        chuckedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
+        stats.chuckedMessageRate = chuckedMessageRate.getRate();
     }
 
     public ConsumerStats getStats() {
