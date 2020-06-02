@@ -210,4 +210,8 @@ public interface Topic {
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
     }
+
+    default boolean isSystemTopic() {
+        return false;
+    }
 }
