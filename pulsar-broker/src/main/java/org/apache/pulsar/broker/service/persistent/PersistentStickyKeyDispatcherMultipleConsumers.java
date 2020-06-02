@@ -116,11 +116,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 filterEntriesForConsumer(subList, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
                 consumer.sendMessages(subList, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), getRedeliveryTracker()).addListener(future -> {
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                        getRedeliveryTracker()).addListener(future -> {
                             if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
                                 readMoreEntries();
                             }
-                });
+                        });
 
                 for (int i = 0; i < messagesForC; i++) {
                     entriesWithSameKey.getValue().remove(0);
