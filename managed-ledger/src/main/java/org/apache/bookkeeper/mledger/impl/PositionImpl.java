@@ -72,7 +72,11 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
 
     @Override
     public PositionImpl getNext() {
-        return PositionImpl.get(ledgerId, entryId + 1);
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, 0);
+        } else {
+            return PositionImpl.get(ledgerId, entryId + 1);
+        }
     }
 
     /**
