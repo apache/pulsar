@@ -67,12 +67,12 @@ public class FunctionMetaDataUtils {
     }
 
     public static Function.FunctionMetaData generateUpdatedMetadata(Function.FunctionMetaData existingMetaData,
-                                                                    Function.FunctionMetaData functionMetaData) {
+                                                                    Function.FunctionMetaData updatedMetaData) {
         long version = 0;
         if (existingMetaData != null) {
             version = existingMetaData.getVersion() + 1;
         }
-        return functionMetaData.toBuilder()
+        return updatedMetaData.toBuilder()
                 .setVersion(version)
                 .build();
     }

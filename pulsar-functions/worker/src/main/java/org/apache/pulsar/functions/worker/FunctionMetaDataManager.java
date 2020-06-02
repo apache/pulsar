@@ -185,7 +185,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     functionMetaData.getFunctionDetails().getName());
         }
 
-        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, existingFunctionMetadata);
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetadata, functionMetaData);
 
         Request.ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
                 this.workerConfig.getWorkerId(), newFunctionMetaData);
