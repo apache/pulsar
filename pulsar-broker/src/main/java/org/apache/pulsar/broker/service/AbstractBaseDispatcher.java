@@ -27,8 +27,10 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
@@ -66,9 +68,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
-            SendMessageInfo sendMessageInfo) {
+             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor) {
         int totalMessages = 0;
         long totalBytes = 0;
+        int totalChunkedMessages = 0;
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
@@ -105,7 +108,16 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
+                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
                 batchSizes.setBatchSize(i, batchSize);
+                if (indexesAcks != null && cursor != null) {
+                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    if (ackSet != null) {
+                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    } else {
+                        indexesAcks.setIndexesAcks(i,null);
+                    }
+                }
             } finally {
                 msgMetadata.recycle();
             }
@@ -113,6 +125,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
+        sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {

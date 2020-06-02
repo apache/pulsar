@@ -153,6 +153,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
+    private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
+
+    // Timestamp of when this topic was last seen active
+    private volatile long lastActive;
+    
+    // topic has every published chunked message since topic is loaded
+    public boolean msgChunkPublished;
+
+    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
+    // doesn't support batch-message
+    private volatile boolean hasBatchMessagePublished = false;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public volatile long delayedDeliveryTickTimeMillis = 1000;
@@ -230,7 +241,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 boolean isReplicatorStarted = addReplicationCluster(remoteCluster, this, cursor.getName(), localCluster);
                 if (!isReplicatorStarted) {
                     throw new NamingException(
-                            PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
+                        PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
                 }
             } else if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)) {
                 // This is not a regular subscription, we are going to ignore it for now and let the message dedup logic
@@ -238,7 +249,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
                 subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
-                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor)));
+                    PersistentSubscription.isCursorFromReplicatedSubscription(cursor)));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -266,7 +277,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         checkReplicatedSubscriptionControllerState();
     }
-
     // for testing purposes
     @VisibleForTesting
     PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger, MessageDeduplication messageDeduplication) {
@@ -702,7 +712,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 long ledgerId = msgId.getLedgerId();
                 long entryId = msgId.getEntryId();
-                if (ledgerId >= 0
+                // Ensure that the start message id starts from a valid entry.
+                if (ledgerId >= 0 && entryId >= 0
                         && msgId instanceof BatchMessageIdImpl) {
                     // When the start message is relative to a batch, we need to take one step back on the previous message,
                     // because the "batch" might not have been consumed in its entirety.
@@ -717,8 +728,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } catch (ManagedLedgerException e) {
                     subscriptionFuture.completeExceptionally(e);
                 }
-
-                return new PersistentSubscription(this, subscriptionName, cursor, false);
+            return new PersistentSubscription(this, subscriptionName, cursor, false);
             });
 
             if (!subscriptionFuture.isDone()) {
@@ -1152,7 +1162,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .orElseThrow(() -> new KeeperException.NoNodeException());
 
 
-            if (policies.compaction_threshold != 0
+            if (isSystemTopic() || policies.compaction_threshold != 0
                 && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
@@ -1517,6 +1527,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
+        stats.msgChunkPublished = this.msgChunkPublished;
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
@@ -1854,7 +1865,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)
-                    && brokerService.isBacklogExceeded(this)) {
+                    && isBacklogExceeded()) {
                 log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
                 return true;
             } else {
@@ -1862,6 +1873,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
         }
         return false;
+    }
+
+    /**
+     * @return determine if quota enforcement needs to be done for topic
+     */
+    public boolean isBacklogExceeded() {
+        TopicName topicName = TopicName.get(getName());
+        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
+        if (backlogQuotaLimitInBytes < 0) {
+            return false;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] - backlog quota limit = [{}]", getName(), backlogQuotaLimitInBytes);
+        }
+
+        // check if backlog exceeded quota
+        long storageSize = getBacklogSize();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Storage size = [{}], limit [{}]", getName(), storageSize, backlogQuotaLimitInBytes);
+        }
+
+        return (storageSize >= backlogQuotaLimitInBytes);
     }
 
     @Override
@@ -2137,5 +2170,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public CompactedTopic getCompactedTopic() {
         return compactedTopic;
+    }
+
+    @Override
+    public boolean isSystemTopic() {
+        return false;
     }
 }

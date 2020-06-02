@@ -349,6 +349,7 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
+
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
@@ -996,6 +997,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);

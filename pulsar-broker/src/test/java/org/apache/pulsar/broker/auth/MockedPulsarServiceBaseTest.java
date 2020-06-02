@@ -149,8 +149,8 @@ public abstract class MockedPulsarServiceBaseTest {
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                .build());
+                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                    .build());
 
         mockZooKeeper = createMockZooKeeper();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
