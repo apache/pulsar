@@ -121,6 +121,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setStartMessageFromRollbackDurationInSec(timeunit.toSeconds(rollbackDuration));
         return this;
     }
+
     @Override
     public ReaderBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);
