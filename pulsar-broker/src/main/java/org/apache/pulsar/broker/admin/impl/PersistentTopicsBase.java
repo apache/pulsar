@@ -56,6 +56,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -362,12 +363,16 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalDeleteTopicForcefully(boolean authoritative) {
         validateWriteOperationOnTopic(authoritative);
-        Topic topic = getTopicReference(topicName);
+
         try {
-            topic.deleteForcefully().get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
         } catch (Exception e) {
-            log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            if (e.getCause() instanceof MetadataNotFoundException) {
+                log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
+            } else {
+                log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
+                throw new RestException(e);
+            }
         }
     }
 
@@ -788,25 +793,17 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalDeleteTopic(boolean authoritative) {
         validateWriteOperationOnTopic(authoritative);
-        Topic topic = getTopicReference(topicName);
-
-        // v2 topics have a global name so check if the topic is replicated.
-        if (topic.isReplicated()) {
-            // Delete is disallowed on global topic
-            final List<String> clusters = topic.getReplicators().keys();
-            log.error("[{}] Delete forbidden topic {} is replicated on clusters {}",
-                    clientAppId(), topicName, clusters);
-            throw new RestException(Status.FORBIDDEN, "Delete forbidden topic is replicated on clusters " + clusters);
-        }
 
         try {
-            topic.delete().get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();
             log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
             if (t instanceof TopicBusyException) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
+            } else if (t instanceof MetadataNotFoundException) {
+                throw new RestException(Status.NOT_FOUND, "Topic not found");
             } else {
                 throw new RestException(t);
             }
