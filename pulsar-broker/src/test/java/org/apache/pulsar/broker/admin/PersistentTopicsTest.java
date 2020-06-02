@@ -210,13 +210,17 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         String testLocalTopicName = "topic-not-found";
 
         // 3) Create the partitioned topic
-        persistentTopics.createPartitionedTopic(testTenant, testNamespace, testLocalTopicName, 1);
+        AsyncResponse response  = mock(AsyncResponse.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, 1);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         // 5) Create a subscription
-        AsyncResponse response  = mock(AsyncResponse.class);
+        response  = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, testLocalTopicName, "test", true,
                 (MessageIdImpl) MessageId.earliest, false);
-        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
