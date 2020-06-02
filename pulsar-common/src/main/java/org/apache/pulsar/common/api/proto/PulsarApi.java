@@ -1133,6 +1133,11 @@ public final class PulsarApi {
     // optional int32 batch_index = 4 [default = -1];
     boolean hasBatchIndex();
     int getBatchIndex();
+    
+    // repeated int64 ack_set = 5;
+    java.util.List<java.lang.Long> getAckSetList();
+    int getAckSetCount();
+    long getAckSet(int index);
   }
   public static final class MessageIdData extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -1209,11 +1214,26 @@ public final class PulsarApi {
       return batchIndex_;
     }
     
+    // repeated int64 ack_set = 5;
+    public static final int ACK_SET_FIELD_NUMBER = 5;
+    private java.util.List<java.lang.Long> ackSet_;
+    public java.util.List<java.lang.Long>
+        getAckSetList() {
+      return ackSet_;
+    }
+    public int getAckSetCount() {
+      return ackSet_.size();
+    }
+    public long getAckSet(int index) {
+      return ackSet_.get(index);
+    }
+    
     private void initFields() {
       ledgerId_ = 0L;
       entryId_ = 0L;
       partition_ = -1;
       batchIndex_ = -1;
+      ackSet_ = java.util.Collections.emptyList();;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1252,6 +1272,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeInt32(4, batchIndex_);
       }
+      for (int i = 0; i < ackSet_.size(); i++) {
+        output.writeInt64(5, ackSet_.get(i));
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -1275,6 +1298,15 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeInt32Size(4, batchIndex_);
+      }
+      {
+        int dataSize = 0;
+        for (int i = 0; i < ackSet_.size(); i++) {
+          dataSize += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+            .computeInt64SizeNoTag(ackSet_.get(i));
+        }
+        size += dataSize;
+        size += 1 * getAckSetList().size();
       }
       memoizedSerializedSize = size;
       return size;
@@ -1397,6 +1429,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         batchIndex_ = -1;
         bitField0_ = (bitField0_ & ~0x00000008);
+        ackSet_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -1446,6 +1480,11 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000008;
         }
         result.batchIndex_ = batchIndex_;
+        if (((bitField0_ & 0x00000010) == 0x00000010)) {
+          ackSet_ = java.util.Collections.unmodifiableList(ackSet_);
+          bitField0_ = (bitField0_ & ~0x00000010);
+        }
+        result.ackSet_ = ackSet_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -1463,6 +1502,16 @@ public final class PulsarApi {
         }
         if (other.hasBatchIndex()) {
           setBatchIndex(other.getBatchIndex());
+        }
+        if (!other.ackSet_.isEmpty()) {
+          if (ackSet_.isEmpty()) {
+            ackSet_ = other.ackSet_;
+            bitField0_ = (bitField0_ & ~0x00000010);
+          } else {
+            ensureAckSetIsMutable();
+            ackSet_.addAll(other.ackSet_);
+          }
+          
         }
         return this;
       }
@@ -1519,6 +1568,11 @@ public final class PulsarApi {
             case 32: {
               bitField0_ |= 0x00000008;
               batchIndex_ = input.readInt32();
+              break;
+            }
+            case 40: {
+              ensureAckSetIsMutable();
+              ackSet_.add(input.readInt64());
               break;
             }
           }
@@ -1607,6 +1661,51 @@ public final class PulsarApi {
       public Builder clearBatchIndex() {
         bitField0_ = (bitField0_ & ~0x00000008);
         batchIndex_ = -1;
+        
+        return this;
+      }
+      
+      // repeated int64 ack_set = 5;
+      private java.util.List<java.lang.Long> ackSet_ = java.util.Collections.emptyList();;
+      private void ensureAckSetIsMutable() {
+        if (!((bitField0_ & 0x00000010) == 0x00000010)) {
+          ackSet_ = new java.util.ArrayList<java.lang.Long>(ackSet_);
+          bitField0_ |= 0x00000010;
+         }
+      }
+      public java.util.List<java.lang.Long>
+          getAckSetList() {
+        return java.util.Collections.unmodifiableList(ackSet_);
+      }
+      public int getAckSetCount() {
+        return ackSet_.size();
+      }
+      public long getAckSet(int index) {
+        return ackSet_.get(index);
+      }
+      public Builder setAckSet(
+          int index, long value) {
+        ensureAckSetIsMutable();
+        ackSet_.set(index, value);
+        
+        return this;
+      }
+      public Builder addAckSet(long value) {
+        ensureAckSetIsMutable();
+        ackSet_.add(value);
+        
+        return this;
+      }
+      public Builder addAllAckSet(
+          java.lang.Iterable<? extends java.lang.Long> values) {
+        ensureAckSetIsMutable();
+        super.addAll(values, ackSet_);
+        
+        return this;
+      }
+      public Builder clearAckSet() {
+        ackSet_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000010);
         
         return this;
       }
@@ -17748,6 +17847,11 @@ public final class PulsarApi {
     // optional uint32 redelivery_count = 3 [default = 0];
     boolean hasRedeliveryCount();
     int getRedeliveryCount();
+    
+    // repeated int64 ack_set = 4;
+    java.util.List<java.lang.Long> getAckSetList();
+    int getAckSetCount();
+    long getAckSet(int index);
   }
   public static final class CommandMessage extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -17814,10 +17918,25 @@ public final class PulsarApi {
       return redeliveryCount_;
     }
     
+    // repeated int64 ack_set = 4;
+    public static final int ACK_SET_FIELD_NUMBER = 4;
+    private java.util.List<java.lang.Long> ackSet_;
+    public java.util.List<java.lang.Long>
+        getAckSetList() {
+      return ackSet_;
+    }
+    public int getAckSetCount() {
+      return ackSet_.size();
+    }
+    public long getAckSet(int index) {
+      return ackSet_.get(index);
+    }
+    
     private void initFields() {
       consumerId_ = 0L;
       messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       redeliveryCount_ = 0;
+      ackSet_ = java.util.Collections.emptyList();;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -17857,6 +17976,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeUInt32(3, redeliveryCount_);
       }
+      for (int i = 0; i < ackSet_.size(); i++) {
+        output.writeInt64(4, ackSet_.get(i));
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -17876,6 +17998,15 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeUInt32Size(3, redeliveryCount_);
+      }
+      {
+        int dataSize = 0;
+        for (int i = 0; i < ackSet_.size(); i++) {
+          dataSize += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+            .computeInt64SizeNoTag(ackSet_.get(i));
+        }
+        size += dataSize;
+        size += 1 * getAckSetList().size();
       }
       memoizedSerializedSize = size;
       return size;
@@ -17996,6 +18127,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         redeliveryCount_ = 0;
         bitField0_ = (bitField0_ & ~0x00000004);
+        ackSet_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -18041,6 +18174,11 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.redeliveryCount_ = redeliveryCount_;
+        if (((bitField0_ & 0x00000008) == 0x00000008)) {
+          ackSet_ = java.util.Collections.unmodifiableList(ackSet_);
+          bitField0_ = (bitField0_ & ~0x00000008);
+        }
+        result.ackSet_ = ackSet_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -18055,6 +18193,16 @@ public final class PulsarApi {
         }
         if (other.hasRedeliveryCount()) {
           setRedeliveryCount(other.getRedeliveryCount());
+        }
+        if (!other.ackSet_.isEmpty()) {
+          if (ackSet_.isEmpty()) {
+            ackSet_ = other.ackSet_;
+            bitField0_ = (bitField0_ & ~0x00000008);
+          } else {
+            ensureAckSetIsMutable();
+            ackSet_.addAll(other.ackSet_);
+          }
+          
         }
         return this;
       }
@@ -18115,6 +18263,11 @@ public final class PulsarApi {
             case 24: {
               bitField0_ |= 0x00000004;
               redeliveryCount_ = input.readUInt32();
+              break;
+            }
+            case 32: {
+              ensureAckSetIsMutable();
+              ackSet_.add(input.readInt64());
               break;
             }
           }
@@ -18204,6 +18357,51 @@ public final class PulsarApi {
       public Builder clearRedeliveryCount() {
         bitField0_ = (bitField0_ & ~0x00000004);
         redeliveryCount_ = 0;
+        
+        return this;
+      }
+      
+      // repeated int64 ack_set = 4;
+      private java.util.List<java.lang.Long> ackSet_ = java.util.Collections.emptyList();;
+      private void ensureAckSetIsMutable() {
+        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+          ackSet_ = new java.util.ArrayList<java.lang.Long>(ackSet_);
+          bitField0_ |= 0x00000008;
+         }
+      }
+      public java.util.List<java.lang.Long>
+          getAckSetList() {
+        return java.util.Collections.unmodifiableList(ackSet_);
+      }
+      public int getAckSetCount() {
+        return ackSet_.size();
+      }
+      public long getAckSet(int index) {
+        return ackSet_.get(index);
+      }
+      public Builder setAckSet(
+          int index, long value) {
+        ensureAckSetIsMutable();
+        ackSet_.set(index, value);
+        
+        return this;
+      }
+      public Builder addAckSet(long value) {
+        ensureAckSetIsMutable();
+        ackSet_.add(value);
+        
+        return this;
+      }
+      public Builder addAllAckSet(
+          java.lang.Iterable<? extends java.lang.Long> values) {
+        ensureAckSetIsMutable();
+        super.addAll(values, ackSet_);
+        
+        return this;
+      }
+      public Builder clearAckSet() {
+        ackSet_ = java.util.Collections.emptyList();;
+        bitField0_ = (bitField0_ & ~0x00000008);
         
         return this;
       }

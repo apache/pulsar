@@ -643,4 +643,9 @@ public interface ManagedCursor {
      * Trim delete entries for the given entries
      */
     void trimDeletedEntries(List<Entry> entries);
+
+    /**
+     * Get deleted batch indexes list for a batch message.
+     */
+    long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
 }
