@@ -54,7 +54,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         try {
             pulsarClient.newProducer()
                     .topic("persistent://public/default/" + UUID.randomUUID().toString())
-                    .sendTimeout(1, TimeUnit.SECONDS)
+                    .sendTimeout(100, TimeUnit.MILLISECONDS)
                     .create();
             Assert.fail("Create producer should failed while topic does not exists.");
         } catch (PulsarClientException ignore) {
