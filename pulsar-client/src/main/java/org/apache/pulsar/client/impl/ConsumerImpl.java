@@ -745,11 +745,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
-        MessageIdData startMessageIdData;
+        MessageIdData startMessageIdData = null;
         if (isDurable) {
             // For regular durable subscriptions, the message id from where to restart will be determined by the broker.
             startMessageIdData = null;
-        } else {
+        } else if (startMessageId != null) {
             // For non-durable we are going to restart from the next entry
             MessageIdData.Builder builder = MessageIdData.newBuilder();
             builder.setLedgerId(startMessageId.getLedgerId());
@@ -769,7 +769,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         // startMessageRollbackDurationInSec should be consider only once when consumer connects to first time
         long startMessageRollbackDuration = (startMessageRollbackDurationInSec > 0
-                && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
+                && startMessageId != null && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
                 consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                 conf.isReplicateSubscriptionState(), InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
