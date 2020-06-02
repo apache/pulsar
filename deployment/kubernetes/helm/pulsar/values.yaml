@@ -889,7 +889,7 @@ pulsar_manager:
     LOG_LEVEL: DEBUG
     ## If you enabled authentication support
     ## JWT_TOKEN: <token>
-    ## SECRET_KEY: data:base64,<secret key>
+    ## SECRET_KEY: data:;base64,<secret key>
   ## Pulsar manager service
   ## templates/pulsar-manager-service.yaml
   ##
