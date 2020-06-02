@@ -161,6 +161,8 @@ public class ServerCnx extends PulsarHandler {
     private final int maxMessageSize;
     private boolean preciseDispatcherFlowControl;
 
+    private boolean preciseTopicPublishRateLimitingEnable;
+
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
     private FeatureFlags features;
@@ -193,6 +195,7 @@ public class ServerCnx extends PulsarHandler {
         this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishdRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
+        this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
     }
 
     @Override
@@ -1206,7 +1209,7 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation(producer, headersAndPayload.readableBytes());
+        startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
@@ -1792,9 +1795,21 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation(Producer producer, int msgSize) {
+
+    public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
-        boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        boolean isPublishRateExceeded = false;
+        if (preciseTopicPublishRateLimitingEnable) {
+            boolean isPreciseTopicPublishRateExceeded = producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
+            if (isPreciseTopicPublishRateExceeded) {
+                producer.getTopic().disableCnxAutoRead();
+                return;
+            }
+            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+        } else {
+            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        }
+
         if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
