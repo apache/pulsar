@@ -1065,6 +1065,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
 
+            managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
+
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
 

@@ -16,27 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.util.collections;
 
-import java.util.Map;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-/**
- * Acknowledgments grouping tracker.
- */
-public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
+public class ConcurrentBitSetRecyclableTest {
 
-    boolean isDuplicate(MessageId messageId);
-
-    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
-
-    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties);
-
-    void flush();
-
-    @Override
-    void close();
-
-    void flushAndClean();
+    @Test
+    public void testRecycle() {
+        ConcurrentBitSetRecyclable bitset1 = ConcurrentBitSetRecyclable.create();
+        bitset1.set(3);
+        bitset1.recycle();
+        ConcurrentBitSetRecyclable bitset2 = ConcurrentBitSetRecyclable.create();
+        ConcurrentBitSetRecyclable bitset3 = ConcurrentBitSetRecyclable.create();
+        Assert.assertSame(bitset2, bitset1);
+        Assert.assertFalse(bitset2.get(3));
+        Assert.assertNotSame(bitset3, bitset1);
+    }
 }
