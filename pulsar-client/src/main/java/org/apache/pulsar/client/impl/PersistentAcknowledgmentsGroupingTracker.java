@@ -186,7 +186,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return false;
         }
 
-        newAckCommand(consumer.consumerId, msgId, ackType, null, properties, cnx, true /* flush */);
+        newAckCommand(consumer.consumerId, msgId, null, ackType, null, properties, cnx, true /* flush */);
         return true;
     }
 
@@ -224,7 +224,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
         boolean shouldFlush = false;
         if (cumulativeAckFlushRequired) {
-            newAckCommand(consumer.consumerId, lastCumulativeAck, AckType.Cumulative, null, Collections.emptyMap(), cnx,
+            newAckCommand(consumer.consumerId, lastCumulativeAck, lastCumulativeAckSet, AckType.Cumulative, null, Collections.emptyMap(), cnx,
                     false /* flush */);
             shouldFlush=true;
             cumulativeAckFlushRequired = false;
@@ -264,8 +264,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         break;
                     }
 
-                    newAckCommand(consumer.consumerId, msgId, AckType.Individual, null, Collections.emptyMap(), cnx,
-                            false);
+                    newAckCommand(consumer.consumerId, msgId, null, AckType.Individual, null, Collections.emptyMap(),
+                            cnx, false);
                     shouldFlush = true;
                 }
             }
@@ -311,8 +311,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private void newAckCommand(long consumerId, MessageIdImpl msgId, AckType ackType,
-            ValidationError validationError, Map<String, Long> map, ClientCnx cnx, boolean flush) {
+    private void newAckCommand(long consumerId, MessageIdImpl msgId, BitSetRecyclable lastCumulativeAckSet,
+            AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx, boolean flush) {
 
         MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
         if (chunkMsgIds != null) {
@@ -331,8 +331,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 }
             } else {
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
-                    ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(), null, ackType,
-                            validationError, map);
+                    ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
+                            lastCumulativeAckSet, ackType, validationError, map);
                     if (flush) {
                         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
                     } else {
@@ -342,8 +342,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
             this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
         } else {
-            ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), null, ackType,
-                    validationError, map);
+            ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
+                    ackType, validationError, map);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
             } else {
