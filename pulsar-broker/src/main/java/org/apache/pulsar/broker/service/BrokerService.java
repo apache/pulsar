@@ -101,13 +101,16 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -926,8 +929,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                PersistentTopic persistentTopic = new PersistentTopic(topic, ledger,
-                                        BrokerService.this);
+                                PersistentTopic persistentTopic = isSystemTopic(topic)
+                                        ? new SystemTopic(topic, ledger, BrokerService.this)
+                                        : new PersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
                                 replicationFuture.thenCompose(v -> {
                                     // Also check dedup status
@@ -1236,36 +1240,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return this.backlogQuotaManager;
     }
 
-    /**
-     *
-     * @param topic
-     *            needing quota enforcement check
-     * @return determine if quota enforcement needs to be done for topic
-     */
-    public boolean isBacklogExceeded(PersistentTopic topic) {
-        TopicName topicName = TopicName.get(topic.getName());
-        long backlogQuotaLimitInBytes = getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
-        if (backlogQuotaLimitInBytes < 0) {
-            return false;
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] - backlog quota limit = [{}]", topic.getName(), backlogQuotaLimitInBytes);
-        }
-
-        // check if backlog exceeded quota
-        long storageSize = topic.getBacklogSize();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Storage size = [{}], limit [{}]", topic.getName(), storageSize, backlogQuotaLimitInBytes);
-        }
-
-        return (storageSize >= backlogQuotaLimitInBytes);
-    }
-
     public void monitorBacklogQuota() {
         forEachTopic(topic -> {
             if (topic instanceof PersistentTopic) {
                 PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (isBacklogExceeded(persistentTopic)) {
+                if (persistentTopic.isBacklogExceeded()) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic);
                 } else {
                     if (log.isDebugEnabled()) {
@@ -2101,7 +2080,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return Optional.empty();
         }
     }
-
     private void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
         foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
@@ -2213,5 +2191,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
         log.debug("No autoSubscriptionCreateOverride policy found for {}", topicName);
         return null;
+    }
+    private boolean isSystemTopic(String topic) {
+        return SystemTopicClient.isSystemTopic(TopicName.get(topic));
     }
 }
