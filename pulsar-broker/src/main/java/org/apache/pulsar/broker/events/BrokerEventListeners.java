@@ -85,7 +85,7 @@ public class BrokerEventListeners implements BrokerEventListener {
      */
     public static BrokerEventListeners load(ServiceConfiguration conf) throws IOException {
         BrokerEventListenerDefinitions definitions =
-                BrokerEventListenerUtils.searchForListeners(conf.getBrokerListenersDirectory());
+                BrokerEventListenerUtils.searchForListeners(conf.getBrokerListenersDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, SafeBrokerEventListenerWithClassLoader> builder = ImmutableMap.builder();
 
@@ -99,7 +99,7 @@ public class BrokerEventListeners implements BrokerEventListener {
 
             SafeBrokerEventListenerWithClassLoader listener;
             try {
-                listener = BrokerEventListenerUtils.load(definition);
+                listener = BrokerEventListenerUtils.load(definition, conf.getNarExtractionDirectory());
                 if (listener != null) {
                     builder.put(listenerName, listener);
                 }

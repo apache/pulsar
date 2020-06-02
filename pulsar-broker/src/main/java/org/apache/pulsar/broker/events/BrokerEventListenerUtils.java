@@ -50,8 +50,8 @@ public class BrokerEventListenerUtils {
      * @return the broker listener definition
      * @throws IOException when fail to load the broker listener or get the definition
      */
-    public static BrokerEventListenerDefinition getBrokerListenerDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+    public static BrokerEventListenerDefinition getBrokerListenerDefinition(String narPath, String narExtractionDirectory) throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getBrokerListenerDefinition(ncl);
         }
     }
@@ -71,7 +71,7 @@ public class BrokerEventListenerUtils {
      * @return a collection of broker listeners
      * @throws IOException when fail to load the available broker listeners from the provided directory.
      */
-    public static BrokerEventListenerDefinitions searchForListeners(String listenersDirectory) throws IOException {
+    public static BrokerEventListenerDefinitions searchForListeners(String listenersDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(listenersDirectory).toAbsolutePath();
         log.info("Searching for broker listeners in {}", path);
 
@@ -85,7 +85,7 @@ public class BrokerEventListenerUtils {
             for (Path archive : stream) {
                 try {
                     BrokerEventListenerDefinition def =
-                            BrokerEventListenerUtils.getBrokerListenerDefinition(archive.toString());
+                            BrokerEventListenerUtils.getBrokerListenerDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found broker listeners from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
@@ -114,11 +114,11 @@ public class BrokerEventListenerUtils {
      * @param metadata the broker listeners definition.
      * @return
      */
-    static SafeBrokerEventListenerWithClassLoader load(BrokerEventListenerMetadata metadata) throws IOException {
+    static SafeBrokerEventListenerWithClassLoader load(BrokerEventListenerMetadata metadata, String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
-                BrokerEventListener.class.getClassLoader());
+                BrokerEventListener.class.getClassLoader(), narExtractionDirectory);
 
         BrokerEventListenerDefinition def = getBrokerListenerDefinition(ncl);
         if (StringUtils.isBlank(def.getListenerClass())) {
