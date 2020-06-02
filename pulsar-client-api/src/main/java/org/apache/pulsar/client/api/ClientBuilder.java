@@ -395,6 +395,15 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxLookupRequests(int maxLookupRequests);
 
     /**
+     * Set the maximum number of times a lookup-request to a broker will be redirected.
+     *
+     * @since 2.6.0
+     * @param maxLookupRedirects the maximum number of redirects
+     * @return the client builder instance
+     */
+    ClientBuilder maxLookupRedirects(int maxLookupRedirects);
+
+    /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.

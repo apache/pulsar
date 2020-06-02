@@ -250,6 +250,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder maxLookupRedirects(int maxLookupRedirects) {
+        conf.setMaxLookupRedirects(maxLookupRedirects);
+        return this;
+    }
+
+    @Override
     public ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
         conf.setMaxNumberOfRejectedRequestPerConnection(maxNumberOfRejectedRequestPerConnection);
         return this;

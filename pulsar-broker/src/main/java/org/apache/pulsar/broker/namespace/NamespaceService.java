@@ -382,7 +382,7 @@ public class NamespaceService {
                     }
                 } else if (nsData.get().isDisabled()) {
                     future.completeExceptionally(
-                        new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
+                            new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
                 } else {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);

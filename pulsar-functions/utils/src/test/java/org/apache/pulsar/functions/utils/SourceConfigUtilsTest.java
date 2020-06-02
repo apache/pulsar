@@ -19,11 +19,22 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.validator.ConfigValidationAnnotations;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockTestCase;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -32,12 +43,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
-import static org.testng.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.testng.Assert.*;
 
 /**
  * Unit test of {@link Reflections}.
  */
-public class SourceConfigUtilsTest {
+@PrepareForTest(ConnectorUtils.class)
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "javax.xml.*", "org.xml.*", "org.w3c.dom.*", "org.springframework.context.*", "org.apache.log4j.*", "com.sun.org.apache.xerces.*", "javax.management.*" })
+public class SourceConfigUtilsTest extends PowerMockTestCase {
+
+    private ConnectorDefinition defn;
+
+    @Data
+    @Accessors(chain = true)
+    @NoArgsConstructor
+    public static class TestSourceConfig {
+        @ConfigValidationAnnotations.NotNull
+        private String configParameter;
+    }
 
     @Test
     public void testConvertBackFidelity() throws IOException  {
@@ -211,6 +236,25 @@ public class SourceConfigUtilsTest {
                 new Gson().toJson(sourceConfig),
                 new Gson().toJson(mergedConfig)
         );
+    }
+
+    @Test
+    public void testValidateConfig() throws IOException {
+        mockStatic(ConnectorUtils.class);
+        defn = new ConnectorDefinition();
+        defn.setSourceConfigClass(SourceConfigUtilsTest.TestSourceConfig.class.getName());
+        PowerMockito.when(ConnectorUtils.getConnectorDefinition(any())).thenReturn(defn);
+
+        SourceConfig sourceConfig = createSourceConfig();
+
+        // Good config
+        sourceConfig.getConfigs().put("configParameter", "Test");
+        SourceConfigUtils.validateConnectorConfig(sourceConfig, Thread.currentThread().getContextClassLoader());
+
+        // Bad config
+        sourceConfig.getConfigs().put("configParameter", null);
+        Exception e = expectThrows(IllegalArgumentException.class, () -> SourceConfigUtils.validateConnectorConfig(sourceConfig, Thread.currentThread().getContextClassLoader()));
+        assertTrue(e.getMessage().contains("Could not validate source config: Field 'configParameter' cannot be null!"));
     }
 
     private SourceConfig createSourceConfig() {
