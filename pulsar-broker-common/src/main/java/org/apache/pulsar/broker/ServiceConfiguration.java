@@ -302,7 +302,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max pending publish requests per connection to avoid keeping large number of pending "
                 + "requests in memory. Default: 1000"
     )
-    private int maxPendingPublishdRequestsPerConnection = 1000;
+    private int maxPendingPublishRequestsPerConnection = 1000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -888,7 +888,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bookkeeperClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
-        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+        doc = "BookKeeper auth plugin implementation specifics parameters name and values"
     )
     private String bookkeeperClientAuthenticationParametersName;
     @FieldContext(
@@ -1444,7 +1444,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
-    private int replicatioPolicyCheckDurationSeconds = 600;
+    private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,

@@ -461,7 +461,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     protected void startCheckReplicationPolicies() {
-        int interval = pulsar.getConfig().getReplicatioPolicyCheckDurationSeconds();
+        int interval = pulsar.getConfig().getReplicationPolicyCheckDurationSeconds();
         if (interval > 0) {
             messageExpiryMonitor.scheduleAtFixedRate(safeRun(this::checkReplicationPolicies), interval, interval,
                     TimeUnit.SECONDS);
