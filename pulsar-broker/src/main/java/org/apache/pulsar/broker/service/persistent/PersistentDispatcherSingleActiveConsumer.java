@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -237,13 +238,14 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         } else {
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
+            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
 
             currentConsumer
-                    .sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
+                    .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                             sendMessageInfo.getTotalBytes(), redeliveryTracker)
                     .addListener(future -> {
                         if (future.isSuccess()) {
@@ -253,9 +255,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                                     topic.getDispatchRateLimiter().get().tryDispatchPermit(totalMessages, totalBytes);
                                 }
 
-                                if (dispatchRateLimiter.isPresent()) {
-                                    dispatchRateLimiter.get().tryDispatchPermit(totalMessages, totalBytes);
-                                }
+                                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(totalMessages, totalBytes));
                             }
 
                             // Schedule a new read batch operation only after the previous batch has been written to the
@@ -375,6 +375,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
 
             int messagesToRead = Math.min(availablePermits, readBatchSize);
+            // if turn of precise dispatcher flow control, adjust the records to read
+            if (consumer.isPreciseDispatcherFlowControl()) {
+                int avgMessagesPerEntry = consumer.getAvgMessagesPerEntry();
+                messagesToRead = Math.min((int) Math.ceil(availablePermits * 1.0 / avgMessagesPerEntry), readBatchSize);
+            }
 
             // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
             // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
@@ -439,15 +444,19 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 }
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
             havePendingRead = true;
+
             if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+                cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
             }
         } else {
             if (log.isDebugEnabled()) {
@@ -470,7 +479,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         long waitTimeMillis = readFailureBackoff.next();
 
         if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog() == 0) {
+            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 consumers.forEach(Consumer::reachedEndOfTopic);
@@ -541,9 +550,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
-        if (dispatchRateLimiter.isPresent()) {
-            dispatchRateLimiter.get().close();
-        }
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
         return disconnectAllConsumers();
     }
 

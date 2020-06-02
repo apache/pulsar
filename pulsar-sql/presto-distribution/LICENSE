@@ -1,4 +1,3 @@
-
                                  Apache License
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
@@ -232,22 +231,24 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.4.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.43.Final.jar
-    - netty-codec-4.1.43.Final.jar
-    - netty-codec-dns-4.1.43.Final.jar
-    - netty-codec-http-4.1.43.Final.jar
-    - netty-codec-socks-4.1.43.Final.jar
-    - netty-common-4.1.43.Final.jar
-    - netty-handler-4.1.43.Final.jar
-    - netty-handler-proxy-4.1.43.Final.jar
-    - netty-reactive-streams-2.0.0.jar
-    - netty-resolver-4.1.43.Final.jar
-    - netty-resolver-dns-4.1.43.Final.jar
-    - netty-tcnative-boringssl-static-2.0.26.Final.jar
-    - netty-transport-4.1.43.Final.jar
-    - netty-transport-native-epoll-4.1.43.Final.jar
-    - netty-transport-native-epoll-4.1.33.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.43.Final.jar
+    - netty-buffer-4.1.48.Final.jar
+    - netty-codec-4.1.48.Final.jar
+    - netty-codec-dns-4.1.48.Final.jar
+    - netty-codec-http-4.1.48.Final.jar
+    - netty-codec-socks-4.1.48.Final.jar
+    - netty-common-4.1.48.Final.jar
+    - netty-handler-4.1.48.Final.jar
+    - netty-handler-proxy-4.1.48.Final.jar
+    - netty-reactive-streams-2.0.4.jar
+    - netty-resolver-4.1.48.Final.jar
+    - netty-resolver-dns-4.1.48.Final.jar
+    - netty-tcnative-boringssl-static-2.0.30.Final.jar
+    - netty-transport-4.1.48.Final.jar
+    - netty-transport-native-epoll-4.1.48.Final.jar
+    - netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.48.Final.jar
+    - netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
+    - netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
  * Joda Time
     - joda-time-2.9.9.jar
     - joda-time-2.10.1.jar
@@ -355,6 +356,8 @@ The Apache Software License, Version 2.0
   * Avro
     - avro-1.9.1.jar
     - avro-protobuf-1.9.1.jar
+  * Caffeine
+    - caffeine-2.6.2.jar
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
@@ -402,8 +405,8 @@ The Apache Software License, Version 2.0
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
-    - async-http-client-2.7.0.jar
-    - async-http-client-netty-utils-2.7.0.jar
+    - async-http-client-2.12.1.jar
+    - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
     - bookkeeper-common-4.10.0.jar
     - bookkeeper-common-allocator-4.10.0.jar
@@ -446,8 +449,8 @@ The Apache Software License, Version 2.0
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
   * Apache Zookeeper
-    - zookeeper-3.5.6.jar
-    - zookeeper-jute-3.5.6.jar 
+    - zookeeper-3.5.7.jar
+    - zookeeper-jute-3.5.7.jar
   * Apache Yetus Audience Annotations
     - audience-annotations-0.5.0.jar
   * Swagger
@@ -542,13 +545,12 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * AOP Alliance
    - aopalliance-1.0.jar
  * Reactive Streams
-    - reactive-streams-1.0.2.jar
-
-Bouncy Castle License
- * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk15on-1.60.jar
-    - bcprov-jdk15on-1.60.jar
+    - reactive-streams-1.0.3.jar
 
 Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt
     - jcip-annotations-1.0.jar
+
+Bouncy Castle License
+ * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
+    - bouncy-castle-bc-shaded-2.6.0-SNAPSHOT.jar

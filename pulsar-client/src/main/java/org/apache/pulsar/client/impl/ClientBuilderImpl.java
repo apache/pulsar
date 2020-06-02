@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.time.Clock;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.StringUtils;
@@ -108,6 +109,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
+        conf.setAuthPluginClassName(authPluginClassName);
+        conf.setAuthParams(authParamsString);
+        conf.setAuthParamMap(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
         return this;
     }
@@ -115,6 +119,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
+        conf.setAuthPluginClassName(authPluginClassName);
+        conf.setAuthParamMap(authParams);
+        conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
     }
@@ -174,6 +181,48 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder useKeyStoreTls(boolean useKeyStoreTls) {
+        conf.setUseKeyStoreTls(useKeyStoreTls);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sslProvider(String sslProvider) {
+        conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsTrustStoreType(String tlsTrustStoreType) {
+        conf.setTlsTrustStoreType(tlsTrustStoreType);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsTrustStorePath(String tlsTrustStorePath) {
+        conf.setTlsTrustStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsTrustStorePassword(String tlsTrustStorePassword) {
+        conf.setTlsTrustStorePassword(tlsTrustStorePassword);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsCiphers(Set<String> tlsCiphers) {
+        conf.setTlsCiphers(tlsCiphers);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsProtocols(Set<String> tlsProtocols) {
+        conf.setTlsProtocols(tlsProtocols);
+        return this;
+    }
+
+    @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
         return this;
@@ -188,6 +237,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder maxLookupRequests(int maxLookupRequests) {
         conf.setMaxLookupRequest(maxLookupRequests);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder maxLookupRedirects(int maxLookupRedirects) {
+        conf.setMaxLookupRedirects(maxLookupRedirects);
         return this;
     }
 
@@ -214,13 +269,13 @@ public class ClientBuilderImpl implements ClientBuilder {
     	conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }
-    
+
     @Override
     public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
     	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
     	return this;
     }
-    
+
     public ClientConfigurationData getClientConfigurationData() {
         return conf;
     }

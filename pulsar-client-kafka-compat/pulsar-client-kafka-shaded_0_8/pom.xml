@@ -103,18 +103,23 @@
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                 </includes>
               </artifactSet>
                <filters>
-                <filter>
+                 <filter>
                    <artifact>commons-logging:commons-logging</artifact>
                    <includes>
                        <include>**</include>
                    </includes>
-                </filter>
+                 </filter>
+                 <filter>
+                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                   <includes>
+                     <include>**</include>
+                   </includes>
+                 </filter>
               </filters>
               <relocations>
                 <relocation>
@@ -376,10 +381,6 @@
                   <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
@@ -392,14 +393,6 @@
                   <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
               </relocations>
-              <filters>
-                <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-              </filters>
             </configuration>
           </execution>
         </executions>

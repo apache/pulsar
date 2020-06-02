@@ -39,7 +39,6 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-@Test
 public class DistributedIdGeneratorTest {
 
     private MockZooKeeper zkc;

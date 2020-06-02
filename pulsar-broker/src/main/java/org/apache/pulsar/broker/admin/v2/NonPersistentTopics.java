@@ -73,6 +73,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -99,6 +100,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("{tenant}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -113,17 +115,20 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "Is return precise backlog or imprecise backlog")
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminOperationOnTopic(topicName, authoritative);
         Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats();
+        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog);
     }
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/internalStats")
     @ApiOperation(value = "Get the internal stats for the topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -149,15 +154,18 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Create a partitioned topic.", notes = "It needs to be called before creating a producer on a partitioned topic.")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to manage resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace does not exist"),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and less than or equal to maxNumPartitionsPerPartitionedTopic"),
             @ApiResponse(code = 409, message = "Partitioned topic already exists"),
             @ApiResponse(code = 412, message = "Failed Reason : Name is invalid or Namespace does not have any clusters configured"),
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
     })
     public void createPartitionedTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -166,39 +174,15 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
-        validateGlobalNamespaceOwnership(tenant,namespace);
-        validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminAccessForTenant(topicName.getTenant());
-        if (numPartitions <= 0) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
-        }
+
         try {
-            boolean topicExist = pulsar().getNamespaceService()
-                    .getListOfTopics(topicName.getNamespaceObject(), PulsarApi.CommandGetTopicsOfNamespace.Mode.ALL)
-                    .join()
-                    .contains(topicName.toString());
-            if (topicExist) {
-                log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                throw new RestException(Status.CONFLICT, "This topic already exists");
-            }
+            validateGlobalNamespaceOwnership(tenant,namespace);
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateAdminAccessForTenant(topicName.getTenant());
+            internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
-        }
-        try {
-            String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
-                    topicName.getEncodedLocalName());
-            byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-            zkCreateOptimistic(path, data);
-            // Sync data to all quorums and the observers
-            zkSync(path);
-            log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
-        } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exists");
-        } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
 
@@ -206,6 +190,7 @@ public class NonPersistentTopics extends PersistentTopics {
     @Path("/{tenant}/{namespace}/{topic}/unload")
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "This operation requires super-user access"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "The tenant/namespace/topic does not exist"),
@@ -214,6 +199,7 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
     })
     public void unloadTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -222,12 +208,14 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        log.info("[{}] Unloading topic {}", clientAppId(), topicName);
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalUnloadTopic(asyncResponse, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
         }
-        unloadTopic(topicName, authoritative);
     }
 
     @GET

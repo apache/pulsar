@@ -48,8 +48,8 @@ public class Range {
     }
 
     public Range intersect(Range range) {
-        int start = range.getStart() > this.getStart() ? range.getStart() : this.getStart();
-        int end = range.getEnd() < this.getEnd() ? range.getEnd() : this.getEnd();
+        int start = Math.max(range.getStart(), this.getStart());
+        int end = Math.min(range.getEnd(), this.getEnd());
         if (end >= start) {
             return Range.of(start, end);
         } else {

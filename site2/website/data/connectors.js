@@ -36,6 +36,12 @@ module.exports = [
         link: 'https://debezium.io/'
     },
     {
+        name: 'dynamodb',
+        longName: 'AWS DynamoDB source',
+        type: 'Source',
+        link: 'https://aws.amazon.com/dynamodb/'
+    },
+    {
         name: 'elastic-search',
         longName: 'ElasticSearch sink',
         type: 'Sink',
@@ -43,8 +49,8 @@ module.exports = [
     },
     {
         name: 'file',
-        longName: 'File sink',
-        type: 'Sink',
+        longName: 'File source',
+        type: 'Source',
         link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/file'
     },
     {

@@ -288,8 +288,11 @@ A `Flow` command gives additional *permits* to send messages to the consumer.
 A typical consumer implementation will use a queue to accumulate these messages
 before the application is ready to consume them.
 
-After the application has dequeued a number of message, the consumer will
-send additional number of permits to allow the broker to push more messages.
+After the application has dequeued half of the messages in the queue, the consumer 
+sends permits to the broker to ask for more messages (equals to half of the messages in the queue).
+
+For example, if the queue size is 1000 and the consumer consumes 500 messages in the queue.
+Then the consumer sends permits to the broker to ask for 500 messages.
 
 ##### Command Subscribe
 

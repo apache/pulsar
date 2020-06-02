@@ -40,7 +40,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -50,6 +49,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -79,7 +79,6 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         super.setUp(m);
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         PulsarService pulsar = spy(new PulsarService(svcConfig));
-        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
@@ -197,7 +196,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     // Thread.sleep(5,0);
                     log.info("{} forcing topic GC ", Thread.currentThread());
                     for (int i = 0; i < 2000; i++) {
-                        topic.checkGC(0);
+                        topic.checkGC(0, InactiveTopicDeleteMode.delete_when_no_subscriptions);
                     }
                     log.info("GC done..");
                 } catch (Exception e) {

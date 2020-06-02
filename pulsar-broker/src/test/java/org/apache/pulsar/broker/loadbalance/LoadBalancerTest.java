@@ -54,7 +54,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -147,7 +146,6 @@ public class LoadBalancerTest {
             config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
-            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
@@ -312,7 +310,7 @@ public class LoadBalancerTest {
     /*
      * Pre-publish load report to ZK, each broker has: - Difference memory capacity, for the first 3 brokers memory is
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
-     * idle resources are avaiable for new bundle Check the broker rankings are the load percentage of each broker.
+     * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
     @Test
     public void testBrokerRanking() throws Exception {
@@ -402,7 +400,7 @@ public class LoadBalancerTest {
             printSortedRanking(sortedRanking);
         }
 
-        // check owner of new destiations and verify that the distribution is roughly
+        // check owner of new destinations and verify that the distribution is roughly
         // consistent (variation < 10%) with the broker capacity:
         int totalNamespaces = 250;
         int[] expectedAssignments = new int[] { 17, 34, 51, 68, 85 };
@@ -680,25 +678,25 @@ public class LoadBalancerTest {
         boolean isAutoUnooadSplitBundleEnabled = pulsarServices[0].getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         // verify bundles are split
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-01", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-02", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-03", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-04", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-05", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-06", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, times(1)).splitNamespaceBundle("pulsar/use/primary-ns-07", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-08", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-09", "0x00000000_0x80000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
         verify(namespaceAdmin, never()).splitNamespaceBundle("pulsar/use/primary-ns-10", "0x00000000_0x02000000",
-                isAutoUnooadSplitBundleEnabled);
+                isAutoUnooadSplitBundleEnabled, null);
     }
 
     /*

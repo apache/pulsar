@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -157,8 +156,7 @@ public class PulsarFunctionE2ESecurityTest {
                 "token:" +  adminToken);
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         brokerServiceUrl = pulsar.getWebServiceAddress();
@@ -332,7 +330,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -352,7 +350,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
+                }, 50, 150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -384,7 +382,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150));
+                }, 50, 150));
 
                 // test getFunctionInfo
                 try {
@@ -511,7 +509,12 @@ public class PulsarFunctionE2ESecurityTest {
 
                 }
 
-                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                try {
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                } catch (PulsarAdminException e) {
+                    // This happens because the request becomes outdated. Lets retry again
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                }
 
                 assertTrue(retryStrategically((test) -> {
                     try {
@@ -603,7 +606,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
             // validate pulsar sink consumer has started on the topic
             assertEquals(admin1.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -623,7 +626,7 @@ public class PulsarFunctionE2ESecurityTest {
                     } catch (PulsarAdminException e) {
                         return false;
                     }
-                }, 5, 150);
+                }, 50, 150);
 
                 Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
                 String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -655,7 +658,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
 
             // test getFunctionInfo
             try {
@@ -783,7 +786,12 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            try {
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            } catch (PulsarAdminException e) {
+                // This happens because the request becomes outdated. Lets retry again
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            }
 
             assertTrue(retryStrategically((test) -> {
                 try {
@@ -796,7 +804,7 @@ public class PulsarFunctionE2ESecurityTest {
                 } catch (PulsarAdminException e) {
                     return false;
                 }
-            }, 5, 150));
+            }, 50, 150));
         }
     }
 }

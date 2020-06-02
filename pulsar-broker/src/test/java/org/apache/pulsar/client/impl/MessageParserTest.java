@@ -124,7 +124,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         producer.send("hello-" + (n - 1));
 
         // Read through raw data
-        assertEquals(cursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 1);
         Entry entry = cursor.readEntriesOrWait(1).get(0);
 
         List<RawMessage> messages = Lists.newArrayList();

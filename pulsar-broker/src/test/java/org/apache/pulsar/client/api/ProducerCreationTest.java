@@ -86,7 +86,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         //simulate create producer timeout.
         Thread.sleep(3000);
 
-        producer.getConnectionHandler().connectionClosed(producer.getConnectionHandler().getClientCnx());
+        producer.getConnectionHandler().connectionClosed(producer.getConnectionHandler().cnx());
         Assert.assertFalse(producer.isConnected());
         Thread.sleep(3000);
         Assert.assertEquals(producer.getConnectionHandler().getEpoch(), 1);

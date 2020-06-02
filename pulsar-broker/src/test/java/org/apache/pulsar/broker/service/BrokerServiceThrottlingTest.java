@@ -65,7 +65,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     /**
-     * Verifies: updating zk-thottling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
+     * Verifies: updating zk-throttling node reflects broker-maxConcurrentLookupRequest and updates semaphore.
      *
      * @throws Exception
      */
@@ -251,10 +251,10 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         Map<String, String> throttlingMap = Maps.newHashMap();
         throttlingMap.put("maxConcurrentLookupRequest", Integer.toString(permits));
         byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(throttlingMap);
-        if (mockZookKeeper.exists(BROKER_SERVICE_CONFIGURATION_PATH, false) != null) {
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        if (mockZooKeeper.exists(BROKER_SERVICE_CONFIGURATION_PATH, false) != null) {
+            mockZooKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
         } else {
-            ZkUtils.createFullPathOptimistic(mockZookKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
+            ZkUtils.createFullPathOptimistic(mockZooKeeper, BROKER_SERVICE_CONFIGURATION_PATH, content,
                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
     }

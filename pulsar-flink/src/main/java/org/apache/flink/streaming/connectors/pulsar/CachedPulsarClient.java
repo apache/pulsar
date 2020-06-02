@@ -55,7 +55,7 @@ public class CachedPulsarClient {
     private static RemovalListener<ClientConfigurationData, PulsarClientImpl> removalListener = notification -> {
         ClientConfigurationData config = notification.getKey();
         PulsarClientImpl client = notification.getValue();
-        LOG.debug("Evicting pulsar client %s with config %s, due to %s",
+        LOG.debug("Evicting pulsar client {} with config {}, due to {}",
             client.toString(), config.toString(), notification.getCause().toString());
         close(config, client);
     };
@@ -68,26 +68,30 @@ public class CachedPulsarClient {
         PulsarClientImpl client;
         try {
             client = new PulsarClientImpl(clientConfig);
-            LOG.debug(String.format("Created a new instance of PulsarClientImpl for clientConf = %s",
-                clientConfig.toString()));
+            LOG.debug("Created a new instance of PulsarClientImpl for clientConf = {}", clientConfig.toString());
         } catch (PulsarClientException e) {
-            LOG.error(String.format("Failed to create PulsarClientImpl for clientConf = %s",
-                clientConfig.toString()));
+            LOG.error("Failed to create PulsarClientImpl for clientConf = {}", clientConfig.toString());
             throw e;
         }
         return client;
     }
 
     public static PulsarClientImpl getOrCreate(ClientConfigurationData config) throws ExecutionException {
-        return guavaCache.get(config);
+        PulsarClientImpl instance = guavaCache.get(config);
+        if (instance.getState().get() == PulsarClientImpl.State.Open) {
+            return instance;
+        } else {
+            guavaCache.invalidate(config);
+            return guavaCache.get(config);
+        }
     }
 
     private static void close(ClientConfigurationData clientConfig, PulsarClientImpl client) {
         try {
-            LOG.info(String.format("Closing the Pulsar client with conifg %s", clientConfig.toString()));
+            LOG.info("Closing the Pulsar client with config {}", clientConfig.toString());
             client.close();
         } catch (PulsarClientException e) {
-            LOG.warn(String.format("Error while closing the Pulsar client ", clientConfig.toString()), e);
+            LOG.warn("Error while closing the Pulsar client with config {}", clientConfig.toString(), e);
         }
     }
 

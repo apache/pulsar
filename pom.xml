@@ -74,6 +74,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <modules>
     <module>buildtools</module>
+    <module>testmocks</module>
     <module>managed-ledger</module>
     <module>tiered-storage</module>
     <module>pulsar-common</module>
@@ -110,17 +111,22 @@ flexible messaging model and an intuitive client API.</description>
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
 
-    <!-- jclouds shaded for gson conflict: https://issues.apache.org/jira/browse/JCLOUDS-1166 -->
-    <module>jclouds-shaded</module>
-
     <!-- functions-related modules -->
     <module>pulsar-functions</module>
 
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- kafka connect avro converter shaded, because version mismatch    -->
+    <module>kafka-connect-avro-converter-shaded</module>
+
     <!-- examples -->
     <module>examples</module>
+
+    <!-- Bouncy Castle Provider loaders-->
+    <module>bouncy-castle</module>
+
+    <module>pulsar-client-messagecrypto-bc</module>
 
     <!-- all these 3 modules should be put at the end in this exact sequence -->
     <module>distribution</module>
@@ -149,9 +155,9 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.19</commons-compress.version>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
-    <zookeeper.version>3.5.6</zookeeper.version>
-    <netty.version>4.1.43.Final</netty.version>
-    <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
+    <zookeeper.version>3.5.7</zookeeper.version>
+    <netty.version>4.1.48.Final</netty.version>
+    <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.20.v20190813</jetty.version>
     <jersey.version>2.27</jersey.version>
@@ -163,6 +169,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
+    <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.10.1</jackson.version>
     <jackson.databind.version>2.10.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
@@ -179,15 +186,18 @@ flexible messaging model and an intuitive client API.</description>
     <sketches.version>0.8.3</sketches.version>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
-    <aerospike-client.version>4.1.11</aerospike-client.version>
+    <aerospike-client.version>4.4.8</aerospike-client.version>
     <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
-    <aws-sdk.version>1.11.297</aws-sdk.version>
+    <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.1.1</jclouds.version>
+    <jclouds.version>2.2.0</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
+    <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
+    <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
@@ -195,8 +205,8 @@ flexible messaging model and an intuitive client API.</description>
     <presto.version>0.206</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
-    <debezium.version>0.10.0.Final</debezium.version>
-    <jsonwebtoken.version>0.10.5</jsonwebtoken.version>
+    <debezium.version>1.0.0.Final</debezium.version>
+    <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
     <zstd.version>1.3.7-3</zstd.version>
     <snappy.version>1.1.1.3</snappy.version>
@@ -204,6 +214,10 @@ flexible messaging model and an intuitive client API.</description>
     <guava.version>25.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
+    <confluent.version>5.3.2</confluent.version>
+    <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
+    <httpcomponents.version>4.5.5</httpcomponents.version>
+    <asynchttpclient.version>2.12.1</asynchttpclient.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -215,6 +229,8 @@ flexible messaging model and an intuitive client API.</description>
     <powermock.version>2.0.2</powermock.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
+    <skyscreamer.version>1.5.0</skyscreamer.version>
+    <confluent.version>5.2.2</confluent.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -231,7 +247,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.7.0</version>
+        <version>${asynchttpclient.version}</version>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -243,7 +259,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.5</version>
+        <version>${httpcomponents.version}</version>
       </dependency>
 
       <dependency>
@@ -473,12 +489,26 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.netty</groupId>
         <artifactId>netty-transport-native-epoll</artifactId>
         <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-epoll</artifactId>
+        <version>${netty.version}</version>
       </dependency>
 
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-transport-native-unix-common</artifactId>
         <version>${netty.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty-transport-native-unix-common</artifactId>
+        <version>${netty.version}</version>
+        <classifier>linux-x86_64</classifier>
       </dependency>
 
       <!-- `netty-codec-http2` is a dependency of grpc, set the version to
@@ -926,18 +956,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcpkix-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.bouncycastle</groupId>
-        <artifactId>bcprov-ext-jdk15on</artifactId>
-        <version>${bouncycastle.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
@@ -1012,6 +1030,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jclouds.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.jclouds</groupId>
+        <artifactId>jclouds-blobstore</artifactId>
+        <version>${jclouds.version}</version>
+      </dependency>
+
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -1031,6 +1055,11 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>mysql</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>postgresql</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
@@ -1528,6 +1557,18 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
           <version>3.0.0</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${puppycrawl.checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>buildtools/src/main/resources/pulsar/checkstyle.xml</configLocation>
+            <suppressionsLocation>buildtools/src/main/resources/pulsar/suppressions.xml</suppressionsLocation>
+            <encoding>UTF-8</encoding>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>pl.project13.maven</groupId>
@@ -1685,6 +1726,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>bintray-yahoo-maven</id>
       <name>bintray</name>
       <url>https://yahoo.bintray.com/maven</url>
+    </repository>
+    <repository>
+      <id>spring-plugins-release</id>
+      <url>https://repo.spring.io/plugins-release/</url>
+    </repository>
+    <repository>
+      <id>confluent</id>
+      <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
 </project>

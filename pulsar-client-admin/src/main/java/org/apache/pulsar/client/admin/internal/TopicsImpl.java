@@ -45,7 +45,6 @@ import java.util.stream.Stream;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -60,9 +59,9 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
@@ -75,6 +74,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,12 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
+    // CHECKSTYLE.OFF: MemberName
     private final String BATCH_HEADER = "X-Pulsar-num-batch-message";
+    private final String MESSAGE_ID = "X-Pulsar-Message-ID";
+    private final String PUBLISH_TIME = "X-Pulsar-publish-time";
+    // CHECKSTYLE.ON: MemberName
+
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
@@ -92,39 +97,101 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget persistentPath = namespacePath("persistent", ns);
-            WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
-
-            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
-            });
-
-            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
-            });
-            return new ArrayList<>(
-                    Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getListAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget persistentPath = namespacePath("persistent", ns);
+        WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
+        final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
+        final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
+        asyncGetRequest(persistentPath,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> topics) {
+                        persistentList.complete(topics);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        persistentList.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        asyncGetRequest(nonPersistentPath,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> a) {
+                        nonPersistentList.complete(a);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+
+        return persistentList.thenCombine(nonPersistentList,
+                (l1, l2) -> new ArrayList<>(Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
     }
 
     @Override
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
         try {
-            NamespaceName ns = NamespaceName.get(namespace);
-
-            WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
-            WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
-            List<String> persistentTopics = request(persistentPath).get(new GenericType<List<String>>() {
-            });
-
-            List<String> nonPersistentTopics = request(nonPersistentPath).get(new GenericType<List<String>>() {
-            });
-            return new ArrayList<>(
-                    Stream.concat(persistentTopics.stream(), nonPersistentTopics.stream()).collect(Collectors.toSet()));
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getPartitionedTopicListAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
+        WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
+        final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
+        final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
+        asyncGetRequest(persistentPath,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> topics) {
+                        persistentList.complete(topics);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        persistentList.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        asyncGetRequest(nonPersistentPath,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> topics) {
+                        nonPersistentList.complete(topics);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+
+        return persistentList.thenCombine(nonPersistentList,
+                (l1, l2) -> new ArrayList<>(Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
     }
 
 
@@ -166,34 +233,77 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            WebTarget path = topicPath(tn, "permissions");
-            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {});
-        } catch (Exception e) {
-            throw getApiException(e);
+            return getPermissionsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = topicPath(tn, "permissions");
+        final CompletableFuture<Map<String, Set<AuthAction>>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, Set<AuthAction>>>() {
+                    @Override
+                    public void completed(Map<String, Set<AuthAction>> permissions) {
+                        future.complete(permissions);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            WebTarget path = topicPath(tn, "permissions", role);
-            request(path).post(Entity.entity(actions, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            grantPermissionAsync(topic, role, actions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = topicPath(tn, "permissions", role);
+        return asyncPostRequest(path, Entity.entity(actions, MediaType.APPLICATION_JSON));
     }
 
     @Override
     public void revokePermissions(String topic, String role) throws PulsarAdminException {
         try {
-            TopicName tn = TopicName.get(topic);
-            WebTarget path = topicPath(tn, "permissions", role);
-            request(path).delete(ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            revokePermissionsAsync(topic, role).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = topicPath(tn, "permissions", role);
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -212,9 +322,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void createNonPartitionedTopic(String topic) throws PulsarAdminException {
-    	try {
+        try {
             createNonPartitionedTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-    	} catch (ExecutionException e) {
+        } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -240,9 +350,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic){
-    	TopicName tn = validateTopic(topic);
-    	WebTarget path = topicPath(tn);
-    	return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn);
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -279,6 +389,22 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions) {
         return updatePartitionedTopicAsync(topic, numPartitions, false);
+    }
+
+    @Override
+    public void updatePartitionedTopic(String topic, int numPartitions, boolean updateLocalTopicOnly)
+            throws PulsarAdminException {
+        try {
+            updatePartitionedTopicAsync(topic, numPartitions, updateLocalTopicOnly)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     @Override
@@ -332,6 +458,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public CompletableFuture<Void> deletePartitionedTopicAsync(String topic) {
+        return deletePartitionedTopicAsync(topic, false);
+    }
+
+    @Override
     public void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
         try {
             deletePartitionedTopicAsync(topic, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -356,6 +487,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void delete(String topic) throws PulsarAdminException {
         delete(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteAsync(String topic) {
+        return deleteAsync(topic, false);
     }
 
     @Override
@@ -402,6 +538,50 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public MessageId terminateTopic(String topic) throws PulsarAdminException {
+        try {
+            return terminateTopicAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<MessageId> terminateTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+
+        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+        try {
+            final WebTarget path = topicPath(tn, "terminate");
+
+            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+                    new InvocationCallback<MessageIdImpl>() {
+
+                        @Override
+                        public void completed(MessageIdImpl messageId) {
+                            future.complete(messageId);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
+                                    throwable.getMessage());
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+
+        return future;
+    }
+
+    @Override
     public List<String> getSubscriptions(String topic) throws PulsarAdminException {
         try {
             return getSubscriptionsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
@@ -437,9 +617,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public TopicStats getStats(String topic) throws PulsarAdminException {
+    public TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
         try {
-            return getStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getStatsAsync(topic, getPreciseBacklog).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -451,9 +631,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<TopicStats> getStatsAsync(String topic) {
+    public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog) {
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, "stats");
+        WebTarget path = topicPath(tn, "stats").queryParam("getPreciseBacklog", getPreciseBacklog);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TopicStats>() {
@@ -542,10 +722,11 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition)
+    public PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, boolean getPreciseBacklog)
             throws PulsarAdminException {
         try {
-            return getPartitionedStatsAsync(topic, perPartition).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return getPartitionedStatsAsync(topic, perPartition, getPreciseBacklog)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -558,10 +739,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic,
-            boolean perPartition) {
+            boolean perPartition, boolean getPreciseBacklog) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-stats");
-        path = path.queryParam("perPartition", perPartition);
+        path = path.queryParam("perPartition", perPartition).queryParam("getPreciseBacklog", getPreciseBacklog);
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<PartitionedTopicStats>() {
@@ -633,10 +814,30 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void deleteSubscription(String topic, String subName, boolean force) throws PulsarAdminException {
+        try {
+            deleteSubscriptionAsync(topic, subName, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName) {
+        return deleteSubscriptionAsync(topic, subName, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName, boolean force) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 
@@ -710,7 +911,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void expireMessagesForAllSubscriptions(String topic, long expireTimeInSeconds) throws PulsarAdminException {
         try {
-            expireMessagesForAllSubscriptionsAsync(topic, expireTimeInSeconds).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            expireMessagesForAllSubscriptionsAsync(topic, expireTimeInSeconds)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -741,7 +943,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessageFromHttpResponse(tn.toString(), response));
+                            future.complete(getMessagesFromHttpResponse(tn.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -778,7 +980,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
-
     private void peekMessagesAsync(String topic, String subName, int numMessages,
             List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
         if (numMessages <= 0) {
@@ -792,7 +993,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
                 if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occured while trying to peek Messages.", ex.getMessage());
+                    log.warn("Exception '{}' occurred while trying to peek Messages.", ex.getMessage());
                     future.complete(messages);
                 } else {
                     future.completeExceptionally(ex);
@@ -805,6 +1006,63 @@ public class TopicsImpl extends BaseResource implements Topics {
             peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1);
             return null;
         });
+    }
+
+    @Override
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
+        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
+            if (ex != null) {
+                if (ex instanceof NotFoundException) {
+                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
+                    future.complete(r);
+                } else {
+                    future.completeExceptionally(ex);
+                }
+                return null;
+            }
+            future.complete(r);
+            return null;
+        });
+        return future;
+    }
+
+    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
+        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        try {
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
+            throws PulsarAdminException {
+        try {
+            return getMessageByIdAsync(topic, ledgerId, entryId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
     }
 
     @Override
@@ -873,80 +1131,132 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<MessageId> terminateTopicAsync(String topic) {
-        TopicName tn = validateTopic(topic);
-
-        final CompletableFuture<MessageId> future = new CompletableFuture<>();
+    public void triggerCompaction(String topic) throws PulsarAdminException {
         try {
-            final WebTarget path = topicPath(tn, "terminate");
-
-            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
-                    new InvocationCallback<MessageIdImpl>() {
-
-                        @Override
-                        public void completed(MessageIdImpl messageId) {
-                            future.complete(messageId);
-                        }
-
-                        @Override
-                        public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
-                                    throwable.getMessage());
-                            future.completeExceptionally(getApiException(throwable.getCause()));
-                        }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
+            triggerCompactionAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
-
-        return future;
     }
 
     @Override
-    public void triggerCompaction(String topic)
-            throws PulsarAdminException {
-        try {
-            TopicName tn = validateTopic(topic);
-            request(topicPath(tn, "compaction"))
-                .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+    public CompletableFuture<Void> triggerCompactionAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "compaction");
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
     public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         try {
-            TopicName tn = validateTopic(topic);
-            return request(topicPath(tn, "compaction"))
-                .get(LongRunningProcessStatus.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return compactionStatusAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<LongRunningProcessStatus> compactionStatusAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "compaction");
+        final CompletableFuture<LongRunningProcessStatus> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<LongRunningProcessStatus>() {
+                    @Override
+                    public void completed(LongRunningProcessStatus longRunningProcessStatus) {
+                        future.complete(longRunningProcessStatus);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
     public void triggerOffload(String topic, MessageId messageId) throws PulsarAdminException {
         try {
-            TopicName tn = validateTopic(topic);
-            WebTarget path = topicPath(tn, "offload");
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), MessageIdImpl.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            triggerOffloadAsync(topic, messageId).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> triggerOffloadAsync(String topic, MessageId messageId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "offload");
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON)
+                    , new InvocationCallback<MessageIdImpl>() {
+                        @Override
+                        public void completed(MessageIdImpl response) {
+                            future.complete(null);
+                        }
+
+                        @Override
+                        public void failed(Throwable throwable) {
+                            future.completeExceptionally(getApiException(throwable.getCause()));
+                        }
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     @Override
     public OffloadProcessStatus offloadStatus(String topic)
             throws PulsarAdminException {
         try {
-            TopicName tn = validateTopic(topic);
-            return request(topicPath(tn, "offload"))
-                .get(OffloadProcessStatus.class);
-        } catch (Exception e) {
-            throw getApiException(e);
+            return offloadStatusAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
+    }
+
+    @Override
+    public CompletableFuture<OffloadProcessStatus> offloadStatusAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "offload");
+        final CompletableFuture<OffloadProcessStatus> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<OffloadProcessStatus>() {
+                    @Override
+                    public void completed(OffloadProcessStatus offloadProcessStatus) {
+                        future.complete(offloadProcessStatus);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
@@ -971,66 +1281,74 @@ public class TopicsImpl extends BaseResource implements Topics {
         return TopicName.get(topic);
     }
 
-    private List<Message<byte[]>> getMessageFromHttpResponse(String topic, Response response) throws Exception {
+    private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
         }
 
-        String msgId = response.getHeaderString("X-Pulsar-Message-ID");
+        String msgId = response.getHeaderString(MESSAGE_ID);
+        PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
         try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
             stream.read(data);
 
             Map<String, String> properties = Maps.newTreeMap();
             MultivaluedMap<String, Object> headers = response.getHeaders();
-            Object tmp = headers.getFirst("X-Pulsar-publish-time");
+            Object tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
                 properties.put("publish-time", (String) tmp);
             }
+
+            tmp = headers.getFirst("X-Pulsar-null-value");
+            if (tmp != null) {
+                messageMetadata.setNullValue(Boolean.parseBoolean(tmp.toString()));
+            }
+
             tmp = headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
                 properties.put(BATCH_HEADER, (String) tmp);
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
                 if (header.contains("X-Pulsar-PROPERTY-")) {
-                    String keyName = header.substring("X-Pulsar-PROPERTY-".length(), header.length());
+                    String keyName = header.substring("X-Pulsar-PROPERTY-".length());
                     properties.put(keyName, (String) entry.getValue().get(0));
                 }
             }
 
             return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
-                    Unpooled.wrappedBuffer(data), Schema.BYTES));
+                    Unpooled.wrappedBuffer(data), Schema.BYTES, messageMetadata));
         }
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                                             Map<String, String> properties) {
+                                 Map<String, String> properties, PulsarApi.MessageMetadata.Builder msgMetadataBuilder) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
+        ByteBuf buf = Unpooled.wrappedBuffer(data);
         for (int i = 0; i < batchSize; i++) {
             String batchMsgId = msgId + ":" + i;
             PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                     .newBuilder();
-            ByteBuf buf = Unpooled.wrappedBuffer(data);
             try {
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i,
-                        batchSize);
+                ByteBuf singleMessagePayload =
+                        Commands.deSerializeSingleMessageInBatch(buf, singleMessageMetadataBuilder, i, batchSize);
                 SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.build();
                 if (singleMessageMetadata.getPropertiesCount() > 0) {
                     for (KeyValue entry : singleMessageMetadata.getPropertiesList()) {
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload, Schema.BYTES));
+                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
+                        Schema.BYTES, msgMetadataBuilder));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
-            buf.release();
             singleMessageMetadataBuilder.recycle();
         }
+        buf.release();
         return ret;
     }
 
@@ -1048,15 +1366,20 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
+    @Override
     public CompletableFuture<MessageId> getLastMessageIdAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "lastMessageId");
         final CompletableFuture<MessageId> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<MessageIdImpl>() {
+                new InvocationCallback<BatchMessageIdImpl>() {
 
                     @Override
-                    public void completed(MessageIdImpl response) {
+                    public void completed(BatchMessageIdImpl response) {
+                        if (response.getBatchIndex() == -1) {
+                            future.complete(new MessageIdImpl(response.getLedgerId(),
+                                    response.getEntryId(), response.getPartitionIndex()));
+                        }
                         future.complete(response);
                     }
 

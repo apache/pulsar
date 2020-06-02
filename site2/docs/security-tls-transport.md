@@ -28,6 +28,8 @@ For TLS transport encryption, the clients can use the **trust cert** to verify t
 
 For TLS authentication, the server uses the **trust cert** to verify that the client has a key pair that the certificate authority signed. The common name of the **client cert** is then used as the client's role token (see [Overview](security-overview.md)).
 
+`Bouncy Castle Provider` provides cipher suites and algorithms in Pulsar. If you need [FIPS](https://www.bouncycastle.org/fips_faq.html) version of `Bouncy Castle Provider`, please reference [Bouncy Castle page](security-bouncy-castle.md).
+
 ## Create TLS certificates
 
 Creating TLS certificates for Pulsar involves creating a [certificate authority](#certificate-authority) (CA), [server certificate](#server-certificate), and [client certificate](#client-certificate).
@@ -239,4 +241,15 @@ const Pulsar = require('pulsar-client');
     tlsTrustCertsFilePath: '/path/to/ca.cert.pem',
   });
 })();
+```
+
+### C# client
+
+```c#
+var certificate = new X509Certificate2("ca.cert.pem");
+var client = PulsarClient.Builder()
+                         .TrustedCertificateAuthority(certificate) //If the CA is not trusted on the host, you can add it explicitly.
+                         .VerifyCertificateAuthority(true) //Default is 'true'
+                         .VerifyCertificateName(false)     //Default is 'false'
+                         .Build();
 ```

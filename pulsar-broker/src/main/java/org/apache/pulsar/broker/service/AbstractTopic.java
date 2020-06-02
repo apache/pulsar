@@ -80,7 +80,11 @@ public abstract class AbstractTopic implements Topic {
     // schema validation enforced flag
     protected volatile boolean schemaValidationEnforced = false;
 
+    protected volatile int maxUnackedMessagesOnConsumer = -1;
+
     protected volatile PublishRateLimiter topicPublishRateLimiter;
+
+    protected boolean preciseTopicPublishRateLimitingEnable;
 
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
@@ -95,13 +99,13 @@ public abstract class AbstractTopic implements Topic {
         Policies policies = null;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
-            }
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(() -> new Policies());
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
         }
+        this.preciseTopicPublishRateLimitingEnable =
+                brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
         updatePublishDispatcher(policies);
     }
 
@@ -121,6 +125,18 @@ public abstract class AbstractTopic implements Topic {
             return true;
         }
         return false;
+    }
+
+    public void disableCnxAutoRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
+        }
+    }
+
+    public void enableCnxAutoRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+        }
     }
 
     protected boolean hasLocalProducers() {
@@ -275,7 +291,7 @@ public abstract class AbstractTopic implements Topic {
     public void resetTopicPublishCountAndEnableReadIfRequired() {
         // broker rate not exceeded. and completed topic limiter reset.
         if (!getBrokerPublishRateLimiter().isPublishRateExceeded() && topicPublishRateLimiter.resetPublishCount()) {
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 
@@ -283,16 +299,34 @@ public abstract class AbstractTopic implements Topic {
     public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
         // topic rate not exceeded, and completed broker limiter reset.
         if (!topicPublishRateLimiter.isPublishRateExceeded() && doneBrokerReset) {
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 
     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling
      */
-    protected void enableProducerRead() {
+    protected void enableProducerReadForPublishRateLimiting() {
         if (producers != null) {
-            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+            producers.values().forEach(producer -> {
+                producer.getCnx().cancelPublishRateLimiting();
+                producer.getCnx().enableCnxAutoRead();
+            });
+        }
+    }
+
+    protected void enableProducerReadForPublishBufferLimiting() {
+        if (producers != null) {
+            producers.values().forEach(producer -> {
+                producer.getCnx().cancelPublishBufferLimiting();
+                producer.getCnx().enableCnxAutoRead();
+            });
+        }
+    }
+
+    protected void disableProducerRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
         }
     }
 
@@ -355,6 +389,18 @@ public abstract class AbstractTopic implements Topic {
             getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
+    @Override
+    public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
+        // whether topic publish rate exceed if precise rate limit is enable
+        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
+    }
+
+    @Override
+    public boolean isBrokerPublishRateExceeded() {
+        // whether broker publish rate exceed
+        return  getBrokerPublishRateLimiter().isPublishRateExceeded();
+    }
+
     public PublishRateLimiter getTopicPublishRateLimiter() {
         return topicPublishRateLimiter;
     }
@@ -375,19 +421,28 @@ public abstract class AbstractTopic implements Topic {
         if (publishRate != null
                 && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
-            // lazy init Publish-rateLimiting monitoring if not initialized yet
-            this.brokerService.setupTopicPublishRateLimiterMonitor();
+
+            // if not precise mode, lazy init Publish-rateLimiting monitoring if not initialized yet
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupTopicPublishRateLimiterMonitor();
+            }
+
             if (this.topicPublishRateLimiter == null
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                 // create new rateLimiter if rate-limiter is disabled
-                this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(policies, clusterName,
+                            () -> AbstractTopic.this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+                }
             } else {
                 this.topicPublishRateLimiter.update(policies, clusterName);
             }
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
-            enableProducerRead();
+            enableProducerReadForPublishRateLimiting();
         }
     }
 
@@ -395,6 +450,14 @@ public abstract class AbstractTopic implements Topic {
 
     public long getBytesInCounter() {
         return this.bytesInCounter.longValue();
+    }
+
+    public long getMsgOutCounter() {
+        return getStats(false).msgOutCounter;
+    }
+
+    public long getBytesOutCounter() {
+        return getStats(false).bytesOutCounter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);

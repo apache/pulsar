@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.collect.Maps;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -41,8 +39,6 @@ public class KeyValueSchemaCompatibilityCheckTest {
     private final Map<SchemaType, SchemaCompatibilityCheck> checkers = Maps.newHashMap();
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;
@@ -51,8 +47,6 @@ public class KeyValueSchemaCompatibilityCheckTest {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Bar {
         private boolean field1;
     }

@@ -75,14 +75,14 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setConfigurationStoreServers(DUMMY_VALUE);
         //enable full parsing feature
-        proxyConfig.setProxyLogLevel(2);
+        proxyConfig.setProxyLogLevel(Optional.ofNullable(2));
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                                                             PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
 
         Optional<Integer> proxyLogLevel = Optional.of(2);
-        assertEquals( proxyLogLevel , proxyService.getConfiguration().getproxyLogLevel());
+        assertEquals( proxyLogLevel , proxyService.getConfiguration().getProxyLogLevel());
         proxyService.start();
     }
 
@@ -141,7 +141,8 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPartitions() throws Exception {
-        admin.tenants().createTenant("sample", new TenantInfo());
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("sample", tenantInfo);
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);

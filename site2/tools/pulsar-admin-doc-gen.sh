@@ -22,6 +22,9 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 VERSION=`${ROOT_DIR}/src/get-project-version.py`
 DEST_DIR=$ROOT_DIR/generated-site
 
+cd $ROOT_DIR
+mvn install -DskipTests
+
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}
 mkdir -p $DEST_DIR/tools/pulsar-admin/${VERSION}/node_modules
 mkdir -p $ROOT_DIR/site2/website/brodocs/documents

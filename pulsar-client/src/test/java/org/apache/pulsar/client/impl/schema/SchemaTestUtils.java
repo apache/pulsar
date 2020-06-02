@@ -22,7 +22,6 @@ import java.util.List;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 
@@ -32,8 +31,6 @@ import org.apache.avro.reflect.Nullable;
 public class SchemaTestUtils {
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         @Nullable
         private String field1;
@@ -47,9 +44,8 @@ public class SchemaTestUtils {
         @AvroDefault("\"defaultValue\"")
         private String fieldUnableNull;
     }
+
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class FooV2 {
         @Nullable
         private String field1;
@@ -57,31 +53,24 @@ public class SchemaTestUtils {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Bar {
         private boolean field1;
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class NestedBar {
         private boolean field1;
         private Bar nested;
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class NestedBarList {
         private boolean field1;
         private List<Bar> list;
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
+    @EqualsAndHashCode(callSuper = false)
     public static class DerivedFoo extends Foo {
         private String field5;
         private int field6;
@@ -94,8 +83,7 @@ public class SchemaTestUtils {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
+    @EqualsAndHashCode(callSuper = false)
     public static class DerivedDerivedFoo extends DerivedFoo {
         private String field7;
         private int field8;

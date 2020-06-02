@@ -43,6 +43,18 @@ public class TopicStats {
     /** Total throughput of messages dispatched for the topic (byte/s). */
     public double msgThroughputOut;
 
+    /** Total bytes published to the topic (bytes). */
+    public long bytesInCounter;
+
+    /** Total messages published to the topic (msg). */
+    public long msgInCounter;
+
+    /** Total bytes delivered to consumer (bytes). */
+    public long bytesOutCounter;
+
+    /** Total messages delivered to consumer (msg). */
+    public long msgOutCounter;
+
     /** Average size of published messages (bytes). */
     public double averageMsgSize;
 
@@ -63,9 +75,6 @@ public class TopicStats {
 
     public String deduplicationStatus;
 
-    public long bytesInCounter;
-    public long msgInCounter;
-
     public TopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -83,6 +92,8 @@ public class TopicStats {
         this.backlogSize = 0;
         this.bytesInCounter = 0;
         this.msgInCounter = 0;
+        this.bytesOutCounter = 0;
+        this.msgOutCounter = 0;
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
@@ -100,6 +111,8 @@ public class TopicStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesInCounter += stats.bytesInCounter;
         this.msgInCounter += stats.msgInCounter;
+        this.bytesOutCounter += stats.bytesOutCounter;
+        this.msgOutCounter += stats.msgOutCounter;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;
@@ -121,7 +134,12 @@ public class TopicStats {
             }
         } else {
             for (String subscription : stats.subscriptions.keySet()) {
-                this.subscriptions.get(subscription).add(stats.subscriptions.get(subscription));
+                if (this.subscriptions.get(subscription) != null) {
+                    this.subscriptions.get(subscription).add(stats.subscriptions.get(subscription));
+                } else {
+                    SubscriptionStats subscriptionStats = new SubscriptionStats();
+                    this.subscriptions.put(subscription, subscriptionStats.add(stats.subscriptions.get(subscription)));
+                }
             }
         }
         if (this.replication.size() != stats.replication.size()) {
@@ -131,7 +149,12 @@ public class TopicStats {
             }
         } else {
             for (String repl : stats.replication.keySet()) {
-                this.replication.get(repl).add(stats.replication.get(repl));
+                if (this.replication.get(repl) != null) {
+                    this.replication.get(repl).add(stats.replication.get(repl));
+                } else {
+                    ReplicatorStats replStats = new ReplicatorStats();
+                    this.replication.put(repl, replStats.add(stats.replication.get(repl)));
+                }
             }
         }
         return this;

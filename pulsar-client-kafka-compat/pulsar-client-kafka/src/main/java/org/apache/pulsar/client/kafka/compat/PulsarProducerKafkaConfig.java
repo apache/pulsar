@@ -22,6 +22,7 @@ import java.util.Properties;
 
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 
 public class PulsarProducerKafkaConfig {
 
@@ -33,6 +34,11 @@ public class PulsarProducerKafkaConfig {
     public static final String MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = "pulsar.producer.max.pending.messages.across.partitions";
     public static final String BATCHING_ENABLED = "pulsar.producer.batching.enabled";
     public static final String BATCHING_MAX_MESSAGES = "pulsar.producer.batching.max.messages";
+    /**
+     * send operations will immediately fail with {@link ProducerQueueIsFullError} when there is no space left in
+     * pending queue.
+     **/
+    public static final String BLOCK_IF_PRODUCER_QUEUE_FULL = "pulsar.block.if.producer.queue.full";
 
     public static ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client, Properties properties) {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer();

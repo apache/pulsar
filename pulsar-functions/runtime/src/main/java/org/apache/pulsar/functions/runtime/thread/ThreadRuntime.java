@@ -57,6 +57,7 @@ public class ThreadRuntime implements Runtime {
     private String stateStorageServiceUrl;
     private SecretsProvider secretsProvider;
     private CollectorRegistry collectorRegistry;
+    private String narExtractionDirectory;
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
@@ -64,7 +65,8 @@ public class ThreadRuntime implements Runtime {
                   PulsarClient pulsarClient,
                   String stateStorageServiceUrl,
                   SecretsProvider secretsProvider,
-                  CollectorRegistry collectorRegistry) {
+                  CollectorRegistry collectorRegistry,
+                  String narExtractionDirectory) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
@@ -77,6 +79,7 @@ public class ThreadRuntime implements Runtime {
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
         this.collectorRegistry = collectorRegistry;
+        this.narExtractionDirectory = narExtractionDirectory;
         this.javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig,
                 fnCache,
@@ -84,7 +87,8 @@ public class ThreadRuntime implements Runtime {
                 pulsarClient,
                 stateStorageServiceUrl,
                 secretsProvider,
-                collectorRegistry);
+                collectorRegistry,
+                narExtractionDirectory);
     }
 
     /**
@@ -100,7 +104,8 @@ public class ThreadRuntime implements Runtime {
                 pulsarClient,
                 stateStorageServiceUrl,
                 secretsProvider,
-                collectorRegistry);
+                collectorRegistry,
+                narExtractionDirectory);
 
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
@@ -170,7 +175,7 @@ public class ThreadRuntime implements Runtime {
 
     @Override
     public String getPrometheusMetrics() throws IOException {
-        return javaInstanceRunnable.getStats().getStatsAsString();
+        return javaInstanceRunnable.getStatsAsString();
     }
 
     @Override

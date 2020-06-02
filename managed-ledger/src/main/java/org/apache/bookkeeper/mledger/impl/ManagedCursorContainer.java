@@ -62,7 +62,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     private final ArrayList<Item> heap = Lists.newArrayList();
 
     // Maps a cursor to its position in the heap
-    private final ConcurrentMap<String, Item> cursors = new ConcurrentSkipListMap<String, Item>();
+    private final ConcurrentMap<String, Item> cursors = new ConcurrentSkipListMap<>();
 
     private final StampedLock rwLock = new StampedLock();
 

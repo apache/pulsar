@@ -37,6 +37,7 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -66,7 +67,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .zk(zkClient)
                     .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
@@ -106,6 +106,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
+        if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
+            bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());
+        } else {
+            String metadataServiceUri = PulsarService.bookieMetadataServiceUri(conf);
+            bkConf.setMetadataServiceUri(metadataServiceUri);
+        }
+
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
             bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);
@@ -115,6 +122,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
+        bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
+        bkConf.setGetBookieInfoIntervalSeconds(conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setGetBookieInfoRetryIntervalSeconds(conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
 
         return bkConf;
     }

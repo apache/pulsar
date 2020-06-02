@@ -38,10 +38,24 @@
       <artifactId>pulsar-client-api</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.parent.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -83,7 +97,7 @@
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
@@ -116,6 +130,12 @@
     </dependency>
 
     <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
       <version>${protobuf3.version}</version>
@@ -131,8 +151,8 @@
       <groupId>net.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
     </dependency>
-    
-    <!-- httpclient-hostname-verification depends on below dependencies  --> 
+
+    <!-- httpclient-hostname-verification depends on below dependencies  -->
     <dependency>
       <groupId>commons-logging</groupId>
       <artifactId>commons-logging</artifactId>
@@ -149,6 +169,13 @@
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-functions-proto</artifactId>
       <version>${project.parent.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.skyscreamer</groupId>
+      <artifactId>jsonassert</artifactId>
+      <version>${skyscreamer.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

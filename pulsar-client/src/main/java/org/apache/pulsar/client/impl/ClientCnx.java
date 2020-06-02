@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
 
 import lombok.Getter;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
@@ -261,8 +262,8 @@ public class ClientCnx extends PulsarHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
-            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
-                    isKnownException(cause) ? null : cause);
+            log.warn("[{}] Got exception {}", remoteAddress,
+                    ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
@@ -336,7 +337,10 @@ public class ClientCnx extends PulsarHandler {
                     connectionFuture.completeExceptionally(writeFuture.cause());
                 }
             });
-            state = State.Connecting;
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
         } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
@@ -380,7 +384,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), headersAndPayload, this);
+            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), cmdMessage.getAckSetList(), headersAndPayload, this);
         }
     }
 
@@ -810,7 +814,7 @@ public class ClientCnx extends PulsarHandler {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send GetSchema request to broker: {}", ctx.channel(),
                         writeFuture.cause().getMessage());
-                pendingGetLastMessageIdRequests.remove(requestId);
+                pendingGetSchemaRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });

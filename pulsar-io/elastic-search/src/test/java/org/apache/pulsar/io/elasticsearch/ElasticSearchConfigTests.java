@@ -20,9 +20,11 @@ package org.apache.pulsar.io.elasticsearch;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -37,8 +39,9 @@ public class ElasticSearchConfigTests {
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
+        assertEquals(config.getTypeName(), "doc");
         assertEquals(config.getUsername(), "scooby");
-        assertEquals(config.getPassword(), "doobie");               
+        assertEquals(config.getPassword(), "doobie");
     }
     
     @Test
@@ -46,6 +49,7 @@ public class ElasticSearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("indexName", "myIndex");
+        map.put("typeName", "doc");
         map.put("username", "racerX");
         map.put("password", "go-speedie-go");
         
@@ -53,8 +57,22 @@ public class ElasticSearchConfigTests {
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
+        assertEquals(config.getTypeName(), "doc");
         assertEquals(config.getUsername(), "racerX");
         assertEquals(config.getPassword(), "go-speedie-go");  
+    }
+
+    @Test
+    public final void defaultValueTest() throws IOException {
+        ElasticSearchConfig config = ElasticSearchConfig.load(Collections.emptyMap());
+
+        assertNull(config.getElasticSearchUrl());
+        assertNull(config.getIndexName());
+        assertEquals(config.getTypeName(), "_doc");
+        assertNull(config.getUsername());
+        assertNull(config.getPassword());
+        assertEquals(config.getIndexNumberOfReplicas(), 1);
+        assertEquals(config.getIndexNumberOfShards(), 1);
     }
     
     @Test

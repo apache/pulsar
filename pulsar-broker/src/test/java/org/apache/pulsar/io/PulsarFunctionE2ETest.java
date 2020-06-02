@@ -60,7 +60,6 @@ import java.util.regex.Pattern;
 
 import lombok.ToString;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -91,6 +90,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -192,8 +192,7 @@ public class PulsarFunctionE2ETest {
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         Map<String, String> authParams = new HashMap<>();
@@ -441,7 +440,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -457,7 +456,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
         String receivedPropertyValue = msg.getProperty(propertyKey);
@@ -477,7 +476,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
@@ -500,6 +499,74 @@ public class PulsarFunctionE2ETest {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar",
                 fileServer.getAddress().getPort());
         testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 30000)
+    private void testPulsarSinkDLQ() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/input";
+        final String dlqTopic = sourceTopic+"-DLQ";
+        final String sinkName = "PulsarSink-test";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        // 1 create producer、DLQ consumer
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(dlqTopic).subscriptionName(subscriptionName).subscribe();
+
+        // 2 setup sink
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        sinkConfig.setNegativeAckRedeliveryDelayMs(1001L);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        sinkConfig.setMaxMessageRetries(2);
+        sinkConfig.setDeadLetterTopic(dlqTopic);
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setClassName(SinkForTest.class.getName());
+        LocalRunner localRunner = LocalRunner.builder()
+                .sinkConfig(sinkConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+
+        localRunner.start(false);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+
+                return topicStats.subscriptions.containsKey(subscriptionName)
+                        && topicStats.subscriptions.get(subscriptionName).consumers.size() == 1
+                        && topicStats.subscriptions.get(subscriptionName).consumers.get(0).availablePermits == 1000;
+
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        // 3 send message
+        int totalMsgs = 10;
+        for (int i = 0; i < totalMsgs; i++) {
+            producer.newMessage().property(propertyKey, propertyValue).value("fail" + i).sendAsync();
+        }
+
+        //4 All messages should enter DLQ
+        for (int i = 0; i < totalMsgs; i++) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(message);
+            assertEquals(message.getValue(), "fail" + i);
+        }
+
+        //clean up
+        producer.close();
+        consumer.close();
     }
 
     private void testPulsarSinkStats(String jarFilePathUrl) throws Exception {
@@ -708,7 +775,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
@@ -905,7 +972,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -1197,7 +1264,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
@@ -1241,7 +1308,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -1284,7 +1351,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
@@ -1348,7 +1415,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         SubscriptionStats subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
         assertEquals(subStats.consumers.size(), 1);
@@ -1363,7 +1430,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
         assertEquals(subStats.consumers.size(), 0);
@@ -1378,7 +1445,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         subStats = admin.topics().getStats(sourceTopic).subscriptions.get(subscriptionName);
         assertEquals(subStats.consumers.size(), 1);
@@ -1417,11 +1484,12 @@ public class PulsarFunctionE2ETest {
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
-                return admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription();
+                FunctionConfig configure = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return configure != null && configure.getCleanupSubscription() != null;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         retryStrategically((test) -> {
@@ -1430,7 +1498,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
@@ -1444,7 +1512,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         assertTrue(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         int totalMsgs = 10;
@@ -1487,7 +1555,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 0);
@@ -1503,18 +1571,18 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar source consumer has started on the topic
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);
 
         retryStrategically((test) -> {
             try {
                 FunctionConfig result = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return result.getParallelism() == 2 && result.getCleanupSubscription() == false;
+                return result.getCleanupSubscription() == false;
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         // test update another config and making sure that subscription cleanup remains unchanged
@@ -1528,7 +1596,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         assertFalse(admin.functions().getFunction(tenant, namespacePortion, functionName).getCleanupSubscription());
 
         // delete functions
@@ -1540,7 +1608,7 @@ public class PulsarFunctionE2ETest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // make sure subscriptions are cleanup
         assertEquals(admin.topics().getStats(sourceTopic).subscriptions.size(), 1);

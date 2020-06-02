@@ -717,6 +717,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         msg = subscriber1.receive(5, TimeUnit.SECONDS);
 
         // Verify: as active-subscriber2 has not consumed messages: EntryCache must have those entries in cache
+        retryStrategically((test) -> entryCache.getSize() > 0, 10, 100);
         assertTrue(entryCache.getSize() != 0);
 
         // 3.b Close subscriber2: which will trigger cache to clear the cache

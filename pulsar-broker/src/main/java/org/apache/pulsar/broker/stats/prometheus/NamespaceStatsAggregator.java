@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
@@ -61,7 +62,7 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    getTopicStats(topic, topicStats, includeConsumerMetrics);
+                    getTopicStats(topic, topicStats, includeConsumerMetrics, pulsar.getConfiguration().isExposePreciseBacklogInPrometheus());
 
                     if (includeTopicMetrics) {
                         topicsCount.add(1);
@@ -82,7 +83,7 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics) {
+    private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics, boolean getPreciseBacklog) {
         stats.reset();
 
         if (topic instanceof PersistentTopic) {
@@ -104,8 +105,11 @@ public class NamespaceStatsAggregator {
             stats.storageReadRate = mlStats.getReadEntriesRate();
         }
 
-        stats.msgInCounter = topic.getStats().msgInCounter;
-        stats.bytesInCounter = topic.getStats().bytesInCounter;
+        org.apache.pulsar.common.policies.data.TopicStats tStatus = topic.getStats(getPreciseBacklog);
+        stats.msgInCounter = tStatus.msgInCounter;
+        stats.bytesInCounter = tStatus.bytesInCounter;
+        stats.msgOutCounter = tStatus.msgOutCounter;
+        stats.bytesOutCounter = tStatus.bytesOutCounter;
 
         stats.producersCount = 0;
         topic.getProducers().values().forEach(producer -> {
@@ -123,42 +127,53 @@ public class NamespaceStatsAggregator {
             }
         });
 
-        topic.getSubscriptions().forEach((name, subscription) -> {
+        tStatus.subscriptions.forEach((subName, subscriptionStats) -> {
             stats.subscriptionsCount++;
-            stats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+            stats.msgBacklog += subscriptionStats.msgBacklog;
 
             AggregatedSubscriptionStats subsStats = stats.subscriptionStats
-                    .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
-            subsStats.msgBacklog = subscription.getNumberOfEntriesInBacklog();
-            subsStats.msgDelayed = subscription.getNumberOfEntriesDelayed();
-
-            subscription.getConsumers().forEach(consumer -> {
-
-                // Consumer stats can be a lot if a subscription has many consumers
-                if (includeConsumerMetrics) {
-                    AggregatedConsumerStats consumerStats = subsStats.consumerStat
-                            .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
-                    consumerStats.unackedMessages = consumer.getStats().unackedMessages;
-                    consumerStats.msgRateRedeliver = consumer.getStats().msgRateRedeliver;
-                    consumerStats.msgRateOut = consumer.getStats().msgRateOut;
-                    consumerStats.msgThroughputOut = consumer.getStats().msgThroughputOut;
-                    consumerStats.availablePermits = consumer.getStats().availablePermits;
-                    consumerStats.blockedSubscriptionOnUnackedMsgs = consumer.getStats().blockedConsumerOnUnackedMsgs;
-                }
-
-                subsStats.unackedMessages += consumer.getStats().unackedMessages;
-                subsStats.msgRateRedeliver += consumer.getStats().msgRateRedeliver;
-                subsStats.msgRateOut += consumer.getStats().msgRateOut;
-                subsStats.msgThroughputOut += consumer.getStats().msgThroughputOut;
-                if (!subsStats.blockedSubscriptionOnUnackedMsgs && consumer.getStats().blockedConsumerOnUnackedMsgs) {
+                    .computeIfAbsent(subName, k -> new AggregatedSubscriptionStats());
+            subsStats.msgBacklog = subscriptionStats.msgBacklog;
+            subsStats.msgDelayed = subscriptionStats.msgDelayed;
+            subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
+            subscriptionStats.consumers.forEach(cStats -> {
+                stats.consumersCount++;
+                subsStats.unackedMessages += cStats.unackedMessages;
+                subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
+                subsStats.msgRateOut += cStats.msgRateOut;
+                subsStats.msgThroughputOut += cStats.msgThroughputOut;
+                subsStats.bytesOutCounter += cStats.bytesOutCounter;
+                subsStats.msgOutCounter += cStats.msgOutCounter;
+                if (!subsStats.blockedSubscriptionOnUnackedMsgs && cStats.blockedConsumerOnUnackedMsgs) {
                     subsStats.blockedSubscriptionOnUnackedMsgs = true;
                 }
-
-                stats.consumersCount++;
-                stats.rateOut += consumer.getStats().msgRateOut;
-                stats.throughputOut += consumer.getStats().msgThroughputOut;
             });
+            stats.rateOut += subsStats.msgRateOut;
+            stats.throughputOut += subsStats.msgThroughputOut;
         });
+
+        // Consumer stats can be a lot if a subscription has many consumers
+        if (includeConsumerMetrics) {
+            topic.getSubscriptions().forEach((name, subscription) -> {
+                AggregatedSubscriptionStats subsStats = stats.subscriptionStats
+                        .computeIfAbsent(name, k -> new AggregatedSubscriptionStats());
+                subscription.getConsumers().forEach(consumer -> {
+                    ConsumerStats conStats = consumer.getStats();
+
+                    AggregatedConsumerStats consumerStats = subsStats.consumerStat
+                            .computeIfAbsent(consumer, k -> new AggregatedConsumerStats());
+
+                    consumerStats.unackedMessages = conStats.unackedMessages;
+                    consumerStats.msgRateRedeliver = conStats.msgRateRedeliver;
+                    consumerStats.msgRateOut = conStats.msgRateOut;
+                    consumerStats.msgThroughputOut = conStats.msgThroughputOut;
+                    consumerStats.bytesOutCounter = conStats.bytesOutCounter;
+                    consumerStats.msgOutCounter = conStats.msgOutCounter;
+                    consumerStats.availablePermits = conStats.availablePermits;
+                    consumerStats.blockedSubscriptionOnUnackedMsgs = conStats.blockedConsumerOnUnackedMsgs;
+                });
+            });
+        }
 
         topic.getReplicators().forEach((cluster, replicator) -> {
             AggregatedReplicationStats aggReplStats = stats.replicationStats.computeIfAbsent(cluster,
@@ -204,6 +219,11 @@ public class NamespaceStatsAggregator {
         metric(stream, cluster, namespace, "pulsar_rate_out", stats.rateOut);
         metric(stream, cluster, namespace, "pulsar_throughput_in", stats.throughputIn);
         metric(stream, cluster, namespace, "pulsar_throughput_out", stats.throughputOut);
+
+        metric(stream, cluster, namespace, "pulsar_in_bytes_total", stats.bytesInCounter);
+        metric(stream, cluster, namespace, "pulsar_in_messages_total", stats.msgInCounter);
+        metric(stream, cluster, namespace, "pulsar_out_bytes_total", stats.bytesOutCounter);
+        metric(stream, cluster, namespace, "pulsar_out_messages_total", stats.msgOutCounter);
 
         metric(stream, cluster, namespace, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, "pulsar_storage_backlog_size", stats.backlogSize);

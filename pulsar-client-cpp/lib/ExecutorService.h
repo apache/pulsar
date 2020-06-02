@@ -51,12 +51,12 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
     /*
      *  only called once and within lock so no need to worry about thread-safety
      */
-    void startWorker();
+    void startWorker(std::shared_ptr<boost::asio::io_service> io_service);
 
     /*
      * io_service is our interface to os, io object schedule async ops on this object
      */
-    boost::asio::io_service io_service_;
+    std::shared_ptr<boost::asio::io_service> io_service_;
 
     /*
      * work will not let io_service.run() return even after it has finished work
@@ -70,7 +70,7 @@ class PULSAR_PUBLIC ExecutorService : private boost::noncopyable {
      * background invoking async handlers as they are finished and result is available from
      * io_service
      */
-    boost::asio::detail::thread worker_;
+    std::thread worker_;
 };
 
 typedef std::shared_ptr<ExecutorService> ExecutorServicePtr;

@@ -68,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -696,7 +697,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -713,7 +714,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
                 topicStats.aggMsgRateOut += subMsgRateOut;
                 topicStats.aggMsgThroughputOut += subMsgThroughputOut;
-                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
@@ -732,6 +733,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
         topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("msgInCount", getMsgInCounter());
+        topicStatsStream.writePair("bytesInCount", getBytesInCounter());
+        topicStatsStream.writePair("msgOutCount", getMsgOutCounter());
+        topicStatsStream.writePair("bytesOutCount", getBytesOutCounter());
 
         nsStats.msgRateIn += topicStats.aggMsgRateIn;
         nsStats.msgRateOut += topicStats.aggMsgRateOut;
@@ -750,7 +755,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.endObject();
     }
 
-    public NonPersistentTopicStats getStats() {
+    public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
 
@@ -777,6 +782,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
+            stats.bytesOutCounter += subStats.bytesOutCounter;
+            stats.msgOutCounter += subStats.msgOutCounter;
             stats.getSubscriptions().put(name, subStats);
         });
 
@@ -822,11 +829,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkGC(int gcIntervalInSeconds) {
+    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {
-            if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
+            if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
 
                 if (TopicName.get(topic).isGlobal()) {
                     // For global namespace, close repl producers first.
@@ -834,7 +841,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     // provided no remote producers connected to the broker.
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                                gcIntervalInSeconds);
+                            maxInactiveDurationInSec);
                     }
 
                     stopReplProducers().thenCompose(v -> delete(true, false, true))
@@ -860,6 +867,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public void checkInactiveSubscriptions() {
+        // no-op
+    }
+
+    @Override
+    public void checkBackloggedCursors() {
         // no-op
     }
 
@@ -914,7 +926,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public Position getLastMessageId() {
+    public Position getLastPosition() {
+        throw new UnsupportedOperationException("getLastPosition is not supported on non-persistent topic");
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageId() {
         throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
     }
 

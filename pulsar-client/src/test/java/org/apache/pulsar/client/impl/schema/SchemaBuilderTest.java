@@ -22,8 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.*;
@@ -60,8 +58,6 @@ public class SchemaBuilderTest {
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class People {
         private People1 people1;
         private People2 people2;

@@ -63,12 +63,6 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
-    <dependency>
-      <groupId>${project.parent.groupId}</groupId>
-      <artifactId>buildtools</artifactId>
-      <version>${project.parent.version}</version>
-      <scope>test</scope>
-    </dependency>
   </dependencies>
 
   <build>

@@ -27,6 +27,7 @@ flexible messaging model and an intuitive client API.
 Learn more about Pulsar at https://pulsar.apache.org
 
 ## Main features
+
 * Horizontally scalable (Millions of independent topics and millions
   of messages published per second)
 * Strong ordering and consistency guarantees
@@ -46,10 +47,42 @@ Learn more about Pulsar at https://pulsar.apache.org
 * Transparent handling of partitioned topics
 * Transparent batching of messages
 
+## Repositories
+
+This repository is the main repository of Apache Pulsar. Pulsar PMC also maintains other repositories for
+components in the Pulsar ecosystem, including connectors, adapters, and other language clients.
+
+- [Pulsar Core](https://github.com/apache/pulsar)
+
+### Ecosystem
+
+- [Pulsar Adapters](https://github.com/apache/pulsar-adapters)
+- [Pulsar Connectors](https://github.com/apache/pulsar-connectors)
+- [Pulsar SQL (Pulsar Presto Connector)](https://github.com/apache/pulsar-presto)
+
+### Clients
+
+- [.NET/C# Client](https://github.com/apache/pulsar-dotpulsar)
+- [Go Client](https://github.com/apache/pulsar-client-go)
+- [NodeJS Client](https://github.com/apache/pulsar-client-node)
+- [Ruby Client](https://github.com/apache/pulsar-client-ruby)
+
+### Dashboard & Management Tools
+
+- [Pulsar Manager](https://github.com/apache/pulsar-manager)
+
+### Documentation
+
+- [Pulsar Translation](https://github.com/apache/pulsar-translation)
+
+### CI/CD
+
+- [Pulsar CI](https://github.com/apache/pulsar-test-infra)
+
 ## Build Pulsar
 
 Requirements:
- * Java JDK 1.8
+ * Java JDK 1.8 or Java JDK 11
  * Maven 3.3.9+
 
 Compile and install:
@@ -78,7 +111,7 @@ $ bin/pulsar standalone
 ```
 
 Check https://pulsar.apache.org for documentation and examples.
-
+ 
 ## Setting up your IDE
 
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with

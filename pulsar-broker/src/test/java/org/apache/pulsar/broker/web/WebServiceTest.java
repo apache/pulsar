@@ -20,7 +20,9 @@ package org.apache.pulsar.broker.web;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 
@@ -33,6 +35,7 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -45,8 +48,16 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
+import lombok.Cleanup;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPut;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -54,9 +65,12 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -194,6 +208,48 @@ public class WebServiceTest {
         Assert.assertEquals(result, "topic1");
     }
 
+    @Test
+    public void testMaxRequestSize() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false);
+
+        String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
+
+        @Cleanup
+        CloseableHttpClient client = HttpClients.createDefault();
+        HttpPut httpPut = new HttpPut(url);
+        httpPut.setHeader("Content-Type", "application/json");
+        httpPut.setHeader("Accept", "application/json");
+
+        // HTTP server is configured to reject everything > 10K
+        TenantInfo info1 = new TenantInfo();
+        info1.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)));
+        httpPut.setEntity(new ByteArrayEntity(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info1)));
+
+        CloseableHttpResponse response = client.execute(httpPut);
+        // This should have failed
+        assertEquals(response.getStatusLine().getStatusCode(), 400);
+
+        // Create local cluster
+        String localCluster = "test";
+        String clusterPath = PulsarWebResource.path("clusters", localCluster);
+        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new ClusterData());
+        pulsar.getGlobalZkCache().getZooKeeper().create(clusterPath, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        TenantInfo info2 = new TenantInfo();
+        info2.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)));
+        info2.setAllowedClusters(Sets.newHashSet(localCluster));
+        httpPut.setEntity(new ByteArrayEntity(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2)));
+
+        response = client.execute(httpPut);
+        assertEquals(response.getStatusLine().getStatusCode(), 204);
+
+        // Simple GET without content size should go through
+        HttpGet httpGet = new HttpGet(url);
+        httpGet.setHeader("Content-Type", "application/json");
+        httpGet.setHeader("Accept", "application/json");
+        response = client.execute(httpGet);
+        assertEquals(response.getStatusLine().getStatusCode(), 200);
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {
@@ -256,8 +312,8 @@ public class WebServiceTest {
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setZookeeperServers("localhost:2181");
+        config.setHttpMaxRequestSize(10 * 1024);
         pulsar = spy(new PulsarService(config));
-        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();

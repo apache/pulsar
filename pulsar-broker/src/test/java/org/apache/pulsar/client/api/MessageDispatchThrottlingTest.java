@@ -18,14 +18,17 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
-
 import static org.testng.Assert.assertNotNull;
+
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -101,6 +105,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessageRateDynamicallyChange() throws Exception {
 
@@ -116,7 +121,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         // (1) verify message-rate is -1 initially
         Assert.assertFalse(topic.getDispatchRateLimiter().isPresent());
 
-        // (1) change to 100
+        // (2) change to 100
         int messageRate = 100;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
@@ -134,8 +139,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
         Assert.assertTrue(isDispatchRateUpdate);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+        Policies policies = admin.namespaces().getPolicies(namespace);
+        Map<String, DispatchRate> dispatchRateMap = Maps.newHashMap();
+        dispatchRateMap.put("test", dispatchRate);
+        Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
+        Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
 
-        // (1) change to 500
+        // (3) change to 500
         messageRate = 500;
         dispatchRate = new DispatchRate(-1, messageRate, 360);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
@@ -152,6 +162,10 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         }
         Assert.assertTrue(isDispatchRateUpdate);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
+        policies = admin.namespaces().getPolicies(namespace);
+        dispatchRateMap.put("test", dispatchRate);
+        Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
+        Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
 
         producer.close();
     }
@@ -896,6 +910,67 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testDispatchRateCompatibility1() throws Exception {
+        final String cluster = "test";
+
+        Optional<Policies> policies = Optional.of(new Policies());
+        DispatchRate clusterDispatchRate = new DispatchRate(100, 512, 1);
+        DispatchRate topicDispatchRate = new DispatchRate(200, 1024, 1);
+
+        // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
+        DispatchRate dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
+                DispatchRateLimiter.Type.TOPIC);
+        Assert.assertNull(dispatchRate);
+
+        // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
+        policies.get().clusterDispatchRate.put(cluster, clusterDispatchRate);
+        dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
+        Assert.assertEquals(dispatchRate, clusterDispatchRate);
+
+        // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
+        policies.get().topicDispatchRate.put(cluster, topicDispatchRate);
+        dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
+        Assert.assertEquals(dispatchRate, topicDispatchRate);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testDispatchRateCompatibility2() throws Exception {
+        final String namespace = "my-property/dispatch-rate-compatibility";
+        final String topicName = "persistent://" + namespace + "/t1";
+        final String cluster = "test";
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC);
+
+        Policies policies = new Policies();
+        DispatchRate clusterDispatchRate = new DispatchRate(100, 512, 1);
+        DispatchRate topicDispatchRate = new DispatchRate(200, 1024, 1);
+
+        // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
+        dispatchRateLimiter.onPoliciesUpdate(policies);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
+
+        // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
+        policies.clusterDispatchRate.put(cluster, clusterDispatchRate);
+        dispatchRateLimiter.onPoliciesUpdate(policies);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), 100);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), 512);
+
+        // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
+        policies.topicDispatchRate.put(cluster, topicDispatchRate);
+        dispatchRateLimiter.onPoliciesUpdate(policies);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), 200);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), 1024);
+
+        producer.close();
+        topic.close().get();
+    }
+
     protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
         Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
         statsUpdaterField.setAccessible(true);
@@ -909,7 +984,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * It verifies that relative throttling at least dispatch messages as publish-rate.
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -966,13 +1041,28 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         int totalReceived = 0;
         // Relative throttling will let it drain immediately because it allows to dispatch = (publish-rate +
         // dispatch-rate)
+        // All messages should be received in the next 1.1 seconds. 100 millis should be enough for the actual delivery,
+        // while the previous call to receive above may have thrown the dispatcher into a read backoff, as nothing
+        // may have been produced before the call to readNext() and the permits for dispatch had already been used.
+        // The backoff is 1 second, so we expect to be able to receive all messages in at most 1.1 seconds, while the
+        // basic dispatch rate limit would only allow one message in that time.
+        long maxTimeNanos = TimeUnit.MILLISECONDS.toNanos(1100);
+        long startNanos = System.nanoTime();
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive((int)maxTimeNanos, TimeUnit.NANOSECONDS);
             totalReceived++;
             assertNotNull(msg);
+            long elapsedNanos = System.nanoTime() - startNanos;
+            if (elapsedNanos > maxTimeNanos) { // fail fast
+                log.info("Test has only received {} messages in {}ms, {} expected",
+                         totalReceived, TimeUnit.NANOSECONDS.toMillis(elapsedNanos), numProducedMessages);
+                Assert.fail("Messages not received in time");
+            }
+            log.info("Received {}-{}", msg.getMessageId(), new String(msg.getData()));
         }
-
         Assert.assertEquals(totalReceived, numProducedMessages);
+        long elapsedNanos = System.nanoTime() - startNanos;
+        Assert.assertTrue(elapsedNanos < maxTimeNanos);
 
         consumer.close();
         producer.close();

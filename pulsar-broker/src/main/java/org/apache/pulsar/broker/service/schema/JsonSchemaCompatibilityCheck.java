@@ -49,7 +49,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
                 super.checkCompatible(from, to, strategy);
             } else if (isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
-                // allow old schema format for backwards compatiblity
+                // allow old schema format for backwards compatibility
             } else {
                 // unknown schema format
                 throw new IncompatibleSchemaException("Unknown schema format");

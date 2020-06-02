@@ -251,12 +251,12 @@ class Download extends React.Component {
                             <tr key={info.version}>
                         <th>{info.version}</th>
                         <td>
-                        <a href={info.binArchiveUrl}>apache-pulsar-{info.version}-bin-tar.gz</a> &nbsp;
+                        <a href={info.binArchiveUrl}>apache-pulsar-{info.version}-bin.tar.gz</a> &nbsp;
                           (<a href={`${info.binArchiveUrl}.asc`}>asc</a>,&nbsp;
                           <a href={`${info.binArchiveUrl}.${sha}`}>{`${sha}`}</a>)
                           </td>
                           <td>
-                          <a href={info.srcArchiveUrl}>apache-pulsar-{info.version}-src-tar.gz</a>
+                          <a href={info.srcArchiveUrl}>apache-pulsar-{info.version}-src.tar.gz</a>
                               &nbsp;
                           (<a href={`${info.srcArchiveUrl}.asc`}>asc</a>,&nbsp;
                           <a href={`${info.srcArchiveUrl}.${sha}`}>{`${sha}`}</a>)

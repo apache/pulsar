@@ -34,7 +34,6 @@ import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -100,8 +99,7 @@ public class PulsarWorkerAssignmentTest {
 
         functionsWorkerService = createPulsarFunctionWorker(config);
         final Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddress()).build());
@@ -193,7 +191,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate 2 instances have been started
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.size(), 1);
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 2);
@@ -210,7 +208,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
         assertEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().consumers.size(), 1);
@@ -250,7 +248,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         Map<String, Assignment> assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
@@ -279,7 +277,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         assignments = runtimeManager.getCurrentAssignments().values().iterator().next();
@@ -298,7 +296,7 @@ public class PulsarWorkerAssignmentTest {
             } catch (Exception e) {
                 return false;
             }
-        }, 5, 150);
+        }, 50, 150);
 
         // Validate registered assignments
         assignments = runtimeManager2.getCurrentAssignments().values().iterator().next();

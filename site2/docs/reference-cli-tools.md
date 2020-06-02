@@ -13,6 +13,7 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 * [`pulsar-daemon`](#pulsar-daemon)
 * [`pulsar-perf`](#pulsar-perf)
 * [`bookkeeper`](#bookkeeper)
+* [`broker-tool`](#broker-tool)
 
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
@@ -290,7 +291,7 @@ Options
 |---|---|---|
 |`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class, for example "key1:val1,key2:val2" or "{\"key1\":\"val1\",\"key2\":\"val2\"}"|{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}|
 |`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
-|`--url`|Broker URL to which to connect|pulsar://localhost:6650/|
+|`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
 
 
 ### `produce`
@@ -324,8 +325,10 @@ Options
 |`--hex`|Display binary messages in hexadecimal format.|false|
 |`-n`, `--num-messages`|Number of messages to consume, 0 means to consume forever.|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible|0.0|
+|`--regex`|Indicate the topic name is a regex pattern|false|
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
+|`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
 
 
 
@@ -425,7 +428,8 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
 |`-s`, `--subscriber-name`|Subscriber name prefix|sub|
-|`-st`, `--subscription-type`|Subscriber name prefix. Possible values are Exclusive, Shared, Failover.|Exclusive|
+|`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
+|`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 
 
@@ -624,7 +628,7 @@ The table below lists the environment variables that you can use to configure th
 |BOOKIE_LOG_CONF|Log4j configuration file|conf/log4j2.yaml|
 |BOOKIE_CONF|BookKeeper configuration file|conf/bk_server.conf|
 |BOOKIE_EXTRA_OPTS|Extra options to be passed to the JVM||
-|BOOKIE_EXTRA_CLASSPATH|Extra paths for BookKeeper's classpath||  
+|BOOKIE_EXTRA_CLASSPATH|Extra paths for BookKeeper's classpath||
 |ENTRY_FORMATTER_CLASS|The Java class used to format entries||
 |BOOKIE_PID_DIR|Folder where the BookKeeper server PID file should be stored||
 |BOOKIE_STOP_TIMEOUT|Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful||
@@ -695,4 +699,35 @@ Example
 ```bash
 $ bookkeeper shell bookiesanity
 ```
+
+## `broker-tool`
+
+The `broker- tool` is used for operations on a specific broker.
+
+Usage
+```bash
+$ broker-tool command
+```
+Commands
+* `load-report`
+* `help`
+
+Example
+Two ways to get more information about a command as below:
+
+```bash
+$ broker-tool help command
+$ broker-tool command --help
+```
+
+### `load-report`
+
+Collect the load report of a specific broker. 
+The command is run on a broker, and used for troubleshooting why broker can’t collect right load report.
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-i`, `--interval`| Interval to collect load report, in milliseconds ||
+|`-h`, `--help`| Display help information ||
 

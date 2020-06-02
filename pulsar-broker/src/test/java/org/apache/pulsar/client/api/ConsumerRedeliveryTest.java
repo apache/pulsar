@@ -58,8 +58,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * It verifies that redelivered messages are sorted based on the ledger-ids.
      * <pre>
      * 1. client publishes 100 messages across 50 ledgers
-     * 2. broker deliveres 100 messages to consumer
-     * 3. consumer ack every alternative message and doesn't ack 50 messsages
+     * 2. broker delivers 100 messages to consumer
+     * 3. consumer ack every alternative message and doesn't ack 50 messages
      * 4. broker sorts replay messages based on ledger and redelivers messages ledger by ledger
      * </pre>
      * @throws Exception

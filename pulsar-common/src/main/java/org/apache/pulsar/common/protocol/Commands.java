@@ -25,17 +25,21 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyFromUtf8;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
+
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -99,6 +103,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -112,6 +117,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
@@ -144,6 +152,12 @@ public class Commands {
             String originalPrincipal, String clientAuthData, String clientAuthMethod) {
         return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker,
                 originalPrincipal, clientAuthData, clientAuthMethod);
+    }
+
+    public static FeatureFlags getFeatureFlags() {
+        FeatureFlags.Builder flags = FeatureFlags.newBuilder();
+        flags.setSupportsAuthRefresh(true);
+        return flags.build();
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -181,6 +195,8 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -216,6 +232,7 @@ public class Commands {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         connectBuilder.setProtocolVersion(protocolVersion);
+        connectBuilder.setFeatureFlags(getFeatureFlags());
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
         connect.recycle();
@@ -258,9 +275,11 @@ public class Commands {
 
         challengeBuilder.setProtocolVersion(versionToAdvertise);
 
+        byte[] authData = brokerData != null ? brokerData.getBytes() : new byte[0];
+
         CommandAuthChallenge challenge = challengeBuilder
             .setChallenge(PulsarApi.AuthData.newBuilder()
-                .setAuthData(copyFrom(brokerData.getBytes()))
+                .setAuthData(copyFrom(authData))
                 .setAuthMethodName(authMethod)
                 .build())
             .build();
@@ -421,12 +440,15 @@ public class Commands {
     }
 
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
-        ByteBuf metadataAndPayload) {
+        ByteBuf metadataAndPayload, long[] ackSet) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
         if (redeliveryCount > 0) {
             msgBuilder.setRedeliveryCount(redeliveryCount);
+        }
+        if (ackSet != null) {
+            msgBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
         }
         CommandMessage msg = msgBuilder.build();
         BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
@@ -843,7 +865,8 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiMessageAck(long consumerId, List<Pair<Long, Long>> entries) {
+    public static ByteBuf newMultiMessageAck(long consumerId,
+             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
@@ -851,14 +874,19 @@ public class Commands {
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
-            long entryId = entries.get(i).getRight();
-
+            long entryId = entries.get(i).getMiddle();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
             MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
             messageIdDataBuilder.setLedgerId(ledgerId);
             messageIdDataBuilder.setEntryId(entryId);
+            if (bitSet != null) {
+                messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(bitSet.toLongArray()));
+            }
             MessageIdData messageIdData = messageIdDataBuilder.build();
             ackBuilder.addMessageId(messageIdData);
-
+            if (bitSet != null) {
+                bitSet.recycle();
+            }
             messageIdDataBuilder.recycle();
         }
 
@@ -874,12 +902,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
-        return newAck(consumerId, ledgerId, entryId, ackType, validationError, properties, 0, 0);
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, 0, 0);
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -888,6 +916,9 @@ public class Commands {
         MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
         messageIdDataBuilder.setLedgerId(ledgerId);
         messageIdDataBuilder.setEntryId(entryId);
+        if (ackSet != null) {
+            messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
+        }
         MessageIdData messageIdData = messageIdDataBuilder.build();
         ackBuilder.addMessageId(messageIdData);
         if (validationError != null) {
@@ -907,6 +938,9 @@ public class Commands {
 
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
         ack.recycle();
+        if (ackSet != null) {
+            ackSet.recycle();
+        }
         ackBuilder.recycle();
         messageIdDataBuilder.recycle();
         messageIdData.recycle();
@@ -1092,9 +1126,7 @@ public class Commands {
         CommandGetSchema.Builder schema = CommandGetSchema.newBuilder()
             .setRequestId(requestId);
         schema.setTopic(topic);
-        if (version.isPresent()) {
-            schema.setSchemaVersion(ByteString.copyFrom(version.get().bytes()));
-        }
+        version.ifPresent(schemaVersion -> schema.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes())));
 
         CommandGetSchema getSchema = schema.build();
 
@@ -1628,6 +1660,10 @@ public class Commands {
             singleMessageMetadataBuilder.setSequenceId(msgBuilder.getSequenceId());
         }
 
+        if (msgBuilder.hasNullValue()) {
+            singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {
@@ -1686,7 +1722,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
+        return ByteBufPair.get(headers, metadataAndPayload);
     }
 
     public static int getNumberOfMessagesInBatch(ByteBuf metadataAndPayload, String subscription,

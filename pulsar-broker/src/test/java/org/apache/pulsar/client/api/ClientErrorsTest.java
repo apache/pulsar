@@ -208,7 +208,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             if (counter.incrementAndGet() == 2) {
                 // fail second producer
-                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthenticationError, "msg"));
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
             ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
@@ -436,7 +436,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
             if (counter.incrementAndGet() == 2) {
                 // fail second producer
-                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.AuthenticationError, "msg"));
+                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
             ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
@@ -507,7 +507,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
             System.err.println("subscribeCounter: " + subscribeCounter.get());
             if (subscribeCounter.incrementAndGet() == 3) {
-                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.AuthenticationError, "msg"));
+                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
             ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
@@ -520,8 +520,8 @@ public class ClientErrorsTest {
 
         try {
             client.newConsumer().topic("persistent://prop/use/ns/multi-part-t1").subscriptionName("sub1").subscribe();
-            fail("Should have failed with an authentication error");
-        } catch (PulsarClientException.AuthenticationException e) {
+            fail("Should have failed with an authorization error");
+        } catch (PulsarClientException.AuthorizationException e) {
         }
 
         // should call close for 3 partitions
@@ -572,7 +572,7 @@ public class ClientErrorsTest {
             channelCtx.set(ctx);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
-                // close the cnx immediately when trying to conenct the 2nd time
+                // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
             }
         });
@@ -612,7 +612,7 @@ public class ClientErrorsTest {
             channelCtx.set(ctx);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
             if (numOfConnections.incrementAndGet() == 2) {
-                // close the cnx immediately when trying to conenct the 2nd time
+                // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
             }
             if (numOfConnections.get() == 3) {

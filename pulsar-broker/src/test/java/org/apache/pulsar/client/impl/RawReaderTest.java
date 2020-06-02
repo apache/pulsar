@@ -35,6 +35,7 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -74,10 +75,16 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     private Set<String> publishMessages(String topic, int count) throws Exception {
+        return publishMessages(topic, count, false);
+    }
+
+    private Set<String> publishMessages(String topic, int count, boolean batching) throws Exception {
         Set<String> keys = new HashSet<>();
 
         try (Producer<byte[]> producer = pulsarClient.newProducer()
-            .enableBatching(false)
+            .enableBatching(batching)
+            // easier to create enough batches with a small batch size
+            .batchingMaxMessages(10)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .maxPendingMessages(count)
             .topic(topic)
@@ -234,6 +241,34 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testFlowControlBatch() throws Exception {
+        int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+
+        publishMessages(topic, numMessages, true);
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        Set<String> keys = new HashSet<>();
+
+        while (true) {
+            try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
+                Assert.assertTrue(RawBatchConverter.isReadableBatch(m));
+                List<ImmutableTriple<MessageId, String, Integer>> batchKeys = RawBatchConverter.extractIdsAndKeysAndSize(m);
+                // Assert each key is unique
+                for (ImmutableTriple<MessageId, String, Integer> pair : batchKeys) {
+                    String key = pair.middle;
+                    Assert.assertTrue(
+                            keys.add(key),
+                            "Received duplicated key '" + key + "' : already received keys = " + keys);
+                }
+            } catch (TimeoutException te) {
+                break;
+            }
+        }
+        Assert.assertEquals(keys.size(), numMessages);
+    }
+
+    @Test
     public void testBatchingExtractKeysAndIds() throws Exception {
         String topic = "persistent://my-property/my-ns/my-raw-topic";
 
@@ -251,7 +286,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try (RawMessage m = reader.readNextAsync().get()) {
-            List<ImmutablePair<MessageId,String>> idsAndKeys = RawBatchConverter.extractIdsAndKeys(m);
+            List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m);
 
             Assert.assertEquals(idsAndKeys.size(), 3);
 
@@ -260,9 +295,9 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(idsAndKeys.get(1).getLeft().compareTo(idsAndKeys.get(2).getLeft()) < 0);
 
             // assert keys are as expected
-            Assert.assertEquals(idsAndKeys.get(0).getRight(), "key1");
-            Assert.assertEquals(idsAndKeys.get(1).getRight(), "key2");
-            Assert.assertEquals(idsAndKeys.get(2).getRight(), "key3");
+            Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key1");
+            Assert.assertEquals(idsAndKeys.get(1).getMiddle(), "key2");
+            Assert.assertEquals(idsAndKeys.get(2).getMiddle(), "key3");
         } finally {
             reader.closeAsync().get();
         }
@@ -285,13 +320,13 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
-        try {
-            RawMessage m1 = reader.readNextAsync().get();
+        try (RawMessage m1 = reader.readNextAsync().get()) {
             RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
-            List<ImmutablePair<MessageId,String>> idsAndKeys = RawBatchConverter.extractIdsAndKeys(m2);
+            List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m2);
             Assert.assertEquals(idsAndKeys.size(), 1);
-            Assert.assertEquals(idsAndKeys.get(0).getRight(), "key2");
+            Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");
             m2.close();
+            Assert.assertEquals(m1.getHeadersAndPayload().refCnt(), 1);
         } finally {
             reader.closeAsync().get();
         }

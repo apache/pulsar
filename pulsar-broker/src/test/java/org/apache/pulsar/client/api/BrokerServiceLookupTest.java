@@ -39,6 +39,7 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
@@ -161,7 +162,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         doReturn(true).when(loadManager2).isCentralized();
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
 
-        // mock: return Broker2 as a Least-loaded broker when leader receies request [3]
+        // mock: return Broker2 as a Least-loaded broker when leader receives request [3]
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
@@ -206,7 +207,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     /**
      * Usecase: Redirection due to different cluster 1. Broker1 runs on cluster: "use" and Broker2 runs on cluster:
-     * "use2" 2. Broker1 receives "use2" cluster request => Broker1 reads "/clusters" from global-zookkeeper and
+     * "use2" 2. Broker1 receives "use2" cluster request => Broker1 reads "/clusters" from global-zookeeper and
      * redirects request to Broker2 which serves "use2" 3. Broker2 receives redirect request and own namespace bundle
      *
      * @throws Exception
@@ -252,7 +253,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
 
-        // mock: return Broker2 as a Least-loaded broker when leader receies request
+        // mock: return Broker2 as a Least-loaded broker when leader receives request
         doReturn(true).when(loadManager2).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
@@ -291,7 +292,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     }
 
     /**
-     * Create #PartitionedTopic and let it served by multiple brokers which requries a. tcp partitioned-metadata-lookup
+     * Create #PartitionedTopic and let it served by multiple brokers which requires a. tcp partitioned-metadata-lookup
      * b. multiple topic-lookup c. partitioned producer-consumer
      *
      * @throws Exception
@@ -324,7 +325,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         Field loadManagerField = NamespaceService.class.getDeclaredField("loadManager");
         loadManagerField.setAccessible(true);
 
-        // mock: return Broker2 as a Least-loaded broker when leader receies request
+        // mock: return Broker2 as a Least-loaded broker when leader receives request
         doReturn(true).when(loadManager1).isCentralized();
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
@@ -418,7 +419,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
-        // mock: return Broker2 as a Least-loaded broker when leader receies
+        // mock: return Broker2 as a Least-loaded broker when leader receives
         // request [3]
         doReturn(true).when(loadManager1).isCentralized();
         doReturn(true).when(loadManager2).isCentralized();
@@ -844,7 +845,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // mock: redirect request to leader [2]
         doReturn(true).when(loadManager2).isCentralized();
         loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
-        // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
+        // mock: return Broker1 as a Least-loaded broker when leader receives request [3]
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
         doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
@@ -871,7 +872,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
         // (5) Split the bundle for topic-1
-        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true);
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true, null);
 
         // (6) Broker-2 should get the watch and update bundle cache
         final int retry = 5;
@@ -934,7 +935,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             @Cleanup
             PulsarService pulsar2 = startBroker(conf2);
 
-            // configure broker-1 with ModularLoadlManager
+            // configure broker-1 with ModularLoadManager
             stopBroker();
             conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
             startBroker();
@@ -951,7 +952,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             // mock: redirect request to leader [2]
             doReturn(true).when(loadManager2).isCentralized();
             loadManagerField.set(pulsar2.getNamespaceService(), new AtomicReference<>(loadManager2));
-            // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
+            // mock: return Broker1 as a Least-loaded broker when leader receives request [3]
             doReturn(true).when(loadManager1).isCentralized();
             SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getSafeWebServiceAddress(), null);
             Optional<ResourceUnit> res = Optional.of(resourceUnit);
@@ -1155,9 +1156,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         confBuilder.setUserAgent(version);
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
-            public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
+            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
+                                     HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
-                return (response.status().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
+                return (response.status().code() / 100 != 5)
+                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
         AsyncHttpClientConfig config = confBuilder.build();

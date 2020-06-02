@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -137,8 +138,6 @@ public interface ManagedLedger {
      *
      * @param name
      *            the name associated with the ManagedCursor
-     * @param initializeOnLatest
-     *            the flag tell the method wthether it should intialize the cursor at latest position or not.
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -157,7 +156,7 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    public ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -175,7 +174,7 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    public ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
@@ -248,7 +247,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpenCursor(String name, InitialPosition initialPosition, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(String name, InitialPosition initialPosition, OpenCursorCallback callback, Object ctx);
 
     /**
      * Open a ManagedCursor asynchronously.
@@ -264,7 +263,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
+    void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties, OpenCursorCallback callback, Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger
@@ -326,12 +325,6 @@ public interface ManagedLedger {
      * Return the size of all ledgers offloaded to 2nd tier storage
      */
     long getOffloadedSize();
-
-    /**
-     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
-     * backlog.
-     */
-    void checkBackloggedCursors();
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
@@ -449,4 +442,34 @@ public interface ManagedLedger {
      * Signaling managed ledger that we can resume after BK write failure
      */
     void readyToCreateNewLedger();
+
+    /**
+     * Returns managed-ledger's properties.
+     *
+     * @return key-values of properties
+     */
+    Map<String, String> getProperties();
+
+    /**
+     * Update managed-ledger's properties.
+     *
+     * @param properties key-values of properties
+     */
+    void setProperties(Map<String, String> properties) throws InterruptedException;
+
+    /**
+     * Async update managed-ledger's properties.
+     *
+     * @param properties key-values of properties.
+     * @param callback   a callback which will be supplied with the newest properties in managedLedger.
+     * @param ctx        a context object which will be passed to the callback on completion.
+     */
+    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.SetPropertiesCallback callback,
+        Object ctx);
+  
+    /**
+     * Trim consumed ledgers in background
+     * @param promise
+     */
+    void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 }

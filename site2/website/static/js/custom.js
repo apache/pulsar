@@ -64,7 +64,8 @@ window.addEventListener('load', function() {
     }
   });
 
-  const href = document.querySelector('a[href="/en/versions"]');
+  // retrieve current selected version from header
+  const href = document.getElementsByClassName("logo")[0].parentElement.nextSibling;
   let version = href.textContent;
 
   if (version === 'next') {
@@ -100,6 +101,31 @@ window.addEventListener('load', function() {
     }
   });
 
+  // setup cli menu items in nav bar
+  const cli = document.querySelector("a[href='#cli']").parentNode;
+  const cliMenu =
+      '<li>' +
+      '<a id="cli-menu" href="#">Cli <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+      '<div id="cli-dropdown" class="hide">' +
+      '<ul id="cli-dropdown-items">' +
+      '<li><a href="/pulsar-admin-cli?version=' + version + '">Pulsar Admin</a></li>' +
+      '</ul>' +
+      '</div>' +
+      '</li>';
+
+  cli.innerHTML = cliMenu;
+
+  const cliMenuItem = document.getElementById("cli-menu");
+  const cliDropDown = document.getElementById("cli-dropdown");
+  cliMenuItem.addEventListener("click", function(event) {
+    event.preventDefault();
+
+    if (cliDropDown.className == 'hide') {
+      cliDropDown.className = 'visible';
+    } else {
+      cliDropDown.className = 'hide';
+    }
+  });
 
   function button(label, ariaLabel, icon, className) {
     const btn = document.createElement('button');

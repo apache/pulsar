@@ -19,15 +19,23 @@
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.List;
+import lombok.Cleanup;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,6 +54,7 @@ import javax.naming.AuthenticationException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
@@ -201,6 +210,41 @@ public class AuthenticationProviderTokenTest {
 
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "file://" + secretKeyFile.toString());
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(subject, SUBJECT);
+        provider.close();
+    }
+
+    @Test
+    public void testAuthSecretKeyFromValidFile() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-valid", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
+
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
@@ -511,6 +555,33 @@ public class AuthenticationProviderTokenTest {
     }
 
     @Test(expectedExceptions = IOException.class)
+    public void testInitializeWhenSecretKeyIsValidPathOrBase64() throws IOException {
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                "secret_key_file_not_exist");
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testInitializeWhenSecretKeyFilePathIfNotExist() throws IOException {
+        File secretKeyFile = File.createTempFile("secret_key_file_not_exist", ".key");
+        assertTrue(secretKeyFile.delete());
+        assertFalse(secretKeyFile.exists());
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+
+        new AuthenticationProviderToken().initialize(conf);
+    }
+
+    @Test(expectedExceptions = IOException.class)
     public void testInitializeWhenPublicKeyFilePathIsInvalid() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
@@ -532,5 +603,171 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
 
         new AuthenticationProviderToken().initialize(conf);
+    }
+
+
+    @Test
+    public void testExpiringToken() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Create a token that will expire in 3 seconds
+        String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+
+        AuthenticationState authState = provider.newAuthState(AuthData.of(expiringToken.getBytes()), null, null);
+        assertTrue(authState.isComplete());
+        assertFalse(authState.isExpired());
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(6));
+        assertTrue(authState.isExpired());
+        assertTrue(authState.isComplete());
+
+        AuthData brokerData = authState.refreshAuthentication();
+        assertNull(brokerData);
+    }
+
+    // tests for Token Audience
+    @Test
+    public void testRightTokenAudienceClaim() throws Exception {
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, "aud");
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+
+        testTokenAudienceWithDifferentConfig(properties, brokerAudience);
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testWrongTokenAudience() throws Exception {
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, "aud");
+        // set wrong audience in token, should throw exception.
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience + "-wrong");
+        testTokenAudienceWithDifferentConfig(properties, brokerAudience);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testNoBrokerTokenAudience() throws Exception {
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        Properties properties = new Properties();
+        // Not set broker audience, should throw exception.
+        //properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, "aud");
+        testTokenAudienceWithDifferentConfig(properties, brokerAudience);
+    }
+
+    @Test
+    public void testSelfDefineTokenAudienceClaim() throws Exception {
+        String audienceClaim = "audience_claim_" + System.currentTimeMillis();
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
+        testTokenAudienceWithDifferentConfig(properties, audienceClaim, Lists.newArrayList(brokerAudience));
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testWrongSelfDefineTokenAudienceClaim() throws Exception {
+        String audienceClaim = "audience_claim_" + System.currentTimeMillis();
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        Properties properties = new Properties();
+        // Set wrong broker audience, should throw exception.
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
+        testTokenAudienceWithDifferentConfig(properties,
+                audienceClaim + "_wrong",
+                Lists.newArrayList(brokerAudience));
+    }
+
+    @Test
+    public void testMultiTokenAudience() throws Exception {
+        String audienceClaim = "audience_claim_" + System.currentTimeMillis();
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        List<String> audiences = Lists.newArrayList("AnotherBrokerAudience", brokerAudience);
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
+        testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
+    }
+
+    @Test(expectedExceptions = AuthenticationException.class)
+    public void testMultiTokenAudienceNotInclude() throws Exception {
+        String audienceClaim = "audience_claim_" + System.currentTimeMillis();
+        String brokerAudience = "testBroker_" + System.currentTimeMillis();
+
+        List<String> audiences = Lists.newArrayList("AnotherBrokerAudience", brokerAudience + "_wrong");
+
+        Properties properties = new Properties();
+        // Broker audience not included in token's audiences, should throw exception.
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE, brokerAudience);
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM, audienceClaim);
+        testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
+    }
+
+    private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {
+        JwtBuilder builder = Jwts.builder()
+                .setSubject(SUBJECT)
+                .signWith(signingKey);
+
+        builder.claim(audienceClaim, audience);
+        return builder.compact();
+    }
+
+    private static void testTokenAudienceWithDifferentConfig(Properties properties,
+                                                             String brokerAudience) throws Exception {
+        testTokenAudienceWithDifferentConfig(properties,
+                "aud",
+                Lists.newArrayList(brokerAudience));
+    }
+
+    private static void testTokenAudienceWithDifferentConfig(Properties properties,
+                                                             String audienceClaim, List<String> audiences) throws Exception {
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        File secretKeyFile = File.createTempFile("pulsar-test-secret-key-valid", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), secretKey.getEncoded());
+
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, secretKeyFile.toString());
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = createTokenWithAudience(secretKey, audienceClaim, audiences);
+
+        // Pulsar protocol auth
+        String subject = provider.authenticate(new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromCommand() {
+                return true;
+            }
+
+            @Override
+            public String getCommandData() {
+                return token;
+            }
+        });
+        assertEquals(subject, SUBJECT);
+        provider.close();
     }
 }
