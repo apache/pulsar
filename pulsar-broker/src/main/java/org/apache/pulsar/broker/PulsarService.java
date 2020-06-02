@@ -86,7 +86,9 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
@@ -153,6 +155,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
+    private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
@@ -491,6 +494,13 @@ public class PulsarService implements AutoCloseable {
 
             // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
             this.nsService.initialize();
+
+            // Start topic level policies service
+            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
+                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
+            }
+
+            this.topicPoliciesService.start();
 
             // Start the leader election service
             startLeaderElectionService();
@@ -1122,6 +1132,10 @@ public class PulsarService implements AutoCloseable {
             LOG.error("Failed to get bookkeeper metadata service uri", e);
         }
         return metadataServiceUri;
+    }
+
+    public TopicPoliciesService getTopicPoliciesService() {
+        return topicPoliciesService;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,

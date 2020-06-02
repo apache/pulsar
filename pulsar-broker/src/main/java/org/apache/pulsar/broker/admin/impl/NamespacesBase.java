@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -200,10 +201,13 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         boolean isEmpty;
+        List<String> topics;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join().isEmpty()
-                    && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
-                    && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
+            topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
+            isEmpty = topics.isEmpty();
+
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -213,8 +217,17 @@ public abstract class NamespacesBase extends AdminResource {
             if (log.isDebugEnabled()) {
                 log.debug("Found topics on namespace {}", namespaceName);
             }
-            asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
-            return;
+            boolean hasNonSystemTopic = false;
+            for (String topic : topics) {
+                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                    hasNonSystemTopic = true;
+                    break;
+                }
+            }
+            if (hasNonSystemTopic) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
+                return;
+            }
         }
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
@@ -232,6 +245,14 @@ public abstract class NamespacesBase extends AdminResource {
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
+            // remove system topics first.
+            if (!topics.isEmpty()) {
+                for (String topic : topics) {
+                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
+                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
+                    });
+                }
+            }
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
@@ -1992,13 +2013,13 @@ public abstract class NamespacesBase extends AdminResource {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
                 }
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic) {
+                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic) {
+                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }
