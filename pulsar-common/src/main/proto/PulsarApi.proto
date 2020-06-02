@@ -54,6 +54,7 @@ message MessageIdData {
     required uint64 entryId  = 2;
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
+    repeated int64 ack_set = 5;
 }
 
 message KeyValue {
@@ -458,6 +459,7 @@ message CommandMessage {
     required uint64 consumer_id       = 1;
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
+    repeated int64 ack_set = 4;
 }
 
 message CommandAck {

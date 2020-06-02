@@ -16,23 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.common.events;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
+/**
+ * Pulsar base event.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class PulsarEvent {
 
-@Slf4j
-public class NoOpShutdownService implements ShutdownService {
-
-    @Override
-    public void run() {
-        shutdown(0);
-    }
-
-    @Override
-    public void shutdown(int exitCode) {
-        log.warn("Invoked shutdown with exitCode={}", exitCode);
-    }
-
+    private EventType eventType;
+    private ActionType actionType;
+    private TopicPoliciesEvent topicPoliciesEvent;
 }

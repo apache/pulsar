@@ -165,6 +165,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -213,6 +214,10 @@ class ConsumerImpl : public ConsumerImplBase,
     }
 
     friend class PulsarFriend;
+
+    // these two declared friend to access setNegativeAcknowledgeEnabledForTesting
+    friend class MultiTopicsConsumerImpl;
+    friend class PartitionedConsumerImpl;
 };
 
 } /* namespace pulsar */

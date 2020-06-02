@@ -67,7 +67,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         if (entries.size() > 0) {
             final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
             for (Entry entry : entries) {
-                int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer())) % selector.getRangeSize();
+                int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
                 groupedEntries.putIfAbsent(key, new ArrayList<>());
                 groupedEntries.get(key).add(entry);
             }
@@ -75,12 +75,12 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
             while (iterator.hasNext()) {
                 final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
                 //TODO: None key policy
-                Consumer consumer = selector.selectByIndex(entriesWithSameKey.getKey());
+                Consumer consumer = selector.select(entriesWithSameKey.getKey());
                 if (consumer != null) {
                     SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                     EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesWithSameKey.getValue().size());
-                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo);
-                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo.getTotalMessages(),
+                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo, null, null);
+                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, null, sendMessageInfo.getTotalMessages(),
                             sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
                     TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
                 } else {

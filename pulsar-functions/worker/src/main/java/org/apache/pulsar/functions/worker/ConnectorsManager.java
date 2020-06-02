@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
@@ -40,6 +41,14 @@ public class ConnectorsManager {
 
     public Path getSourceArchive(String sourceType) {
         return connectors.getSources().get(sourceType);
+    }
+
+    public List<ConfigFieldDefinition> getSourceConfigDefinition(String sourceType) {
+        return connectors.getSourceConfigDefinitions().get(sourceType);
+    }
+
+    public List<ConfigFieldDefinition> getSinkConfigDefinition(String sinkType) {
+        return connectors.getSinkConfigDefinitions().get(sinkType);
     }
 
     public Path getSinkArchive(String sinkType) {

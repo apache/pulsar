@@ -189,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.4.8</aerospike-client.version>
     <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
-    <aws-sdk.version>1.11.297</aws-sdk.version>
+    <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
     <jclouds.version>2.2.0</jclouds.version>
@@ -216,6 +216,8 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
+    <httpcomponents.version>4.5.5</httpcomponents.version>
+    <asynchttpclient.version>2.12.1</asynchttpclient.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -245,7 +247,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.7.0</version>
+        <version>${asynchttpclient.version}</version>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -257,7 +259,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.5</version>
+        <version>${httpcomponents.version}</version>
       </dependency>
 
       <dependency>

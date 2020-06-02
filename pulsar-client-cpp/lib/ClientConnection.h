@@ -181,6 +181,7 @@ class PULSAR_PUBLIC ClientConnection : public std::enable_shared_from_this<Clien
     void handleHandshake(const boost::system::error_code& err);
 
     void handleSentPulsarConnect(const boost::system::error_code& err, const SharedBuffer& buffer);
+    void handleSentAuthResponse(const boost::system::error_code& err, const SharedBuffer& buffer);
 
     void readNextCommand();
 

@@ -326,7 +326,7 @@ The Apache Software License, Version 2.0
  * Guava
     - com.google.guava-guava-25.1-jre.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
- * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.0.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.4.jar
  * Swagger
     - io.swagger-swagger-annotations-1.5.21.jar
     - io.swagger-swagger-core-1.5.21.jar
@@ -362,6 +362,7 @@ The Apache Software License, Version 2.0
     - io.netty-netty-transport-native-epoll-4.1.48.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.48.Final.jar
     - io.netty-netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.30.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
@@ -409,8 +410,8 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.10.0.jar
  * LZ4 -- org.lz4-lz4-java-1.5.0.jar
  * AsyncHttpClient
-    - org.asynchttpclient-async-http-client-2.7.0.jar
-    - org.asynchttpclient-async-http-client-netty-utils-2.7.0.jar
+    - org.asynchttpclient-async-http-client-2.12.1.jar
+    - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
     - org.eclipse.jetty-jetty-client-9.4.20.v20190813.jar
     - org.eclipse.jetty-jetty-continuation-9.4.20.v20190813.jar
@@ -566,7 +567,7 @@ Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
     - org.aspectj-aspectjweaver-1.9.2.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
- * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.2.jar
+ * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.3.jar
 
 Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt
