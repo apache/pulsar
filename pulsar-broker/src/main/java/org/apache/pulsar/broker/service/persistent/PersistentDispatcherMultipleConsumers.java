@@ -420,6 +420,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
+    public CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
+        return disconnectAllConsumers(isResetCursor);
+    }
+
+    @Override
     public synchronized void resetCloseFuture() {
         closeFuture = null;
     }
