@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.testng.annotations.Test;
 
 public class ManagedCursorContainerTest {
@@ -326,6 +327,10 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
+            return new long[0];
+        }
+
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
                 Object ctx) {
         }

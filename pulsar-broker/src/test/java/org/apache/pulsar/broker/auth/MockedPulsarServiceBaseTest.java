@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -138,18 +139,21 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsarClient = newPulsarClient(lookupUrl, 1);
     }
 
-    protected final void init() throws Exception {
+    protected void doInitConf() throws Exception {
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+    }
 
+    protected final void init() throws Exception {
+        doInitConf();
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
-                .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
-                .build());
+                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                    .build());
 
         mockZooKeeper = createMockZooKeeper();
         mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
@@ -246,9 +250,6 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
 
-        Compactor spiedCompactor = spy(pulsar.getCompactor());
-        doReturn(spiedCompactor).when(pulsar).getCompactor();
-
         return pulsar;
     }
 
@@ -261,6 +262,10 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
+
+        doAnswer((invocation) -> {
+                return spy(invocation.callRealMethod());
+            }).when(pulsar).newCompactor();
     }
 
     public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
