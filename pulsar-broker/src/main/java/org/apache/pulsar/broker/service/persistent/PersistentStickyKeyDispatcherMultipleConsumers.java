@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -73,7 +74,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
         final Map<Integer, List<Entry>> groupedEntries = new HashMap<>();
         for (Entry entry : entries) {
-            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer())) % selector.getRangeSize();
+            int key = Murmur3_32Hash.getInstance().makeHash(peekStickyKey(entry.getDataBuffer()));
             groupedEntries.putIfAbsent(key, new ArrayList<>());
             groupedEntries.get(key).add(entry);
         }
@@ -82,7 +83,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         while (iterator.hasNext() && totalAvailablePermits > 0 && isAtleastOneConsumerAvailable()) {
             final Map.Entry<Integer, List<Entry>> entriesWithSameKey = iterator.next();
             //TODO: None key policy
-            Consumer consumer = selector.selectByIndex(entriesWithSameKey.getKey());
+            Consumer consumer = selector.select(entriesWithSameKey.getKey());
             if (consumer == null) {
                 // Do nothing, cursor will be rewind at reconnection
                 log.info("[{}] rewind because no available consumer found for key {} from total {}", name,
@@ -111,17 +112,22 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(subList.size());
-                filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
+                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+                filterEntriesForConsumer(subList, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
-                consumer.sendMessages(subList, batchSizes, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), getRedeliveryTracker()).addListener(future -> {
+                consumer.sendMessages(subList, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                        getRedeliveryTracker()).addListener(future -> {
                             if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
                                 readMoreEntries();
                             }
-                });
-                entriesWithSameKey.getValue().removeAll(subList);
+                        });
 
-                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendMessageInfo.getTotalMessages());
+                for (int i = 0; i < messagesForC; i++) {
+                    entriesWithSameKey.getValue().remove(0);
+                }
+
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
 

@@ -28,9 +28,10 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/apache/pulsar-client-go/pulsar"
+
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
-	io_prometheus_client "github.com/prometheus/client_model/go"
+	prometheus_client "github.com/prometheus/client_model/go"
 )
 
 type goInstance struct {
@@ -162,11 +163,9 @@ CLOSE:
 				return err
 			}
 
+			gi.stats.processTimeEnd()
 			gi.processResult(msgInput, output)
-
-			gi.stats.processTimeEnd() // Should this be called here or before processResult(..)?
 			gi.stats.incrTotalProcessedSuccessfully()
-
 		case <-idleTimer.C:
 			close(channel)
 			break CLOSE
@@ -470,15 +469,6 @@ func (gi *goInstance) getMetrics() *pb.MetricsData {
 	metricsData.ProcessedSuccessfullyTotal_1Min = int64(totalProcessedSuccessfully1min)
 	metricsData.SystemExceptionsTotal_1Min = int64(totalSysExceptions1min)
 	metricsData.UserExceptionsTotal_1Min = int64(totalUserExceptions1min)
-	//metrics_data.AvgProcessLatency_1Min = avg_process_latency_ms_1min
-
-	// get any user metrics
-	// Not sure yet where these are stored.
-	/*
-	   user_metrics := self.contextimpl.get_metrics()
-	   for metric_name, value in user_metrics.items():
-	     metrics_data.userMetrics[metric_name] = value
-	*/
 
 	return &metricsData
 }
@@ -496,30 +486,28 @@ func (gi *goInstance) resetMetrics() *empty.Empty {
 
 // This method is used to get the required metrics for Prometheus.
 // Note that this doesn't distinguish between parallel function instances!
-func (gi *goInstance) getMatchingMetricFunc() func(lbl *io_prometheus_client.LabelPair) bool {
-	matchMetricFunc := func(lbl *io_prometheus_client.LabelPair) bool {
+func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelPair) bool {
+	matchMetricFunc := func(lbl *prometheus_client.LabelPair) bool {
 		return *lbl.Name == "fqfn" && *lbl.Value == gi.context.GetTenantAndNamespaceAndName()
 	}
 	return matchMetricFunc
 }
 
-// e.g. metricName = "pulsar_function_process_latency_ms"
-func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) io_prometheus_client.Metric {
+func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
 	metricFamilies, err := reg.Gather()
 	if err != nil {
-		log.Error("Something went wrong when calling reg.Gather() in getMatchingMetricFromRegistry(..) for " + metricName)
+		log.Errorf("Something went wrong when calling reg.Gather(), the metricName is: %s", metricName)
 	}
-	matchFamilyFunc := func(vect *io_prometheus_client.MetricFamily) bool {
+	matchFamilyFunc := func(vect *prometheus_client.MetricFamily) bool {
 		return *vect.Name == metricName
 	}
-	fiteredMetricFamilies := filter(metricFamilies, matchFamilyFunc)
-	if len(fiteredMetricFamilies) > 1 {
+	filteredMetricFamilies := filter(metricFamilies, matchFamilyFunc)
+	if len(filteredMetricFamilies) > 1 {
 		// handle this.
-		log.Error("Too many metric families for metricName = " + metricName)
-		// Should we panic here instead of report an error since it reflects a code problem, not a user problem?
+		log.Errorf("Too many metric families for metricName: %s " + metricName)
 	}
 	metricFunc := gi.getMatchingMetricFunc()
-	matchingMetric := getFirstMatch(fiteredMetricFamilies[0].Metric, metricFunc)
+	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
 	return *matchingMetric
 }
 
@@ -529,12 +517,14 @@ func (gi *goInstance) getTotalReceived() float32 {
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
+
 func (gi *goInstance) getTotalProcessedSuccessfully() float32 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSuccessfullyProcessed)
 	// "pulsar_function_" + "processed_successfully_total", NewGaugeVec.
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
+
 func (gi *goInstance) getTotalSysExceptions() float32 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalSystemExceptions)
 	// "pulsar_function_"+ "system_exceptions_total", NewGaugeVec.
@@ -587,19 +577,6 @@ func (gi *goInstance) getTotalUserExceptions1min() float32 {
 	val := metric.GetGauge().Value
 	return float32(*val)
 }
-
-/*
-func (gi *goInstance) get_avg_process_latency_1min() float32 {
-	metric := gi.getMatchingMetricFromRegistry(PULSAR_FUNCTION_METRICS_PREFIX + PROCESS_LATENCY_MS_1min)
-	// "pulsar_function_" + "process_latency_ms_1min", SummaryVec
-	count := metric.GetSummary().SampleCount
-	sum := metric.GetSummary().SampleSum
-	if *count <= 0.0 {
-		return 0.0
-	} else {
-		return float32(*sum) / float32(*count)
-	}
-}*/
 
 func (gi *goInstance) getTotalReceived1min() float32 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + TotalReceived1min)

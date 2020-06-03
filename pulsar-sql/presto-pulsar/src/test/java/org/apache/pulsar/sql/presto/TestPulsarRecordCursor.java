@@ -33,17 +33,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-@Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarRecordCursor.class);
 
-    @Test
+    @Test(singleThreaded = true)
     public void testTopics() throws Exception {
 
         for (Map.Entry<TopicName, PulsarRecordCursor> entry : pulsarRecordCursors.entrySet()) {
@@ -51,6 +54,15 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             log.info("!------ topic %s ------!", entry.getKey());
             setup();
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
+
+            SchemaHandler schemaHandler = pulsarRecordCursor.getSchemaHandler();
+            PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
+            if (schemaHandler instanceof AvroSchemaHandler) {
+                AvroSchemaHandler avroSchemaHandler = (AvroSchemaHandler) schemaHandler;
+                avroSchemaHandler.getSchema().setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
+                when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(avroSchemaHandler.getSchemaInfo()));
+            }
+
             TopicName topicName = entry.getKey();
 
             int count = 0;

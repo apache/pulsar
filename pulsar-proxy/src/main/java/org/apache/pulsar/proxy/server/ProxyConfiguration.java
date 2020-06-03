@@ -133,6 +133,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Hostname or IP address the service advertises to the outside world."
+            + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."
+    )
+    private String advertisedAddress;
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"
     )
     private Optional<Integer> servicePort = Optional.ofNullable(6650);
@@ -468,7 +474,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     doc = "Asymmetric public/private key pair.\n\n"
                         + "Configure the public key to be used to validate auth tokens"
                         + " The key can be specified like:\n\n"
-                        + "tokenPublicKey=data:base64,xxxxxxxxx\n"
+                        + "tokenPublicKey=data:;base64,xxxxxxxxx\n"
                         + "tokenPublicKey=file:///my/public.key")
             ),
             @PropertyContext(
@@ -478,7 +484,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     doc = "Symmetric key.\n\n"
                         + "Configure the secret key to be used to validate auth tokens"
                         + "The key can be specified like:\n\n"
-                        + "tokenSecretKey=data:base64,xxxxxxxxx\n"
+                        + "tokenSecretKey=data:;base64,xxxxxxxxx\n"
                         + "tokenSecretKey=file:///my/secret.key")
             )
         }

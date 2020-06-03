@@ -41,6 +41,9 @@ public class ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
+    /** Total chunked messages dispatched. */
+    public double chuckedMessageRate;
+
     /** Name of the consumer. */
     public String consumerName;
 
@@ -49,6 +52,9 @@ public class ConsumerStats {
 
     /** Number of unacknowledged messages for the consumer. */
     public int unackedMessages;
+
+    /** Number of average messages per entry for the consumer consumed. */
+    public int avgMessagesPerEntry;
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
