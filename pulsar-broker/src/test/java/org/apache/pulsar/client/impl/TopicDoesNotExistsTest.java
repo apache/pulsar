@@ -68,11 +68,20 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         pulsarClient.close();
     }
 
-    @Test(expectedExceptions = PulsarClientException.TopicDoesNotExistException.class)
-    public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException {
-        pulsarClient.newConsumer()
-                .topic("persistent://public/default/" + UUID.randomUUID().toString())
-                .subscriptionName("test")
-                .subscribe();
+    @Test
+    public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
+        PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);
+        try {
+            pulsarClient.newConsumer()
+                    .topic("persistent://public/default/" + UUID.randomUUID().toString())
+                    .subscriptionName("test")
+                    .subscribe();
+            Assert.fail("Create consumer should failed while topic does not exists.");
+        } catch (PulsarClientException ignore) {
+        }
+        Thread.sleep(2000);
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        Assert.assertEquals(timer.pendingTimeouts(), 0);
+        Assert.assertEquals(((PulsarClientImpl) pulsarClient).consumersCount(), 0);
     }
 }

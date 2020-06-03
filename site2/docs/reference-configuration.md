@@ -109,6 +109,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
 |zookeeperServers|  Zookeeper quorum connection string  ||
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
@@ -288,6 +289,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |Name|Description|Default|
 |---|---|---|
 |zookeeperServers|  Zookeeper quorum connection string (comma-separated)  ||
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout |30000|
 |servicePort| Port to use to server binary-proto request  |6650|
@@ -350,6 +352,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |Name|Description|Default|
 |---|---|---|
 |zookeeperServers|  The quorum connection string for local ZooKeeper  ||
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  THe port used by the standalone broker for HTTP requests  |8080|
@@ -448,6 +451,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |---|---|---|
 |configurationStoreServers    |||
 |zooKeeperSessionTimeoutMillis|   |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |serviceUrl|||
 |serviceUrlTls|||
 |brokerServiceUrl|||
@@ -479,6 +483,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
