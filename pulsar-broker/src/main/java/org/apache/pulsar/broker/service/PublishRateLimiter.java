@@ -65,8 +65,7 @@ public interface PublishRateLimiter {
 
     /**
      * updates rate-limiting threshold based on passed in rate limiter.
-     * @param policies
-     * @param clusterName
+     * @param maxPublishRate
      */
     void update(PublishRate maxPublishRate);
 
