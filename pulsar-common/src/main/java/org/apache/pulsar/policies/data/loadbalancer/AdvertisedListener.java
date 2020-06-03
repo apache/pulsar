@@ -16,18 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.policies.data.loadbalancer;
 
-#pragma once
+import java.net.URI;
 
-#include <pulsar/Logger.h>
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-namespace pulsar {
+/**
+ * The advertisedListener for broker with brokerServiceUrl and brokerServiceUrlTls.
+ */
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AdvertisedListener {
+    //
+    @Getter
+    @Setter
+    // the broker service uri without ssl
+    private URI brokerServiceUrl;
+    //
+    @Getter
+    @Setter
+    // the broker service uri with ssl
+    private URI brokerServiceUrlTls;
 
-class SimpleLoggerFactory : public LoggerFactory {
-   public:
-    Logger* getLogger(const std::string& fileName);
-
-    static std::unique_ptr<LoggerFactory> create();
-};
-
-}  // namespace pulsar
+}
