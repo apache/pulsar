@@ -119,6 +119,17 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        private int maxPendingChuckedMessage = 0;
+
+        @Parameter(names = { "-ac",
+                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+        @Parameter(names = { "-e",
+                "--expire_time_incomplete_chunked_messages" }, description = "Expire time in ms for incomplete chunk messages")
+        private long expireTimeOfIncompleteChunkedMessageMs = 0;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -274,7 +285,15 @@ public class PerformanceConsumer {
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
+        if (arguments.maxPendingChuckedMessage > 0) {
+            consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);
+        }
+        if (arguments.expireTimeOfIncompleteChunkedMessageMs > 0) {
+            consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.expireTimeOfIncompleteChunkedMessageMs,
+                    TimeUnit.MILLISECONDS);
+        }
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));

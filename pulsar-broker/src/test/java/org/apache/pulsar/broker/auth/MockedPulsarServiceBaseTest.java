@@ -139,13 +139,16 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsarClient = newPulsarClient(lookupUrl, 1);
     }
 
-    protected final void init() throws Exception {
+    protected void doInitConf() throws Exception {
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+    }
 
+    protected final void init() throws Exception {
+        doInitConf();
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
                 new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
