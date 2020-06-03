@@ -64,8 +64,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ZookeeperCacheTest {
+    private static final Logger log = LoggerFactory.getLogger(ZookeeperCacheTest.class);
     private MockZooKeeper zkClient;
     private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
@@ -122,7 +125,10 @@ public class ZookeeperCacheTest {
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
         assertEquals(zkCache.get("/my_test").get(), newValue);
 
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/other");
+            });
 
         assertEquals(zkCache.get("/my_test").get(), newValue);
         try {
@@ -173,7 +179,10 @@ public class ZookeeperCacheTest {
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/test");
+            });
 
         try {
             cache.get();
@@ -227,7 +236,10 @@ public class ZookeeperCacheTest {
         assertTrue(cache.get().isEmpty());
         assertTrue(cache.get().isEmpty());
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/test");
+            });
 
         try {
             cache.get();
@@ -351,7 +363,11 @@ public class ZookeeperCacheTest {
         // case 3: update the znode directly while the client session is marked as expired. Verify that the new updates
         // is not seen in the cache
         zkClient.create("/other", newValue.getBytes(), null, null);
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/other");
+            });
+
         assertEquals(zkCache.get("/my_test").get(), newValue);
         assertEquals(zkCache.get("/my_test2").get(), value);
         try {
@@ -363,7 +379,6 @@ public class ZookeeperCacheTest {
 
         // case 4: directly delete the znode while the session is not re-connected yet. Verify that the deletion is not
         // seen by the cache
-        zkClient.failAfter(-1, Code.OK);
         zkClient.delete("/my_test2", -1);
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
         assertEquals(zkCache.get("/other").get(), newValue);

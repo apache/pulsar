@@ -26,6 +26,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -49,10 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -663,6 +662,28 @@ public class SinksImpl extends ComponentImpl {
         }
         SinkConfig config = SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
         return config;
+    }
+
+    public List<ConnectorDefinition> getSinkList() {
+        List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
+        List<ConnectorDefinition> retval = new ArrayList<>();
+        for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
+            if (!org.apache.commons.lang.StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
+                retval.add(connectorDefinition);
+            }
+        }
+        return retval;
+    }
+
+    public List<ConfigFieldDefinition> getSinkConfigDefinition(String name) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+        List<ConfigFieldDefinition> retval = this.worker().getConnectorsManager().getSinkConfigDefinition(name);
+        if (retval == null) {
+            throw new RestException(Response.Status.NOT_FOUND, "builtin sink does not exist");
+        }
+        return retval;
     }
 
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,

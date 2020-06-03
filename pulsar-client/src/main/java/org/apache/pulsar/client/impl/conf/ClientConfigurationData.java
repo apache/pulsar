@@ -67,13 +67,15 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private boolean tlsHostnameVerificationEnable = false;
     private int concurrentLookupRequest = 5000;
     private int maxLookupRequest = 50000;
-    private int maxLookupRedirects = 100;
+    private int maxLookupRedirects = 20;
     private int maxNumberOfRejectedRequestPerConnection = 50;
     private int keepAliveIntervalSeconds = 30;
     private int connectionTimeoutMs = 10000;
     private int requestTimeoutMs = 60000;
     private long initialBackoffIntervalNanos = TimeUnit.MILLISECONDS.toNanos(100);
     private long maxBackoffIntervalNanos = TimeUnit.SECONDS.toNanos(60);
+    //
+    private String listenerName;
 
     // set TLS using KeyStore way.
     private boolean useKeyStoreTls = false;
