@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.events;
 import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.events.BrokerEventListener;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 import java.io.IOException;
 import java.util.Map;
@@ -47,33 +49,8 @@ public class BrokerEventListeners implements BrokerEventListener {
         }
 
         @Override
-        public void onNewProducer(PulsarApi.CommandProducer command) {
-            //No-op
-        }
-
-        @Override
-        public void onSubscribe(PulsarApi.CommandSubscribe command) {
-            //No-op
-        }
-
-        @Override
-        public void onUnsubscribe(PulsarApi.CommandUnsubscribe command) {
-            //No-op
-        }
-
-        @Override
-        public void onCloseProducer(PulsarApi.CommandCloseProducer command) {
-            //No-op
-        }
-
-        @Override
-        public void onCloseConsumer(PulsarApi.CommandCloseConsumer command) {
-            //No-op
-        }
-
-        @Override
-        public void close() {
-            //No-op
+        public void onCommand(BaseCommand command, PulsarDecoder decoder) {
+            // No-op
         }
     }
 
@@ -119,32 +96,19 @@ public class BrokerEventListeners implements BrokerEventListener {
     }
 
     @Override
-    public void onNewProducer(PulsarApi.CommandProducer command) {
-        listeners.values().forEach(listener -> listener.onNewProducer(command));
+    public void onCommand(BaseCommand command,  PulsarDecoder decoder) {
+        listeners.forEach((k, v) -> v.onCommand(command, decoder));
     }
 
     @Override
-    public void onSubscribe(PulsarApi.CommandSubscribe command) {
-        listeners.values().forEach(listener -> listener.onSubscribe(command));
-    }
-
-    @Override
-    public void onUnsubscribe(PulsarApi.CommandUnsubscribe command) {
-        listeners.values().forEach(listener -> listener.onUnsubscribe(command));
-    }
-
-    @Override
-    public void onCloseProducer(PulsarApi.CommandCloseProducer command) {
-        listeners.values().forEach(listener -> listener.onCloseProducer(command));
-    }
-
-    @Override
-    public void onCloseConsumer(PulsarApi.CommandCloseConsumer command) {
-        listeners.values().forEach(listener -> listener.onCloseConsumer(command));
+    public void initialize() throws Exception {
+        for (SafeBrokerEventListenerWithClassLoader v : listeners.values()) {
+            v.initialize();
+        }
     }
 
     @Override
     public void close() {
-        listeners.values().forEach(listener -> listener.close());
+        listeners.values().forEach(SafeBrokerEventListenerWithClassLoader::close);
     }
 }

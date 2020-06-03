@@ -2260,8 +2260,4 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
     }
-
-    public BrokerEventListeners getEventsListeners() {
-        return eventListeners;
-    }
 }

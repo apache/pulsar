@@ -439,7 +439,7 @@ public class PulsarService implements AutoCloseable {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
-
+            this.brokerService.getEventListeners().initialize();
             brokerService.start();
 
             this.webService = new WebService(this);

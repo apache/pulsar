@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.common.events;
 
 import com.google.common.annotations.Beta;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
+import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 /**
  * A plugin interface that allows you to listen (and possibly mutate) the
@@ -39,29 +36,37 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
 public interface BrokerEventListener extends AutoCloseable {
 
     /**
-     * This is called when the pulsar client send a new producer request.
+     * Called by the broker while new command incoming.
+
      */
-    void onNewProducer(CommandProducer command);
+    void onCommand(BaseCommand command, PulsarDecoder decoder);
 
     /**
-     * This is called when the pulsar client send a subscribe request.
+     * Initialize the broker event listener.
+     *
+     * @throws Exception when fail to initialize the broker event listener.
      */
-    void onSubscribe(CommandSubscribe command);
+    void initialize() throws Exception;
 
-    /**
-     * This is called when the pulsar client send a unsubscribe request.
-     */
-    void onUnsubscribe(CommandUnsubscribe command);
+    BrokerEventListener DISABLED = new BrokerEventListenerDisabled();
 
-    /**
-     * This is called when the pulsar client close a producer or the client disconnected.
-     */
-    void onCloseProducer(CommandCloseProducer command);
+    class BrokerEventListenerDisabled implements BrokerEventListener {
 
-    /**
-     * This is called when the pulsar client close a consumer or the client disconnected.
-     */
-    void onCloseConsumer(CommandCloseConsumer command);
+        @Override
+        public void onCommand(BaseCommand command,  PulsarDecoder decoder) {
+            //No-op
+        }
+
+        @Override
+        public void initialize() throws Exception {
+            //No-op
+        }
+
+        @Override
+        public void close() {
+            //No-op
+        }
+    }
 
     /**
      * Close this broker event listener.

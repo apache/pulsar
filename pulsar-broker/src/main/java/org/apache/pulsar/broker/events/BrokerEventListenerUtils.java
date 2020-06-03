@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.events;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.events.BrokerEventListener;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -41,7 +42,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 @Slf4j
 public class BrokerEventListenerUtils {
 
-    static final String BROKER_LISTENER_DEFINITION_FILE = "broker_listener.yml";
+    final String BROKER_LISTENER_DEFINITION_FILE = "broker_listener.yml";
 
     /**
      * Retrieve the broker listener definition from the provided handler nar package.
@@ -50,13 +51,13 @@ public class BrokerEventListenerUtils {
      * @return the broker listener definition
      * @throws IOException when fail to load the broker listener or get the definition
      */
-    public static BrokerEventListenerDefinition getBrokerListenerDefinition(String narPath, String narExtractionDirectory) throws IOException {
+    public BrokerEventListenerDefinition getBrokerListenerDefinition(String narPath, String narExtractionDirectory) throws IOException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getBrokerListenerDefinition(ncl);
         }
     }
 
-    private static BrokerEventListenerDefinition getBrokerListenerDefinition(NarClassLoader ncl) throws IOException {
+    private BrokerEventListenerDefinition getBrokerListenerDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(BROKER_LISTENER_DEFINITION_FILE);
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
@@ -71,7 +72,7 @@ public class BrokerEventListenerUtils {
      * @return a collection of broker listeners
      * @throws IOException when fail to load the available broker listeners from the provided directory.
      */
-    public static BrokerEventListenerDefinitions searchForListeners(String listenersDirectory, String narExtractionDirectory) throws IOException {
+    public BrokerEventListenerDefinitions searchForListeners(String listenersDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(listenersDirectory).toAbsolutePath();
         log.info("Searching for broker listeners in {}", path);
 
@@ -112,9 +113,8 @@ public class BrokerEventListenerUtils {
      * Load the broker listeners according to the listener definition.
      *
      * @param metadata the broker listeners definition.
-     * @return
      */
-    static SafeBrokerEventListenerWithClassLoader load(BrokerEventListenerMetadata metadata, String narExtractionDirectory) throws IOException {
+     SafeBrokerEventListenerWithClassLoader load(BrokerEventListenerMetadata metadata, String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
@@ -141,7 +141,7 @@ public class BrokerEventListenerUtils {
         }
     }
 
-    private static void rethrowIOException(Throwable cause)
+    private void rethrowIOException(Throwable cause)
             throws IOException {
         if (cause instanceof IOException) {
             throw (IOException) cause;

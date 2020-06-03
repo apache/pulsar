@@ -181,6 +181,7 @@ public class ServerCnx extends PulsarHandler {
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
         this.state = State.Start;
+        this.brokerEventListener = service.getEventListeners();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = new ConcurrentLongHashMap<>(8, 1);

@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.events;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.events.BrokerEventListener;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 import java.io.IOException;
 
@@ -37,50 +39,18 @@ public class SafeBrokerEventListenerWithClassLoader implements BrokerEventListen
     private final BrokerEventListener interceptor;
     private final NarClassLoader classLoader;
 
-
     @Override
-    public void onNewProducer(PulsarApi.CommandProducer command) {
+    public void onCommand(BaseCommand command, PulsarDecoder decoder) {
         try {
-            this.interceptor.onNewProducer(command);
+            this.interceptor.onCommand(command, decoder);
         } catch (Throwable e) {
-            log.error("Fail to execute on new producer on broker listener", e);
+            log.error("Fail to execute on command on broker listener", e);
         }
     }
 
     @Override
-    public void onSubscribe(PulsarApi.CommandSubscribe command) {
-        try {
-            this.interceptor.onSubscribe(command);
-        } catch (Throwable e) {
-            log.error("Fail to execute on subscribe on broker listener", e);
-        }
-    }
-
-    @Override
-    public void onUnsubscribe(PulsarApi.CommandUnsubscribe command) {
-        try {
-            this.interceptor.onUnsubscribe(command);
-        } catch (Throwable e) {
-            log.error("Fail to execute on unsubscribe on broker listener", e);
-        }
-    }
-
-    @Override
-    public void onCloseProducer(PulsarApi.CommandCloseProducer command) {
-        try {
-            this.interceptor.onCloseProducer(command);
-        } catch (Throwable e) {
-            log.error("Fail to execute on close producer on broker listener", e);
-        }
-    }
-
-    @Override
-    public void onCloseConsumer(PulsarApi.CommandCloseConsumer command) {
-        try {
-            this.interceptor.onCloseConsumer(command);
-        } catch (Throwable e) {
-            log.error("Fail to execute on close consumer on broker listener", e);
-        }
+    public void initialize() throws Exception {
+        this.interceptor.initialize();
     }
 
     @Override
