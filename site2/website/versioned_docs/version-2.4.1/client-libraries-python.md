@@ -1,5 +1,5 @@
 ---
-id: version-2.5.0-client-libraries-python
+id: version-2.4.1-client-libraries-python
 title: The Pulsar Python client
 sidebar_label: Python
 original_id: client-libraries-python
@@ -23,8 +23,8 @@ Installation via PyPi is available for the following Python versions:
 
 Platform | Supported Python versions
 :--------|:-------------------------
-MacOS <br />  10.13 (High Sierra), 10.14 (Mojave) <br /> | 2.7, 3.7
-Linux | 2.7, 3.4, 3.5, 3.6, 3.7
+| MacOS<br /> 10.11 (El Capitan) — 10.12 (Sierra) — 10.13 (High Sierra) — 10.14 (Mojave)<br />| 2.7, 3.7
+|Linux | 2.7, 3.4, 3.5, 3.6, 3.7
 
 ### Installing from source
 
