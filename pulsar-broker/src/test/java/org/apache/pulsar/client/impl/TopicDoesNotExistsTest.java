@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -51,6 +52,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Test
     public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
         try {
             pulsarClient.newProducer()
                     .topic("persistent://public/default/" + UUID.randomUUID().toString())
@@ -63,6 +65,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
         Assert.assertEquals(timer.pendingTimeouts(), 0);
         Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
+        pulsarClient.close();
     }
 
     @Test(expectedExceptions = PulsarClientException.TopicDoesNotExistException.class)
