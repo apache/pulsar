@@ -22,10 +22,10 @@ import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.io.core.*;
 
