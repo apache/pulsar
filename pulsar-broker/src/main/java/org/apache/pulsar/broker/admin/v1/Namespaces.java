@@ -27,18 +27,25 @@ import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,7 +94,7 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster doesn't exist") })
     public List<String> getNamespacesForCluster(@PathParam("property") String property,
             @PathParam("cluster") String cluster) {
-        validateAdminAccessForTenant(property);
+        validateTenantOperation(property, TenantOperation.LIST_NAMESPACES);
         List<String> namespaces = Lists.newArrayList();
         if (!clusters().contains(cluster)) {
             log.warn("[{}] Failed to get namespace list for property: {}/{} - Cluster does not exist", clientAppId(),
@@ -119,16 +126,14 @@ public class Namespaces extends NamespacesBase {
                                   @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
                                   @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
                                   @Suspended AsyncResponse asyncResponse) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS);
 
         // Validate that namespace exists, throws 404 if it doesn't exist
         getNamespacePolicies(namespaceName);
 
         pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
-                .thenAccept(topics -> {
-                    asyncResponse.resume(topics);
-                })
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("Failed to get topics list for namespace {}", namespaceName, ex);
                     asyncResponse.resume(ex);
@@ -143,8 +148,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public Policies getPolicies(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.ALL, PolicyOperation.READ);
         return getNamespacePolicies(namespaceName);
     }
 
@@ -226,8 +231,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Namespace is not empty") })
     public Map<String, Set<AuthAction>> getPermissions(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.auth_policies.namespace_auth;
@@ -292,8 +297,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not global") })
     public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.REPLICATION, PolicyOperation.READ);
 
         return internalGetNamespaceReplicationClusters();
     }
@@ -318,8 +323,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
     public int getNamespaceMessageTTL(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.TTL, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.message_ttl_in_seconds;
@@ -336,6 +341,33 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(property, cluster, namespace);
         internalSetNamespaceMessageTTL(messageTTL);
     }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Get the subscription expiration time for the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public int getSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+        validateAdminAccessForTenant(property);
+        validateNamespaceName(property, cluster, namespace);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        return policies.subscription_expiration_time_minutes;
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/subscriptionExpirationTime")
+    @ApiOperation(hidden = true, value = "Set subscription expiration time in minutes for namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid expiration time") })
+    public void setSubscriptionExpirationTime(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, int expirationTime) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionExpirationTime(expirationTime);
+    }
+
 
     @POST
     @Path("/{property}/{cluster}/{namespace}/antiAffinity")
@@ -393,6 +425,81 @@ public class Namespaces extends NamespacesBase {
         internalModifyDeduplication(enableDeduplication);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Override broker's allowAutoTopicCreation setting for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 406, message = "The number of partitions should be less than or equal to maxNumPartitionsPerPartitionedTopic"),
+            @ApiResponse(code = 400, message = "Invalid autoTopicCreation override") })
+    public void setAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
+                                     @PathParam("property") String property, @PathParam("cluster") String cluster,
+                                     @PathParam("namespace") String namespace, AutoTopicCreationOverride autoTopicCreationOverride) {
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e ) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/autoTopicCreation")
+    @ApiOperation(value = "Remove override of broker's allowAutoTopicCreation in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
+                                        @PathParam("property") String property, @PathParam("cluster") String cluster,
+                                        @PathParam("namespace") String namespace) {
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            internalRemoveAutoTopicCreation(asyncResponse);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
+    @ApiOperation(value = "Override broker's allowAutoSubscriptionCreation setting for a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 400, message = "Invalid autoSubscriptionCreation override") })
+    public void setAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
+                                     @PathParam("property") String property, @PathParam("cluster") String cluster,
+                                     @PathParam("namespace") String namespace, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            internalSetAutoSubscriptionCreation(asyncResponse, autoSubscriptionCreationOverride);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e ) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @DELETE
+    @Path("/{property}/{cluster}/{namespace}/autoSubscriptionCreation")
+    @ApiOperation(value = "Remove override of broker's allowAutoSubscriptionCreation in a namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
+    public void removeAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
+                                        @PathParam("property") String property, @PathParam("cluster") String cluster,
+                                        @PathParam("namespace") String namespace) {
+        try {
+            validateNamespaceName(property, cluster, namespace);
+            internalRemoveAutoSubscriptionCreation(asyncResponse);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/bundles")
     @ApiOperation(hidden = true, value = "Get the bundles split data.")
@@ -401,9 +508,9 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
     public BundlesData getBundlesData(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validatePoliciesReadOnlyAccess();
         validateNamespaceName(property, cluster, namespace);
+        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BUNDLE);
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -534,8 +641,8 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateAdminAccessForTenant(property);
         validateNamespaceName(property, cluster, namespace);
+        validateNamespacePolicyOperation(NamespaceName.get(property, namespace), PolicyName.BACKLOG, PolicyOperation.READ);
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.backlog_quota_map;

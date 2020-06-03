@@ -97,7 +97,7 @@ const languages = [
     tag: 'af',
   },
   {
-    enabled: false,
+    enabled: true,
     name: '한국어',
     tag: 'ko',
   },
@@ -118,8 +118,8 @@ const languages = [
   },
   {
     enabled: false,
-    name: 'Polskie',
-    tag: 'pl',
+    name: 'Polski',
+    tag: 'pl-PL',
   },
   {
     enabled: false,
@@ -181,9 +181,5 @@ const languages = [
     name: '繁體中文', 
     tag: 'zh-TW'
   },
-  {
-    enabled: true, 
-    name: '한국어', 
-    tag: 'ko-KR'},
 ];
 module.exports = languages;

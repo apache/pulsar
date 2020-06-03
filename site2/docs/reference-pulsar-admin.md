@@ -827,6 +827,10 @@ Subcommands
 * `create`
 * `delete`
 * `set-deduplication`
+* `set-auto-topic-creation`
+* `remove-auto-topic-creation`
+* `set-auto-subscription-creation`
+* `remove-auto-subscription-creation`
 * `permissions`
 * `grant-permission`
 * `revoke-permission`
@@ -947,6 +951,50 @@ Options
 |`--enable`, `-e`|Enable message deduplication on the specified namespace|false|
 |`--disable`, `-d`|Disable message deduplication on the specified namespace|false|
 
+### `set-auto-topic-creation`
+Enable or disable autoTopicCreation for a namespace, overriding broker settings
+
+Usage
+```bash
+$ pulsar-admin namespaces set-auto-topic-creation tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable allowAutoTopicCreation on namespace|false|
+|`--disable`, `-d`|Disable allowAutoTopicCreation on namespace|false|
+|`--type`, `-t`|Type of topic to be auto-created. Possible values: (partitioned, non-partitioned)|non-partitioned|
+|`--num-partitions`, `-n`|Default number of partitions of topic to be auto-created, applicable to partitioned topics only||
+
+### `remove-auto-topic-creation`
+Remove override of autoTopicCreation for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-auto-topic-creation tenant/namespace
+```
+
+### `set-auto-subscription-creation`
+Enable autoSubscriptionCreation for a namespace, overriding broker settings
+
+Usage
+```bash
+$ pulsar-admin namespaces set-auto-subscription-creation tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable allowAutoSubscriptionCreation on namespace|false|
+
+### `remove-auto-subscription-creation`
+Remove override of autoSubscriptionCreation for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces remove-auto-subscription-creation tenant/namespace
+```
 
 ### `permissions`
 Get the permissions on a namespace
@@ -1090,7 +1138,7 @@ $ pulsar-admin namespaces set-persistence tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-a`, `--bookkeeper-ack-quorom`|The number of acks (guaranteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
 |`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
@@ -1234,7 +1282,7 @@ Usage
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 ```
 
-### set-replicator-dispatch-rate
+### `set-replicator-dispatch-rate`
 Set replicator message-dispatch-rate for all topics of the namespace
 
 Usage
@@ -1249,7 +1297,7 @@ Options
 |`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
 |`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
 
-### get-replicator-dispatch-rate
+### `get-replicator-dispatch-rate`
 Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
 
 Usage
@@ -1593,6 +1641,27 @@ Options
 |`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
 |`-d`, `--disabled`|Disable automatic schema updates.|false|
 
+### `get-publish-rate`
+Get the message publish rate for each topic in a namespace, in bytes as well as messages per second 
+
+Usage
+```bash
+$ pulsar-admin namespaces get-publish-rate tenant/namespace
+```
+
+### `set-publish-rate`
+Set the message publish rate for each topic in a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-publish-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
+|`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.
@@ -1716,8 +1785,8 @@ Subcommands
 * `expire-messages-all-subscriptions`
 * `peek-messages`
 * `reset-cursor`
+* `get-message-by-id`
 * `last-message-id`
-
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2117,6 +2186,21 @@ Usage
 ```bash
 $ pulsar-admin topics last-message-id persistent://tenant/namespace/topic
 ```
+
+### `get-message-by-id`
+Get message by ledger id and entry id
+
+Usage
+```bash
+$ pulsar-admin topics get-message-by-id topic options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-l`, `--ledgerId`|The ledger id |0|
+|`-e`, `--entryId`|The entry id |0|
 
 
 ## `tenants`

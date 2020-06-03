@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -325,12 +326,6 @@ public interface ManagedLedger {
      */
     long getOffloadedSize();
 
-    /**
-     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
-     * backlog.
-     */
-    void checkBackloggedCursors();
-
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
     /**
@@ -447,4 +442,34 @@ public interface ManagedLedger {
      * Signaling managed ledger that we can resume after BK write failure
      */
     void readyToCreateNewLedger();
+
+    /**
+     * Returns managed-ledger's properties.
+     *
+     * @return key-values of properties
+     */
+    Map<String, String> getProperties();
+
+    /**
+     * Update managed-ledger's properties.
+     *
+     * @param properties key-values of properties
+     */
+    void setProperties(Map<String, String> properties) throws InterruptedException;
+
+    /**
+     * Async update managed-ledger's properties.
+     *
+     * @param properties key-values of properties.
+     * @param callback   a callback which will be supplied with the newest properties in managedLedger.
+     * @param ctx        a context object which will be passed to the callback on completion.
+     */
+    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.SetPropertiesCallback callback,
+        Object ctx);
+  
+    /**
+     * Trim consumed ledgers in background
+     * @param promise
+     */
+    void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 }

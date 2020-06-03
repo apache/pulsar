@@ -2,7 +2,7 @@ module.exports = [
     {
         name: 'Narvar',
         url: 'https://corp.narvar.com/',
-        logo: 'https://corp.narvar.com/wp-content/themes/narvarinc/dist/images/narvar-logo.svg',
+        logo: 'https://assets-global.website-files.com/5d278e4646ba9e55d6c67475/5d49ce69c03a64b2d8466816_Logo%20-%20Colored.svg',
     },
     {
         name: 'Giggso',
@@ -85,7 +85,7 @@ module.exports = [
     {
         name: 'Stream Native',
         url: 'https://streamnative.io/',
-        logo: 'https://streamnative.io/images/logo.png'
+        logo: 'https://streamnative.io/static/images/streamnative-logo-white-bakground.png',
     },
     {
         name: 'EMQ',
@@ -217,14 +217,19 @@ module.exports = [
         url: 'https://dev.hsl.fi/',
         logo: 'https://pbs.twimg.com/profile_images/2507371771/9toyr6r5ngcozfwg42zv_400x400.png'
     },
-    {
-        name: 'Ottoo',
-        url: 'https://ottoo.com',
-        logo: 'https://ottoo.com/assets/images/ottoo-logo.svg'
-    },
+    // {
+    //     name: 'Ottoo',
+    //     url: 'https://ottoo.com',
+    //     logo: 'https://ottoo.com/assets/images/ottoo-logo.svg'
+    // },
     {
         name: 'MercadoLibre',
         url: 'https://www.mercadolibre.com/',
         logo: 'https://d1.awsstatic.com/case-studies/LATAM/mercadolibre.1d9d3766bb06e60948f1c5ce8851ce0eac63b349.png'
+    },
+    {
+        name: 'BIGO',
+        url: 'https://www.bigo.sg/',
+        logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

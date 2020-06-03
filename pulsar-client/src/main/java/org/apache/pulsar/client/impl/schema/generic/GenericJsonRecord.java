@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.schema.Field;
 /**
  * Generic json record.
  */
-class GenericJsonRecord extends VersionedGenericRecord {
+public class GenericJsonRecord extends VersionedGenericRecord {
 
     private final JsonNode jn;
 
@@ -39,7 +39,7 @@ class GenericJsonRecord extends VersionedGenericRecord {
         this.jn = jn;
     }
 
-    JsonNode getJsonNode() {
+    public JsonNode getJsonNode() {
         return jn;
     }
 
@@ -55,12 +55,16 @@ class GenericJsonRecord extends VersionedGenericRecord {
             return new GenericJsonRecord(schemaVersion, fields, fn);
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
-        } else if (fn.isInt()) {
-            return fn.asInt();
         } else if (fn.isFloatingPointNumber()) {
             return fn.asDouble();
-        } else if (fn.isDouble()) {
-            return fn.asDouble();
+        } else if (fn.isBigInteger()) {
+            if (fn.canConvertToLong()) {
+                return fn.asLong();
+            } else {
+                return fn.asText();
+            }
+        } else if (fn.isNumber()) {
+            return fn.numberValue();
         } else {
             return fn.asText();
         }

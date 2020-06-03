@@ -143,12 +143,10 @@ public class Worker {
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         try {
-            return WorkerUtils.initializeDlogNamespace(
-                    internalConf.getZookeeperServers(),
-                    internalConf.getLedgersRootPath());
+            return WorkerUtils.initializeDlogNamespace(internalConf);
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                    internalConf.getZookeeperServers(), ioe);
+            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing function packages",
+                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
     }
@@ -163,7 +161,8 @@ public class Worker {
                     (int) workerConfig.getZooKeeperSessionTimeoutMillis(),
                     workerConfig.getZooKeeperOperationTimeoutSeconds(),
                     workerConfig.getConfigurationStoreServers(),
-                    orderedExecutor, cacheExecutor);
+                    orderedExecutor, cacheExecutor,
+                    workerConfig.getZooKeeperOperationTimeoutSeconds());
             try {
                 this.globalZkCache.start();
             } catch (IOException e) {

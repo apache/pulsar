@@ -46,7 +46,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsPro
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionInstanceId;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -143,6 +143,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
         }
+        log.info("Initializing secrets provider configurator {} with configs: {}",
+          secretsProviderConfigurator.getClass().getName(), workerConfig.getSecretsProviderConfiguratorConfig());
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
         Optional<FunctionAuthProvider> functionAuthProvider = Optional.empty();
@@ -323,7 +325,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public void restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
+    public synchronized void restartFunctionInstance(String tenant, String namespace, String functionName, int instanceId,
             URI uri) throws Exception {
         if (runtimeFactory.externallyManaged()) {
             throw new WebApplicationException(Response.serverError().status(Status.NOT_IMPLEMENTED)
@@ -368,7 +370,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    public void restartFunctionInstances(String tenant, String namespace, String functionName)
+    public synchronized void restartFunctionInstances(String tenant, String namespace, String functionName)
             throws Exception {
         final String fullFunctionName = String.format("%s/%s/%s", tenant, namespace, functionName);
         Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);

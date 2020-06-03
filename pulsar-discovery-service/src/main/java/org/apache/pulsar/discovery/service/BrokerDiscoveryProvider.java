@@ -74,7 +74,8 @@ public class BrokerDiscoveryProvider implements Closeable {
                     config.getZookeeperSessionTimeoutMs());
             globalZkCache = new GlobalZooKeeperCache(zkClientFactory, config.getZookeeperSessionTimeoutMs(),
                     (int) TimeUnit.MILLISECONDS.toSeconds(config.getZookeeperSessionTimeoutMs()),
-                    config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler);
+                    config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler,
+                    config.getZooKeeperCacheExpirySeconds());
             globalZkCache.start();
         } catch (Exception e) {
             LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);

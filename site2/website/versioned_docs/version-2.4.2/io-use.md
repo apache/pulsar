@@ -119,7 +119,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sources reload
 ```
 
-For more information, see [`here`](reference-connector-admin/#reload).
+For more information, see [`here`](reference-connector-admin#reload).
 
 #### Sink
 
@@ -129,7 +129,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sinks reload
 ```
 
-For more information, see [`here`](reference-connector-admin/#reload-1).
+For more information, see [`here`](reference-connector-admin#reload-1).
 
 ### `available`
 

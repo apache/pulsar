@@ -79,9 +79,9 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 if (consumer != null) {
                     SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                     EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesWithSameKey.getValue().size());
-                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo);
-                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), getRedeliveryTracker());
+                    filterEntriesForConsumer(entriesWithSameKey.getValue(), batchSizes, sendMessageInfo, null, null);
+                    consumer.sendMessages(entriesWithSameKey.getValue(), batchSizes, null, sendMessageInfo.getTotalMessages(),
+                            sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
                     TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
                 } else {
                     entries.forEach(entry -> {

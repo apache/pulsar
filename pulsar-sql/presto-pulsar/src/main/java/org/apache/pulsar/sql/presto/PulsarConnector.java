@@ -81,6 +81,10 @@ public class PulsarConnector implements Connector {
         return recordSetProvider;
     }
 
+    public void initConnectorCache() throws Exception {
+        PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
+    }
+
     @Override
     public final void shutdown() {
         try {

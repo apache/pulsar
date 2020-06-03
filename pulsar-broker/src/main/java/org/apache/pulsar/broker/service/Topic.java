@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
@@ -129,6 +128,12 @@ public interface Topic {
 
     void checkInactiveSubscriptions();
 
+    /**
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
+     * backlog.
+     */
+    void checkBackloggedCursors();
+
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
@@ -142,6 +147,14 @@ public interface Topic {
     void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
 
     boolean isPublishRateExceeded();
+
+    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
+
+    boolean isBrokerPublishRateExceeded();
+
+    void disableCnxAutoRead();
+
+    void enableCnxAutoRead();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -203,5 +216,9 @@ public interface Topic {
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
+    }
+
+    default boolean isSystemTopic() {
+        return false;
     }
 }

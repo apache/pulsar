@@ -66,6 +66,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     // Per Message related
     private Record<?> record;
 
+    private PulsarClient client;
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
 
@@ -100,6 +101,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                        Table<ByteBuf, ByteBuf> stateTable) {
         this.config = config;
         this.logger = logger;
+        this.client = client;
         this.publishProducers = new HashMap<>();
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
@@ -371,6 +373,11 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         TypedMessageBuilder<O> typedMessageBuilder = getProducer(topicName, schema).newMessage();
         messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
         return messageBuilder;
+    }
+
+    @Override
+    public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+        return this.client.newConsumer(schema);
     }
 
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {

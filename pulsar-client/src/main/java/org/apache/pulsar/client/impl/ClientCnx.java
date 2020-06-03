@@ -384,7 +384,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), headersAndPayload, this);
+            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), cmdMessage.getAckSetList(), headersAndPayload, this);
         }
     }
 
@@ -814,7 +814,7 @@ public class ClientCnx extends PulsarHandler {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send GetSchema request to broker: {}", ctx.channel(),
                         writeFuture.cause().getMessage());
-                pendingGetLastMessageIdRequests.remove(requestId);
+                pendingGetSchemaRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });
