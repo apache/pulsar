@@ -149,6 +149,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify multiple advertised listeners for the broker."
+                    + " The value must format as <listener_name>:pulsar://<host>:<port>,"
+                    + "multiple listeners should separate with commas."
+                    + "Do not use this configuration with advertisedAddress and brokerServicePort."
+                    + "The Default value is absent means use advertisedAddress and brokerServicePort.")
+    private String advertisedListeners;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify the internal listener name for the broker."
+                    + "The listener name must contain in the advertisedListeners."
+                    + "The Default value is absent, the broker uses the first listener as the internal listener.")
+    private String internalListenerName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."

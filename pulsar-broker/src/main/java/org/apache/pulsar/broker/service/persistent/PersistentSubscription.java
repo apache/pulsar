@@ -698,7 +698,7 @@ public class PersistentSubscription implements Subscription {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                disconnectFuture = dispatcher.disconnectAllConsumers(true);
+                disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
                 disconnectFuture = CompletableFuture.completedFuture(null);
             }
