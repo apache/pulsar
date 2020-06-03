@@ -278,6 +278,7 @@ public class ServerCnx extends PulsarHandler {
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.getAuthoritative();
+        final String advertisedListenerName = lookup.getAdvertisedListenerName();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
@@ -309,7 +310,7 @@ public class ServerCnx extends PulsarHandler {
                 if (isProxyAuthorized) {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
-                            requestId).handle((lookupResponse, ex) -> {
+                            requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
                                 } else {

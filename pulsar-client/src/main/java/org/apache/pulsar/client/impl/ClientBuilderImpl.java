@@ -101,6 +101,15 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder listenerName(String listenerName) {
+        if (StringUtils.isBlank(listenerName)) {
+            throw new IllegalArgumentException("Param listenerName must not be blank.");
+        }
+        conf.setListenerName(StringUtils.trim(listenerName));
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
         return this;
