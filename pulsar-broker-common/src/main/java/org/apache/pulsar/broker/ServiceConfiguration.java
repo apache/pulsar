@@ -1224,6 +1224,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
     private long managedLedgerAddEntryTimeoutSeconds = 0;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "New entries check delay for the cursor under the managed ledger. \n"
+                    + "If no new messages in the topic, the cursor will try to check again after the delay time. \n"
+                    + "For consumption latency sensitive scenario, can set to a smaller value or set to 0.\n"
+                    + "Of course, this may degrade consumption throughput. Default is 10ms.")
+    private int managedLedgerNewEntriesCheckDelayInMillis = 10;
+
     /*** --- Load balancer --- ****/
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
