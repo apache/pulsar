@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -237,14 +238,16 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         } else {
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo);
+            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
 
             currentConsumer
-                    .sendMessages(entries, batchSizes, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), redeliveryTracker)
+                    .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                            sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                            redeliveryTracker)
                     .addListener(future -> {
                         if (future.isSuccess()) {
                             // acquire message-dispatch permits for already delivered messages

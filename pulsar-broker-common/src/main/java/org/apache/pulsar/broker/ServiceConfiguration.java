@@ -176,6 +176,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
     private long delayedDeliveryTickTimeMillis = 1000;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Enable the WebSocket API service in broker"
@@ -299,7 +302,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max pending publish requests per connection to avoid keeping large number of pending "
                 + "requests in memory. Default: 1000"
     )
-    private int maxPendingPublishdRequestsPerConnection = 1000;
+    private int maxPendingPublishRequestsPerConnection = 1000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -432,7 +435,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
     private int topicPublisherThrottlingTickTimeMillis = 5;
-
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable precise rate limit for topic publish"
+    )
+    private boolean preciseTopicPublishRateLimiterEnable = false;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -700,6 +707,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> messagingProtocols = Sets.newTreeSet();
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable system topic.")
+    private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
+                "please enable the system topic first.")
+    private boolean topicLevelPoliciesEnabled = false;
+
     /***** --- TLS --- ****/
     @FieldContext(
         category = CATEGORY_TLS,
@@ -870,7 +888,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bookkeeperClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
-        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+        doc = "BookKeeper auth plugin implementation specifics parameters name and values"
     )
     private String bookkeeperClientAuthenticationParametersName;
     @FieldContext(
@@ -1426,7 +1444,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
-    private int replicatioPolicyCheckDurationSeconds = 600;
+    private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,

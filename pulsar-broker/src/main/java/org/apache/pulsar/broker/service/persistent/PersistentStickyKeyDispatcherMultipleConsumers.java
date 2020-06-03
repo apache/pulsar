@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
@@ -111,20 +112,22 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(subList.size());
-                filterEntriesForConsumer(subList, batchSizes, sendMessageInfo);
+                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+                filterEntriesForConsumer(subList, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
-                consumer.sendMessages(subList, batchSizes, sendMessageInfo.getTotalMessages(),
-                        sendMessageInfo.getTotalBytes(), getRedeliveryTracker()).addListener(future -> {
+                consumer.sendMessages(subList, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
+                        getRedeliveryTracker()).addListener(future -> {
                             if (future.isSuccess() && keyNumbers.decrementAndGet() == 0) {
                                 readMoreEntries();
                             }
-                });
+                        });
 
                 for (int i = 0; i < messagesForC; i++) {
                     entriesWithSameKey.getValue().remove(0);
                 }
 
-                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -sendMessageInfo.getTotalMessages());
+                TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this, -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
 
