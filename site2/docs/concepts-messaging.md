@@ -160,6 +160,29 @@ Dead letter topic depends on message re-delivery. Messages are redelivered eithe
 > Note    
 > Currently, dead letter topic is enabled only in the shared subscription mode.
 
+### Retry letter topic
+
+For many online business systems, a message needs to be re-consumed because any exception occurs in the business logic processing. Generally, users hope that they can flexibly configure the delay time for re-consuming the failed messages. In this case, you can configure the producer to send messages to both the business topic and the retry letter topic and you can enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages fail to be consumed and therefore the consumer can automatically consume failed messages from the retry letter topic after a specified delay time.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+This example shows how to consumer messages from a retry letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
+                        .build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+```
+
 ## Topics
 
 As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from [producers](reference-terminology.md#producer) to [consumers](reference-terminology.md#consumer). Topic names are URLs that have a well-defined structure:
