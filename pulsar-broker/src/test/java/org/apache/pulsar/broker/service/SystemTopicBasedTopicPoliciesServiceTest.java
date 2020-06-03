@@ -73,16 +73,14 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         TopicPolicies initPolicy = TopicPolicies.builder()
                 .maxConsumerPerTopic(10)
                 .build();
-        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy);
-
-        Assert.assertNull(systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject()));
-
-        Thread.sleep(1000);
-
+        systemTopicBasedTopicPoliciesService.updateTopicPoliciesAsync(TOPIC1, initPolicy).get();
         Assert.assertTrue(systemTopicBasedTopicPoliciesService.getPoliciesCacheInit(TOPIC1.getNamespaceObject()));
 
+        // Wait for all topic policies updated.
+        Thread.sleep(3000);
+
         // Assert broker is cache all topic policies
-        Assert.assertEquals(10, systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1).getMaxConsumerPerTopic().intValue());
+        Assert.assertEquals(systemTopicBasedTopicPoliciesService.getTopicPolicies(TOPIC1).getMaxConsumerPerTopic().intValue(), 10);
 
         // Update policy for TOPIC1
         TopicPolicies policies1 = TopicPolicies.builder()
