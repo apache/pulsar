@@ -68,7 +68,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
 
-      - name: run unit tests pulsar broker flaky tests
+      - name: run unit tests pulsar broker client tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/client/**/*.java' -pl pulsar-broker
 

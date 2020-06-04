@@ -92,14 +92,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);
         getPulsar().getBrokerService().checkMessagePublishBuffer();
         Assert.assertTrue(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
-        MessageId messageId = null;
-        try {
-            messageId = producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);
-            Assert.fail("should failed, because producer blocked by publish buffer limiting");
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Assert.assertNull(messageId);
 
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setMessagePublishBufferSize(0L);
         getPulsar().getBrokerService().checkMessagePublishBuffer();
@@ -137,14 +129,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         // Block by publish buffer.
         getPulsar().getBrokerService().checkMessagePublishBuffer();
         Assert.assertTrue(pulsar.getBrokerService().isReachMessagePublishBufferThreshold());
-        MessageId messageId = null;
-        try {
-            messageId = producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);
-            Assert.fail("should failed, because producer blocked by publish buffer limiting");
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Assert.assertNull(messageId);
 
         // Block by publish rate.
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setMessagePublishBufferSize(0L);
@@ -152,15 +136,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setAutoReadDisabledRateLimiting(true);
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().disableCnxAutoRead();
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().enableCnxAutoRead();
-
-        try {
-            messageId = producer.sendAsync(new byte[1024]).get(1, TimeUnit.SECONDS);
-            Assert.fail("should failed, because producer blocked by publish rate limiting");
-        } catch (TimeoutException e) {
-            // No-op
-        }
-
-        Assert.assertNull(messageId);
 
         // Resume message publish.
         ((AbstractTopic)topicRef).producers.get("producer-name").getCnx().setAutoReadDisabledRateLimiting(false);

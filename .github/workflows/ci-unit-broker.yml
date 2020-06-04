@@ -68,7 +68,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
         
-      - name: run unit test pulsar-broker
+      - name: run unit test pulsar-broker default tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           df -h
