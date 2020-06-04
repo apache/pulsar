@@ -50,6 +50,9 @@ public interface BrokerEventListener extends AutoCloseable {
 
     BrokerEventListener DISABLED = new BrokerEventListenerDisabled();
 
+    /**
+     * Broker event listener disabled implementation.
+     */
     class BrokerEventListenerDisabled implements BrokerEventListener {
 
         @Override
