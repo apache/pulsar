@@ -26,6 +26,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
@@ -87,6 +88,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Set<String> tlsCiphers = Sets.newTreeSet();
     private Set<String> tlsProtocols = Sets.newTreeSet();
 
+    /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
+    private String proxyServiceUrl;
+    private ProxyProtocol proxyProtocol;
+    
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 
