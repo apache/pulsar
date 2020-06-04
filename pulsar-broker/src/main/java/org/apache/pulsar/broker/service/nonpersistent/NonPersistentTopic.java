@@ -733,6 +733,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
         topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("msgInCount", getMsgInCounter());
+        topicStatsStream.writePair("bytesInCount", getBytesInCounter());
+        topicStatsStream.writePair("msgOutCount", getMsgOutCounter());
+        topicStatsStream.writePair("bytesOutCount", getBytesOutCounter());
 
         nsStats.msgRateIn += topicStats.aggMsgRateIn;
         nsStats.msgRateOut += topicStats.aggMsgRateOut;
@@ -826,6 +830,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
+        if (!deleteWhileInactive) {
+            // This topic is not included in GC
+            return;
+        }
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {

@@ -99,7 +99,8 @@ public class PulsarConnectorCache {
         throws Exception {
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
                 .setZkServers(pulsarConnectorConfig.getZookeeperUri())
-                .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri() + "/ledgers")
+                .setMetadataServiceUri("zk://" + pulsarConnectorConfig.getZookeeperUri()
+                        .replace(",", ";") + "/ledgers")
                 .setClientTcpNoDelay(false)
                 .setUseV2WireProtocol(true)
                 .setStickyReadsEnabled(false)

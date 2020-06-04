@@ -54,7 +54,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -147,7 +146,6 @@ public class LoadBalancerTest {
             config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
-            pulsarServices[i].setShutdownService(new NoOpShutdownService());
             pulsarServices[i].start();
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();

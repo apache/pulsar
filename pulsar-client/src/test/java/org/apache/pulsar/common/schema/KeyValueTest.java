@@ -48,7 +48,6 @@ import org.apache.pulsar.client.impl.schema.TimestampSchema;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test
 public class KeyValueTest {
 
     private static final Map<Schema, List<Object>> testData = new HashMap() {

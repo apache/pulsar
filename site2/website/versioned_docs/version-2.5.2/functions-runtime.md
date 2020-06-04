@@ -168,6 +168,16 @@ for the `runtimeCustomerClassName` property. This implementation takes the follo
       "value": "value",
       "effect": "NoSchedule"
     }
-  ]
+  ],
+  "resourceRequirements": {  // values for cpu and memory should be defined as described here: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container
+    "requests": {
+      "cpu": 1,
+      "memory": "4G"
+    },
+    "limits": {
+      "cpu": 2,
+      "memory": "8G"
+    }
+  }
 }
 ```

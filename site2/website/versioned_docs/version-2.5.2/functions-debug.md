@@ -38,6 +38,9 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
 
 You can write a simple unit test to test Pulsar Function.
 
+> #### Tip
+> Pulsar uses testng for testing.
+
 ```java
 @Test
 public void testJavaNativeExclamationFunction() {
@@ -62,6 +65,9 @@ public class ExclamationFunction implements Function<String, String> {
 ```
 
 In this situation, you can write a unit test for this function as well. Remember to mock the `Context` parameter. The following is an example.
+
+> #### Tip
+> Pulsar uses testng for testing.
 
 ```java
 @Test
@@ -143,7 +149,7 @@ In Pulsar Functions, you can generate log information defined in functions to a 
 
 **Example** 
 
-```text
+```java
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -169,7 +175,7 @@ As shown in the example above, you can get the logger via `context.getLogger()` 
 
 **Example** 
 
-```
+```bash
 $ bin/pulsar-admin functions create \
   --log-topic persistent://public/default/logging-function-logs \
   # Other function configs
@@ -195,7 +201,7 @@ Get information about a Pulsar Function.
 
 **Usage**
 
-```text
+```bash
 $ pulsar-admin functions get options
 ```
 
@@ -216,12 +222,12 @@ $ pulsar-admin functions get options
 
 You can specify `--fqfn` to get information about a Pulsar Function.
 
-```text
+```bash
 $ ./bin/pulsar-admin functions get public/default/ExclamationFunctio6
 ```
 Optionally, you can specify `--name`, `--namespace` and `--tenant` to get information about a Pulsar Function.
 
-```text
+```bash
 $ ./bin/pulsar-admin functions get \
     --tenant public \
     --namespace default \
@@ -230,7 +236,7 @@ $ ./bin/pulsar-admin functions get \
 
 As shown below, the `get` command shows input, output, runtime, and other information about the _ExclamationFunctio6_ function.
 
-```text
+```json
 {
   "tenant": "public",
   "namespace": "default",
@@ -257,7 +263,7 @@ Check the current status of a Pulsar Function.
 
 **Usage**
 
-```text
+```bash
 $ pulsar-admin functions status options
 ```
 
@@ -273,7 +279,7 @@ $ pulsar-admin functions status options
 
 **Example** 
 
-```text
+```bash
 $ ./bin/pulsar-admin functions status \
     --tenant public \
     --namespace default \
@@ -282,7 +288,7 @@ $ ./bin/pulsar-admin functions status \
 
 As shown below, the `status` command shows the number of instances, running instances, the instance running under the _ExclamationFunctio6_ function, received messages, successfully processed messages, system exceptions, the average latency and so on.
 
-```text
+```json
 {
   "numInstances" : 1,
   "numRunning" : 1,
@@ -312,7 +318,7 @@ Get the current stats of a Pulsar Function.
 
 **Usage**
 
-```text
+```bash
 $ pulsar-admin functions stats options
 ```
 
@@ -328,7 +334,7 @@ $ pulsar-admin functions stats options
 
 **Example**
 
-```text
+```bash
 $ ./bin/pulsar-admin functions stats \
     --tenant public \
     --namespace default \
@@ -337,7 +343,7 @@ $ ./bin/pulsar-admin functions stats \
 
 The output is shown as follows:
 
-```text
+```json
 {
   "receivedTotal" : 1,
   "processedSuccessfullyTotal" : 1,
@@ -380,7 +386,7 @@ List all Pulsar Functions running under a specific tenant and namespace.
 
 **Usage**
 
-```text
+```bash
 $ pulsar-admin functions list options
 ```
 
@@ -393,7 +399,7 @@ $ pulsar-admin functions list options
 
 **Example** 
 
-```text
+```bash
 $ ./bin/pulsar-admin functions list \
     --tenant public \
     --namespace default
@@ -412,7 +418,7 @@ Trigger a specified Pulsar Function with a supplied value. This command simulate
 
 **Usage**
 
-```text
+```bash
 $ pulsar-admin functions trigger options
 ```
 
@@ -430,7 +436,7 @@ $ pulsar-admin functions trigger options
 
 **Example** 
 
-```text
+```bash
 $ ./bin/pulsar-admin functions trigger \
     --tenant public \
     --namespace default \

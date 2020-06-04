@@ -113,6 +113,14 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     * @return the client builder instance
+     */
+    ClientBuilder listenerName(String name);
+
+    /**
      * Set the authentication provider to use in the Pulsar client instance.
      *
      * <p>Example:
@@ -387,6 +395,15 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder maxLookupRequests(int maxLookupRequests);
 
     /**
+     * Set the maximum number of times a lookup-request to a broker will be redirected.
+     *
+     * @since 2.6.0
+     * @param maxLookupRedirects the maximum number of redirects
+     * @return the client builder instance
+     */
+    ClientBuilder maxLookupRedirects(int maxLookupRedirects);
+
+    /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>.
@@ -451,4 +468,14 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder clock(Clock clock);
+
+    /**
+     * Proxy-service url when client would like to connect to broker via proxy. Client can choose type of proxy-routing
+     * using {@link ProxyProtocol}.
+     *
+     * @param proxyServiceUrl proxy service url
+     * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
+     * @return
+     */
+    ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
 }

@@ -63,7 +63,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
     }
 
-    public Consumer select(int hash) {
+    Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
@@ -78,28 +78,6 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         } else {
             return null;
         }
-    }
-
-    @Override
-    public Consumer selectByIndex(int index) {
-        if (rangeMap.size() > 0) {
-            Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(index);
-            Map.Entry<Integer, Consumer> floorEntry = rangeMap.floorEntry(index);
-            Consumer ceilingConsumer = ceilingEntry != null ? ceilingEntry.getValue() : null;
-            Consumer floorConsumer = floorEntry != null ? floorEntry.getValue() : null;
-            if (floorConsumer != null && floorConsumer.equals(ceilingConsumer)) {
-                return ceilingConsumer;
-            } else {
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
-
-    @Override
-    public int getRangeSize() {
-        return rangeSize;
     }
 
     private void validateKeySharedMeta(Consumer consumer) throws BrokerServiceException.ConsumerAssignException {
