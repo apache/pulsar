@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers - Default
+name: CI - Unit - Brokers - Client
 on:
   pull_request:
     branches:
@@ -67,13 +67,10 @@ jobs:
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
-        
-      - name: run unit test pulsar-broker
+
+      - name: run unit tests pulsar broker flaky tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          df -h
-          free -h
-          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest, !PulsarFunctionE2ESecurityTest, !SchemaCompatibilityCheckTest, !CompactedTopicTest, !LoadBalancerTest, !ConsumerBatchReceiveTest, !KeySharedSubscriptionTest, !MessagePublishBufferThrottleTest, !PrecisTopicPublishRateThrottleTest, !PublishRateLimiterTest, !MessagePublishThrottlingTest, !MessageIdTest, !UnAcknowledgedMessagesTimeoutTest, !ConsumerPreciseDispatcherFlowControl, !SimpleSchemaTest, !ConsumerDedupPermitsUpdate, !NamespaceOwnershipListenerTests, !org/apache/pulsar/client/**/*.java, !org/apache/pulsar/broker/**/*.java' -DfailIfNoTests=false -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/client/**/*.java' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
