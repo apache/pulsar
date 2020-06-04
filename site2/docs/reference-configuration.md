@@ -265,6 +265,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 ||
 |s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
 | acknowledgmentAtBatchIndexLevelEnabled | Enable or disable the batch index acknowledgement. | false |
+| maxMessageSize | Set the maximum size of a message. | 5 MB |
 
 
 
