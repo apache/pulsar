@@ -121,10 +121,13 @@ class PULSAR_PUBLIC ClientConfiguration {
      * to a different logger implementation.
      *
      * By default, log messages are printed on standard output.
+     *
+     * When passed in, the configuration takes ownership of the loggerFactory object.
+     * The logger factory can only be set once per process. Any subsequent calls to
+     * set the logger factory will have no effect, though the logger factory object
+     * will be cleaned up.
      */
-    ClientConfiguration& setLogger(LoggerFactoryPtr loggerFactory);
-
-    LoggerFactoryPtr getLogger() const;
+    ClientConfiguration& setLogger(LoggerFactory* loggerFactory);
 
     ClientConfiguration& setUseTls(bool useTls);
     bool isUseTls() const;

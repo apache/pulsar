@@ -67,7 +67,9 @@ public class PulsarConnectorFactory implements ConnectorFactory {
                     .setRequiredConfigurationProperties(config)
                     .initialize();
 
-            return injector.getInstance(PulsarConnector.class);
+            PulsarConnector connector = injector.getInstance(PulsarConnector.class);
+            connector.initConnectorCache();
+            return connector;
         } catch (Exception e) {
             throwIfUnchecked(e);
             throw new RuntimeException(e);
