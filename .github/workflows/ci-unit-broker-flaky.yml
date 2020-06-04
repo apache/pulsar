@@ -70,7 +70,7 @@ jobs:
 
       - name: run unit tests pulsar broker flaky tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=MessageIdTest,UnAcknowledgedMessagesTimeoutTest,ConsumerPreciseDispatcherFlowControl,SimpleSchemaTest,ConsumerDedupPermitsUpdate,NamespaceOwnershipListenerTests,ServerCnxTest' -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=MessageIdTest,UnAcknowledgedMessagesTimeoutTest,ConsumerPreciseDispatcherFlowControl,SimpleSchemaTest,ConsumerDedupPermitsUpdate,NamespaceOwnershipListenerTests' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
