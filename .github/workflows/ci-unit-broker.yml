@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers
+name: CI - Unit - Brokers - Default
 on:
   pull_request:
     branches:
@@ -66,14 +66,14 @@ jobs:
 
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn clean install -DskipTests -pl pulsar-broker -am
         
       - name: run unit test pulsar-broker
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           df -h
           free -h
-          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest, !PulsarFunctionE2ESecurityTest, !SchemaCompatibilityCheckTest, !CompactedTopicTest, !LoadBalancerTest, !ConsumerBatchReceiveTest, !KeySharedSubscriptionTest, !MessagePublishBufferThrottleTest, !PrecisTopicPublishRateThrottleTest, !PublishRateLimiterTest, !MessagePublishThrottlingTest, !MessageIdTest, !UnAcknowledgedMessagesTimeoutTest, !ConsumerPreciseDispatcherFlowControl, !SimpleSchemaTest, !ConsumerDedupPermitsUpdate' -DfailIfNoTests=false -pl pulsar-broker
+          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest, !PulsarFunctionE2ESecurityTest, !SchemaCompatibilityCheckTest, !CompactedTopicTest, !LoadBalancerTest, !ConsumerBatchReceiveTest, !KeySharedSubscriptionTest, !MessagePublishBufferThrottleTest, !PrecisTopicPublishRateThrottleTest, !PublishRateLimiterTest, !MessagePublishThrottlingTest, !MessageIdTest, !UnAcknowledgedMessagesTimeoutTest, !ConsumerPreciseDispatcherFlowControl, !SimpleSchemaTest, !ConsumerDedupPermitsUpdate, !NamespaceOwnershipListenerTests' -DfailIfNoTests=false -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
