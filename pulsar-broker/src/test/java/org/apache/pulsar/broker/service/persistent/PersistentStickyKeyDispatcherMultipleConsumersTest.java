@@ -103,6 +103,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 any(EntryBatchIndexesAcks.class),
                 anyInt(),
                 anyLong(),
+                anyLong(),
                 any(RedeliveryTracker.class)
         );
 
@@ -140,18 +141,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
 
         ArgumentCaptor<Integer> totalMessagesCaptor = ArgumentCaptor.forClass(Integer.class);
-        verify(consumerMock, times(2)).sendMessages(
+        verify(consumerMock, times(1)).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
                 any(EntryBatchIndexesAcks.class),
                 totalMessagesCaptor.capture(),
                 anyLong(),
+                anyLong(),
                 any(RedeliveryTracker.class)
         );
 
         List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
-        Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 0);
-        Assert.assertEquals(allTotalMessagesCaptor.get(1).intValue(), 5);
+        Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {

@@ -45,7 +45,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         PublishRate publishRate = new PublishRate(1,10);
         // disable precis topic publish rate limiting
         conf.setPreciseTopicPublishRateLimiterEnable(false);
-        conf.setMaxPendingPublishdRequestsPerConnection(0);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
@@ -84,7 +84,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
     public void testProducerBlockedByPrecisTopicPublishRateLimiting() throws Exception {
         PublishRate publishRate = new PublishRate(1,10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
-        conf.setMaxPendingPublishdRequestsPerConnection(0);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
@@ -116,7 +116,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
     public void testPrecisTopicPublishRateLimitingProduceRefresh() throws Exception {
         PublishRate publishRate = new PublishRate(1,10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
-        conf.setMaxPendingPublishdRequestsPerConnection(0);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testPrecisTopicPublishRateLimiting";
         org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
