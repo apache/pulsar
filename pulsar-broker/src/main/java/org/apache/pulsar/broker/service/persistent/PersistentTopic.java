@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,8 +39,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
+import java.util.function.BiFunction;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -125,15 +127,6 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.BiFunction;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
@@ -154,16 +147,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
-
-    // Timestamp of when this topic was last seen active
-    private volatile long lastActive;
     
     // topic has every published chunked message since topic is loaded
     public boolean msgChunkPublished;
 
-    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
-    // doesn't support batch-message
-    private volatile boolean hasBatchMessagePublished = false;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public volatile long delayedDeliveryTickTimeMillis = 1000;
@@ -1647,6 +1634,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
+        if (!deleteWhileInactive) {
+            // This topic is not included in GC
+            return;
+        }
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
