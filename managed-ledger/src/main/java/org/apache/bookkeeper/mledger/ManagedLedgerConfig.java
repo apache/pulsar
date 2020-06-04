@@ -70,6 +70,7 @@ public class ManagedLedgerConfig {
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
 
     public boolean isCreateIfMissing() {
@@ -601,5 +602,13 @@ public class ManagedLedgerConfig {
 
     public void setDeletionAtBatchIndexLevelEnabled(boolean deletionAtBatchIndexLevelEnabled) {
         this.deletionAtBatchIndexLevelEnabled = deletionAtBatchIndexLevelEnabled;
+    }
+
+    public int getNewEntriesCheckDelayInMillis() {
+        return newEntriesCheckDelayInMillis;
+    }
+
+    public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
+        this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 }

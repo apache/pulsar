@@ -41,6 +41,9 @@ public class ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
+    /** Total chunked messages dispatched. */
+    public double chuckedMessageRate;
+
     /** Name of the consumer. */
     public String consumerName;
 

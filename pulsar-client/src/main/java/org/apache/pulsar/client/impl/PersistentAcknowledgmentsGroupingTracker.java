@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 
@@ -185,10 +186,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return false;
         }
 
-        final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(), null, ackType, null,
-                properties);
-
-        cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+        newAckCommand(consumer.consumerId, msgId, null, ackType, null, properties, cnx, true /* flush */);
         return true;
     }
 
@@ -226,9 +224,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
         boolean shouldFlush = false;
         if (cumulativeAckFlushRequired) {
-            ByteBuf cmd = Commands.newAck(consumer.consumerId, lastCumulativeAck.ledgerId, lastCumulativeAck.entryId, lastCumulativeAckSet,
-                    AckType.Cumulative, null, Collections.emptyMap());
-            cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            newAckCommand(consumer.consumerId, lastCumulativeAck, lastCumulativeAckSet, AckType.Cumulative, null, Collections.emptyMap(), cnx,
+                    false /* flush */);
             shouldFlush=true;
             cumulativeAckFlushRequired = false;
         }
@@ -244,7 +241,20 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         break;
                     }
 
-                    entriesToAck.add(Triple.of(msgId.getLedgerId(), msgId.getEntryId(), null));
+                    // if messageId is checked then all the chunked related to that msg also processed so, ack all of
+                    // them
+                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
+                    if (chunkMsgIds != null && chunkMsgIds.length > 1) {
+                        for (MessageIdImpl cMsgId : chunkMsgIds) {
+                            if (cMsgId != null) {
+                                entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
+                            }
+                        }
+                        // messages will be acked so, remove checked message sequence
+                        this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
+                    } else {
+                        entriesToAck.add(Triple.of(msgId.getLedgerId(), msgId.getEntryId(), null));
+                    }
                 }
             } else {
                 // When talking to older brokers, send the acknowledgements individually
@@ -254,8 +264,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         break;
                     }
 
-                    cnx.ctx().write(Commands.newAck(consumer.consumerId, msgId.getLedgerId(), msgId.getEntryId(), null,
-                            AckType.Individual, null, Collections.emptyMap()), cnx.ctx().voidPromise());
+                    newAckCommand(consumer.consumerId, msgId, null, AckType.Individual, null, Collections.emptyMap(),
+                            cnx, false);
                     shouldFlush = true;
                 }
             }
@@ -298,6 +308,47 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         flush();
         if (scheduledTask != null && !scheduledTask.isCancelled()) {
             scheduledTask.cancel(true);
+        }
+    }
+
+    private void newAckCommand(long consumerId, MessageIdImpl msgId, BitSetRecyclable lastCumulativeAckSet,
+            AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx, boolean flush) {
+
+        MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
+        if (chunkMsgIds != null) {
+            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion()) && ackType != AckType.Cumulative) {
+                List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
+                for (MessageIdImpl cMsgId : chunkMsgIds) {
+                    if (cMsgId != null && chunkMsgIds.length > 1) {
+                        entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
+                    }
+                }
+                ByteBuf cmd = Commands.newMultiMessageAck(consumer.consumerId, entriesToAck);
+                if (flush) {
+                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                } else {
+                    cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                }
+            } else {
+                for (MessageIdImpl cMsgId : chunkMsgIds) {
+                    ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
+                            lastCumulativeAckSet, ackType, validationError, map);
+                    if (flush) {
+                        cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                    } else {
+                        cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+                    }
+                }
+            }
+            this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
+        } else {
+            ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
+                    ackType, validationError, map);
+            if (flush) {
+                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+            } else {
+                cnx.ctx().write(cmd, cnx.ctx().voidPromise());
+            }
         }
     }
 }

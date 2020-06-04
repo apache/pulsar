@@ -245,6 +245,15 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         return closeFuture;
     }
 
+    public synchronized CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
+        closeFuture = new CompletableFuture<>();
+        if (activeConsumer != null) {
+            activeConsumer.disconnect(isResetCursor);
+        }
+        closeFuture.complete(null);
+        return closeFuture;
+    }
+
     @Override
     public synchronized void resetCloseFuture() {
         closeFuture = null;
