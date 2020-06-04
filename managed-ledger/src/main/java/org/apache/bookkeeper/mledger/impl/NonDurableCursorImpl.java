@@ -62,9 +62,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
-        long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
+        if (null != this.readPosition) {
+            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
                 ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
-        messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+            messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+        } else {
+            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
+                mdPosition, readPosition);
+        }
     }
 
     @Override

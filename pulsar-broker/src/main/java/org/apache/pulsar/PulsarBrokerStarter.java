@@ -207,7 +207,13 @@ public class PulsarBrokerStarter {
             }
 
             // init pulsar service
-            pulsarService = new PulsarService(brokerConfig, Optional.ofNullable(functionsWorkerService));
+            pulsarService = new PulsarService(brokerConfig,
+                                              Optional.ofNullable(functionsWorkerService),
+                                              (exitCode) -> {
+                                                  log.info("Halting broker process with code {}",
+                                                           exitCode);
+                                                  Runtime.getRuntime().halt(exitCode);
+                                              });
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {

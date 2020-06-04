@@ -157,7 +157,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
     }
 
-    // Called in exector hashed on managed ledger name, once the add operation is complete
+    // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
     public void safeRun() {
         // Remove this entry from the head of the pending queue

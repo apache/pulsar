@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -97,6 +98,15 @@ public class ClientBuilderImpl implements ClientBuilder {
             throw new IllegalArgumentException("Param serviceUrlProvider must not be null.");
         }
         conf.setServiceUrlProvider(serviceUrlProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder listenerName(String listenerName) {
+        if (StringUtils.isBlank(listenerName)) {
+            throw new IllegalArgumentException("Param listenerName must not be blank.");
+        }
+        conf.setListenerName(StringUtils.trim(listenerName));
         return this;
     }
 
@@ -241,6 +251,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder maxLookupRedirects(int maxLookupRedirects) {
+        conf.setMaxLookupRedirects(maxLookupRedirects);
+        return this;
+    }
+
+    @Override
     public ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
         conf.setMaxNumberOfRejectedRequestPerConnection(maxNumberOfRejectedRequestPerConnection);
         return this;
@@ -277,6 +293,16 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder clock(Clock clock) {
         conf.setClock(clock);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol) {
+        if (StringUtils.isNotBlank(proxyServiceUrl) && proxyProtocol == null) {
+            throw new IllegalArgumentException("proxyProtocol must be present with proxyServiceUrl");
+        }
+        conf.setProxyServiceUrl(proxyServiceUrl);
+        conf.setProxyProtocol(proxyProtocol);
         return this;
     }
 }
