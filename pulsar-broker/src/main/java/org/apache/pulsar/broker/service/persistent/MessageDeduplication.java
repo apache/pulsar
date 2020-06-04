@@ -310,7 +310,7 @@ public class MessageDeduplication {
                 }
 
                 // Also need to check sequence ids that has been persisted.
-                // If current message's seq id is smaller smaller or equals to the lastSequenceIdPersisted than its definitely a dup
+                // If current message's seq id is smaller or equals to the lastSequenceIdPersisted than its definitely a dup
                 // If current message's seq id is between lastSequenceIdPersisted and lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
                 // we should return an error to the producer for the latter case so that it can retry at a future time
                 Long lastSequenceIdPersisted = highestSequencedPersisted.get(producerName);

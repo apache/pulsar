@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
@@ -412,5 +413,19 @@ public class MessageImplTest {
         Assert.assertEquals(
                 KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
+    }
+
+    @Test
+    public void testTypedSchemaGetNullValue() {
+        byte[] encodeBytes = new byte[0];
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+                .setProducerName("valueNotSet");
+        ByteString byteString = ByteString.copyFrom(new byte[0]);
+        builder.setSchemaVersion(byteString);
+        builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
+        builder.setPartitionKeyB64Encoded(true);
+        builder.setNullValue(true);
+        MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of());
+        assertNull(msg.getValue());
     }
 }

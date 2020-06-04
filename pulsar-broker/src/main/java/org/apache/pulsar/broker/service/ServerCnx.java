@@ -59,6 +59,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -77,6 +78,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -157,6 +159,9 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
+    private boolean preciseDispatcherFlowControl;
+
+    private boolean preciseTopicPublishRateLimitingEnable;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
@@ -187,8 +192,10 @@ public class ServerCnx extends PulsarHandler {
         this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
         this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
-        this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishdRequestsPerConnection();
+        this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
+        this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
+        this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
     }
 
     @Override
@@ -271,6 +278,7 @@ public class ServerCnx extends PulsarHandler {
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.getAuthoritative();
+        final String advertisedListenerName = lookup.getAdvertisedListenerName();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
@@ -292,8 +300,8 @@ public class ServerCnx extends PulsarHandler {
             }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService().canLookupAsync(topicName, authRole,
-                    authenticationData);
+                isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                        TopicOperation.LOOKUP, originalPrincipal, authRole, authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -302,7 +310,7 @@ public class ServerCnx extends PulsarHandler {
                 if (isProxyAuthorized) {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
-                            requestId).handle((lookupResponse, ex) -> {
+                            requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
                                 } else {
@@ -364,8 +372,8 @@ public class ServerCnx extends PulsarHandler {
             }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService()
-                        .canLookupAsync(topicName, authRole, authenticationData);
+                isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                        TopicOperation.LOOKUP, originalPrincipal, authRole, authenticationData);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -760,8 +768,9 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().canConsumeAsync(topicName, authRole,
-                    authenticationData, subscribe.getSubscription());
+            authenticationData.setSubscription(subscriptionName);
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                    TopicOperation.CONSUME, originalPrincipal, authRole, authenticationData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -769,9 +778,13 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationService().canConsumeAsync(topicName,
-                            originalPrincipal != null ? originalPrincipal : authRole, authenticationData,
-                            subscriptionName);
+                    if (authenticationData == null) {
+                        authenticationData = new AuthenticationDataCommand("", subscriptionName);
+                    } else {
+                        authenticationData.setSubscription(subscriptionName);
+                    }
+                    authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                            TopicOperation.CONSUME, originalPrincipal, authRole, authenticationData);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -979,8 +992,8 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationService().canProduceAsync(topicName,
-                    authRole, authenticationData);
+            isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                    TopicOperation.PRODUCE, originalPrincipal, authRole, authenticationData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -988,8 +1001,8 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationService().canProduceAsync(topicName,
-                            originalPrincipal != null ? originalPrincipal : authRole, authenticationData);
+                    authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
+                            TopicOperation.PRODUCE, originalPrincipal, authRole, authenticationData);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -1197,14 +1210,15 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation(producer, headersAndPayload.readableBytes());
+        startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages());
+                    headersAndPayload, send.getNumMessages(), send.getIsChunk());
         } else {
-            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
+                    send.getNumMessages(), send.getIsChunk());
         }
     }
 
@@ -1783,9 +1797,21 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation(Producer producer, int msgSize) {
+
+    public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
-        boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        boolean isPublishRateExceeded = false;
+        if (preciseTopicPublishRateLimitingEnable) {
+            boolean isPreciseTopicPublishRateExceeded = producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
+            if (isPreciseTopicPublishRateExceeded) {
+                producer.getTopic().disableCnxAutoRead();
+                return;
+            }
+            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+        } else {
+            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        }
+
         if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
@@ -1944,5 +1970,9 @@ public class ServerCnx extends PulsarHandler {
     @VisibleForTesting
     void setAutoReadDisabledRateLimiting(boolean isLimiting) {
         this.autoReadDisabledRateLimiting = isLimiting;
+    }
+
+    public boolean isPreciseDispatcherFlowControl() {
+        return preciseDispatcherFlowControl;
     }
 }

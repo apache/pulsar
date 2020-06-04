@@ -56,6 +56,10 @@ public class SinkConfig {
 
     private Map<String, ConsumerConfig> inputSpecs;
 
+    private Integer maxMessageRetries;
+
+    private String deadLetterTopic;
+
     private Map<String, Object> configs;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
@@ -69,6 +73,7 @@ public class SinkConfig {
     private Resources resources;
     private Boolean autoAck;
     private Long timeoutMs;
+    private Long negativeAckRedeliveryDelayMs;
     private String archive;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;

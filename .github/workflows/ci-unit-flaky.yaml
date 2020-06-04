@@ -81,7 +81,7 @@ jobs:
 
       - name: run unit tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR test '-Dtest=PulsarFunctionE2ESecurityTest,AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false -fn
+        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR test '-Dtest=AdminApiOffloadTest,AdminApiSchemaValidationEnforced,V1_AdminApiTest2,PulsarFunctionE2ETest,MessageIdSerialization,AdminApiTest2,PulsarFunctionLocalRunTest,PartitionedProducerConsumerTest,KafkaProducerSimpleConsumerTest,ProxyTest' -DfailIfNoTests=false -fn
 
       - name: package surefire artifacts
         if: failure()

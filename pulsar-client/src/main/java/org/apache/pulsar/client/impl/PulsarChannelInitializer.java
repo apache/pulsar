@@ -27,6 +27,10 @@ import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
+import lombok.Getter;
+import lombok.Setter;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ObjectCache;
@@ -41,11 +45,16 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     public static final String TLS_HANDLER = "tls";
 
     private final Supplier<ClientCnx> clientCnxSupplier;
+    @Getter
     private final boolean tlsEnabled;
     private final boolean tlsEnabledWithKeyStore;
 
     private final Supplier<SslContext> sslContextSupplier;
     private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
+    @Setter
+    private String sniHostName;
+    @Setter
+    private int sniHostPort;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -99,9 +108,12 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             if (tlsEnabledWithKeyStore) {
                 ch.pipeline().addLast(TLS_HANDLER,
                         new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
-            } else {
-                ch.pipeline().addLast(TLS_HANDLER, sslContextSupplier.get().newHandler(ch.alloc()));
-            }
+			} else {
+				SslHandler handler = StringUtils.isNotBlank(sniHostName)
+						? sslContextSupplier.get().newHandler(ch.alloc(), sniHostName, sniHostPort)
+						: sslContextSupplier.get().newHandler(ch.alloc());
+				ch.pipeline().addLast(TLS_HANDLER, handler);
+			}
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
         } else {
             ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
