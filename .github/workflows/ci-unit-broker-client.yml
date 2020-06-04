@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Proxy
+name: CI - Unit - Brokers - Client
 on:
   pull_request:
     branches:
@@ -55,26 +55,32 @@ jobs:
         with:
           maven-version: 3.6.1
 
+      - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
+        run: |
+          sudo swapoff /swapfile
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt clean
+          docker rmi $(docker images -q) -f
+          df -h
+
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests -pl pulsar-proxy -am
+        run: mvn clean install -DskipTests -pl pulsar-broker -am
 
-      - name: run unit tests pulsar proxy
+      - name: run unit tests pulsar broker client tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=!ProxyTest,!ProxyLookupThrottlingTest' -pl pulsar-proxy
-
-      - name: run proxy lookup throttling test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ProxyLookupThrottlingTest' -pl pulsar-proxy
+        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/client/**/*.java,!UnAcknowledgedMessagesTimeoutTest,!SimpleSchemaTest,!ConsumerDedupPermitsUpdate,!ConsumerBatchReceiveTest,!KeySharedSubscriptionTest' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
         run: |
+          df -h
+          free -h
           rm -rf artifacts
           mkdir artifacts
           find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
           zip -r artifacts.zip artifacts
-
       - uses: actions/upload-artifact@master
         name: upload surefire-artifacts
         if: failure()
