@@ -41,7 +41,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-2. Entering the follwing command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
+2. Entering the following command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
 
 ```bash
 mkdir my-ca
@@ -97,7 +97,7 @@ openssl pkcs8 -topk8 -inform PEM -outform PEM \
     -in broker.key.pem -out broker.key-pk8.pem -nocrypt
 ```
 
-2. Enter the follwing command to generate the certificate request.
+2. Enter the following command to generate the certificate request.
 
 ```bash
 openssl req -config openssl.cnf \
