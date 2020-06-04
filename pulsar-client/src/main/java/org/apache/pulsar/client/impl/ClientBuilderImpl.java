@@ -101,6 +101,15 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder listenerName(String listenerName) {
+        if (StringUtils.isBlank(listenerName)) {
+            throw new IllegalArgumentException("Param listenerName must not be blank.");
+        }
+        conf.setListenerName(StringUtils.trim(listenerName));
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
         return this;
@@ -237,6 +246,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder maxLookupRequests(int maxLookupRequests) {
         conf.setMaxLookupRequest(maxLookupRequests);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder maxLookupRedirects(int maxLookupRedirects) {
+        conf.setMaxLookupRedirects(maxLookupRedirects);
         return this;
     }
 

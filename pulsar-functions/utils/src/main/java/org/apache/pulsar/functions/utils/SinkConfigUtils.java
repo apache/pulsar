@@ -20,7 +20,6 @@
 package org.apache.pulsar.functions.utils;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.AllArgsConstructor;
@@ -34,9 +33,9 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
-import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.validator.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
@@ -169,6 +168,9 @@ public class SinkConfigUtils {
         if (sinkConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(sinkConfig.getTimeoutMs());
         }
+        if (sinkConfig.getNegativeAckRedeliveryDelayMs() != null && sinkConfig.getNegativeAckRedeliveryDelayMs() > 0) {
+            sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(sinkConfig.getNegativeAckRedeliveryDelayMs());
+        }
 
         if (sinkConfig.getCleanupSubscription() != null) {
             sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
@@ -183,6 +185,15 @@ public class SinkConfigUtils {
         }
 
         functionDetailsBuilder.setSource(sourceSpecBuilder);
+
+        if (sinkConfig.getMaxMessageRetries() != null && sinkConfig.getMaxMessageRetries() > 0) {
+            Function.RetryDetails.Builder retryDetails = Function.RetryDetails.newBuilder();
+            retryDetails.setMaxMessageRetries(sinkConfig.getMaxMessageRetries());
+            if (StringUtils.isNotBlank(sinkConfig.getDeadLetterTopic())) {
+                retryDetails.setDeadLetterTopic(sinkConfig.getDeadLetterTopic());
+            }
+            functionDetailsBuilder.setRetryDetails(retryDetails);
+        }
 
         // set up sink spec
         Function.SinkSpec.Builder sinkSpecBuilder = Function.SinkSpec.newBuilder();
@@ -265,6 +276,9 @@ public class SinkConfigUtils {
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
         }
+        if (functionDetails.getSource().getNegativeAckRedeliveryDelayMs() > 0) {
+            sinkConfig.setNegativeAckRedeliveryDelayMs(functionDetails.getSource().getNegativeAckRedeliveryDelayMs());
+        }
         if (!isEmpty(functionDetails.getSink().getClassName())) {
             sinkConfig.setClassName(functionDetails.getSink().getClassName());
         }
@@ -301,6 +315,12 @@ public class SinkConfigUtils {
 
         if (!isEmpty(functionDetails.getCustomRuntimeOptions())) {
             sinkConfig.setCustomRuntimeOptions(functionDetails.getCustomRuntimeOptions());
+        }
+        if (functionDetails.hasRetryDetails()) {
+            sinkConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
+            if (StringUtils.isNotBlank(functionDetails.getRetryDetails().getDeadLetterTopic())) {
+                sinkConfig.setDeadLetterTopic(functionDetails.getRetryDetails().getDeadLetterTopic());
+            }
         }
 
         return sinkConfig;
@@ -357,7 +377,7 @@ public class SinkConfigUtils {
         Exception narClassLoaderException = null;
 
         try {
-            jarClassLoader = FunctionCommon.extractClassLoader(archivePath, sinkPackageFile);
+            jarClassLoader = ClassLoaderUtils.extractClassLoader(archivePath, sinkPackageFile);
         } catch (Exception e) {
             jarClassLoaderException = e;
         }

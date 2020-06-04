@@ -116,6 +116,7 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
     void internalListener(Consumer consumer);
     void receiveMessages();
     void failPendingReceiveCallback();
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
     Promise<Result, ConsumerImplBaseWeakPtr> partitionedConsumerCreatedPromise_;
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     std::queue<ReceiveCallback> pendingReceives_;
