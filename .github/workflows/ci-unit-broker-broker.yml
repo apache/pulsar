@@ -70,7 +70,7 @@ jobs:
 
       - name: run unit tests pulsar broker tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/broker/**/*.java,!NamespaceOwnershipListenerTests,!AdminApiTest2,!MessagePublishBufferThrottleTest,!PrecisTopicPublishRateThrottleTest,!PublishRateLimiterTest,!MessagePublishThrottlingTest' -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/broker/**/*.java,!NamespaceOwnershipListenerTests,!AdminApiTest2,!MessagePublishBufferThrottleTest,!PrecisTopicPublishRateThrottleTest,!PublishRateLimiterTest,!MessagePublishThrottlingTest,!LoadBalancerTest' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
