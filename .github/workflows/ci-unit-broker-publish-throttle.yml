@@ -70,7 +70,7 @@ jobs:
 
       - name: run unit tests pulsar broker publish throttle
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=MessagePublishBufferThrottleTest,PrecisTopicPublishRateThrottleTest,PublishRateLimiterTest,MessagePublishThrottlingTest' -pl pulsar-broker --thread 1
+        run: mvn test -DfailIfNoTests=false '-Dtest=MessagePublishBufferThrottleTest,PrecisTopicPublishRateThrottleTest,PublishRateLimiterTest,MessagePublishThrottlingTest' -pl pulsar-broker --threads 1
 
       - name: package surefire artifacts
         if: failure()
