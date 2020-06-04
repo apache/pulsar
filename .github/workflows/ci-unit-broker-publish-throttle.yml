@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers
+name: CI - Unit - Brokers - Publish - Throttle
 on:
   pull_request:
     branches:
@@ -67,13 +67,22 @@ jobs:
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
-        
-      - name: run unit test pulsar-broker
+
+      - name: run unit tests pulsar broker MessagePublishBufferThrottleTest
         if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          df -h
-          free -h
-          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest, !PulsarFunctionE2ESecurityTest, !SchemaCompatibilityCheckTest, !CompactedTopicTest, !LoadBalancerTest, !ConsumerBatchReceiveTest, !KeySharedSubscriptionTest, !MessagePublishBufferThrottleTest, !PrecisTopicPublishRateThrottleTest, !PublishRateLimiterTest, !MessagePublishThrottlingTest, !MessageIdTest, !UnAcknowledgedMessagesTimeoutTest, !ConsumerPreciseDispatcherFlowControl, !SimpleSchemaTest, !ConsumerDedupPermitsUpdate' -DfailIfNoTests=false -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=MessagePublishBufferThrottleTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker PrecisTopicPublishRateThrottleTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=PrecisTopicPublishRateThrottleTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker PublishRateLimiterTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=PublishRateLimiterTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker MessagePublishThrottlingTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=MessagePublishThrottlingTest' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
