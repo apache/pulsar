@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers - Broker
+name: CI - Unit - Brokers - Transaction
 on:
   pull_request:
     branches:
@@ -68,9 +68,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
 
-      - name: run unit tests pulsar broker tests
+      - name: run unit tests pulsar broker transaction tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/broker/**/*.java,!NamespaceOwnershipListenerTests,!AdminApiTest2,!MessagePublishBufferThrottleTest,!PrecisTopicPublishRateThrottleTest,!PublishRateLimiterTest,!MessagePublishThrottlingTest,!LoadBalancerTest,!org/apache/pulsar/broker/transaction/**/*.java,!AdminApiTest,!V1_AdminApiTest' -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=org/apache/pulsar/broker/transaction/**/*.java' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
