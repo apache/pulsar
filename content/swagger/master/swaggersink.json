@@ -36,6 +36,46 @@
         }
       }
     },
+    "/sinks/builtinsinks/{name}/configdefinition" : {
+      "get" : {
+        "tags" : [ "sinks" ],
+        "summary" : "Fetches information about config fields associated with the specified builtin sink",
+        "description" : "",
+        "operationId" : "getSinkConfigDefinition",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "name",
+          "in" : "path",
+          "description" : "The name of the builtin sink",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/ConfigFieldDefinition"
+              }
+            }
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "builtin sink does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
+          }
+        }
+      }
+    },
     "/sinks/reloadBuiltInSinks" : {
       "post" : {
         "tags" : [ "sinks" ],
@@ -726,6 +766,23 @@
     }
   },
   "definitions" : {
+    "ConfigFieldDefinition" : {
+      "type" : "object",
+      "properties" : {
+        "fieldName" : {
+          "type" : "string"
+        },
+        "typeName" : {
+          "type" : "string"
+        },
+        "attributes" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
     "ConnectorDefinition" : {
       "type" : "object",
       "properties" : {

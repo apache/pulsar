@@ -6633,6 +6633,64 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/terminate/partitions" : {
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Terminate all partitioned topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
+        "description" : "",
+        "operationId" : "terminatePartitionedTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Termination of a partitioned topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/unload" : {
       "put" : {
         "tags" : [ "non-persistent topic" ],
@@ -8891,6 +8949,64 @@
         }
       }
     },
+    "/persistent/{tenant}/{namespace}/{topic}/terminate/partitions" : {
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Terminate all partitioned topic. A topic that is terminated will not accept any more messages to be published and will let consumer to drain existing messages in backlog",
+        "description" : "",
+        "operationId" : "terminatePartitionedTopic",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "description" : "Specify the tenant",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "description" : "Specify the namespace",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "description" : "Specify topic name",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "authoritative",
+          "in" : "query",
+          "description" : "Is authentication required to perform this operation",
+          "required" : false,
+          "type" : "boolean",
+          "default" : false
+        } ],
+        "responses" : {
+          "401" : {
+            "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
+          },
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Termination of a partitioned topic is not allowed"
+          },
+          "412" : {
+            "description" : "Topic name is not valid"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Failed to validate global cluster configuration"
+          }
+        }
+      }
+    },
     "/persistent/{tenant}/{namespace}/{topic}/unload" : {
       "put" : {
         "tags" : [ "persistent topic" ],
@@ -8980,6 +9096,15 @@
         "operationId" : "setDefaultResourceQuota",
         "consumes" : [ "application/json" ],
         "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Default resource quota",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/ResourceQuota"
+          }
+        } ],
         "responses" : {
           "200" : {
             "description" : "successful operation",
@@ -9008,16 +9133,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Tenant name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Namespace name within the specified tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "bundle",
           "in" : "path",
+          "description" : "Namespace bundle range",
           "required" : true,
           "type" : "string"
         } ],
@@ -9049,18 +9177,29 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Tenant name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Namespace name within the specified tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "bundle",
           "in" : "path",
+          "description" : "Namespace bundle range",
           "required" : true,
           "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Resource quota for the specified namespace",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/ResourceQuota"
+          }
         } ],
         "responses" : {
           "307" : {
@@ -9084,16 +9223,19 @@
         "parameters" : [ {
           "name" : "tenant",
           "in" : "path",
+          "description" : "Tenant name",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "namespace",
           "in" : "path",
+          "description" : "Namespace name within the specified tenant",
           "required" : true,
           "type" : "string"
         }, {
           "name" : "bundle",
           "in" : "path",
+          "description" : "Namespace bundle range",
           "required" : true,
           "type" : "string"
         } ],
@@ -9936,6 +10078,17 @@
           "example" : "pulsar+ssl://pulsar.example.com:6651",
           "description" : "The secured broker service url (for produce and consume operations)"
         },
+        "proxyServiceUrl" : {
+          "type" : "string",
+          "example" : "pulsar+ssl://ats-proxy.example.com:4443 or pulsar://ats-proxy.example.com:4080",
+          "description" : "Proxy-service url when client would like to connect to broker via proxy."
+        },
+        "proxyProtocol" : {
+          "type" : "string",
+          "example" : "SNI",
+          "description" : "protocol to decide type of proxy routing eg: SNI-routing",
+          "enum" : [ "SNI" ]
+        },
         "peerClusterNames" : {
           "type" : "array",
           "description" : "A set of peer cluster names",
@@ -9967,6 +10120,10 @@
           "format" : "int64"
         },
         "msgRateRedeliver" : {
+          "type" : "number",
+          "format" : "double"
+        },
+        "chuckedMessageRate" : {
           "type" : "number",
           "format" : "double"
         },
@@ -10386,18 +10543,8 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -10407,10 +10554,20 @@
           "type" : "number",
           "format" : "double"
         },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "bandwidthIn" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         }
       }
@@ -10565,6 +10722,10 @@
           "type" : "number",
           "format" : "double"
         },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "producerId" : {
           "type" : "integer",
           "format" : "int64"
@@ -10668,6 +10829,10 @@
           "type" : "number",
           "format" : "double"
         },
+        "chuckedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "msgBacklog" : {
           "type" : "integer",
           "format" : "int64"
@@ -10770,6 +10935,9 @@
         "averageMsgSize" : {
           "type" : "number",
           "format" : "double"
+        },
+        "msgChunkPublished" : {
+          "type" : "boolean"
         },
         "storageSize" : {
           "type" : "integer",
@@ -11429,6 +11597,10 @@
           "type" : "number",
           "format" : "double"
         },
+        "chunkedMessageRate" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "producerId" : {
           "type" : "integer",
           "format" : "int64"
@@ -11620,6 +11792,10 @@
           "type" : "number",
           "format" : "double"
         },
+        "chuckedMessageRate" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "msgBacklog" : {
           "type" : "integer",
           "format" : "int64"
@@ -11760,6 +11936,9 @@
         "averageMsgSize" : {
           "type" : "number",
           "format" : "double"
+        },
+        "msgChunkPublished" : {
+          "type" : "boolean"
         },
         "storageSize" : {
           "type" : "integer",

@@ -177,6 +177,7 @@
 <tr><td>enableNonPersistentTopics</td><td>Whether non-persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>functionsWorkerEnabled</td><td>Whether the Pulsar Functions worker service is enabled in the broker</td><td>false</td></tr>
 <tr><td>zookeeperServers</td><td>Zookeeper quorum connection string</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>brokerServicePort</td><td>Broker data port</td><td>6650</td></tr>
 <tr><td>brokerServicePortTls</td><td>Broker data port for TLS</td><td>6651</td></tr>
@@ -234,8 +235,8 @@
 <tr><td>brokerClientTlsCiphers</td><td>Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]</td><td></td></tr>
 <tr><td>brokerClientTlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS handshake. (a comma-separated list of protocol names). e.g.  [TLSv1.2, TLSv1.1, TLSv1]</td><td></td></tr>
 <tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
-<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
-<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicAlg</td><td>Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>)</td><td>RS256</td></tr>
 <tr><td>tokenAuthClaim</td><td>Specify which of the token's claims will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The default &quot;sub&quot; claim will be used if this is left blank</td><td></td></tr>
 <tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;, that will be used to get the audience from token. If not set, audience will not be verified.</td><td></td></tr>
@@ -254,7 +255,7 @@
 <tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>athenzDomainNames</td><td>Supported Athenz provider domain names(comma separated) for authentication</td><td></td></tr>
 <tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
-<tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. For example: <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a></td><td></td></tr>
+<tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>. The metadata service uri list can also be semicolon separated values like below: <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to use when connecting to bookies</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementatation specifics parameters name and values</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParameters</td><td></td><td></td></tr>
@@ -357,6 +358,7 @@
 </thead>
 <tbody>
 <tr><td>zookeeperServers</td><td>Zookeeper quorum connection string (comma-separated)</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout</td><td>30000</td></tr>
 <tr><td>servicePort</td><td>Port to use to server binary-proto request</td><td>6650</td></tr>
@@ -423,6 +425,7 @@
 </thead>
 <tbody>
 <tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
 <tr><td>webServicePort</td><td>THe port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
@@ -520,6 +523,7 @@
 <tbody>
 <tr><td>configurationStoreServers</td><td></td><td></td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td></td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>serviceUrl</td><td></td><td></td></tr>
 <tr><td>serviceUrlTls</td><td></td><td></td></tr>
 <tr><td>brokerServiceUrl</td><td></td><td></td></tr>
@@ -551,6 +555,7 @@
 <tr><td>zookeeperServers</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>servicePort</td><td>The port to use for server binary Protobuf requests</td><td>6650</td></tr>
 <tr><td>servicePortTls</td><td>The port to use to server binary Protobuf TLS requests</td><td>6651</td></tr>
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks</td><td></td></tr>
@@ -576,8 +581,8 @@
 <tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted.</td><td>false</td></tr>
 <tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code></td><td></td></tr>
 <tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
-<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
-<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicAlg</td><td>Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>)</td><td>RS256</td></tr>
 <tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
 </tbody>

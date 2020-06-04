@@ -129,11 +129,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:afffc25fc6be9f26221a206c49154b4cf"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a529fd8eca1a762badfabbe6a379fd52e"><td class="memItemLeft" align="right" valign="top">const std::string &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a529fd8eca1a762badfabbe6a379fd52e">getLogConfFilePath</a> () const </td></tr>
 <tr class="separator:a529fd8eca1a762badfabbe6a379fd52e"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa0dc0968fea7621352aae5a82bda7222"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#aa0dc0968fea7621352aae5a82bda7222">setLogger</a> (LoggerFactoryPtr loggerFactory)</td></tr>
-<tr class="separator:aa0dc0968fea7621352aae5a82bda7222"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afc9e8373f9ffa033a8c1938998db4242"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afc9e8373f9ffa033a8c1938998db4242"></a>
-LoggerFactoryPtr&#160;</td><td class="memItemRight" valign="bottom"><b>getLogger</b> () const </td></tr>
-<tr class="separator:afc9e8373f9ffa033a8c1938998db4242"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a659d381af7aa84fc90189e3d728cf7e0"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html#a659d381af7aa84fc90189e3d728cf7e0">setLogger</a> (<a class="el" href="classpulsar_1_1_logger_factory.html">LoggerFactory</a> *loggerFactory)</td></tr>
+<tr class="separator:a659d381af7aa84fc90189e3d728cf7e0"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aeb23afe3c07abf5430ccca33dc71af7d"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aeb23afe3c07abf5430ccca33dc71af7d"></a>
 <a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setUseTls</b> (bool useTls)</td></tr>
 <tr class="separator:aeb23afe3c07abf5430ccca33dc71af7d"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -384,21 +381,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 
 </div>
 </div>
-<a class="anchor" id="aa0dc0968fea7621352aae5a82bda7222"></a>
+<a class="anchor" id="a659d381af7aa84fc90189e3d728cf7e0"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a>&amp; pulsar::ClientConfiguration::setLogger </td>
           <td>(</td>
-          <td class="paramtype">LoggerFactoryPtr&#160;</td>
+          <td class="paramtype"><a class="el" href="classpulsar_1_1_logger_factory.html">LoggerFactory</a> *&#160;</td>
           <td class="paramname"><em>loggerFactory</em></td><td>)</td>
           <td></td>
         </tr>
       </table>
 </div><div class="memdoc">
 <p>Configure a custom logger backend to route of Pulsar client library to a different logger implementation.</p>
-<p>By default, log messages are printed on standard output. </p>
+<p>By default, log messages are printed on standard output.</p>
+<p>When passed in, the configuration takes ownership of the loggerFactory object. The logger factory can only be set once per process. Any subsequent calls to set the logger factory will have no effect, though the logger factory object will be cleaned up. </p>
 
 </div>
 </div>

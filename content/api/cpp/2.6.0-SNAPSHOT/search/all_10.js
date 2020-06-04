@@ -20,7 +20,7 @@ var searchData=
   ['seteventtimestamp',['setEventTimestamp',['../classpulsar_1_1_message_builder.html#a445ac7f5cac5282ef8248df399995338',1,'pulsar::MessageBuilder']]],
   ['setiothreads',['setIOThreads',['../classpulsar_1_1_client_configuration.html#a5081ce72cb0eb615fc209decdea7ca7a',1,'pulsar::ClientConfiguration']]],
   ['setlogconffilepath',['setLogConfFilePath',['../classpulsar_1_1_client_configuration.html#afffc25fc6be9f26221a206c49154b4cf',1,'pulsar::ClientConfiguration']]],
-  ['setlogger',['setLogger',['../classpulsar_1_1_client_configuration.html#aa0dc0968fea7621352aae5a82bda7222',1,'pulsar::ClientConfiguration']]],
+  ['setlogger',['setLogger',['../classpulsar_1_1_client_configuration.html#a659d381af7aa84fc90189e3d728cf7e0',1,'pulsar::ClientConfiguration']]],
   ['setmaxpendingmessagesacrosspartitions',['setMaxPendingMessagesAcrossPartitions',['../classpulsar_1_1_producer_configuration.html#a158f3061d38b91b3c9ccf81545278a61',1,'pulsar::ProducerConfiguration']]],
   ['setmaxtotalreceiverqueuesizeacrosspartitions',['setMaxTotalReceiverQueueSizeAcrossPartitions',['../classpulsar_1_1_consumer_configuration.html#a9c07888abe996b80c2fd168278a24de3',1,'pulsar::ConsumerConfiguration']]],
   ['setmessagelistener',['setMessageListener',['../classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d',1,'pulsar::ConsumerConfiguration']]],

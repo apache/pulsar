@@ -25,6 +25,7 @@ org.apache.pulsar.broker.stats
 org.apache.pulsar.broker.stats.metrics
 org.apache.pulsar.broker.stats.prometheus
 org.apache.pulsar.broker.stats.prometheus.metrics
+org.apache.pulsar.broker.systopic
 org.apache.pulsar.broker.tools
 org.apache.pulsar.broker.transaction.buffer
 org.apache.pulsar.broker.transaction.buffer.exceptions

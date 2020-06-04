@@ -97,24 +97,24 @@
 <li><p>为 CA 创建证书。 您可以使用 CA 来对 broker 和 客户端证书进行签名。 这确保了每一方都会信任其他方。 您应该将 CA 存储在一个非常安全的位置(理想情况是完全脱离网络、空间隔离和完全加密)。</p></li>
 <li><p>输入下面的命令为 CA 创建一个目录，并将此 <a href="https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf">openssl 配置文件</a> 放入该目录中。 You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. 配置文件使用这个环境变量来查找 CA 需要的其余文件和目录。</p></li>
 </ol>
-<pre><code class="hljs css language-bash">$ mkdir my-ca
-$ <span class="hljs-built_in">cd</span> my-ca
-$ wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
-$ <span class="hljs-built_in">export</span> CA_HOME=$(<span class="hljs-built_in">pwd</span>)
+<pre><code class="hljs css language-bash">mkdir my-ca
+<span class="hljs-built_in">cd</span> my-ca
+wget https://raw.githubusercontent.com/apache/pulsar/master/site2/website/static/examples/openssl.cnf
+<span class="hljs-built_in">export</span> CA_HOME=$(<span class="hljs-built_in">pwd</span>)
 </code></pre>
 <ol start="3">
 <li>输入下面的命令来创建必要的目录、密钥和证书。</li>
 </ol>
-<pre><code class="hljs css language-bash">$ mkdir certs crl newcerts private
-$ chmod 700 private/
-$ touch index.txt
-$ <span class="hljs-built_in">echo</span> 1000 &gt; serial
-$ openssl genrsa -aes256 -out private/ca.key.pem 4096
-$ chmod 400 private/ca.key.pem
-$ openssl req -config openssl.cnf -key private/ca.key.pem \
-      -new -x509 -days 7300 -sha256 -extensions v3_ca \
-      -out certs/ca.cert.pem
-$ chmod 444 certs/ca.cert.pem
+<pre><code class="hljs css language-bash">mkdir certs crl newcerts private
+chmod 700 private/
+touch index.txt
+<span class="hljs-built_in">echo</span> 1000 &gt; serial
+openssl genrsa -aes256 -out private/ca.key.pem 4096
+chmod 400 private/ca.key.pem
+openssl req -config openssl.cnf -key private/ca.key.pem \
+    -new -x509 -days 7300 -sha256 -extensions v3_ca \
+    -out certs/ca.cert.pem
+chmod 444 certs/ca.cert.pem
 </code></pre>
 <ol start="4">
 <li>After you answer the question prompts, CA-related files are stored in the <code>./my-ca</code> directory. Within that directory:</li>
@@ -133,24 +133,24 @@ $ chmod 444 certs/ca.cert.pem
 <ol>
 <li>输入下面的命令来生成密钥。</li>
 </ol>
-<pre><code class="hljs css language-bash">$ openssl genrsa -out broker.key.pem 2048
+<pre><code class="hljs css language-bash">openssl genrsa -out broker.key.pem 2048
 </code></pre>
 <p>Broker 需要密钥使用 <a href="https://en.wikipedia.org/wiki/PKCS_8">PKCS 8</a> 格式，因此输入以下命令进行转换。</p>
-<pre><code class="hljs css language-bash">$ openssl pkcs8 -topk8 -inform PEM -outform PEM \
-      -<span class="hljs-keyword">in</span> broker.key.pem -out broker.key-pk8.pem -nocrypt
+<pre><code class="hljs css language-bash">openssl pkcs8 -topk8 -inform PEM -outform PEM \
+    -<span class="hljs-keyword">in</span> broker.key.pem -out broker.key-pk8.pem -nocrypt
 </code></pre>
 <ol start="2">
 <li>输入下面的命令生成证书请求。</li>
 </ol>
-<pre><code class="hljs css language-bash">$ openssl req -config openssl.cnf \
-      -key broker.key.pem -new -sha256 -out broker.csr.pem
+<pre><code class="hljs css language-bash">openssl req -config openssl.cnf \
+    -key broker.key.pem -new -sha256 -out broker.csr.pem
 </code></pre>
 <ol start="3">
 <li>输入下面的命令获取证书颁发机构的签名。</li>
 </ol>
-<pre><code class="hljs css language-bash">$ openssl ca -config openssl.cnf -extensions server_cert \
-      -days 1000 -notext -md sha256 \
-      -<span class="hljs-keyword">in</span> broker.csr.pem -out broker.cert.pem
+<pre><code class="hljs css language-bash">openssl ca -config openssl.cnf -extensions server_cert \
+    -days 1000 -notext -md sha256 \
+    -<span class="hljs-keyword">in</span> broker.csr.pem -out broker.cert.pem
 </code></pre>
 <p>此时，您拥有一个证书 <code>broker.cert.pem</code>，和一个密钥 <code>broker.key-pk8.pem</code>，可以与 <code>ca.cert.pem</code> 一起使用，来为 broker 和 proxy 节点配置 TLS 传输加密。</p>
 <h2><a class="anchor" aria-hidden="true" id="broker配置"></a><a href="#broker配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker配置</h2>

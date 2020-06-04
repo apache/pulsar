@@ -48,6 +48,46 @@
         }
       }
     },
+    "/sources/builtinsources/{name}/configdefinition" : {
+      "get" : {
+        "tags" : [ "sources" ],
+        "summary" : "Fetches information about config fields associated with the specified builtin source",
+        "description" : "",
+        "operationId" : "getSourceConfigDefinition",
+        "consumes" : [ "application/json" ],
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "name",
+          "in" : "path",
+          "description" : "The name of the builtin source",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "successful operation",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/ConfigFieldDefinition"
+              }
+            }
+          },
+          "403" : {
+            "description" : "The requester doesn't have admin permissions"
+          },
+          "404" : {
+            "description" : "builtin source does not exist"
+          },
+          "500" : {
+            "description" : "Internal server error"
+          },
+          "503" : {
+            "description" : "Function worker service is now initializing. Please try again later."
+          }
+        }
+      }
+    },
     "/sources/reloadBuiltInSources" : {
       "post" : {
         "tags" : [ "sources" ],
@@ -729,6 +769,37 @@
     }
   },
   "definitions" : {
+    "BatchSourceConfig" : {
+      "type" : "object",
+      "properties" : {
+        "discoveryTriggererClassName" : {
+          "type" : "string"
+        },
+        "discoveryTriggererConfig" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object"
+          }
+        }
+      }
+    },
+    "ConfigFieldDefinition" : {
+      "type" : "object",
+      "properties" : {
+        "fieldName" : {
+          "type" : "string"
+        },
+        "typeName" : {
+          "type" : "string"
+        },
+        "attributes" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
     "ConnectorDefinition" : {
       "type" : "object",
       "properties" : {
@@ -836,6 +907,9 @@
         },
         "customRuntimeOptions" : {
           "type" : "string"
+        },
+        "batchSourceConfig" : {
+          "$ref" : "#/definitions/BatchSourceConfig"
         }
       }
     },
