@@ -112,7 +112,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
             if (key == null) {
-                msgMetadataBuilder.setNullKey(true);
+                msgMetadataBuilder.setNullPartitionKey(true);
                 return this;
             }
         }
@@ -128,7 +128,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
             if (key == null) {
-                msgMetadataBuilder.setNullKey(true);
+                msgMetadataBuilder.setNullPartitionKey(true);
                 return this;
             }
         }
@@ -159,7 +159,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                             Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
                     msgMetadataBuilder.setPartitionKeyB64Encoded(true);
                 } else {
-                    this.msgMetadataBuilder.setNullKey(true);
+                    this.msgMetadataBuilder.setNullPartitionKey(true);
                 }
 
                 // set value as the payload

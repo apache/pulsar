@@ -1678,8 +1678,8 @@ public class Commands {
             singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
         }
 
-        if (msgBuilder.hasNullKey()) {
-            singleMessageMetadataBuilder.setNullKey(msgBuilder.hasNullKey());
+        if (msgBuilder.hasNullPartitionKey()) {
+            singleMessageMetadataBuilder.setNullPartitionKey(msgBuilder.hasNullPartitionKey());
         }
 
         try {

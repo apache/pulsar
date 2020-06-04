@@ -144,8 +144,8 @@ message MessageMetadata {
 	optional int32 total_chunk_msg_size = 28;
 	optional int32 chunk_id = 29;
 
-    // Indicate if the message key is set
-    optional bool null_key = 30 [default = false];
+    // Indicate if the message partition key is set
+    optional bool null_partition_key = 30 [default = false];
 }
 
 message SingleMessageMetadata {
@@ -164,8 +164,8 @@ message SingleMessageMetadata {
     optional uint64 sequence_id = 8;
     // Indicate if the message payload value is set
     optional bool null_value = 9 [ default = false ];
-    // Indicate if the message key is set
-    optional bool null_key = 10 [ default = false];
+    // Indicate if the message partition key is set
+    optional bool null_partition_key = 10 [ default = false];
 }
 
 enum ServerError {

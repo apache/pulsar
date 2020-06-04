@@ -3719,9 +3719,9 @@ public final class PulsarApi {
     boolean hasChunkId();
     int getChunkId();
     
-    // optional bool null_key = 30 [default = false];
-    boolean hasNullKey();
-    boolean getNullKey();
+    // optional bool null_partition_key = 30 [default = false];
+    boolean hasNullPartitionKey();
+    boolean getNullPartitionKey();
   }
   public static final class MessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -4164,14 +4164,14 @@ public final class PulsarApi {
       return chunkId_;
     }
     
-    // optional bool null_key = 30 [default = false];
-    public static final int NULL_KEY_FIELD_NUMBER = 30;
-    private boolean nullKey_;
-    public boolean hasNullKey() {
+    // optional bool null_partition_key = 30 [default = false];
+    public static final int NULL_PARTITION_KEY_FIELD_NUMBER = 30;
+    private boolean nullPartitionKey_;
+    public boolean hasNullPartitionKey() {
       return ((bitField0_ & 0x01000000) == 0x01000000);
     }
-    public boolean getNullKey() {
-      return nullKey_;
+    public boolean getNullPartitionKey() {
+      return nullPartitionKey_;
     }
     
     private void initFields() {
@@ -4202,7 +4202,7 @@ public final class PulsarApi {
       numChunksFromMsg_ = 0;
       totalChunkMsgSize_ = 0;
       chunkId_ = 0;
-      nullKey_ = false;
+      nullPartitionKey_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4327,7 +4327,7 @@ public final class PulsarApi {
         output.writeInt32(29, chunkId_);
       }
       if (((bitField0_ & 0x01000000) == 0x01000000)) {
-        output.writeBool(30, nullKey_);
+        output.writeBool(30, nullPartitionKey_);
       }
     }
     
@@ -4452,7 +4452,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x01000000) == 0x01000000)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeBoolSize(30, nullKey_);
+          .computeBoolSize(30, nullPartitionKey_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4621,7 +4621,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x02000000);
         chunkId_ = 0;
         bitField0_ = (bitField0_ & ~0x04000000);
-        nullKey_ = false;
+        nullPartitionKey_ = false;
         bitField0_ = (bitField0_ & ~0x08000000);
         return this;
       }
@@ -4771,7 +4771,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x08000000) == 0x08000000)) {
           to_bitField0_ |= 0x01000000;
         }
-        result.nullKey_ = nullKey_;
+        result.nullPartitionKey_ = nullPartitionKey_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4880,8 +4880,8 @@ public final class PulsarApi {
         if (other.hasChunkId()) {
           setChunkId(other.getChunkId());
         }
-        if (other.hasNullKey()) {
-          setNullKey(other.getNullKey());
+        if (other.hasNullPartitionKey()) {
+          setNullPartitionKey(other.getNullPartitionKey());
         }
         return this;
       }
@@ -5079,7 +5079,7 @@ public final class PulsarApi {
             }
             case 240: {
               bitField0_ |= 0x08000000;
-              nullKey_ = input.readBool();
+              nullPartitionKey_ = input.readBool();
               break;
             }
           }
@@ -5913,23 +5913,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional bool null_key = 30 [default = false];
-      private boolean nullKey_ ;
-      public boolean hasNullKey() {
+      // optional bool null_partition_key = 30 [default = false];
+      private boolean nullPartitionKey_ ;
+      public boolean hasNullPartitionKey() {
         return ((bitField0_ & 0x08000000) == 0x08000000);
       }
-      public boolean getNullKey() {
-        return nullKey_;
+      public boolean getNullPartitionKey() {
+        return nullPartitionKey_;
       }
-      public Builder setNullKey(boolean value) {
+      public Builder setNullPartitionKey(boolean value) {
         bitField0_ |= 0x08000000;
-        nullKey_ = value;
+        nullPartitionKey_ = value;
         
         return this;
       }
-      public Builder clearNullKey() {
+      public Builder clearNullPartitionKey() {
         bitField0_ = (bitField0_ & ~0x08000000);
-        nullKey_ = false;
+        nullPartitionKey_ = false;
         
         return this;
       }
@@ -5986,9 +5986,9 @@ public final class PulsarApi {
     boolean hasNullValue();
     boolean getNullValue();
     
-    // optional bool null_key = 10 [default = false];
-    boolean hasNullKey();
-    boolean getNullKey();
+    // optional bool null_partition_key = 10 [default = false];
+    boolean hasNullPartitionKey();
+    boolean getNullPartitionKey();
   }
   public static final class SingleMessageMetadata extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -6148,14 +6148,14 @@ public final class PulsarApi {
       return nullValue_;
     }
     
-    // optional bool null_key = 10 [default = false];
-    public static final int NULL_KEY_FIELD_NUMBER = 10;
-    private boolean nullKey_;
-    public boolean hasNullKey() {
+    // optional bool null_partition_key = 10 [default = false];
+    public static final int NULL_PARTITION_KEY_FIELD_NUMBER = 10;
+    private boolean nullPartitionKey_;
+    public boolean hasNullPartitionKey() {
       return ((bitField0_ & 0x00000100) == 0x00000100);
     }
-    public boolean getNullKey() {
-      return nullKey_;
+    public boolean getNullPartitionKey() {
+      return nullPartitionKey_;
     }
     
     private void initFields() {
@@ -6168,7 +6168,7 @@ public final class PulsarApi {
       orderingKey_ = org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.EMPTY;
       sequenceId_ = 0L;
       nullValue_ = false;
-      nullKey_ = false;
+      nullPartitionKey_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6225,7 +6225,7 @@ public final class PulsarApi {
         output.writeBool(9, nullValue_);
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
-        output.writeBool(10, nullKey_);
+        output.writeBool(10, nullPartitionKey_);
       }
     }
     
@@ -6273,7 +6273,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000100) == 0x00000100)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeBoolSize(10, nullKey_);
+          .computeBoolSize(10, nullPartitionKey_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6406,7 +6406,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000080);
         nullValue_ = false;
         bitField0_ = (bitField0_ & ~0x00000100);
-        nullKey_ = false;
+        nullPartitionKey_ = false;
         bitField0_ = (bitField0_ & ~0x00000200);
         return this;
       }
@@ -6481,7 +6481,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000200) == 0x00000200)) {
           to_bitField0_ |= 0x00000100;
         }
-        result.nullKey_ = nullKey_;
+        result.nullPartitionKey_ = nullPartitionKey_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6522,8 +6522,8 @@ public final class PulsarApi {
         if (other.hasNullValue()) {
           setNullValue(other.getNullValue());
         }
-        if (other.hasNullKey()) {
-          setNullKey(other.getNullKey());
+        if (other.hasNullPartitionKey()) {
+          setNullPartitionKey(other.getNullPartitionKey());
         }
         return this;
       }
@@ -6612,7 +6612,7 @@ public final class PulsarApi {
             }
             case 80: {
               bitField0_ |= 0x00000200;
-              nullKey_ = input.readBool();
+              nullPartitionKey_ = input.readBool();
               break;
             }
           }
@@ -6896,23 +6896,23 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional bool null_key = 10 [default = false];
-      private boolean nullKey_ ;
-      public boolean hasNullKey() {
+      // optional bool null_partition_key = 10 [default = false];
+      private boolean nullPartitionKey_ ;
+      public boolean hasNullPartitionKey() {
         return ((bitField0_ & 0x00000200) == 0x00000200);
       }
-      public boolean getNullKey() {
-        return nullKey_;
+      public boolean getNullPartitionKey() {
+        return nullPartitionKey_;
       }
-      public Builder setNullKey(boolean value) {
+      public Builder setNullPartitionKey(boolean value) {
         bitField0_ |= 0x00000200;
-        nullKey_ = value;
+        nullPartitionKey_ = value;
         
         return this;
       }
-      public Builder clearNullKey() {
+      public Builder clearNullPartitionKey() {
         bitField0_ = (bitField0_ & ~0x00000200);
-        nullKey_ = false;
+        nullPartitionKey_ = false;
         
         return this;
       }
