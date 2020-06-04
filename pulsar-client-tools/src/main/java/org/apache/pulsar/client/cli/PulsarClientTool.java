@@ -29,6 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
@@ -42,6 +43,12 @@ public class PulsarClientTool {
 
     @Parameter(names = { "--url" }, description = "Broker URL to which to connect.")
     String serviceURL = null;
+
+    @Parameter(names = { "--proxy-url" }, description = "Proxy-server URL to which to connect.")
+    String proxyServiceURL = null;
+
+    @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
+    ProxyProtocol proxyProtocol = null;
 
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
@@ -117,6 +124,13 @@ public class PulsarClientTool {
                 .tlsTrustStorePath(tlsTrustStorePath)
                 .tlsTrustStorePassword(tlsTrustStorePassword);
 
+        if (StringUtils.isNotBlank(proxyServiceURL)) {
+            if (proxyProtocol == null) {
+                System.out.println("proxy-protocol must be provided with proxy-url");
+                System.exit(-1);
+            }
+            clientBuilder.proxyServiceUrl(proxyServiceURL, proxyProtocol);
+        }
         this.produceCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
         this.consumeCommand.updateConfig(clientBuilder, authentication, this.serviceURL);
     }

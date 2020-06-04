@@ -50,6 +50,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -60,6 +62,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -198,10 +201,13 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         boolean isEmpty;
+        List<String> topics;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join().isEmpty()
-                    && getPartitionedTopicList(TopicDomain.persistent).isEmpty()
-                    && getPartitionedTopicList(TopicDomain.non_persistent).isEmpty();
+            topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
+            topics.addAll(getPartitionedTopicList(TopicDomain.persistent));
+            topics.addAll(getPartitionedTopicList(TopicDomain.non_persistent));
+            isEmpty = topics.isEmpty();
+
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;
@@ -211,8 +217,17 @@ public abstract class NamespacesBase extends AdminResource {
             if (log.isDebugEnabled()) {
                 log.debug("Found topics on namespace {}", namespaceName);
             }
-            asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
-            return;
+            boolean hasNonSystemTopic = false;
+            for (String topic : topics) {
+                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                    hasNonSystemTopic = true;
+                    break;
+                }
+            }
+            if (hasNonSystemTopic) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Cannot delete non empty namespace"));
+                return;
+            }
         }
 
         // set the policies to deleted so that somebody else cannot acquire this namespace
@@ -230,6 +245,14 @@ public abstract class NamespacesBase extends AdminResource {
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
+            // remove system topics first.
+            if (!topics.isEmpty()) {
+                for (String topic : topics) {
+                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
+                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
+                    });
+                }
+            }
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
                     .getBundles(namespaceName);
             for (NamespaceBundle bundle : bundles.getBundles()) {
@@ -372,11 +395,11 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalArgumentException) {
                 log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                        namespaceName);
+                        namespaceName, e);
                 throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
             } else if (e.getCause() instanceof IllegalStateException) {
-                log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
-                        clientAppId(), namespaceName);
+                log.warn("[{}] Failed to set permissions for namespace {}: {}",
+                        clientAppId(), namespaceName, e.getCause().getMessage(), e);
                 throw new RestException(Status.CONFLICT, "Concurrent modification");
             } else {
                 log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
@@ -1990,13 +2013,13 @@ public abstract class NamespacesBase extends AdminResource {
                     subscription = PersistentReplicator.getRemoteCluster(subscription);
                 }
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic) {
+                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic) {
+                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }
@@ -2408,9 +2431,14 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
+            if (policies.offload_policies == null) {
+                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
+                if (policies.offload_deletion_lag_ms != null) {
+                    policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
+                }
             }
+            policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(newThreshold);
             policies.offload_threshold = newThreshold;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
@@ -2455,9 +2483,15 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
 
             Policies policies = jsonMapper().readValue(content, Policies.class);
-            if (policies.offload_policies != null) {
-                policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
+
+            if (policies.offload_policies == null) {
+                OffloadPolicies defaultPolicy = pulsar().getDefaultOffloader().getOffloadPolicies();
+                policies.offload_policies = defaultPolicy == null ? new OffloadPolicies() : defaultPolicy;
+                if (policies.offload_threshold != -1) {
+                    policies.offload_policies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+                }
             }
+            policies.offload_policies.setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
             policies.offload_deletion_lag_ms = newDeletionLagMs;
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());

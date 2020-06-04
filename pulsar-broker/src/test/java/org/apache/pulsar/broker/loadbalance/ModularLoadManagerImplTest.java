@@ -52,7 +52,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -151,7 +150,6 @@ public class ModularLoadManagerImplTest {
         config1.setBrokerServicePortTls(Optional.of(0));
         config1.setWebServicePortTls(Optional.of(0));
         pulsar1 = new PulsarService(config1);
-        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
         primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
@@ -169,7 +167,6 @@ public class ModularLoadManagerImplTest {
         config2.setBrokerServicePortTls(Optional.of(0));
         config2.setWebServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
-        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
 
         secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
@@ -597,7 +594,6 @@ public class ModularLoadManagerImplTest {
         config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);
-        pulsar.setShutdownService(new NoOpShutdownService());
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
                 + config.getWebServicePort();

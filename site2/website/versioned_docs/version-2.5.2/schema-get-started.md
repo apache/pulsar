@@ -83,7 +83,7 @@ Producer<User> producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)
         .create();
 User user = new User(“Tom”, 28);
-producer.send(User);
+producer.send(user);
 ```
 
 ### Summary

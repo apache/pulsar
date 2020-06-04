@@ -5,9 +5,15 @@ sidebar_label: C++
 original_id: client-libraries-cpp
 ---
 
+You can use Pulsar C++ client to create Pulsar producers and consumers in C++.
+
+All the methods in producer, consumer, and reader of a C++ client are thread-safe.
+
 ## Supported platforms
 
 Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
+
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
 ## Linux
 
