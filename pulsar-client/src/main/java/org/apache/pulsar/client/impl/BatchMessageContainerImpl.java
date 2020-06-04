@@ -88,7 +88,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.setSequenceId(lowestSequenceId);
         }
         highestSequenceId = msg.getSequenceId();
-        producer.lastSequenceIdPushed = Math.max(producer.lastSequenceIdPushed, msg.getSequenceId());
+        ProducerImpl.LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(producer, prev -> Math.max(prev, msg.getSequenceId()));
 
         return isBatchFull();
     }

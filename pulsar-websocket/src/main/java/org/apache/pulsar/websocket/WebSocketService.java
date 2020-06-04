@@ -62,8 +62,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class WebSocketService implements Closeable {
 
-    public static final int MaxTextFrameSize = 1024 * 1024;
-
     AuthenticationService authenticationService;
     AuthorizationService authorizationService;
     PulsarClient pulsarClient;
@@ -105,7 +103,8 @@ public class WebSocketService implements Closeable {
             this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
                     (int) config.getZooKeeperSessionTimeoutMillis(),
                     (int) TimeUnit.MILLISECONDS.toSeconds(config.getZooKeeperSessionTimeoutMillis()),
-                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor);
+                    config.getConfigurationStoreServers(), this.orderedExecutor, this.executor,
+                    config.getZooKeeperCacheExpirySeconds());
             try {
                 this.globalZkCache.start();
             } catch (IOException e) {

@@ -73,6 +73,28 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
+### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
+### After find the libs, will unset related cache, and will not affact another same call to find_package.
+if (APPLE)
+    set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/)
+    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/)
+endif ()
+
+set(OPENSSL_ROOT_DIR /usr/lib64/)
+set(OPENSSL_USE_STATIC_LIBS FALSE)
+find_package(OpenSSL REQUIRED)
+set(RECORD_OPENSSL_SSL_LIBRARY ${OPENSSL_SSL_LIBRARY})
+set(RECORD_OPENSSL_CRYPTO_LIBRARY ${OPENSSL_CRYPTO_LIBRARY})
+
+unset(OPENSSL_FOUND CACHE)
+unset(OPENSSL_INCLUDE_DIR CACHE)
+unset(OPENSSL_CRYPTO_LIBRARY CACHE)
+unset(OPENSSL_CRYPTO_LIBRARIES CACHE)
+unset(OPENSSL_SSL_LIBRARY CACHE)
+unset(OPENSSL_SSL_LIBRARIES CACHE)
+unset(OPENSSL_LIBRARIES CACHE)
+unset(OPENSSL_VERSION CACHE)
+
 if (LINK_STATIC)
     find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
     find_library(Protobuf_LITE_LIBRARIES NAMES libprotobuf-lite.a libprotobuf-lite)
@@ -147,7 +169,7 @@ if (BUILD_PYTHON_WRAPPER)
         list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
         set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
         # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
         # Regular boost_python
         set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)

@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;

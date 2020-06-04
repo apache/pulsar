@@ -45,7 +45,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -63,6 +62,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosi
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +77,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
     private int readBatchSize;
+    private final int readMaxSizeBytes;
 
     private final int producerQueueThreshold;
 
@@ -119,6 +120,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -138,6 +140,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         readBatchSize = Math.min(
             producerQueueSize,
             topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
@@ -276,13 +279,16 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 messagesToRead = 1;
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
@@ -388,9 +394,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     continue;
                 }
 
-                if (dispatchRateLimiter.isPresent()) {
-                    dispatchRateLimiter.get().tryDispatchPermit(1, entry.getLength());
-                }
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
@@ -756,9 +760,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         super.disconnect(failIfHasBacklog).thenRun(() -> {
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().close();
-            }
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
             future.complete(null);
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);

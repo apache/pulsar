@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMessageIdsAndRemoveFromSequnceMap;
 
 class NegativeAcksTracker {
 
@@ -45,7 +46,7 @@ class NegativeAcksTracker {
 
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
-        this.timer = ((PulsarClientImpl) consumer.getClient()).timer();
+        this.timer = consumer.getClient().timer();
         this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
                 MIN_NACK_DELAY_NANOS);
         this.timerIntervalNanos = nackDelayNanos / 3;
@@ -62,6 +63,7 @@ class NegativeAcksTracker {
         long now = System.nanoTime();
         nackedMessages.forEach((msgId, timestamp) -> {
             if (timestamp < now) {
+                addChunkedMessageIdsAndRemoveFromSequnceMap(msgId, messagesToRedeliver, this.consumer);
                 messagesToRedeliver.add(msgId);
             }
         });

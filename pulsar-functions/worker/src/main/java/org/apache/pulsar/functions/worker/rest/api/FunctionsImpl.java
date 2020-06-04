@@ -198,12 +198,10 @@ public class FunctionsImpl extends ComponentImpl {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
                                     .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
 
-                            if (functionAuthData.isPresent()) {
-                                functionMetaDataBuilder.setFunctionAuthSpec(
-                                        Function.FunctionAuthenticationSpec.newBuilder()
-                                                .setData(ByteString.copyFrom(functionAuthData.get().getData()))
-                                                .build());
-                            }
+                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(authData.getData()))
+                                            .build()));
                         } catch (Exception e) {
                             log.error("Error caching authentication data for {} {}/{}/{}",
                                     ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);

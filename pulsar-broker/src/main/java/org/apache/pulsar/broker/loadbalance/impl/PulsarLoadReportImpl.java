@@ -70,7 +70,7 @@ public class PulsarLoadReportImpl implements LoadReport {
                     pulsarLoadReport.resourceDescription);
 
         } catch (Exception e) {
-            log.warn("Failed Parsing Load Report from JSON string [{}]", e);
+            log.warn("Failed Parsing Load Report from JSON string", e);
         }
         return pulsarLoadReport;
     }

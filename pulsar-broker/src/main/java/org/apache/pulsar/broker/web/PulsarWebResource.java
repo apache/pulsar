@@ -52,7 +52,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.Constants;
@@ -62,8 +61,13 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -116,7 +120,7 @@ public abstract class PulsarWebResource {
     public static String splitPath(String source, int slice) {
         Iterable<String> parts = Splitter.on('/').limit(slice).split(source);
         Iterator<String> s = parts.iterator();
-        String result = new String();
+        String result = "";
         for (int i = 0; i < slice; i++) {
             result = s.next();
         }
@@ -187,11 +191,11 @@ public abstract class PulsarWebResource {
                 try {
                     proxyAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(appId);
+                            .isSuperUser(appId, clientAuthData());
 
                     originalPrincipalAuthorizedFuture = pulsar.getBrokerService()
                             .getAuthorizationService()
-                            .isSuperUser(originalPrincipal);
+                            .isSuperUser(originalPrincipal, clientAuthData());
 
                     if (!proxyAuthorizedFuture.get() || !originalPrincipalAuthorizedFuture.get()) {
                         throw new RestException(Status.UNAUTHORIZED,
@@ -206,7 +210,7 @@ public abstract class PulsarWebResource {
             } else {
                 if (config().isAuthorizationEnabled() && !pulsar.getBrokerService()
                         .getAuthorizationService()
-                        .isSuperUser(appId)
+                        .isSuperUser(appId, clientAuthData())
                         .join()) {
                     throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
                 }
@@ -266,9 +270,9 @@ public abstract class PulsarWebResource {
                 CompletableFuture<Boolean> isOriginalPrincipalSuperUserFuture;
                 try {
                     AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
-                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId);
+                    isProxySuperUserFuture = authorizationService.isSuperUser(clientAppId, authenticationData);
 
-                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal);
+                    isOriginalPrincipalSuperUserFuture = authorizationService.isSuperUser(originalPrincipal, authenticationData);
 
                     boolean proxyAuthorized = isProxySuperUserFuture.get() || authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get();
                     boolean originalPrincipalAuthorized
@@ -286,7 +290,7 @@ public abstract class PulsarWebResource {
             } else {
                 if (!pulsar.getBrokerService()
                         .getAuthorizationService()
-                        .isSuperUser(clientAppId)
+                        .isSuperUser(clientAppId, authenticationData)
                         .join()) {
                     if (!pulsar.getBrokerService().getAuthorizationService().isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData).get()) {
                         throw new RestException(Status.UNAUTHORIZED,
@@ -772,4 +776,69 @@ public abstract class PulsarWebResource {
     // Non-Usual HTTP error codes
     protected static final int NOT_IMPLEMENTED = 501;
 
+    public void validateTenantOperation(String tenant, TenantOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTenantOperation(
+                            tenant, operation, originalPrincipal(), clientAppId(), clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTenantOperation for" +
+                                " originalPrincipal [%s] and clientAppId [%s] about operation [%s] on tenant [%s]",
+                        originalPrincipal(), clientAppId(), operation.toString(), tenant));
+            }
+        }
+    }
+
+    public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespaceOperation(namespaceName, operation, originalPrincipal(), clientAppId(), clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespaceOperation for" +
+                        " operation [%s] on namespace [%s]", operation.toString(), namespaceName));
+            }
+        }
+    }
+
+    public void validateNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespacePolicyOperation(namespaceName, policy, operation, originalPrincipal(), clientAppId(), clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespacePolicyOperation for" +
+                        " operation [%s] on namespace [%s] on policy [%s]", operation.toString(), namespaceName, policy.toString()));
+            }
+        }
+    }
+
+    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+            if (!isClientAuthenticated(clientAppId())) {
+                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
+            }
+
+            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), clientAuthData());
+
+            if (!isAuthorized) {
+                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for" +
+                        " operation [%s] on topic [%s]", operation.toString(), topicName));
+            }
+        }
+    }
 }

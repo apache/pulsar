@@ -77,6 +77,27 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testOpenNonDurableCursorAtNonExistentMessageId() throws Exception {
+        ManagedLedger ledger = factory.open("non_durable_cursor_at_non_existent_msgid");
+        ManagedLedgerImpl mlImpl = (ManagedLedgerImpl) ledger;
+
+        PositionImpl position = mlImpl.getLastPosition();
+
+        ManagedCursor c1 = ledger.newNonDurableCursor(new PositionImpl(
+            position.getLedgerId(),
+            position.getEntryId() - 1
+        ));
+
+        assertEquals(c1.getReadPosition(), new PositionImpl(
+            position.getLedgerId(),
+            0
+        ));
+
+        c1.close();
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
     void testZNodeBypassed() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 

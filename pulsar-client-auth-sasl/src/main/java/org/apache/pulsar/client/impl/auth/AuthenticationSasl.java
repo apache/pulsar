@@ -100,7 +100,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
             PulsarSaslClient saslClient = new PulsarSaslClient(serverHostname, serverType, jaasCredentialsContainer.getSubject());
             return new SaslAuthenticationDataProvider(saslClient);
         } catch (Throwable t) {
-            log.error("Failed create sasl client: {}", t);
+            log.error("Failed create sasl client", t);
             throw new PulsarClientException(t);
         }
     }
@@ -151,7 +151,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
                             configuration);
                         initializedJAAS = true;
                     } catch (LoginException e) {
-                        log.error("JAAS login in client failed: {}" , e);
+                        log.error("JAAS login in client failed" , e);
                         throw new PulsarClientException(e);
                     }
                 }
@@ -333,7 +333,7 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
             @Override
             public void failed(Throwable throwable) {
-                log.warn("Failed to perform http request: {}", throwable);
+                log.warn("Failed to perform http request", throwable);
                 authFuture.completeExceptionally(new PulsarClientException(throwable));
                 return;
             }

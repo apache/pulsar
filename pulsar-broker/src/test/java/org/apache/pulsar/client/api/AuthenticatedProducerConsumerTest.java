@@ -316,7 +316,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
-        mockZookKeeper.shutdown();
+        mockZooKeeper.shutdown();
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
             admin.topics().getPartitionedTopicMetadata(topic);

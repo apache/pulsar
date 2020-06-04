@@ -119,6 +119,17 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        private int maxPendingChuckedMessage = 0;
+
+        @Parameter(names = { "-ac",
+                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+        @Parameter(names = { "-e",
+                "--expire_time_incomplete_chunked_messages" }, description = "Expire time in ms for incomplete chunk messages")
+        private long expireTimeOfIncompleteChunkedMessageMs = 0;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -136,6 +147,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
         public String encKeyFile = null;
+
+        @Parameter(names = { "-time",
+                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+        public long testTime = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -200,8 +215,16 @@ public class PerformanceConsumer {
         final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-
+        long startTime = System.nanoTime();
+        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         MessageListener<byte[]> listener = (consumer, msg) -> {
+            if (arguments.testTime > 0) {
+                if (System.nanoTime() > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    printAggregatedStats();
+                    System.exit(0);
+                }
+            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
@@ -262,7 +285,15 @@ public class PerformanceConsumer {
                 .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
                 .subscriptionType(arguments.subscriptionType)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
                 .replicateSubscriptionState(arguments.replicatedSubscription);
+        if (arguments.maxPendingChuckedMessage > 0) {
+            consumerBuilder.maxPendingChuckedMessage(arguments.maxPendingChuckedMessage);
+        }
+        if (arguments.expireTimeOfIncompleteChunkedMessageMs > 0) {
+            consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.expireTimeOfIncompleteChunkedMessageMs,
+                    TimeUnit.MILLISECONDS);
+        }
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
@@ -325,9 +356,9 @@ public class PerformanceConsumer {
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    (long) reportHistogram.getValueAtPercentile(50), (long) reportHistogram.getValueAtPercentile(95),
-                    (long) reportHistogram.getValueAtPercentile(99), (long) reportHistogram.getValueAtPercentile(99.9),
-                    (long) reportHistogram.getValueAtPercentile(99.99), (long) reportHistogram.getMaxValue());
+                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -352,10 +383,10 @@ public class PerformanceConsumer {
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), (long) reportHistogram.getValueAtPercentile(50),
-                (long) reportHistogram.getValueAtPercentile(95), (long) reportHistogram.getValueAtPercentile(99),
-                (long) reportHistogram.getValueAtPercentile(99.9), (long) reportHistogram.getValueAtPercentile(99.99),
-                (long) reportHistogram.getValueAtPercentile(99.999), (long) reportHistogram.getMaxValue());
+                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

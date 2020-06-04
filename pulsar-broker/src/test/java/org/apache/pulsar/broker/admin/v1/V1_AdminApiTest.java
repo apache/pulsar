@@ -489,14 +489,14 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         final int newValue = 10;
         stopBroker();
         // set invalid data into dynamic-config znode so, broker startup fail to deserialize data
-        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
+        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH, "$".getBytes(), -1);
         // start broker: it should have set watch even if with failure of deserialization
         startBroker();
         Assert.assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), newValue);
         // update zk with config-value which should fire watch and broker should update the config value
         Map<String, String> configMap = Maps.newHashMap();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
-        mockZookKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
+        mockZooKeeper.setData(BrokerService.BROKER_SERVICE_CONFIGURATION_PATH,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap), -1);
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
@@ -2007,7 +2007,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.NOT_RUN);
+            LongRunningProcessStatus.Status.NOT_RUN);
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
@@ -2016,12 +2016,12 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerCompaction(topicName);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.RUNNING);
+            LongRunningProcessStatus.Status.RUNNING);
 
         promise.complete(1L);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.SUCCESS);
+            LongRunningProcessStatus.Status.SUCCESS);
 
         CompletableFuture<Long> errorPromise = new CompletableFuture<Long>();
         doReturn(errorPromise).when(compactor).compact(topicName);
@@ -2029,8 +2029,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         errorPromise.completeExceptionally(new Exception("Failed at something"));
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.ERROR);
+            LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.topics().compactionStatus(topicName)
-                   .lastError.contains("Failed at something"));
+            .lastError.contains("Failed at something"));
     }
 }

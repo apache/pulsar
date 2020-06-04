@@ -45,6 +45,7 @@ import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -64,7 +65,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -122,7 +122,6 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     public void setup() throws Exception {
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsar = spy(new PulsarService(svcConfig));
-        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
 
@@ -246,7 +245,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(mlFactoryMock)
-          .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), any());
+                .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
+                        any(Supplier.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer(new Answer<Object>() {
@@ -257,7 +257,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 return null;
             }
         }).when(mlFactoryMock)
-          .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class), any());
+                .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class), any(OpenLedgerCallback.class),
+                        any(Supplier.class), any());
 
         // call addComplete on ledger asyncAddEntry
         doAnswer(new Answer<Object>() {

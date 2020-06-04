@@ -57,6 +57,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String configurationStoreServers;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
+    // ZooKeeper cache expiry time in seconds
+    private int zooKeeperCacheExpirySeconds = 300;
 
     // Port to use to server HTTP request
     private Optional<Integer> webServicePort = Optional.of(8080);
@@ -64,6 +66,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
     // Hostname or IP address the service binds on, default is 0.0.0.0.
     private String bindAddress;
+    // The maximum size of a text message during parsing in WebSocket proxy
+    private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
     // Enable authentication
     private boolean authenticationEnabled;
@@ -198,6 +202,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.zooKeeperSessionTimeoutMillis = zooKeeperSessionTimeoutMillis;
     }
 
+    public int getZooKeeperCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds;
+    }
+
+    public void setZooKeeperCacheExpirySeconds(int zooKeeperCacheExpirySeconds) {
+        this.zooKeeperCacheExpirySeconds = zooKeeperCacheExpirySeconds;
+    }
+
     public Optional<Integer> getWebServicePort() {
         return webServicePort;
     }
@@ -220,6 +232,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setBindAddress(String bindAddress) {
         this.bindAddress = bindAddress;
+    }
+
+    public int getWebSocketMaxTextFrameSize() {
+        return webSocketMaxTextFrameSize;
+    }
+
+    public void setWebSocketMaxTextFrameSize(int webSocketMaxTextFrameSize) {
+        this.webSocketMaxTextFrameSize = webSocketMaxTextFrameSize;
     }
 
     public boolean isAuthenticationEnabled() {

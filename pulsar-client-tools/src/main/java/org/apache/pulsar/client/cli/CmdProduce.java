@@ -44,7 +44,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -94,6 +96,10 @@ public class CmdProduce {
                description = "Rate (in msg/sec) at which to produce," +
                        " value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
+    
+    @Parameter(names = { "-c",
+            "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+    private boolean chunkingAllowed = false;
 
     @Parameter(names = { "-s", "--separator" },
                description = "Character to split messages string on default is comma")
@@ -197,7 +203,12 @@ public class CmdProduce {
 
         try {
             PulsarClient client = clientBuilder.build();
-            Producer<byte[]> producer = client.newProducer().topic(topic).create();
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer().topic(topic);
+            if (this.chunkingAllowed) {
+                producerBuilder.enableChunking(true);
+                producerBuilder.enableBatching(false);
+            }
+            Producer<byte[]> producer = producerBuilder.create();
 
             List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;

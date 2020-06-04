@@ -146,6 +146,11 @@
           <groupId>io.grpc</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <!-- bouncy-castle-bc-shaded already contains this-->
+        <exclusion>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 

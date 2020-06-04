@@ -23,6 +23,7 @@ import static java.lang.String.format;
 
 import io.netty.buffer.ByteBuf;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.locks.Lock;
@@ -36,6 +37,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 
@@ -177,6 +179,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     void receiveIndividualMessagesFromBatch(MessageMetadata msgMetadata, int redeliveryCount,
+            List<Long> ackSet,
             ByteBuf uncompressedPayload, MessageIdData messageId, ClientCnx cnx) {
         log.warn(
                 "Closing consumer [{}]-[{}] due to unsupported received batch-message with zero receiver queue size",

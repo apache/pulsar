@@ -481,12 +481,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
-                indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
+                indexPayload.getContentMetadata().setContentLength(indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
                 Blob blob = blobBuilder
                     .payload(indexPayload)
-                    .contentLength((long)indexStream.getStreamSize())
+                    .contentLength(indexStream.getStreamSize())
                     .build();
 
                 writeBlobStore.putBlob(writeBucket, blob);

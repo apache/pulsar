@@ -34,6 +34,11 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
+    public long bytesInCounter;
+    public long msgInCounter;
+    public long bytesOutCounter;
+    public long msgOutCounter;
+
     public long storageSize;
     public long msgBacklog;
     public long msgDelayed;
@@ -65,9 +70,15 @@ public class AggregatedNamespaceStats {
         throughputIn += stats.throughputIn;
         throughputOut += stats.throughputOut;
 
+        bytesInCounter += stats.bytesInCounter;
+        msgInCounter += stats.msgInCounter;
+        bytesOutCounter += stats.bytesOutCounter;
+        msgOutCounter += stats.msgOutCounter;
+
         storageSize += stats.storageSize;
         backlogSize += stats.backlogSize;
         offloadedStorageUsed += stats.offloadedStorageUsed;
+        backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
 
         storageWriteRate += stats.storageWriteRate;
         storageReadRate += stats.storageReadRate;
@@ -118,10 +129,13 @@ public class AggregatedNamespaceStats {
         throughputOut = 0;
 
         storageSize = 0;
+        backlogSize = 0;
         msgBacklog = 0;
         msgDelayed = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        offloadedStorageUsed = 0;
+        backlogQuotaLimit= 0;
 
         replicationStats.clear();
         subscriptionStats.clear();

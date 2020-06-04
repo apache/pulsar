@@ -12,6 +12,7 @@ Pulsar supports the following client libraries:
 - [C++ client](client-libraries-cpp.md)
 - [Node.js client](client-libraries-node.md)
 - [WebSocket client](client-libraries-websocket.md)
+- [C# client](client-libraries-dotnet.md)
 
 ## Feature matrix
 Pulsar client feature matrix for different languages is listed on [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.

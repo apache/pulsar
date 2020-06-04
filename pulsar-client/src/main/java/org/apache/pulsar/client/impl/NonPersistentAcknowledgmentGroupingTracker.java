@@ -46,6 +46,11 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     }
 
     @Override
+    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int BatchSize, AckType ackType, Map<String, Long> properties) {
+        // no-op
+    }
+
+    @Override
     public void flush() {
         // no-op
     }

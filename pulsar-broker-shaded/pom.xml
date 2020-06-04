@@ -107,6 +107,8 @@
                   <include>com.thoughtworks.paranamer:paranamer</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
                 </includes>
               </artifactSet>
               <filters>

@@ -75,7 +75,13 @@ public class ConnectionHandler {
 
     private Void handleConnectionError(Throwable exception) {
         log.warn("[{}] [{}] Error connecting to broker: {}", state.topic, state.getHandlerName(), exception.getMessage());
-        connection.connectionFailed(new PulsarClientException(exception));
+        if (exception instanceof PulsarClientException) {
+            connection.connectionFailed((PulsarClientException) exception);
+        } else if (exception.getCause() instanceof  PulsarClientException) {
+            connection.connectionFailed((PulsarClientException)exception.getCause());
+        } else {
+            connection.connectionFailed(new PulsarClientException(exception));
+        }
 
         State state = this.state.getState();
         if (state == State.Uninitialized || state == State.Connecting || state == State.Ready) {
@@ -128,10 +134,6 @@ public class ConnectionHandler {
     @VisibleForTesting
     public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
-    }
-
-    protected boolean isRetriableError(PulsarClientException e) {
-        return e instanceof PulsarClientException.LookupException;
     }
 
     protected void setClientCnx(ClientCnx clientCnx) {

@@ -62,7 +62,7 @@ public class ZookeeperCacheLoaderTest extends BaseZKStarterTest {
     @Test
     public void testZookeeperCacheLoader() throws InterruptedException, KeeperException, Exception {
 
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
 
         @SuppressWarnings("resource")
         ZookeeperCacheLoader zkLoader = new ZookeeperCacheLoader(new DiscoveryZooKeeperClientFactoryImpl(), "", 30_000);

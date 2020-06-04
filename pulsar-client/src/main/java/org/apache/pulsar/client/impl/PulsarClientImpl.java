@@ -142,7 +142,7 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
         timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         producers = Maps.newIdentityHashMap();
@@ -151,11 +151,16 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getAuthPluginClassName()) || StringUtils.isBlank( conf.getAuthParams())) {
+        if (StringUtils.isBlank(conf.getAuthPluginClassName())
+                || (StringUtils.isBlank(conf.getAuthParams()) && conf.getAuthParamMap() == null)) {
             return;
         }
 
-        conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
+        if (StringUtils.isNotBlank(conf.getAuthParams())) {
+            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
+        } else if (conf.getAuthParamMap() != null) {
+            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParamMap()));
+        }
     }
 
     public ClientConfigurationData getConfiguration() {
@@ -645,7 +650,8 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(), conf.isUseTls(),
+                    externalExecutorProvider.getExecutor());
         }
     }
 
@@ -679,7 +685,7 @@ public class PulsarClientImpl implements PulsarClient {
         lookup.getPartitionedTopicMetadata(topicName).thenAccept(future::complete).exceptionally(e -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             // skip retry scheduler when set lookup throttle in client or server side which will lead to `TooManyRequestsException`
-            boolean isLookupThrottling = e.getCause() instanceof PulsarClientException.TooManyRequestsException;
+            boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause()) || e.getCause() instanceof PulsarClientException.TooManyRequestsException;
             if (nextDelay <= 0 || isLookupThrottling) {
                 future.completeExceptionally(e);
                 return null;

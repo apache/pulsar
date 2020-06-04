@@ -57,8 +57,7 @@ public class HttpLookupService implements LookupService {
 
     public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf.getServiceUrl(), conf.getAuthentication(),
-                eventLoopGroup, conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
+        this.httpClient = new HttpClient(conf, eventLoopGroup);
         this.useTls = conf.isUseTls();
     }
 
@@ -130,7 +129,7 @@ public class HttpLookupService implements LookupService {
                 });
                 future.complete(result);})
             .exceptionally(ex -> {
-                log.warn("Failed to getTopicsUnderNamespace namespace: {}.", namespace, ex.getMessage());
+                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, ex.getMessage());
                 future.completeExceptionally(ex);
                 return null;
             });

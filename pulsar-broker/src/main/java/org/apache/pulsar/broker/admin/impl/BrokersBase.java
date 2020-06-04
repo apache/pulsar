@@ -239,12 +239,7 @@ public class BrokersBase extends AdminResource {
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     public InternalConfigurationData getInternalConfigurationData() {
-        ClientConfiguration conf = new ClientConfiguration();
-        return new InternalConfigurationData(
-            pulsar().getConfiguration().getZookeeperServers(),
-            pulsar().getConfiguration().getConfigurationStoreServers(),
-            conf.getZkLedgersRootPath(),
-            pulsar().getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+        return pulsar().getInternalConfigurationData();
     }
 
     @GET

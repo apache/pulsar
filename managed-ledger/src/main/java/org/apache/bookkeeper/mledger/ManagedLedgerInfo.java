@@ -33,11 +33,14 @@ public class ManagedLedgerInfo {
 
     public Map<String, CursorInfo> cursors;
 
+    public Map<String, String> properties;
+
     public static class LedgerInfo {
         public long ledgerId;
         public Long entries;
         public Long size;
         public Long timestamp;
+        public boolean isOffloaded;
     }
 
     public static class CursorInfo {

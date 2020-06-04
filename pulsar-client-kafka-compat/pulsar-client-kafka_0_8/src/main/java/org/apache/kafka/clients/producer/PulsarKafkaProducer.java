@@ -268,7 +268,7 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
                 try {
                     producer.close();
                 } catch (PulsarClientException e) {
-                    log.warn("Failed to close producer for {}", topic, e.getMessage());
+                    log.warn("Failed to close producer for {}: {}", topic, e.getMessage());
                 }
             });
         }
@@ -276,7 +276,7 @@ public class PulsarKafkaProducer<K, V> extends Producer<K, V> {
             try {
                 client.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close pulsar-client {}", e.getMessage());
+                log.warn("Failed to close pulsar-client", e);
             }
         }
     }

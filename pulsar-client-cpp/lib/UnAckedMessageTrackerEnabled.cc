@@ -90,8 +90,10 @@ UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, long 
 bool UnAckedMessageTrackerEnabled::add(const MessageId& m) {
     std::lock_guard<std::mutex> acquire(lock_);
     if (messageIdPartitionMap.count(m) == 0) {
-        bool insert = messageIdPartitionMap.insert(std::make_pair(m, timePartitions.back())).second;
-        return insert && timePartitions.back().insert(m).second;
+        std::set<MessageId>& partition = timePartitions.back();
+        bool emplace = messageIdPartitionMap.emplace(m, partition).second;
+        bool insert = partition.insert(m).second;
+        return emplace && insert;
     }
     return false;
 }
@@ -104,7 +106,8 @@ bool UnAckedMessageTrackerEnabled::isEmpty() {
 bool UnAckedMessageTrackerEnabled::remove(const MessageId& m) {
     std::lock_guard<std::mutex> acquire(lock_);
     bool removed = false;
-    std::map<MessageId, std::set<MessageId>>::iterator exist = messageIdPartitionMap.find(m);
+
+    std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(m);
     if (exist != messageIdPartitionMap.end()) {
         removed = exist->second.erase(m);
     }
@@ -121,7 +124,7 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
     for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end(); it++) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap < msgId) {
-            std::map<MessageId, std::set<MessageId>>::iterator exist = messageIdPartitionMap.find(msgId);
+            std::map<MessageId, std::set<MessageId>&>::iterator exist = messageIdPartitionMap.find(msgId);
             if (exist != messageIdPartitionMap.end()) {
                 exist->second.erase(msgId);
             }
@@ -135,7 +138,8 @@ void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) 
     for (auto it = messageIdPartitionMap.begin(); it != messageIdPartitionMap.end(); it++) {
         MessageId msgIdInMap = it->first;
         if (msgIdInMap.getTopicName().compare(topic) == 0) {
-            std::map<MessageId, std::set<MessageId>>::iterator exist = messageIdPartitionMap.find(msgIdInMap);
+            std::map<MessageId, std::set<MessageId>&>::iterator exist =
+                messageIdPartitionMap.find(msgIdInMap);
             if (exist != messageIdPartitionMap.end()) {
                 exist->second.erase(msgIdInMap);
             }
