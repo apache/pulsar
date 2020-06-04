@@ -68,29 +68,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
 
-      - name: run unit tests pulsar broker PulsarFunctionE2ESecurityTest
+      - name: run unit tests pulsar broker long time tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=PulsarFunctionE2ESecurityTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker SchemaCompatibilityCheckTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=SchemaCompatibilityCheckTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker CompactedTopicTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=CompactedTopicTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker LoadBalancerTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=LoadBalancerTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker ConsumerBatchReceiveTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ConsumerBatchReceiveTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker KeySharedSubscriptionTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=KeySharedSubscriptionTest' -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=PulsarFunctionE2ESecurityTest,SchemaCompatibilityCheckTest,CompactedTopicTest,LoadBalancerTest,ConsumerBatchReceiveTest,KeySharedSubscriptionTest' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()

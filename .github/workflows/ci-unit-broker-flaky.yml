@@ -68,29 +68,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests -pl pulsar-broker -am
 
-      - name: run unit tests pulsar broker MessageIdTest
+      - name: run unit tests pulsar broker flaky tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=MessageIdTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker UnAcknowledgedMessagesTimeoutTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=UnAcknowledgedMessagesTimeoutTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker ConsumerPreciseDispatcherFlowControl
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ConsumerPreciseDispatcherFlowControl' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker SimpleSchemaTest
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=SimpleSchemaTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker ConsumerDedupPermitsUpdate
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ConsumerDedupPermitsUpdate' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker NamespaceOwnershipListenerTests
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=NamespaceOwnershipListenerTests' -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=MessageIdTest,UnAcknowledgedMessagesTimeoutTest,ConsumerPreciseDispatcherFlowControl,SimpleSchemaTest,ConsumerDedupPermitsUpdate,NamespaceOwnershipListenerTests' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
