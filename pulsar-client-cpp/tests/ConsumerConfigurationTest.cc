@@ -184,5 +184,5 @@ TEST(ConsumerConfigurationTest, testResetAckTimeOut) {
 
     // should be able to set it back to 0.
     config.setUnAckedMessagesTimeoutMs(0);
-    ASSERT_EQ(milliSeconds, 0);
+    ASSERT_EQ(0, config.getUnAckedMessagesTimeoutMs());
 }
