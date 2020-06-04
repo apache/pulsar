@@ -17,7 +17,7 @@
  * under the License.
  */
 #include "ClientImpl.h"
-
+#include "ClientConfigurationImpl.h"
 #include "LogUtils.h"
 #include "ConsumerImpl.h"
 #include "ProducerImpl.h"
@@ -96,24 +96,22 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       consumerIdGenerator_(0),
       requestIdGenerator_(0),
       closingError(ResultOk) {
-    if (clientConfiguration_.getLogger()) {
-        // A logger factory was explicitely configured. Let's just use that
-        LogUtils::setLoggerFactory(clientConfiguration_.getLogger());
-    } else {
+    std::unique_ptr<LoggerFactory> loggerFactory = clientConfiguration_.impl_->takeLogger();
+    if (!logger) {
 #ifdef USE_LOG4CXX
         if (!clientConfiguration_.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
-            LogUtils::setLoggerFactory(
-                Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath()));
+            loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
         } else {
             // Use default simple console logger
-            LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+            loggerFactory = SimpleLoggerFactory::create();
         }
 #else
         // Use default simple console logger
-        LogUtils::setLoggerFactory(SimpleLoggerFactory::create());
+        loggerFactory = SimpleLoggerFactory::create();
 #endif
     }
+    LogUtils::setLoggerFactory(std::move(loggerFactory));
 
     if (serviceUrl_.compare(0, 4, "http") == 0) {
         LOG_DEBUG("Using HTTP Lookup");

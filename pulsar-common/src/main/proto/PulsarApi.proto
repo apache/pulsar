@@ -139,6 +139,10 @@ message MessageMetadata {
 
     // Indicate if the message payload value is set
     optional bool null_value = 25 [ default = false ];
+    optional string uuid = 26;
+	optional int32 num_chunks_from_msg = 27;
+	optional int32 total_chunk_msg_size = 28;
+	optional int32 chunk_id = 29;
 }
 
 message SingleMessageMetadata {
@@ -381,6 +385,8 @@ message CommandLookupTopic {
     // to the proxy.
     optional string original_auth_data = 5;
     optional string original_auth_method = 6;
+    //
+    optional string advertised_listener_name = 7;
 }
 
 message CommandLookupTopicResponse {
@@ -439,6 +445,7 @@ message CommandSend {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
+    optional bool is_chunk     =7 [default = false];
 }
 
 message CommandSendReceipt {
