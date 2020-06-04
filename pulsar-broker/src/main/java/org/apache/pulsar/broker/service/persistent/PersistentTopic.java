@@ -153,6 +153,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private static final double MESSAGE_EXPIRY_THRESHOLD = 1.5;
 
+    private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
+
+    // Timestamp of when this topic was last seen active
+    private volatile long lastActive;
+    
+    // topic has every published chunked message since topic is loaded
+    public boolean msgChunkPublished;
+
+    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
+    // doesn't support batch-message
+    private volatile boolean hasBatchMessagePublished = false;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     public volatile long delayedDeliveryTickTimeMillis = 1000;
@@ -701,7 +712,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                 long ledgerId = msgId.getLedgerId();
                 long entryId = msgId.getEntryId();
-                if (ledgerId >= 0
+                // Ensure that the start message id starts from a valid entry.
+                if (ledgerId >= 0 && entryId >= 0
                         && msgId instanceof BatchMessageIdImpl) {
                     // When the start message is relative to a batch, we need to take one step back on the previous message,
                     // because the "batch" might not have been consumed in its entirety.
@@ -1515,6 +1527,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
         stats.msgInCounter = getMsgInCounter();
         stats.bytesInCounter = getBytesInCounter();
+        stats.msgChunkPublished = this.msgChunkPublished;
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
