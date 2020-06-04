@@ -13,7 +13,7 @@ Run Pulsar Functions locally, rather than deploying it to the Pulsar cluster.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false |
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 broker-service-url | The URL for the Pulsar broker. | |
 classname | The class name of a Pulsar Function.| |
 client-auth-params | Client authentication parameter. | |
@@ -62,7 +62,7 @@ Create and deploy a Pulsar Function in cluster mode.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false |
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 classname | The class name of a Pulsar Function. |  |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
@@ -114,7 +114,7 @@ Update a Pulsar Function that has been deployed to a Pulsar cluster.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 classname | The class name of a Pulsar Function. | |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
 custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |

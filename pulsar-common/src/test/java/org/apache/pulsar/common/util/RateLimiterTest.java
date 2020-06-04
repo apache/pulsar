@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 import org.testng.annotations.Test;
@@ -175,4 +176,19 @@ public class RateLimiterTest {
         Thread.sleep(rateTime*3*1000);
         assertEquals(limiter.getAvailablePermits(), newUpdatedRateLimit);
     }
+
+    @Test
+    public void testRateLimiterWithFunction()throws Exception {
+        final AtomicInteger atomicInteger = new AtomicInteger(0);
+        long permits = 10;
+        long rateTime = 1;
+        int reNewTime = 3;
+        RateLimitFunction rateLimitFunction = atomicInteger::incrementAndGet;
+        RateLimiter rateLimiter = new RateLimiter(permits, rateTime, TimeUnit.SECONDS, rateLimitFunction);
+        for (int i = 0 ; i < reNewTime; i++) {
+            rateLimiter.renew();
+        }
+        assertEquals(reNewTime, atomicInteger.get());
+    }
+
 }
