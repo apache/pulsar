@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers
+name: CI - Unit - Brokers - Long - Time
 on:
   pull_request:
     branches:
@@ -67,13 +67,30 @@ jobs:
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
-        
-      - name: run unit test pulsar-broker
+
+      - name: run unit tests pulsar broker PulsarFunctionE2ESecurityTest
         if: steps.docs.outputs.changed_only == 'no'
-        run: |
-          df -h
-          free -h
-          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest, !PulsarFunctionE2ESecurityTest, !SchemaCompatibilityCheckTest, !CompactedTopicTest, !LoadBalancerTest, !ConsumerBatchReceiveTest, !KeySharedSubscriptionTest' -DfailIfNoTests=false -pl pulsar-broker
+        run: mvn test -DfailIfNoTests=false '-Dtest=PulsarFunctionE2ESecurityTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker SchemaCompatibilityCheckTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=SchemaCompatibilityCheckTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker CompactedTopicTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=CompactedTopicTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker LoadBalancerTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=LoadBalancerTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker ConsumerBatchReceiveTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=ConsumerBatchReceiveTest' -pl pulsar-broker
+
+      - name: run unit tests pulsar broker KeySharedSubscriptionTest
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn test -DfailIfNoTests=false '-Dtest=KeySharedSubscriptionTest' -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()
