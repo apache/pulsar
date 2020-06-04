@@ -88,7 +88,7 @@
       "security-bouncy-castle"
     ],
     "Performance": [
-      "performance-pulsar-perf",
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",
@@ -96,7 +96,8 @@
       "client-libraries-python",
       "client-libraries-cpp",
       "client-libraries-node",
-      "client-libraries-websocket"
+      "client-libraries-websocket",
+      "client-libraries-dotnet"
     ],
     "Admin API": [
       "admin-api-overview",

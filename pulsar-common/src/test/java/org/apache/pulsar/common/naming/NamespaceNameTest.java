@@ -26,11 +26,10 @@ import static org.testng.Assert.fail;
 
 import org.testng.annotations.Test;
 
-@Test
 public class NamespaceNameTest {
 
     @Test
-    void namespace() {
+    public void namespace() {
         try {
             NamespaceName.get("namespace");
             fail("Should have caused exception");

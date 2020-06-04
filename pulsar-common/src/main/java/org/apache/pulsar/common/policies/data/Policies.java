@@ -197,8 +197,10 @@ public class Policies {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
-                .add("replication_clusters", replication_clusters).add("bundles", bundles)
-                .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
+                .add("replication_clusters", replication_clusters)
+                .add("bundles", bundles)
+                .add("backlog_quota_map", backlog_quota_map)
+                .add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("autoTopicCreationOverride", autoTopicCreationOverride)
                 .add("autoSubscriptionCreationOverride", autoSubscriptionCreationOverride)

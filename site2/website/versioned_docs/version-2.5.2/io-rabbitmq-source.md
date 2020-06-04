@@ -62,7 +62,7 @@ Before using the RabbitMQ source connector, you need to create a configuration f
     configs:
         host: "localhost"
         port: 5672
-        virtualHost: "/",
+        virtualHost: "/"
         username: "guest"
         password: "guest"
         queueName: "test-queue"
