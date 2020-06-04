@@ -224,11 +224,11 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 #include <pulsar/Client.h>
 
 ClientConfiguration config = ClientConfiguration();
-        config.setUseTls(true);  // shouldn't be needed soon
-        config.setTlsTrustCertsFilePath(caPath);
-        config.setTlsAllowInsecureConnection(false);
-        config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
-        config.setValidateHostName(true);
+config.setUseTls(true);  // shouldn't be needed soon
+config.setTlsTrustCertsFilePath(caPath);
+config.setTlsAllowInsecureConnection(false);
+config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+config.setValidateHostName(true);
 ```
 
 #### Node.js client
