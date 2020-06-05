@@ -3,7 +3,7 @@
 
 window.addEventListener('load', function () {
     let restApiVersions = null;
-    var url = "../swagger/restApiVersions.json";
+    var url = "../../../swagger/restApiVersions.json";
     var request = new XMLHttpRequest();
     request.open("get", url, false);
     request.send(null);
