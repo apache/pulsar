@@ -41,7 +41,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -116,7 +115,6 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setAdvertisedAddress("localhost");
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
-        pulsar1.setShutdownService(new NoOpShutdownService());
         pulsar1.start();
 
         primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
@@ -131,8 +129,8 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
+        config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
-        pulsar2.setShutdownService(new NoOpShutdownService());
         pulsar2.start();
 
         secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());

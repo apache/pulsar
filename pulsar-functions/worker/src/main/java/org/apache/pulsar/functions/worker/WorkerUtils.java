@@ -309,6 +309,10 @@ public final class WorkerUtils {
             }
         }
 
+        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+            return true;
+        }
+
         return false;
     }
 }

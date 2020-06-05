@@ -16,14 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.common.util;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URLClassLoader;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -165,7 +169,7 @@ public class Reflections {
 
     public static Object createInstance(String userClassName, java.io.File jar) {
         try {
-            return createInstance(userClassName, FunctionCommon.loadJar(jar));
+            return createInstance(userClassName, ClassLoaderUtils.loadJar(jar));
         } catch (Exception ex) {
             return null;
         }
@@ -180,7 +184,7 @@ public class Reflections {
      */
     public static boolean classExistsInJar(java.io.File jar, String fqcn) {
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
             Class.forName(fqcn, false, loader);
             loader.close();
             return true;
@@ -199,7 +203,7 @@ public class Reflections {
         try {
             Class.forName(fqcn);
             return true;
-        } catch( ClassNotFoundException e ) {
+        } catch (ClassNotFoundException e) {
            return false;
         }
     }
@@ -214,7 +218,7 @@ public class Reflections {
     public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
         boolean ret = false;
         try {
-            java.net.URLClassLoader loader = (URLClassLoader) FunctionCommon.loadJar(jar);
+            java.net.URLClassLoader loader = (URLClassLoader) ClassLoaderUtils.loadJar(jar);
             if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
                 ret = true;
             }
@@ -281,7 +285,7 @@ public class Reflections {
                 throw new ClassNotFoundException(className);
             }
         } else if (isPrimitive(className)) {
-            return (Class)PRIMITIVE_NAME_TYPE_MAP.get(className);
+            return (Class) PRIMITIVE_NAME_TYPE_MAP.get(className);
         } else if (className.charAt(0) == 'L' && className.charAt(className.length() - 1) == ';') {
             return classLoader.loadClass(className.substring(1, className.length() - 1));
         } else {
@@ -291,15 +295,28 @@ public class Reflections {
                 if (className.charAt(0) != '[') {
                     throw var4;
                 } else {
+                    // CHECKSTYLE.OFF: EmptyStatement
                     int arrayDimension;
-                    for(arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
+                    for (arrayDimension = 0; className.charAt(arrayDimension) == '['; ++arrayDimension) {
                         ;
                     }
+                    // CHECKSTYLE.ON: EmptyStatement
 
                     Class componentType = loadClass(className.substring(arrayDimension), classLoader);
                     return Array.newInstance(componentType, new int[arrayDimension]).getClass();
                 }
             }
         }
+    }
+
+    public static List<Field> getAllFields(Class<?> type) {
+        List<Field> fields = new LinkedList<>();
+        fields.addAll(Arrays.asList(type.getDeclaredFields()));
+
+        if (type.getSuperclass() != null) {
+            fields.addAll(getAllFields(type.getSuperclass()));
+        }
+
+        return fields;
     }
 }

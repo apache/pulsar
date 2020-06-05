@@ -46,7 +46,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsPro
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionInstanceId;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -131,7 +131,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
 
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
-                                  MembershipManager membershipManager, ConnectorsManager connectorsManager,
+                                  MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
                                   FunctionMetaDataManager functionMetaDataManager) throws Exception {
         this.workerConfig = workerConfig;
         this.workerService = workerService;
@@ -196,7 +196,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.runtimeFactory.initialize(workerConfig, authConfig, secretsProviderConfigurator, functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, connectorsManager, workerService.getBrokerAdmin());
+                dlogNamespace, connectorsManager, functionsManager, workerService.getBrokerAdmin());
 
         this.membershipManager = membershipManager;
         this.functionMetaDataManager = functionMetaDataManager;

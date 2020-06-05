@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -47,6 +48,7 @@ public class AcknowledgementsGroupingTrackerTest {
     public void setup() {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
+        consumer.unAckedChunckedMessageIdSequenceMap = new ConcurrentOpenHashMap<>();
         cnx = mock(ClientCnx.class);
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(cnx.ctx()).thenReturn(ctx);

@@ -100,7 +100,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(channelMock).when(consumerMock).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 anyInt(),
+                anyLong(),
                 anyLong(),
                 any(RedeliveryTracker.class)
         );
@@ -116,7 +118,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         ).thenReturn(false);
 
         persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                topicMock, cursorMock, subscriptionMock, new HashRangeAutoSplitStickyKeyConsumerSelector());
+                topicMock, cursorMock, subscriptionMock, new ConsistentHashingStickyKeyConsumerSelector(100));
         persistentDispatcher.addConsumer(consumerMock);
         persistentDispatcher.consumerFlow(consumerMock, 1000);
     }
@@ -139,17 +141,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
 
         ArgumentCaptor<Integer> totalMessagesCaptor = ArgumentCaptor.forClass(Integer.class);
-        verify(consumerMock, times(2)).sendMessages(
+        verify(consumerMock, times(1)).sendMessages(
                 anyList(),
                 any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
                 totalMessagesCaptor.capture(),
+                anyLong(),
                 anyLong(),
                 any(RedeliveryTracker.class)
         );
 
         List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
-        Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 0);
-        Assert.assertEquals(allTotalMessagesCaptor.get(1).intValue(), 5);
+        Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
     }
 
     private ByteBuf createMessage(String message, int sequenceId) {

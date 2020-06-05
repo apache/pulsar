@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -48,6 +50,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -56,11 +59,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInval
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -215,24 +221,27 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    if (consumer.getKeySharedMeta() != null) {
-                        switch (consumer.getKeySharedMeta().getKeySharedMode()) {
-                            case STICKY:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeExclusiveStickyKeyConsumerSelector());
-                                break;
-                            case AUTO_SPLIT:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                            default:
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        new HashRangeAutoSplitStickyKeyConsumerSelector());
-                                break;
-                        }
-                    } else {
-                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                new HashRangeAutoSplitStickyKeyConsumerSelector());
+                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
+
+                    switch (ksm.getKeySharedMode()) {
+                        case STICKY:
+                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                    new HashRangeExclusiveStickyKeyConsumerSelector());
+                            break;
+
+                        case AUTO_SPLIT:
+                        default:
+                            StickyKeyConsumerSelector selector;
+                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
+                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
+                                selector = new ConsistentHashingStickyKeyConsumerSelector(
+                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+                            } else {
+                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+                            }
+
+                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this, selector);
+                            break;
                     }
                 }
                 break;
@@ -342,6 +351,7 @@ public class PersistentSubscription implements Subscription {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties), markDeleteCallback, position);
+
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
@@ -395,6 +405,9 @@ public class PersistentSubscription implements Subscription {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
+
+        // Signal the dispatchers to give chance to take extra actions
+        dispatcher.acknowledgementWasProcessed();
     }
 
     /**
@@ -690,7 +703,7 @@ public class PersistentSubscription implements Subscription {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                disconnectFuture = dispatcher.disconnectAllConsumers(true);
+                disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
                 disconnectFuture = CompletableFuture.completedFuture(null);
             }
@@ -989,6 +1002,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.chuckedMessageRate += consumerStats.chuckedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp = Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
@@ -1014,6 +1028,7 @@ public class PersistentSubscription implements Subscription {
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
         subStats.isReplicated = isReplicated();
+        subStats.isDurable = cursor.isDurable();
         return subStats;
     }
 
