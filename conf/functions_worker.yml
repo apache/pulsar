@@ -214,3 +214,4 @@ brokerClientTrustCertsFilePath:
 ########################
 
 connectorsDirectory: ./connectors
+functionsDirectory: ./functions

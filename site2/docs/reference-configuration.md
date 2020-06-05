@@ -96,7 +96,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |dbStorage_rocksDB_numLevels||-1|
 |dbStorage_rocksDB_numFilesInLevel0||4|
 |dbStorage_rocksDB_maxSizeInLevel1MB||256|
-
+| nettyMaxFrameSizeBytes | Set the maximum netty frame size in bytes. If the size of a received message is larger than the configured value, the message is rejected. | 1 GB |
 
 
 ## Broker
@@ -187,7 +187,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |brokerClientAuthenticationParameters|||
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
-|bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. For example: zk+hierarchical://localhost:2181/ledgers ||
+|bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementatation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
@@ -265,6 +265,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |s3ManagedLedgerOffloadRole| For Amazon S3 ledger offload, provide a role to assume before writing to s3 ||
 |s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
 | acknowledgmentAtBatchIndexLevelEnabled | Enable or disable the batch index acknowledgement. | false |
+| maxMessageSize | Set the maximum size of a message. | 5 MB |
 
 
 

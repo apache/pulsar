@@ -61,5 +61,4 @@ public class MultiTopicsConsumerImplTest {
 
         impl.getStats();
     }
-
 }

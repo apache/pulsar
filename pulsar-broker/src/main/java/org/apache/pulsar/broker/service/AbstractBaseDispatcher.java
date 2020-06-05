@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
@@ -75,6 +76,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
+            if (entry == null) {
+                continue;
+            }
+
             ByteBuf metadataAndPayload = entry.getDataBuffer();
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
@@ -142,18 +147,45 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     }
 
     public static final String NONE_KEY = "NONE_KEY";
+
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        metadataAndPayload.markReaderIndex();
+        int readerIndex = metadataAndPayload.readerIndex();
         PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-        metadataAndPayload.resetReaderIndex();
-        String key = metadata.getPartitionKey();
-        if (log.isDebugEnabled()) {
-            log.debug("Parse message metadata, partition key is {}, ordering key is {}", key, metadata.getOrderingKey());
+
+        try {
+            if (metadata.hasNumMessagesInBatch()) {
+                // If the message was part of a batch (eg: a batch of 1 message), we need
+                // to read the key from the first single-message-metadata entry
+                PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
+                        .newBuilder();
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(metadataAndPayload,
+                        singleMessageMetadataBuilder, 0, metadata.getNumMessagesInBatch());
+                try {
+                    if (singleMessageMetadataBuilder.hasOrderingKey()) {
+                        return singleMessageMetadataBuilder.getOrderingKey().toByteArray();
+                    } else if (singleMessageMetadataBuilder.hasPartitionKey()) {
+                        return singleMessageMetadataBuilder.getPartitionKey().getBytes();
+                    }
+                } finally {
+                    singleMessagePayload.release();
+                    singleMessageMetadataBuilder.recycle();
+                }
+            } else {
+                // Message was not part of a batch
+                if (metadata.hasOrderingKey()) {
+                    return metadata.getOrderingKey().toByteArray();
+                } else if (metadata.hasPartitionKey()) {
+                    return metadata.getPartitionKey().getBytes();
+                }
+            }
+
+            return NONE_KEY.getBytes();
+        } catch (IOException e) {
+            // If we fail to deserialize medata, return null key
+            return NONE_KEY.getBytes();
+        } finally {
+            metadataAndPayload.readerIndex(readerIndex);
+            metadata.recycle();
         }
-        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
-            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
-        }
-        metadata.recycle();
-        return NONE_KEY.getBytes();
     }
 }

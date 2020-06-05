@@ -74,6 +74,7 @@ import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -528,7 +529,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
-        if (!functionMetaDataManager.canChangeState(functionMetaData, Integer.parseInt(instanceId), start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
+        if (!FunctionMetaDataUtils.canChangeState(functionMetaData, Integer.parseInt(instanceId), start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
             throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
         }
@@ -656,7 +657,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
-        if (!functionMetaDataManager.canChangeState(functionMetaData, -1, start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
+        if (!FunctionMetaDataUtils.canChangeState(functionMetaData, -1, start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
             throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
         }
@@ -993,10 +994,17 @@ public abstract class ComponentImpl {
         Producer<byte[]> producer = null;
         try {
             if (outputTopic != null && !outputTopic.isEmpty()) {
-                reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
+                reader = worker().getClient().newReader()
+                        .topic(outputTopic)
+                        .startMessageId(MessageId.latest)
+                        .readerName(worker().getWorkerConfig().getWorkerId() + "-trigger-" +
+                                FunctionCommon.getFullyQualifiedName(tenant, namespace, functionName))
+                        .create();
             }
             producer = worker().getClient().newProducer(Schema.AUTO_PRODUCE_BYTES())
                     .topic(inputTopicToWrite)
+                    .producerName(worker().getWorkerConfig().getWorkerId() + "-trigger-" +
+                            FunctionCommon.getFullyQualifiedName(tenant, namespace, functionName))
                     .create();
             byte[] targetArray;
             if (uploadedInputStream != null) {

@@ -75,7 +75,7 @@ id_rsa               id_rsa.pub
 
 ## Create AWS resources using Terraform
 
-To start building AWS resources with Terraform, you need to install all Terraform dependencies. Enter the follwing command:
+To start building AWS resources with Terraform, you need to install all Terraform dependencies. Enter the following command:
 
 ```bash
 $ terraform init

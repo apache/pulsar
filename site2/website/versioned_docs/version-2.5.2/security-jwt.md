@@ -15,7 +15,7 @@ is permitted to do some actions (eg: publish to a topic or consume from a topic)
 
 A user typically gets a token string from the administrator (or some automated service).
 
-The compact representation of a signed JWT is a string that looks like as the follwing:
+The compact representation of a signed JWT is a string that looks like as the following:
 
 ```
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY

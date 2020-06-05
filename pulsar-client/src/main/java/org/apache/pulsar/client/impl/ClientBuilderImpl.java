@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -292,6 +293,16 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder clock(Clock clock) {
         conf.setClock(clock);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol) {
+        if (StringUtils.isNotBlank(proxyServiceUrl) && proxyProtocol == null) {
+            throw new IllegalArgumentException("proxyProtocol must be present with proxyServiceUrl");
+        }
+        conf.setProxyServiceUrl(proxyServiceUrl);
+        conf.setProxyProtocol(proxyProtocol);
         return this;
     }
 }
