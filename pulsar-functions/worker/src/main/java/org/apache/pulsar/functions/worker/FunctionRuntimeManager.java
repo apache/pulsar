@@ -254,7 +254,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     /**
      * Get current assignments
-     * @return a map of current assignments in the follwing format
+     * @return a map of current assignments in the following format
      * {workerId : {FullyQualifiedInstanceId : Assignment}}
      */
     public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
