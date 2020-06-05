@@ -51,12 +51,10 @@ public class FunctionAssignmentTailer implements AutoCloseable {
           .create();
 
         this.tailerThread = new Thread(() -> {
-            while(true) {
+            while(isRunning) {
                 try {
-                    while(isRunning) {
-                        Message<byte[]> msg = reader.readNext();
-                        processAssignment(msg);
-                    }
+                    Message<byte[]> msg = reader.readNext();
+                    processAssignment(msg);
                 } catch (Exception e) {
                     if (isRunning) {
                         log.error("Encountered error in assignment tailer", e);
@@ -82,11 +80,14 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     @Override
     public void close() {
-        if (!isRunning) {
-            return;
-        }
         log.info("Stopping function assignment tailer");
         try {
+            if (!isRunning) {
+                if (reader != null) {
+                    reader.close();
+                }
+                return;
+            }
             isRunning = false;
             if (tailerThread != null && tailerThread.isAlive()) {
                 tailerThread.interrupt();
