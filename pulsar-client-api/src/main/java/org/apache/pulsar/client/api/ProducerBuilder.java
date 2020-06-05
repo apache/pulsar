@@ -293,6 +293,33 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> enableBatching(boolean enableBatching);
 
     /**
+     * If message size is higher than allowed max publish-payload size by broker then enableChunking helps producer to
+     * split message into multiple chunks and publish them to broker separately and in order. So, it allows client to
+     * successfully publish large size of messages in pulsar.
+     *
+     * <p>This feature allows publisher to publish large size of message by splitting it to multiple chunks and let
+     * consumer stitch them together to form a original large published message. Therefore, it's necessary to configure
+     * recommended configuration at pulsar producer and consumer. Recommendation to use this feature:
+     *
+     * <pre>
+     * 1. This feature is right now only supported by non-shared subscription and persistent-topic.
+     * 2. Disable batching to use chunking feature
+     * 3. Pulsar-client keeps published messages into buffer until it receives ack from broker.
+     * So, it's better to reduce "maxPendingMessages" size to avoid producer occupying large amount
+     *  of memory by buffered messages.
+     * 4. Set message-ttl on the namespace to cleanup incomplete chunked messages.
+     * (sometime due to broker-restart or publish time, producer might fail to publish entire large message
+     * so, consumer will not be able to consume and ack those messages. So, those messages can
+     * be only discared by msg ttl) Or configure
+     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
+     * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChuckedMessage
+     * </pre>
+     * @param enableChunking
+     * @return
+     */
+    ProducerBuilder<T> enableChunking(boolean enableChunking);
+
+    /**
      * Sets a {@link CryptoKeyReader}.
      *
      * <p>Configure the key reader to be used to encrypt the message payloads.

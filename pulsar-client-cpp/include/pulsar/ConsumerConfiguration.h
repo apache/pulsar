@@ -155,6 +155,10 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      */
     long getUnAckedMessagesTimeoutMs() const;
 
+    void setTickDurationInMs(const uint64_t milliSeconds);
+
+    long getTickDurationInMs() const;
+
     /**
      * Set the delay to wait before re-delivering messages that have failed to be process.
      * <p>

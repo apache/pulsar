@@ -148,7 +148,7 @@ public class ZKMetadataStore implements MetadataStore {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, null, (StatCallback) (rc, path1, ctx, stat) -> {
+            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
                 executor.execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {

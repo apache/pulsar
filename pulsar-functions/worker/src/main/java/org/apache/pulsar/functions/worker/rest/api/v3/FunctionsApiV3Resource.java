@@ -109,6 +109,14 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{tenant}/{namespace}")
+    public List<String> listSources(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace) {
+        return functions.listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+    }
+
+    @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Function instance",
             response = FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class

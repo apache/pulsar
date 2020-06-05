@@ -25,9 +25,8 @@ import java.util.Optional;
 public final class FunctionAuthUtils {
 
     public static final FunctionAuthData getFunctionAuthData(Optional<Function.FunctionAuthenticationSpec> functionAuthenticationSpec) {
-        if (functionAuthenticationSpec.isPresent()) {
-            return FunctionAuthData.builder().data(functionAuthenticationSpec.get().getData().toByteArray()).build();
-        }
-        return null;
+        return functionAuthenticationSpec
+                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData().toByteArray()).build())
+                .orElse(null);
     }
 }

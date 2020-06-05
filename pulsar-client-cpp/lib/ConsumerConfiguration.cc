@@ -98,6 +98,12 @@ void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeco
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
 
+long ConsumerConfiguration::getTickDurationInMs() const { return impl_->tickDurationInMs; }
+
+void ConsumerConfiguration::setTickDurationInMs(const uint64_t milliSeconds) {
+    impl_->tickDurationInMs = milliSeconds;
+}
+
 void ConsumerConfiguration::setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis) {
     impl_->negativeAckRedeliveryDelayMs = redeliveryDelayMillis;
 }

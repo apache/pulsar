@@ -17,33 +17,26 @@
 # under the License.
 #
 
-{{- if .Values.extra.monitoring }}
+{{- if or .Values.monitoring.prometheus .Values.extra.monitoring }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.prometheus.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 spec:
   replicas: {{ .Values.prometheus.replicaCount }}
   selector:
     matchLabels:
-      app: {{ template "pulsar.name" . }}
-      release: {{ .Release.Name }}
+      {{- include "pulsar.matchLabels" . | nindent 6 }}
       component: {{ .Values.prometheus.component }}
   template:
     metadata:
       labels:
-        app: {{ template "pulsar.name" . }}
-        release: {{ .Release.Name }}
+        {{- include "pulsar.template.labels" . | nindent 8 }}
         component: {{ .Values.prometheus.component }}
-        cluster: {{ template "pulsar.fullname" . }}
       annotations:
 {{ toYaml .Values.prometheus.annotations | indent 8 }}
     spec:
@@ -55,20 +48,21 @@ spec:
       tolerations:
 {{ toYaml .Values.prometheus.tolerations | indent 8 }}
     {{- end }}
-    {{- if .Values.prometheus_rbac }}
+    {{- if or .Values.prometheus.rbac.enabled .Values.prometheus_rbac }}
       serviceAccount: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
     {{- end }}
       terminationGracePeriodSeconds: {{ .Values.prometheus.gracePeriod }}
       containers:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
-        image: "{{ .Values.prometheus.image.repository }}:{{ .Values.prometheus.image.tag }}"
-        imagePullPolicy: {{ .Values.prometheus.image.pullPolicy }}
+        image: "{{ .Values.images.prometheus.repository }}:{{ .Values.images.prometheus.tag }}"
+        imagePullPolicy: {{ .Values.images.prometheus.pullPolicy }}
       {{- if .Values.prometheus.resources }}
         resources:
 {{ toYaml .Values.prometheus.resources | indent 10 }}
       {{- end }}
         ports:
-        - containerPort: 9090
+        - name: server
+          containerPort: {{ .Values.prometheus.port }}
         volumeMounts:
         - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-config"
           mountPath: /etc/prometheus
@@ -78,11 +72,11 @@ spec:
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-config"
         configMap:
           name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}"
-    {{- if not .Values.prometheus_persistence }}
+    {{- if not (and (and .Values.persistence .Values.volumes.persistence) .Values.prometheus.volumes.persistence) }}
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
         emptyDir: {}
     {{- end }}
-    {{- if .Values.prometheus_persistence }}
+    {{- if and (and .Values.persistence .Values.volumes.persistence) .Values.prometheus.volumes.persistence }}
       - name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
         persistentVolumeClaim:
           claimName: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"

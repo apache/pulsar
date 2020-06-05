@@ -130,9 +130,9 @@ public class PulsarConfigurationLoader {
                 if (log.isDebugEnabled()) {
                     log.debug("Validating configuration field '{}' = '{}'", field.getName(), value);
                 }
-                boolean isRequired = ((FieldContext) field.getAnnotation(FieldContext.class)).required();
-                long minValue = ((FieldContext) field.getAnnotation(FieldContext.class)).minValue();
-                long maxValue = ((FieldContext) field.getAnnotation(FieldContext.class)).maxValue();
+                boolean isRequired = field.getAnnotation(FieldContext.class).required();
+                long minValue = field.getAnnotation(FieldContext.class).minValue();
+                long maxValue = field.getAnnotation(FieldContext.class).maxValue();
                 if (isRequired && isEmpty(value)) {
                     error.append(String.format("Required %s is null,", field.getName()));
                 }

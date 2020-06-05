@@ -294,27 +294,33 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 loadReport = generateLoadReport();
                 this.lastResourceUsageTimestamp = loadReport.getTimestamp();
             } catch (Exception e) {
-                log.warn("Unable to get load report to write it on zookeeper [{}]", e);
+                log.warn("Unable to get load report to write it on zookeeper", e);
             }
             String loadReportJson = "";
             if (loadReport != null) {
                 loadReportJson = ObjectMapperFactory.getThreadLocal().writeValueAsString(loadReport);
             }
             try {
-                ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
+                if (!org.apache.pulsar.zookeeper.ZkUtils.checkNodeAndWaitExpired(
+                    pulsar.getZkClient(), brokerZnodePath,
+                    pulsar.getConfig().getZooKeeperSessionTimeoutMillis())) {
+                    ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
                         loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+                } else {
+                    // Node may already be created by another load manager: in this case update the data.
+                    if (loadReport != null) {
+                        pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
+                    }
+                }
             } catch (KeeperException.NodeExistsException e) {
-                long ownerZkSessionId = getBrokerZnodeOwner();
-                if (ownerZkSessionId != 0 && ownerZkSessionId != pulsar.getZkClient().getSessionId()) {
-                    log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
-                            ownerZkSessionId);
-                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
-                }
-                // Node may already be created by another load manager: in this case update the data.
-                if (loadReport != null) {
-                    pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
-                }
-
+                log.error("Broker znode - [{}] is own by different zookeeper-session", brokerZnodePath);
+                throw new PulsarServerException(
+                    "Broker znode - [" + brokerZnodePath + "] is owned by different zk-session");
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                // Catching exception here to print the right error message
+                log.error("Interrupted at creating znode - [{}] for load balance on zookeeper ", brokerZnodePath, ie);
+                throw ie;
             } catch (Exception e) {
                 // Catching excption here to print the right error message
                 log.error("Unable to create znode - [{}] for load balance on zookeeper ", brokerZnodePath, e);
@@ -927,7 +933,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         availableBrokersCache, brokerTopicLoadingPredicate);
             } catch (Exception e) {
-                log.warn("Error when trying to apply policies: {}", e);
+                log.warn("Error when trying to apply policies", e);
                 for (final Map.Entry<Long, Set<ResourceUnit>> entry : availableBrokers.entrySet()) {
                     result.putAll(entry.getKey(), entry.getValue());
                 }
@@ -1060,7 +1066,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 doLoadRanking();
             }
         } catch (Exception e) {
-            log.warn("Error reading active brokers list from zookeeper while re-ranking load reports [{}]", e);
+            log.warn("Error reading active brokers list from zookeeper while re-ranking load reports", e);
         }
     }
 

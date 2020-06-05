@@ -4,6 +4,7 @@
       "version-2.5.0-pulsar-2.0",
       "version-2.5.0-standalone",
       "version-2.5.0-standalone-docker",
+      "version-2.5.0-kubernetes-helm",
       "version-2.5.0-client-libraries"
     ],
     "Concepts and Architecture": [
@@ -31,10 +32,6 @@
       "version-2.5.0-functions-develop",
       "version-2.5.0-functions-debug",
       "version-2.5.0-functions-deploy",
-      "version-2.5.0-functions-configure",
-      "version-2.5.0-functions-monitor",
-      "version-2.5.0-functions-secure",
-      "version-2.5.0-functions-troubleshoot",
       "version-2.5.0-functions-cli"
     ],
     "Pulsar IO": [
@@ -52,6 +49,14 @@
       "version-2.5.0-sql-getting-started",
       "version-2.5.0-sql-deployment-configurations",
       "version-2.5.0-sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "version-2.5.0-helm-overview",
+      "version-2.5.0-helm-prepare",
+      "version-2.5.0-helm-install",
+      "version-2.5.0-helm-deploy",
+      "version-2.5.0-helm-upgrade",
+      "version-2.5.0-helm-tools"
     ],
     "Deployment": [
       "version-2.5.0-deploy-aws",

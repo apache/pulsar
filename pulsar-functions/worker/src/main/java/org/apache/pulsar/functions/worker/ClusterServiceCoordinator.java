@@ -82,6 +82,6 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     public void close() {
         log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
         this.executor.shutdown();
-        log.info("Stopped Cluster Service Coordinator for worker", this.workerId);
+        log.info("Stopped Cluster Service Coordinator for worker {}", this.workerId);
     }
 }

@@ -116,7 +116,7 @@ To clearly explain the log information, here breaks down the large block of info
     ```
 * This piece of log information explains the configuration of consumers and clients, including the topic name, subscription name, subscription type, and so on.
     ```bash
-    08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer perf with config: {
+    08:21:56.719 [pulsar-client-io-1-1] INFO  org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl - Starting Pulsar consumer status recorder with config: {
     "topicNames" : [ "test-mongo" ],
     "topicsPattern" : null,
     "subscriptionName" : "public/default/pulsar-mongo-sink",

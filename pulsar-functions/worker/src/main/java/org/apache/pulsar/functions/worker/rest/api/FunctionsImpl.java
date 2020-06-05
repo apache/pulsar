@@ -28,6 +28,7 @@ import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -39,7 +40,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.functions.worker.rest.RestException;
+import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
@@ -48,6 +49,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -198,12 +200,10 @@ public class FunctionsImpl extends ComponentImpl {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
                                     .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
 
-                            if (functionAuthData.isPresent()) {
-                                functionMetaDataBuilder.setFunctionAuthSpec(
-                                        Function.FunctionAuthenticationSpec.newBuilder()
-                                                .setData(ByteString.copyFrom(functionAuthData.get().getData()))
-                                                .build());
-                            }
+                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(authData.getData()))
+                                            .build()));
                         } catch (Exception e) {
                             log.error("Error caching authentication data for {} {}/{}/{}",
                                     ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
@@ -653,11 +653,30 @@ public class FunctionsImpl extends ComponentImpl {
                                                                  final File componentPackageFile) throws IOException {
 
         // The rest end points take precedence over whatever is there in function config
+        Path archivePath = null;
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
         FunctionConfigUtils.inferMissingArguments(functionConfig);
-        ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+
+        if (!StringUtils.isEmpty(functionConfig.getJar())) {
+            String builtinArchive = functionConfig.getJar();
+            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+            }
+            try {
+                archivePath = this.worker().getFunctionsManager().getFunctionArchive(builtinArchive);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("No Function archive %s found", archivePath));
+            }
+        }
+        ClassLoader clsLoader  = null;
+        if(archivePath != null){
+            clsLoader = FunctionConfigUtils.validate(functionConfig, archivePath.toFile());
+        }
+        else{
+            clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+        }
         return FunctionConfigUtils.convert(functionConfig, clsLoader);
 
     }

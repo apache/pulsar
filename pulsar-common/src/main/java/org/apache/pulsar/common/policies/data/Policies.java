@@ -49,12 +49,18 @@ public class Policies {
 
     // If set, it will override the broker settings for enabling deduplication
     public Boolean deduplicationEnabled = null;
+    // If set, it will override the broker settings for allowing auto topic creation
+    public AutoTopicCreationOverride autoTopicCreationOverride = null;
+    // If set, it will override the broker settings for allowing auto subscription creation
+    public AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = null;
     public Map<String, PublishRate> publishMaxMessageRate = Maps.newHashMap();
 
     @SuppressWarnings("checkstyle:MemberName")
     public Map<String, Integer> latency_stats_sample_rate = Maps.newHashMap();
     @SuppressWarnings("checkstyle:MemberName")
     public int message_ttl_in_seconds = 0;
+    @SuppressWarnings("checkstyle:MemberName")
+    public int subscription_expiration_time_minutes = 0;
     @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
@@ -110,9 +116,10 @@ public class Policies {
         return Objects.hash(auth_policies, replication_clusters,
                 backlog_quota_map, publishMaxMessageRate, clusterDispatchRate,
                 topicDispatchRate, subscriptionDispatchRate, replicatorDispatchRate,
-                clusterSubscribeRate, deduplicationEnabled, persistence,
+                clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
+                autoSubscriptionCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
-                message_ttl_in_seconds, retention_policies,
+                message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies,
                 subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
@@ -141,10 +148,13 @@ public class Policies {
                     && Objects.equals(clusterSubscribeRate, other.clusterSubscribeRate)
                     && Objects.equals(publishMaxMessageRate, other.publishMaxMessageRate)
                     && Objects.equals(deduplicationEnabled, other.deduplicationEnabled)
+                    && Objects.equals(autoTopicCreationOverride, other.autoTopicCreationOverride)
+                    && Objects.equals(autoSubscriptionCreationOverride, other.autoSubscriptionCreationOverride)
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && Objects.equals(message_ttl_in_seconds,
                             other.message_ttl_in_seconds)
+                    && Objects.equals(subscription_expiration_time_minutes, other.subscription_expiration_time_minutes)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)
@@ -157,7 +167,7 @@ public class Policies {
                     && max_unacked_messages_per_subscription == other.max_unacked_messages_per_subscription
                     && compaction_threshold == other.compaction_threshold
                     && offload_threshold == other.offload_threshold
-                    && offload_deletion_lag_ms == other.offload_deletion_lag_ms
+                    && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
                     && schema_compatibility_strategy == other.schema_compatibility_strategy
@@ -187,9 +197,13 @@ public class Policies {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("auth_policies", auth_policies)
-                .add("replication_clusters", replication_clusters).add("bundles", bundles)
-                .add("backlog_quota_map", backlog_quota_map).add("persistence", persistence)
+                .add("replication_clusters", replication_clusters)
+                .add("bundles", bundles)
+                .add("backlog_quota_map", backlog_quota_map)
+                .add("persistence", persistence)
                 .add("deduplicationEnabled", deduplicationEnabled)
+                .add("autoTopicCreationOverride", autoTopicCreationOverride)
+                .add("autoSubscriptionCreationOverride", autoSubscriptionCreationOverride)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("topicDispatchRate", topicDispatchRate)
                 .add("subscriptionDispatchRate", subscriptionDispatchRate)
@@ -198,7 +212,9 @@ public class Policies {
                 .add("publishMaxMessageRate", publishMaxMessageRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("antiAffinityGroup", antiAffinityGroup)
-                .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
+                .add("message_ttl_in_seconds", message_ttl_in_seconds)
+                .add("subscription_expiration_time_minutes", subscription_expiration_time_minutes)
+                .add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
                 .add("delayed_delivery_policies", delayed_delivery_policies)

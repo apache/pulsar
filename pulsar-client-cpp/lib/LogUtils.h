@@ -86,9 +86,9 @@ class PULSAR_PUBLIC LogUtils {
    public:
     static void init(const std::string& logConfFilePath);
 
-    static void setLoggerFactory(LoggerFactoryPtr loggerFactory);
+    static void setLoggerFactory(std::unique_ptr<LoggerFactory> loggerFactory);
 
-    static LoggerFactoryPtr getLoggerFactory();
+    static LoggerFactory* getLoggerFactory();
 
     static std::string getLoggerName(const std::string& path);
 };

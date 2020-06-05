@@ -325,8 +325,10 @@ Options
 |`--hex`|Display binary messages in hexadecimal format.|false|
 |`-n`, `--num-messages`|Number of messages to consume, 0 means to consume forever.|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible|0.0|
+|`--regex`|Indicate the topic name is a regex pattern|false|
 |`-s`, `--subscription-name`|Subscription name||
 |`-t`, `--subscription-type`|The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.|Exclusive|
+|`-p`, `--subscription-position`|The position of the subscription. Possible values: Latest, Earliest.|Latest|
 
 
 
@@ -426,7 +428,8 @@ Options
 |`-u`, `--service-url`|Pulsar service URL||
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
 |`-s`, `--subscriber-name`|Subscriber name prefix|sub|
-|`-st`, `--subscription-type`|Subscriber name prefix. Possible values are Exclusive, Shared, Failover.|Exclusive|
+|`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
+|`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 
 

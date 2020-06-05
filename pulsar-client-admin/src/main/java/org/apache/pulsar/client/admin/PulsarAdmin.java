@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
+import org.apache.pulsar.client.admin.internal.ProxyStatsImpl;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.admin.internal.SchemasImpl;
@@ -75,6 +76,7 @@ public class PulsarAdmin implements Closeable {
     private final Clusters clusters;
     private final Brokers brokers;
     private final BrokerStats brokerStats;
+    private final ProxyStats proxyStats;
     private final Tenants tenants;
     private final Properties properties;
     private final Namespaces namespaces;
@@ -156,7 +158,7 @@ public class PulsarAdmin implements Closeable {
         if (auth != null) {
             auth.start();
         }
-        
+
         if (StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
         }
@@ -191,6 +193,7 @@ public class PulsarAdmin implements Closeable {
         this.clusters = new ClustersImpl(root, auth, readTimeoutMs);
         this.brokers = new BrokersImpl(root, auth, readTimeoutMs);
         this.brokerStats = new BrokerStatsImpl(root, auth, readTimeoutMs);
+        this.proxyStats = new ProxyStatsImpl(root, auth, readTimeoutMs);
         this.tenants = new TenantsImpl(root, auth, readTimeoutMs);
         this.properties = new TenantsImpl(root, auth, readTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, readTimeoutMs);
@@ -208,7 +211,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -230,7 +233,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -249,7 +252,7 @@ public class PulsarAdmin implements Closeable {
 
     /**
      * Construct a new Pulsar Admin client object.
-     * <p>
+     * <p/>
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
@@ -389,6 +392,13 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
+     * @return the proxy statics
+     */
+    public ProxyStats proxyStats() {
+        return proxyStats;
+    }
+
+    /**
      * @return the service HTTP URL that is being used
      */
     public String getServiceUrl() {
@@ -410,7 +420,7 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * Close the Pulsar admin client to release all the resources
+     * Close the Pulsar admin client to release all the resources.
      */
     @Override
     public void close() {

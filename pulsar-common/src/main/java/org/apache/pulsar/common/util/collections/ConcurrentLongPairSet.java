@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 
 /**
@@ -214,6 +215,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
         private volatile long[] table;
 
         private volatile int capacity;
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER = AtomicIntegerFieldUpdater
+                .newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -300,7 +303,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
 
                         table[bucket] = item1;
                         table[bucket + 1] = item2;
-                        ++size;
+                        SIZE_UPDATER.incrementAndGet(this);
                         return true;
                     } else if (storedItem1 == DeletedItem) {
                         // The bucket contained a different deleted key
@@ -333,7 +336,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
                     long storedItem1 = table[bucket];
                     long storedItem2 = table[bucket + 1];
                     if (item1 == storedItem1 && item2 == storedItem2) {
-                        --size;
+                        SIZE_UPDATER.decrementAndGet(this);
 
                         cleanBucket(bucket);
                         return true;

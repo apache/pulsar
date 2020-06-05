@@ -12,7 +12,7 @@ Run Pulsar Functions locally, rather than deploying it to the Pulsar cluster.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false |
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 broker-service-url | The URL for the Pulsar broker. | |
 classname | The class name of a Pulsar Function.| |
 client-auth-params | Client authentication parameter. | |
@@ -20,7 +20,7 @@ client-auth-plugin | Client authentication plugin using which function-process c
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions.  | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -61,13 +61,13 @@ Create and deploy a Pulsar Function in cluster mode.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false |
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 classname | The class name of a Pulsar Function. |  |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -113,13 +113,13 @@ Update a Pulsar Function that has been deployed to a Pulsar cluster.
 
 Name | Description | Default
 ---|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | false
+auto-ack | Whether or not the framework acknowledges messages automatically. | true |
 classname | The class name of a Pulsar Function. | |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
 custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |

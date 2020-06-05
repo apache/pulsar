@@ -351,7 +351,7 @@ public class LookupProxyHandler {
     public void handleGetSchema(CommandGetSchema commandGetSchema) {
         getSchemaRequests.inc();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received GetSchema", clientAddress, commandGetSchema);
+            log.debug("[{}] Received GetSchema {}", clientAddress, commandGetSchema);
         }
 
         final long clientRequestId = commandGetSchema.getRequestId();
