@@ -356,6 +356,19 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
+        String completeTopicName = tenant + "/" + namespace + "/" +  Codec.decode(encodedTopic);
+        try {
+            PartitionedTopicMetadata partitionedTopicMetadata =
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(completeTopicName)).get();
+            if (partitionedTopicMetadata.partitions < 1) {
+                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
+            }
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
+        }
+    }
+
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);

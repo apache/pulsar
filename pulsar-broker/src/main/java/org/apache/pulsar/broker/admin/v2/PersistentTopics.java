@@ -252,9 +252,9 @@ public class PersistentTopics extends PersistentTopicsBase {
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
      *
      * @param tenant
-     * @param cluster
      * @param namespace
-     * @param topic
+     * @param namespace
+     * @param encodedTopic
      * @param numPartitions
      */
     @POST
@@ -283,6 +283,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
         internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative);
     }
 
