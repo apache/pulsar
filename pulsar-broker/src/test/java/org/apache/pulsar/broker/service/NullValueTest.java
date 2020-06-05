@@ -26,6 +26,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -141,6 +144,96 @@ public class NullValueTest extends BrokerTestBase {
             Message<Boolean> message = consumer.receive();
             Assert.assertNull(message.getValue());
             Assert.assertNull(message.getData());
+        }
+
+    }
+
+    @Test
+    public void keyValueNullInlineTest() throws PulsarClientException {
+        String topic = "persistent://prop/ns-abc/kv-null-value-test";
+
+        @Cleanup
+        Producer<KeyValue<String, String>> producer = pulsarClient
+                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING))
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Consumer<KeyValue<String, String>> consumer = pulsarClient
+                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.STRING))
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        int numMessage = 10;
+        for (int i = 0; i < numMessage; i++) {
+            producer.newMessage().value(new KeyValue<>(null, "test")).send();
+            producer.newMessage().value(new KeyValue<>("test", null)).send();
+            producer.newMessage().value(new KeyValue<>(null, null)).send();
+        }
+
+        Message<KeyValue<String, String>> message;
+        KeyValue<String, String> keyValue;
+        for (int i = 0; i < numMessage; i++) {
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertNull(keyValue.getKey());
+            Assert.assertEquals("test", keyValue.getValue());
+
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertEquals("test", keyValue.getKey());
+            Assert.assertNull(keyValue.getValue());
+
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertNull(keyValue.getKey());
+            Assert.assertNull(keyValue.getValue());
+        }
+
+    }
+
+    @Test
+    public void keyValueNullSeparatedTest() throws PulsarClientException {
+        String topic = "persistent://prop/ns-abc/kv-null-value-test";
+
+        @Cleanup
+        Producer<KeyValue<String, String>> producer = pulsarClient
+                .newProducer(KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
+                .topic(topic)
+                .create();
+
+        @Cleanup
+        Consumer<KeyValue<String, String>> consumer = pulsarClient
+                .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED))
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        int numMessage = 10;
+        for (int i = 0; i < numMessage; i++) {
+            producer.newMessage().value(new KeyValue<>(null, "test")).send();
+            producer.newMessage().value(new KeyValue<>("test", null)).send();
+            producer.newMessage().value(new KeyValue<>(null, null)).send();
+        }
+
+        Message<KeyValue<String, String>> message;
+        KeyValue<String, String> keyValue;
+        for (int i = 0; i < numMessage; i++) {
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertNull(keyValue.getKey());
+            Assert.assertEquals("test", keyValue.getValue());
+
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertEquals("test", keyValue.getKey());
+            Assert.assertNull(keyValue.getValue());
+
+            message = consumer.receive();
+            keyValue = message.getValue();
+            Assert.assertNull(keyValue.getKey());
+            Assert.assertNull(keyValue.getValue());
         }
 
     }
