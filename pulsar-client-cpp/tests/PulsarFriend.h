@@ -83,7 +83,7 @@ class PulsarFriend {
     }
 
     static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
-  
+
     static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
         consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);
     }

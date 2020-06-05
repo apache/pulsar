@@ -25,7 +25,13 @@
 extern "C" {
 #endif
 
-typedef enum { pulsar_DEBUG = 0, pulsar_INFO = 1, pulsar_WARN = 2, pulsar_ERROR = 3 } pulsar_logger_level_t;
+typedef enum
+{
+    pulsar_DEBUG = 0,
+    pulsar_INFO = 1,
+    pulsar_WARN = 2,
+    pulsar_ERROR = 3
+} pulsar_logger_level_t;
 
 typedef void (*pulsar_logger)(pulsar_logger_level_t level, const char *file, int line, const char *message,
                               void *ctx);
