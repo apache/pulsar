@@ -616,7 +616,7 @@ Producer producer = client.newProducer()
         .batcherBuilder(BatcherBuilder.KEY_BASED)
         .create();
 ```
-Or the producer can disable the message batch mechanism.
+Or the producer can disable batching.
 
 ```java
 Producer producer = client.newProducer()
