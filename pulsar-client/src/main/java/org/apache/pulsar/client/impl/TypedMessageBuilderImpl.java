@@ -111,6 +111,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
+            if (key == null) {
+                msgMetadataBuilder.setNullPartitionKey(true);
+                return this;
+            }
         }
         msgMetadataBuilder.setPartitionKey(key);
         msgMetadataBuilder.setPartitionKeyB64Encoded(false);
@@ -123,6 +127,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
                     "This method is not allowed to set keys when in encoding type is SEPARATED");
+            if (key == null) {
+                msgMetadataBuilder.setNullPartitionKey(true);
+                return this;
+            }
         }
         msgMetadataBuilder.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadataBuilder.setPartitionKeyB64Encoded(true);
@@ -137,18 +145,29 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> value(T value) {
-
-        checkArgument(value != null, "Need Non-Null content value");
+        if (value == null) {
+            msgMetadataBuilder.setNullValue(true);
+            return this;
+        }
         if (schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
             if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
                 // set key as the message key
-                msgMetadataBuilder.setPartitionKey(
-                        Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
-                msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                if (kv.getKey() != null) {
+                    msgMetadataBuilder.setPartitionKey(
+                            Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
+                    msgMetadataBuilder.setPartitionKeyB64Encoded(true);
+                } else {
+                    this.msgMetadataBuilder.setNullPartitionKey(true);
+                }
+
                 // set value as the payload
-                this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                if (kv.getValue() != null) {
+                    this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
+                } else {
+                    this.msgMetadataBuilder.setNullValue(true);
+                }
                 return this;
             }
         }

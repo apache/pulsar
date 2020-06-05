@@ -65,6 +65,8 @@ public interface Subscription {
 
     CompletableFuture<Void> delete();
 
+    CompletableFuture<Void> deleteForcefully();
+
     CompletableFuture<Void> disconnect();
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);

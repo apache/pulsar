@@ -4,6 +4,7 @@
       "pulsar-2.0",
       "standalone",
       "standalone-docker",
+      "kubernetes-helm",
       "client-libraries"
     ],
     "Concepts and Architecture": [
@@ -30,10 +31,6 @@
       "functions-develop",
       "functions-debug",
       "functions-deploy",
-      "functions-configure",
-      "functions-monitor",
-      "functions-secure",
-      "functions-troubleshoot",
       "functions-cli"
     ],
     "Pulsar IO": [
@@ -51,6 +48,14 @@
       "sql-getting-started",
       "sql-deployment-configurations",
       "sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "helm-overview",
+      "helm-prepare",
+      "helm-install",
+      "helm-deploy",
+      "helm-upgrade",
+      "helm-tools"
     ],
     "Deployment": [
       "deploy-aws",
@@ -73,12 +78,17 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-tls-keystore",
       "security-jwt",
       "security-athenz",
       "security-kerberos",
       "security-authorization",
       "security-encryption",
-      "security-extending"
+      "security-extending",
+      "security-bouncy-castle"
+    ],
+    "Performance": [
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",
@@ -86,7 +96,8 @@
       "client-libraries-python",
       "client-libraries-cpp",
       "client-libraries-node",
-      "client-libraries-websocket"
+      "client-libraries-websocket",
+      "client-libraries-dotnet"
     ],
     "Admin API": [
       "admin-api-overview",

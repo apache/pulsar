@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
@@ -100,6 +101,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -182,6 +184,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -267,6 +270,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -396,6 +400,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -509,17 +514,18 @@ public class FunctionRuntimeManagerTest {
                 .build();
 
         List<Message<byte[]>> messageList = new LinkedList<>();
+        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null));
+                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
         messageList.add(message1);
@@ -572,6 +578,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -630,7 +637,7 @@ public class FunctionRuntimeManagerTest {
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
-                kubernetesRuntimeFactory, null, null, null));
+                kubernetesRuntimeFactory, null, null, null, null));
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -639,6 +646,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
 
@@ -742,6 +750,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -765,6 +774,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -788,6 +798,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -811,6 +822,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
@@ -839,6 +851,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), KubernetesRuntimeFactory.class);
@@ -866,6 +879,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ProcessRuntimeFactory.class);
@@ -889,6 +903,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);

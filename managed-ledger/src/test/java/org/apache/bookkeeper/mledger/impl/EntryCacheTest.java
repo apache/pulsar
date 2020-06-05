@@ -48,7 +48,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
 public class EntryCacheTest extends MockedBookKeeperTestCase {
 
     private ManagedLedgerImpl ml;
@@ -63,7 +62,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testRead() throws Exception {
+    public void testRead() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -95,7 +94,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingBefore() throws Exception {
+    public void testReadMissingBefore() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -123,7 +122,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingAfter() throws Exception {
+    public void testReadMissingAfter() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -151,7 +150,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingMiddle() throws Exception {
+    public void testReadMissingMiddle() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -180,7 +179,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadMissingMultiple() throws Exception {
+    public void testReadMissingMultiple() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 
@@ -209,7 +208,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 5000)
-    void testReadWithError() throws Exception {
+    public void testReadWithError() throws Exception {
         final ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
 

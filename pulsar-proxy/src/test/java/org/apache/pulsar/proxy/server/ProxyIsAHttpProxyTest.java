@@ -178,7 +178,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -207,7 +207,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -238,7 +238,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
 
     }
@@ -257,7 +257,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -284,7 +284,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -310,7 +310,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -335,7 +335,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
         try {
@@ -367,7 +367,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         WebServer webServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig,
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, null,
                                                  new BrokerDiscoveryProvider(proxyConfig, mockZooKeeperClientFactory));
         webServer.start();
 

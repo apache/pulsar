@@ -20,7 +20,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+ xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
@@ -58,20 +58,6 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
                             </transformers>
-                            <artifactSet>
-                                <excludes>
-                                    <exclude>io.netty:netty-common</exclude>
-                                    <exclude>io.netty:netty-buffer</exclude>
-                                    <exclude>io.netty:netty-codec-http2</exclude>
-                                    <exclude>io.netty:netty-codec-http</exclude>
-                                    <exclude>io.netty:netty-codec-socks</exclude>
-                                    <exclude>io.netty:netty-codec</exclude>
-                                    <exclude>io.netty:netty-handler</exclude>
-                                    <exclude>io.netty:netty-handler-proxy</exclude>
-                                    <exclude>io.netty:netty-transport</exclude>
-                                    <exclude>io.netty:netty-resolver</exclude>
-                                </excludes>
-                            </artifactSet>
                             <filters>
                                 <filter>
                                     <!-- Shading signed JARs will fail without
@@ -85,10 +71,11 @@
                                 </filter>
                             </filters>
                             <relocations>
-                                <relocation>
+                                <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
+                                <!-- <relocation>
                                     <pattern>com.typesafe.netty</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.typesafe.netty</shadedPattern>
-                                </relocation>
+                                </relocation> -->
                                 <relocation>
                                     <pattern>com.google</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.google</shadedPattern>
@@ -193,10 +180,11 @@
                                     <pattern>org.apache.distributedlog</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.distributedlog</shadedPattern>
                                 </relocation>
-                                <relocation>
+                                <!-- Jackson cannot be shaded, this is causing java.lang.NoSuchMethodError when calling getThreadLocalYaml-->
+                                <!-- <relocation>
                                     <pattern>com.fasterxml</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.fasterxml</shadedPattern>
-                                </relocation>
+                                </relocation> -->
                                 <relocation>
                                     <pattern>org.inferred</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.inferred</shadedPattern>
@@ -213,10 +201,11 @@
                                     <pattern>dlshade</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.dlshade</shadedPattern>
                                 </relocation>
-                                <relocation>
+                                <!-- This refers to an older version of Jackson -->
+                                <!-- <relocation>
                                     <pattern>org.codehaus.jackson</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.codehaus.jackson</shadedPattern>
-                                </relocation>
+                                </relocation> -->
                                 <relocation>
                                     <pattern>net.java.dev.jna</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.java.dev.jna</shadedPattern>
@@ -329,10 +318,11 @@
                                     <pattern>com.beust</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.beust</shadedPattern>
                                 </relocation>
-                                <relocation>
+                                <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
+                                <!-- <relocation>
                                     <pattern>io.netty</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.netty</shadedPattern>
-                                </relocation>
+                                </relocation> -->
                                 <relocation>
                                     <pattern>org.hamcrest</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.hamcrest</shadedPattern>

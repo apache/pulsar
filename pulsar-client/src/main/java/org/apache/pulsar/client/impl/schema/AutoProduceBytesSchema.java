@@ -95,4 +95,9 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
         return schema.getSchemaInfo();
     }
+
+    @Override
+    public Schema<byte[]> clone() {
+        return new AutoProduceBytesSchema<>(schema.clone());
+    }
 }

@@ -43,6 +43,12 @@
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.parent.version}</version>
+      <optional>true</optional>
+    </dependency>
   </dependencies>
 
   <build>
@@ -150,6 +156,9 @@
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>

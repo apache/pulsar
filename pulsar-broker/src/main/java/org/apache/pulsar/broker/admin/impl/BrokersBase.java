@@ -67,7 +67,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-
+/**
+ * Broker admin base.
+ */
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;
@@ -239,12 +241,7 @@ public class BrokersBase extends AdminResource {
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     public InternalConfigurationData getInternalConfigurationData() {
-        ClientConfiguration conf = new ClientConfiguration();
-        return new InternalConfigurationData(
-            pulsar().getConfiguration().getZookeeperServers(),
-            pulsar().getConfiguration().getConfigurationStoreServers(),
-            conf.getZkLedgersRootPath(),
-            pulsar().getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+        return pulsar().getInternalConfigurationData();
     }
 
     @GET
@@ -360,7 +357,7 @@ public class BrokersBase extends AdminResource {
                 LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
             } else {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName);
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}", clientAppId(), configName);
                 }
                 throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
             }

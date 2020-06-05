@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
+import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarPropertiesExtractor;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -46,6 +47,7 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
     protected ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
     protected SerializationSchema<Row> serializationSchema;
     protected PulsarKeyExtractor<Row> keyExtractor;
+    protected PulsarPropertiesExtractor<Row> propertiesExtractor;
     protected String[] fieldNames;
     protected TypeInformation[] fieldTypes;
     protected final String routingKeyFieldName;
@@ -95,7 +97,8 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
             clientConfigurationData,
             producerConfigurationData,
             serializationSchema,
-            keyExtractor);
+            keyExtractor,
+            propertiesExtractor);
     }
 
     @Override
@@ -141,6 +144,7 @@ public abstract class PulsarTableSink implements AppendStreamTableSink<Row> {
                 routingKeyFieldName,
                 fieldNames,
                 fieldTypes);
+        sink.propertiesExtractor = PulsarPropertiesExtractor.EMPTY;
 
         return sink;
     }

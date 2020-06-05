@@ -27,6 +27,7 @@ namespace pulsar {
 struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
+    long tickDurationInMs;
 
     long negativeAckRedeliveryDelayMs;
     ConsumerType consumerType;
@@ -45,6 +46,7 @@ struct ConsumerConfigurationImpl {
     ConsumerConfigurationImpl()
         : schemaInfo(),
           unAckedMessagesTimeoutMs(0),
+          tickDurationInMs(1000),
           negativeAckRedeliveryDelayMs(60000),
           consumerType(ConsumerExclusive),
           messageListener(),

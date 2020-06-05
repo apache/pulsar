@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.cli;
 
-import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -35,7 +34,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test
 public class PulsarClientToolTest extends BrokerTestBase {
 
     @BeforeClass
@@ -51,7 +49,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test
-    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException, PulsarAdminException {
+    public void testInitialzation() throws InterruptedException, ExecutionException, PulsarAdminException {
 
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());

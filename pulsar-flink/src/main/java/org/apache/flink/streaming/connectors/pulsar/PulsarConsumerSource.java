@@ -54,7 +54,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarConsumerSource.class);
 
-    private final int messageReceiveTimeoutMs = 100;
+    private int messageReceiveTimeoutMs;
 
     private ClientConfigurationData clientConfigurationData;
     private ConsumerConfigurationData<byte[]> consumerConfigurationData;
@@ -81,6 +81,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         this.consumerConfigurationData = builder.consumerConfigurationData;
         this.deserializer = builder.deserializationSchema;
         this.acknowledgementBatchSize = builder.acknowledgementBatchSize;
+        this.messageReceiveTimeoutMs = builder.messageReceiveTimeoutMs;
     }
 
     @Override
@@ -164,7 +165,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         }
     }
 
-    private T deserialize(Message message) throws IOException {
+    protected T deserialize(Message message) throws IOException {
         return deserializer.deserialize(message.getData());
     }
 

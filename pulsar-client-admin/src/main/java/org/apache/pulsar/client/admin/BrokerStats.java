@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.common.stats.AllocatorStats;
-import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+
+import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.common.stats.AllocatorStats;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
 /**
  * Admin interface for brokers management.
@@ -30,7 +32,7 @@ import com.google.gson.JsonObject;
 public interface BrokerStats {
 
     /**
-     * Returns Monitoring metrics
+     * Returns Monitoring metrics.
      *
      * @return
      * @throws PulsarAdminException
@@ -39,8 +41,16 @@ public interface BrokerStats {
     JsonArray getMetrics() throws PulsarAdminException;
 
     /**
-     * Requests JSON string server mbean dump
-     * <p>
+     * Returns Monitoring metrics asynchronously.
+     *
+     * @return
+     */
+
+    CompletableFuture<JsonArray> getMetricsAsync();
+
+    /**
+     * Requests JSON string server mbean dump.
+     * <p/>
      * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
      *
      * @return
@@ -49,8 +59,17 @@ public interface BrokerStats {
     JsonArray getMBeans() throws PulsarAdminException;
 
     /**
-     * Returns JSON string topics stats
-     * <p>
+     * Requests JSON string server mbean dump asynchronously.
+     * <p/>
+     * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
+     *
+     * @return
+     */
+    CompletableFuture<JsonArray> getMBeansAsync();
+
+    /**
+     * Returns JSON string topics stats.
+     * <p/>
      * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
      *
      * @return
@@ -58,9 +77,63 @@ public interface BrokerStats {
      */
     JsonObject getTopics() throws PulsarAdminException;
 
+    /**
+     * Returns JSON string topics stats asynchronously.
+     * <p/>
+     * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
+     *
+     * @return
+     */
+    CompletableFuture<JsonObject> getTopicsAsync();
+
+    /**
+     * Get pending bookie client op stats by namespace.
+     * <p/>
+     * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
     JsonObject getPendingBookieOpsStats() throws PulsarAdminException;
 
+    /**
+     * Get pending bookie client op stats by namespace asynchronously.
+     * <p/>
+     * Notes: since we don't plan to introspect the response we avoid converting the response into POJO.
+     *
+     * @return
+     */
+    CompletableFuture<JsonObject> getPendingBookieOpsStatsAsync();
+
+    /**
+     * Get the stats for the Netty allocator.
+     *
+     * @param allocatorName
+     * @return
+     * @throws PulsarAdminException
+     */
     AllocatorStats getAllocatorStats(String allocatorName) throws PulsarAdminException;
 
+    /**
+     * Get the stats for the Netty allocator asynchronously.
+     *
+     * @param allocatorName
+     * @return
+     */
+    CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName);
+
+    /**
+     * Get load for this broker.
+     *
+     * @return
+     * @throws PulsarAdminException
+     */
     LoadManagerReport getLoadReport() throws PulsarAdminException;
+
+    /**
+     * Get load for this broker asynchronously.
+     *
+     * @return
+     */
+    CompletableFuture<LoadManagerReport> getLoadReportAsync();
 }

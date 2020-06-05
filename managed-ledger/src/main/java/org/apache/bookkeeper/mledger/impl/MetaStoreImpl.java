@@ -89,9 +89,7 @@ public class MetaStoreImpl implements MetaStore {
                     }
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -106,13 +104,9 @@ public class MetaStoreImpl implements MetaStore {
         byte[] serializedMlInfo = mlInfo.toByteArray(); // Binary format
         String path = PREFIX + ledgerName;
         store.put(path, serializedMlInfo, Optional.of(stat.getVersion()))
-                .thenAcceptAsync(newVersion -> {
-                    callback.operationComplete(null, newVersion);
-                }, executor.chooseThread(ledgerName))
+                .thenAcceptAsync(newVersion -> callback.operationComplete(null, newVersion), executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -125,13 +119,9 @@ public class MetaStoreImpl implements MetaStore {
 
         String path = PREFIX + ledgerName;
         store.getChildren(path)
-                .thenAcceptAsync(cursors -> {
-                    callback.operationComplete(cursors, null);
-                }, executor.chooseThread(ledgerName))
+                .thenAcceptAsync(cursors -> callback.operationComplete(cursors, null), executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -158,9 +148,7 @@ public class MetaStoreImpl implements MetaStore {
                     }
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -189,13 +177,9 @@ public class MetaStoreImpl implements MetaStore {
         }
 
         store.put(path, content, Optional.of(expectedVersion))
-                .thenAcceptAsync(optStat -> {
-                    callback.operationComplete(null, optStat);
-                }, executor.chooseThread(ledgerName))
+                .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -213,9 +197,7 @@ public class MetaStoreImpl implements MetaStore {
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -233,9 +215,7 @@ public class MetaStoreImpl implements MetaStore {
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
-                        callback.operationFailed(getException(ex));
-                    }));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
                     return null;
                 });
     }
@@ -273,6 +253,7 @@ public class MetaStoreImpl implements MetaStore {
         if (info.hasTerminatedPosition()) {
             mlInfo.setTerminatedPosition(info.getTerminatedPosition());
         }
+        mlInfo.addAllProperties(info.getPropertiesList());
         return mlInfo.build();
     }
 

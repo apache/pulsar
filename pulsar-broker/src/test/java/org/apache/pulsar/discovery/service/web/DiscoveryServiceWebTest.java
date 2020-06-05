@@ -61,6 +61,8 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        super.conf.setAuthorizationEnabled(true);
+        super.conf.setAuthenticationEnabled(true);
     }
 
     @AfterMethod
@@ -81,7 +83,7 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(Optional.of(0));
         ServerManager server = new ServerManager(config);
-        DiscoveryZooKeeperClientFactoryImpl.zk = mockZookKeeper;
+        DiscoveryZooKeeperClientFactoryImpl.zk = mockZooKeeper;
         Map<String, String> params = new TreeMap<>();
         params.put("zookeeperServers", "");
         params.put("zookeeperClientFactoryClass", DiscoveryZooKeeperClientFactoryImpl.class.getName());
@@ -99,9 +101,9 @@ public class DiscoveryServiceWebTest extends ProducerConsumerBase {
          **/
 
         assertEquals(hitBrokerService(HttpMethod.POST, postRequestUrl, Lists.newArrayList("use")),
-                "Tenant does not exist");
-        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Tenant does not exist");
-        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Tenant does not exist");
+                "Need to authenticate to perform the request");
+        assertEquals(hitBrokerService(HttpMethod.PUT, putRequestUrl, new BundlesData(1)), "Need to authenticate to perform the request");
+        assertEquals(hitBrokerService(HttpMethod.GET, getRequestUrl, null), "Need to authenticate to perform the request");
 
         server.stop();
 

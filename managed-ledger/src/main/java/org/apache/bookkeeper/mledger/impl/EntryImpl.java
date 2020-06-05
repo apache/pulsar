@@ -114,7 +114,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public byte[] getData() {
-        byte[] array = new byte[(int) data.readableBytes()];
+        byte[] array = new byte[data.readableBytes()];
         data.getBytes(data.readerIndex(), array);
         return array;
     }

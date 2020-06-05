@@ -98,6 +98,7 @@ class ConsumerImpl : public ConsumerImplBase,
     virtual bool isCumulativeAcknowledgementAllowed(ConsumerType consumerType);
 
     virtual void redeliverMessages(const std::set<MessageId>& messageIds);
+    virtual void redeliverUnacknowledgedMessages(const std::set<MessageId>& messageIds);
     virtual void negativeAcknowledge(const MessageId& msgId);
 
     virtual void closeAsync(ResultCallback callback);
@@ -149,6 +150,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -196,6 +198,10 @@ class ConsumerImpl : public ConsumerImplBase,
     }
 
     friend class PulsarFriend;
+
+    // these two declared friend to access setNegativeAcknowledgeEnabledForTesting
+    friend class MultiTopicsConsumerImpl;
+    friend class PartitionedConsumerImpl;
 };
 
 } /* namespace pulsar */

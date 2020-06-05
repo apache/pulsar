@@ -32,7 +32,7 @@ TEST(ConsumerTest, consumerNotInitialized) {
 
     Message msg;
     ASSERT_EQ(ResultConsumerNotInitialized, consumer.receive(msg));
-    ASSERT_EQ(ResultConsumerNotInitialized, consumer.receive(msg, 100));
+    ASSERT_EQ(ResultConsumerNotInitialized, consumer.receive(msg, 3000));
 
     ASSERT_EQ(ResultConsumerNotInitialized, consumer.acknowledge(msg));
 

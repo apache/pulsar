@@ -58,6 +58,7 @@ import org.testng.annotations.Test;
  * Unit test of {@link ThreadRuntime}.
  */
 public class ProcessRuntimeTest {
+    private String narExtractionDirectory = "/tmp/foo";
 
     class TestSecretsProviderConfigurator implements SecretsProviderConfigurator {
 
@@ -148,6 +149,7 @@ public class ProcessRuntimeTest {
         workerConfig.setPulsarServiceUrl(pulsarServiceUrl);
         workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
         workerConfig.setAuthenticationEnabled(false);
+        workerConfig.setNarExtractionDirectory(narExtractionDirectory);
 
         ProcessRuntimeFactoryConfig processRuntimeFactoryConfig = new ProcessRuntimeFactoryConfig();
         processRuntimeFactoryConfig.setJavaInstanceJarLocation(javaInstanceJarFile);
@@ -274,13 +276,13 @@ public class ProcessRuntimeTest {
         int portArg;
         int metricsPortArg;
         if (null != depsDir) {
-            assertEquals(args.size(), 37);
+            assertEquals(args.size(), 39);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir.toString();
             classpath = classpath + ":" + depsDir + "/*";
             portArg = 24;
             metricsPortArg = 26;
         } else {
-            assertEquals(args.size(), 36);
+            assertEquals(args.size(), 38);
             extraDepsEnv = "";
             portArg = 23;
             metricsPortArg = 25;
@@ -303,7 +305,7 @@ public class ProcessRuntimeTest {
                 + " --expected_healthcheck_interval 30"
                 + " --secrets_provider org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider"
                 + " --secrets_provider_config '{\"Config\":\"Value\"}'"
-                + " --cluster_name standalone";
+                + " --cluster_name standalone --nar_extraction_directory " + narExtractionDirectory;
         assertEquals(String.join(" ", args), expectedArgs);
     }
 

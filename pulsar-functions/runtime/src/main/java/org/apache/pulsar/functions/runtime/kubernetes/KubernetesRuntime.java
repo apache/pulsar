@@ -133,6 +133,7 @@ public class KubernetesRuntime implements Runtime {
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
+    private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
@@ -144,6 +145,7 @@ public class KubernetesRuntime implements Runtime {
     private final AuthenticationConfig authConfig;
     private Integer grpcPort;
     private Integer metricsPort;
+    private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -160,6 +162,7 @@ public class KubernetesRuntime implements Runtime {
                       String instanceFile,
                       String extraDependenciesDir,
                       String logDirectory,
+                      String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
                       String pulsarServiceUrl,
@@ -175,6 +178,7 @@ public class KubernetesRuntime implements Runtime {
                       boolean authenticationEnabled,
                       Integer grpcPort,
                       Integer metricsPort,
+                      String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
@@ -184,6 +188,7 @@ public class KubernetesRuntime implements Runtime {
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
+        this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
@@ -216,6 +221,7 @@ public class KubernetesRuntime implements Runtime {
 
         this.grpcPort = grpcPort;
         this.metricsPort = metricsPort;
+        this.narExtractionDirectory = narExtractionDirectory;
 
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
@@ -242,7 +248,8 @@ public class KubernetesRuntime implements Runtime {
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        metricsPort));
+                        metricsPort,
+                        narExtractionDirectory));
 
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -804,7 +811,7 @@ public class KubernetesRuntime implements Runtime {
                     && isNotBlank(authConfig.getClientAuthenticationParameters())
                     && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
-                        pulsarRootDir + "/bin/pulsar-admin",
+                        pulsarRootDir + configAdminCLI,
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
@@ -825,7 +832,7 @@ public class KubernetesRuntime implements Runtime {
         }
 
         return Arrays.asList(
-                pulsarRootDir + "/bin/pulsar-admin",
+                pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
                 "functions",

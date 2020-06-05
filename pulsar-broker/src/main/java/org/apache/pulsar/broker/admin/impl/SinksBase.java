@@ -22,6 +22,7 @@ import io.swagger.annotations.*;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
@@ -469,27 +470,41 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
 
     @GET
     @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO sink connectors currently running in cluster mode",
-            response = List.class
+            value = "Fetches the list of built-in Pulsar IO sinks",
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Get builtin sinks successfully.")
     })
     @Path("/builtinsinks")
     public List<ConnectorDefinition> getSinkList() {
-        List<ConnectorDefinition> connectorDefinitions = sink.getListOfConnectors();
-        List<ConnectorDefinition> retval = new ArrayList<>();
-        for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!StringUtils.isEmpty(connectorDefinition.getSinkClass())) {
-                retval.add(connectorDefinition);
-            }
-        }
-        return retval;
+        return sink.getSinkList();
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches information about config fields associated with the specified builtin sink",
+            response = ConfigFieldDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 404, message = "builtin sink does not exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later.")
+    })
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/builtinsinks/{name}/configdefinition")
+    public List<ConfigFieldDefinition> getSinkConfigDefinition(
+            @ApiParam(value = "The name of the builtin sink")
+            final @PathParam("name") String name) throws IOException {
+        return sink.getSinkConfigDefinition(name);
     }
 
     @POST
     @ApiOperation(
-            value = "Reload the available built-in connectors, include Source and Sink",
+            value = "Reload the built-in connectors, including Sources and Sinks",
             response = Void.class
     )
     @ApiResponses(value = {

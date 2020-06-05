@@ -27,7 +27,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -37,7 +37,7 @@ public class CachedPulsarClientTest {
 
     private static final String SERVICE_URL = "pulsar://localhost:6650";
 
-    @BeforeTest
+    @BeforeMethod
     public void clearCache() {
         CachedPulsarClient.clear();
     }
@@ -99,5 +99,30 @@ public class CachedPulsarClientTest {
         assertEquals(map2.size(), 1);
 
         assertEquals(map2.values().iterator().next(), client1);
+    }
+
+    @Test
+    public void getClientFromCacheShouldAlwaysReturnAnOpenedInstance() throws Exception {
+        PulsarClientImpl impl1 = Mockito.mock(PulsarClientImpl.class);
+
+        ClientConfigurationData conf1 = new ClientConfigurationData();
+        conf1.setServiceUrl(SERVICE_URL);
+
+        PowerMockito.whenNew(PulsarClientImpl.class)
+                .withArguments(conf1).thenReturn(impl1);
+
+        PulsarClientImpl client1 = CachedPulsarClient.getOrCreate(conf1);
+
+        ConcurrentMap<ClientConfigurationData, PulsarClientImpl> map1 = CachedPulsarClient.getAsMap();
+        assertEquals(map1.size(), 1);
+
+        client1.getState().set(PulsarClientImpl.State.Closed);
+
+        PulsarClientImpl client2 = CachedPulsarClient.getOrCreate(conf1);
+
+        assertNotEquals(client1, client2);
+
+        ConcurrentMap<ClientConfigurationData, PulsarClientImpl> map2 = CachedPulsarClient.getAsMap();
+        assertEquals(map2.size(), 1);
     }
 }

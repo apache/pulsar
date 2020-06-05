@@ -26,7 +26,6 @@
     <version>2.6.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>latest-version-image</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
   <packaging>pom</packaging>

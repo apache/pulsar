@@ -157,7 +157,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         }
     }
 
-    // Called in exector hashed on managed ledger name, once the add operation is complete
+    // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
     public void safeRun() {
         // Remove this entry from the head of the pending queue
@@ -228,7 +228,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
-        long addOpCount = (ctx != null && ctx instanceof Long) ? (long) ctx : -1;
+        long addOpCount = (ctx instanceof Long) ? (long) ctx : -1;
         if (addOpCount != -1 && ADD_OP_COUNT_UPDATER.compareAndSet(this, this.addOpCount, -1)) {
             return true;
         }
@@ -276,6 +276,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     }
 
     private static final Recycler<OpAddEntry> RECYCLER = new Recycler<OpAddEntry>() {
+        @Override
         protected OpAddEntry newObject(Recycler.Handle<OpAddEntry> recyclerHandle) {
             return new OpAddEntry(recyclerHandle);
         }

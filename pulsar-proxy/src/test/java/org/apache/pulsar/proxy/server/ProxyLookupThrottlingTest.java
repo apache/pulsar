@@ -96,7 +96,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // Ignore
         }
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 11.0d);
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
         proxyService.getLookupRequestSemaphore().release();
         try {
             @Cleanup
@@ -106,6 +106,6 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
             Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
         }
 
-        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 11.0d);
+        Assert.assertEquals(LookupProxyHandler.rejectedPartitionsMetadataRequests.get(), 5.0d);
     }
 }

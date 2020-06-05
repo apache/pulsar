@@ -15,6 +15,9 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Pulsar Functions](#pulsar functions)
+* [Proxy](#proxy)
+* [Pulsar SQL Worker](#Pulsar SQL Worker)
 
 ## Overview
 
@@ -100,6 +103,11 @@ Broker has the following kinds of metrics:
     * [Replication metrics](#replication-metrics)
 * [Topic metrics](#topic-metrics)
     * [Replication metrics](#replication-metrics-1)
+* [ManagedLedgerCache metrics](#managedledgercache-metrics)
+* [ManagedLedger metrics](#managedledger-metrics)
+* [LoadBalancing metrics](#loadbalancing-metrics)
+    * [BundleUnloading metrics](#bundleunloading-metrics)
+    * [BundleSplit metrics](#bundlesplit-metrics)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
 
@@ -174,7 +182,9 @@ All the topic metrics are labelled with the following labels:
 | pulsar_storage_write_latency_le_* | Histogram | The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: <= 0.5ms </li><li>pulsar_storage_write_latency_le_1: <= 1ms</li><li>pulsar_storage_write_latency_le_5: <= 5ms</li><li>pulsar_storage_write_latency_le_10: <= 10ms</li><li>pulsar_storage_write_latency_le_20: <= 20ms</li><li>pulsar_storage_write_latency_le_50: <= 50ms</li><li>pulsar_storage_write_latency_le_100: <= 100ms</li><li>pulsar_storage_write_latency_le_200: <= 200ms</li><li>pulsar_storage_write_latency_le_1000: <= 1s</li><li>pulsar_storage_write_latency_le_overflow: > 1s</li></ul> |
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
-| pulsar_producers_count | Counter | The total number of messages received for this topic |
+| pulsar_in_messages_total | Counter | The total number of messages received for this topic |
+| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
 
 #### Replication metrics
 
@@ -190,6 +200,85 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 | pulsar_replication_throughput_out | Gauge | The total throughput of the topic replicating to remote cluster (bytes/second). |
 | pulsar_replication_backlog | Gauge | The total backlog of the topic replicating to remote cluster (messages). |
 
+### ManagedLedgerCache metrics
+All the ManagedLedgerCache metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
+| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
+| pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
+| pulsar_ml_cache_pool_active_allocations_tiny | Gauge | The number of currently active tiny allocations in direct arena |
+| pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
+| pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
+| pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |
+| pulsar_ml_count | Gauge | The number of currently opened managed ledgers  |
+
+### ManagedLedger metrics
+All the managedLedger metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
+- quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_ml_AddEntryBytesRate | Gauge | The bytes/s rate of messages added |
+| pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
+| pulsar_ml_AddEntryLatencyBuckets | Histogram | The add entry latency of a ledger with a given quantile (threshold).<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The add entry latency > 1s |
+| pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added |
+| pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded |
+| pulsar_ml_EntrySizeBuckets | Histogram | The add entry size of a ledger with given quantile.<br> Available quantile: <br><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
+| pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge  | The add entry size > 1MB |
+| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
+| pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The ledger switch latency > 1s |
+| pulsar_ml_MarkDeleteRate | Gauge | The rate of mark-delete ops/s |
+| pulsar_ml_NumberOfMessagesInBacklog | Gauge | The number of backlog messages for all the consumers |
+| pulsar_ml_ReadEntriesBytesRate | Gauge | The bytes/s rate of messages read |
+| pulsar_ml_ReadEntriesErrors | Gauge | The number of readEntries requests that failed |
+| pulsar_ml_ReadEntriesRate | Gauge | The msg/s rate of messages read |
+| pulsar_ml_ReadEntriesSucceeded | Gauge | The number of readEntries requests that succeeded |
+| pulsar_ml_StoredMessagesSize | Gauge | The total size of the messages in active ledgers (accounting for the multiple copies stored) |
+
+### LoadBalancing metrics
+All the loadbalancing metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- broker: broker=${broker}. ${broker} is the ip address of the broker
+- metric: metric="loadBalancing". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_bandwidth_in_usage | Gauge | The broker bandwith in usage |
+| pulsar_lb_bandwidth_out_usage | Gauge | The broker bandwith out usage |
+| pulsar_lb_cpu_usage | Gauge | The broker cpu usage |
+| pulsar_lb_directMemory_usage | Gauge | The broker process direct memory usage |
+| pulsar_lb_memory_usage | Gauge | The broker process memory usage  |
+
+#### BundleUnloading metrics
+All the bundleUnloading metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- metric: metric="bundleUnloading". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_unload_broker_count | Counter | Unload broker count in this bundle unloading |
+| pulsar_lb_unload_bundle_count | Counter | Bundle unload count in this bundle unloading |
+
+#### BundleSplit metrics
+All the bundleUnloading metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- metric: metric="bundlesSplit". 
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_lb_bundles_split_count | Counter | bundle split count in this bundle splitting check interval |
 
 ### Subscription metrics
 
@@ -234,6 +323,70 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
+
+# Pulsar Functions
+
+All the Pulsar Functions metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
+| pulsar_function_received_total | Counter | Total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+
+# Proxy
+
+All the proxy metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_proxy_active_connections | Gauge | Number of connections currently active in the proxy. |
+| pulsar_proxy_new_connections | Counter | Counter of connections being opened in the proxy. |
+| pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
+| pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
+| pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
+
+# Pulsar SQL Worker
+
+| Name | Type | Description |
+|---|---|---|
+| split_bytes_read | Counter | Number of bytes read from BookKeeper. |
+| split_num_messages_deserialized | Counter | Number of messages deserialized. |
+| split_num_record_deserialized | Counter | Number of records deserialized. |
+| split_bytes_read_per_query | Summary | Total number of bytes read per query. |
+| split_entry_deserialize_time | Summary | Time spent on derserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent on derserializing entries per query. |
+| split_entry_queue_dequeue_wait_time | Summary | Time spend on waiting to get entry from entry queue because it is empty. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent on waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent on waiting to dequeue from message queue because is is empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent on waiting for message queue enqueue because the message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent on waiting for message queue enqueue because the message queue is full per query. |
+| split_num_entries_per_batch | Summary | Number of entries per batch. |
+| split_num_entries_per_query | Summary | Number of entries per query. |
+| split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
+| split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
+| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_latency_per_batch | Summary | Latency of reads per batch. |
+| split_read_latency_per_query | Summary | Total read latency per query. |
+| split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
+| split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
+| split_total_execution_time | Summary | Total execution time . |
+
 
 ## Monitor
 

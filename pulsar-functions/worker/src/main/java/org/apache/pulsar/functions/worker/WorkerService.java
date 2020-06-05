@@ -34,6 +34,7 @@ import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -65,6 +66,7 @@ public class WorkerService {
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
     private ConnectorsManager connectorsManager;
+    private FunctionsManager functionsManager;
     private PulsarAdmin brokerAdmin;
     private PulsarAdmin functionAdmin;
     private final MetricsGenerator metricsGenerator;
@@ -124,9 +126,18 @@ public class WorkerService {
                     : workerConfig.getWorkerWebAddress();
 
             if (workerConfig.isAuthenticationEnabled()) {
+                // for compatible, if user do not define brokerClientTrustCertsFilePath, we will use tlsTrustCertsFilePath,
+                // otherwise we will use brokerClientTrustCertsFilePath
+                final String pulsarClientTlsTrustCertsFilePath;
+                if (StringUtils.isNotBlank(workerConfig.getBrokerClientTrustCertsFilePath())) {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getBrokerClientTrustCertsFilePath();
+                } else {
+                    pulsarClientTlsTrustCertsFilePath = workerConfig.getTlsTrustCertsFilePath();
+                }
+
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                     workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
+                    pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
                     workerConfig.isTlsHostnameVerificationEnable());
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
@@ -137,7 +148,7 @@ public class WorkerService {
                 this.client = WorkerUtils.getPulsarClient(this.workerConfig.getPulsarServiceUrl(),
                         workerConfig.getClientAuthenticationPlugin(),
                         workerConfig.getClientAuthenticationParameters(),
-                        workerConfig.isUseTls(), workerConfig.getTlsTrustCertsFilePath(),
+                        workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
                         workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsHostnameVerificationEnable());
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
@@ -160,13 +171,18 @@ public class WorkerService {
                     this.workerConfig, this.schedulerManager, this.client);
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
+            this.functionsManager = new FunctionsManager(workerConfig);
 
             //create membership manager
+            String coordinationTopic = workerConfig.getClusterCoordinationTopic();
+            if (!brokerAdmin.topics().getSubscriptions(coordinationTopic).contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
+                brokerAdmin.topics().createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION, MessageId.earliest);
+            }
             this.membershipManager = new MembershipManager(this, this.client, this.brokerAdmin);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager, functionMetaDataManager);
+                this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager, functionsManager, functionMetaDataManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
