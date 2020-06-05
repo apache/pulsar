@@ -280,6 +280,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage) {
+        conf.setMaxPendingChuckedMessage(maxPendingChuckedMessage);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull) {
+        conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
+        return this;
+    }
+    
+    @Override
     public ConsumerBuilder<T> property(String key, String value) {
         checkArgument(StringUtils.isNotBlank(key) && StringUtils.isNotBlank(value),
                 "property key/value cannot be blank");
@@ -401,6 +413,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public ConsumerBuilder<T> enableRetry(boolean retryEnable) {
         conf.setRetryEnable(retryEnable);
         return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
+        conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
+        return null;
     }
 
 }

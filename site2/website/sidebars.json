@@ -97,7 +97,7 @@
       "client-libraries-cpp",
       "client-libraries-node",
       "client-libraries-websocket",
-      "client-libraries-donet"
+      "client-libraries-dotnet"
     ],
     "Admin API": [
       "admin-api-overview",

@@ -51,4 +51,26 @@ public class ConnectorDefinition {
      * <p>If not defined, it will be assumed this connector cannot act as a data sink.
      */
     private String sinkClass;
+
+    /**
+     * The class name for the source config implementation.
+     * Most of the sources are using a config class for managing their config
+     * and directly convert the supplied Map object at open to this object.
+     * These connector can declare their config class in this variable that will allow
+     * the framework to check for config parameter checking at submission time.
+     *
+     * <p>If not defined, the framework will not be able to do any submission time checks.
+     */
+    private String sourceConfigClass;
+
+    /**
+     * The class name for the sink config implementation.
+     * Most of the sink are using a config class for managing their config
+     * and directly convert the supplied Map object at open to this object.
+     * These connector can declare their config class in this variable that will allow
+     * the framework to check for config parameter checking at submission time.
+     *
+     * <p>If not defined, the framework will not be able to do any submission time checks.
+     */
+    private String sinkConfigClass;
 }

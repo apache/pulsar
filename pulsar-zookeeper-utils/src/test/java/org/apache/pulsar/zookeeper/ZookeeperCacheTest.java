@@ -64,9 +64,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Test
 public class ZookeeperCacheTest {
+    private static final Logger log = LoggerFactory.getLogger(ZookeeperCacheTest.class);
     private MockZooKeeper zkClient;
     private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
@@ -95,7 +97,7 @@ public class ZookeeperCacheTest {
 
 
     @Test(timeOut = 10000)
-    void testSimpleCache() throws Exception {
+    public void testSimpleCache() throws Exception {
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
         ZooKeeperDataCache<String> zkCache = new ZooKeeperDataCache<String>(zkCacheService) {
@@ -123,7 +125,10 @@ public class ZookeeperCacheTest {
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
         assertEquals(zkCache.get("/my_test").get(), newValue);
 
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/other");
+            });
 
         assertEquals(zkCache.get("/my_test").get(), newValue);
         try {
@@ -135,7 +140,7 @@ public class ZookeeperCacheTest {
     }
 
     @Test(timeOut = 10000)
-    void testChildrenCache() throws Exception {
+    public void testChildrenCache() throws Exception {
         zkClient.create("/test", new byte[0], null, null);
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
@@ -174,7 +179,10 @@ public class ZookeeperCacheTest {
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         assertEquals(cache.get(), new TreeSet<String>(Lists.newArrayList("z1")));
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/test");
+            });
 
         try {
             cache.get();
@@ -187,7 +195,7 @@ public class ZookeeperCacheTest {
     }
 
     @Test(timeOut = 10000)
-    void testChildrenCacheZnodeCreatedAfterCache() throws Exception {
+    public void testChildrenCacheZnodeCreatedAfterCache() throws Exception {
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, 30, executor);
         ZooKeeperChildrenCache cache = new ZooKeeperChildrenCache(zkCacheService, "/test");
@@ -228,7 +236,10 @@ public class ZookeeperCacheTest {
         assertTrue(cache.get().isEmpty());
         assertTrue(cache.get().isEmpty());
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.Expired, null));
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/test");
+            });
 
         try {
             cache.get();
@@ -239,7 +250,7 @@ public class ZookeeperCacheTest {
     }
 
     @Test(timeOut = 10000)
-    void testExistsCache() throws Exception {
+    public void testExistsCache() throws Exception {
         // Check existence after creation of the node
         zkClient.create("/test", new byte[0], null, null);
         Thread.sleep(20);
@@ -255,7 +266,7 @@ public class ZookeeperCacheTest {
     }
 
     @Test(timeOut = 10000)
-    void testInvalidateCache() throws Exception {
+    public void testInvalidateCache() throws Exception {
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/c1", new byte[0], null, null);
         zkClient.create("/test/c2", new byte[0], null, null);
@@ -288,7 +299,7 @@ public class ZookeeperCacheTest {
     }
 
     @Test(timeOut = 10000)
-    void testGlobalZooKeeperCache() throws Exception {
+    public void testGlobalZooKeeperCache() throws Exception {
         MockZooKeeper zkc = MockZooKeeper.newInstance();
         ZooKeeperClientFactory zkClientfactory = new ZooKeeperClientFactory() {
             @Override
@@ -352,7 +363,11 @@ public class ZookeeperCacheTest {
         // case 3: update the znode directly while the client session is marked as expired. Verify that the new updates
         // is not seen in the cache
         zkClient.create("/other", newValue.getBytes(), null, null);
-        zkClient.failNow(Code.SESSIONEXPIRED);
+        zkClient.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/other");
+            });
+
         assertEquals(zkCache.get("/my_test").get(), newValue);
         assertEquals(zkCache.get("/my_test2").get(), value);
         try {
@@ -364,7 +379,6 @@ public class ZookeeperCacheTest {
 
         // case 4: directly delete the znode while the session is not re-connected yet. Verify that the deletion is not
         // seen by the cache
-        zkClient.failAfter(-1, Code.OK);
         zkClient.delete("/my_test2", -1);
         zkCacheService.process(new WatchedEvent(Event.EventType.None, KeeperState.SyncConnected, null));
         assertEquals(zkCache.get("/other").get(), newValue);
@@ -395,7 +409,7 @@ public class ZookeeperCacheTest {
      * @throws Exception
      */
     @Test(timeOut = 2000)
-    void testZkCallbackThreadStuck() throws Exception {
+    public void testZkCallbackThreadStuck() throws Exception {
         OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
         ScheduledExecutorService scheduledExecutor = Executors.newScheduledThreadPool(2);
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));

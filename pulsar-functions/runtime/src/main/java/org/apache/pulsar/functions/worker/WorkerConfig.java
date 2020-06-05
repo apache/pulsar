@@ -79,6 +79,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private static final String CATEGORY_STATE = "State Management";
     @Category
     private static final String CATEGORY_CONNECTORS = "Connectors";
+    @Category
+    private static final String CATEGORY_FUNCTIONS = "Functions";
 
     @FieldContext(
         category = CATEGORY_WORKER,
@@ -140,6 +142,16 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The directory where nar packages are extractors"
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Should we validate connector config during submission"
+    )
+    private Boolean validateConnectorConfig = false;
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The path to the location to locate builtin functions"
+    )
+    private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"

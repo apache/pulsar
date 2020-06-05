@@ -28,11 +28,10 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.testng.annotations.Test;
 
-@Test
 public class LocalZooKeeperConnectionServiceTest {
 
     @Test
-    void testSimpleZooKeeperConnection() throws Exception {
+    public void testSimpleZooKeeperConnection() throws Exception {
         MockedZooKeeperClientFactoryImpl mockZkClientFactory = new MockedZooKeeperClientFactoryImpl();
         LocalZooKeeperConnectionService localZkConnectionService = new LocalZooKeeperConnectionService(
                 mockZkClientFactory, "dummy", 1000);
@@ -97,7 +96,7 @@ public class LocalZooKeeperConnectionServiceTest {
     }
 
     @Test
-    void testSimpleZooKeeperConnectionFail() throws Exception {
+    public void testSimpleZooKeeperConnectionFail() throws Exception {
         LocalZooKeeperConnectionService localZkConnectionService = new LocalZooKeeperConnectionService(
                 new ZookeeperClientFactoryImpl(), "dummy", 1000);
         try {

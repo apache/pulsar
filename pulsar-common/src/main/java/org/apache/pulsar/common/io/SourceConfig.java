@@ -63,4 +63,7 @@ public class SourceConfig {
     // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
     // interface
     private String customRuntimeOptions;
+
+    // If this is a BatchSource, its batch related configs are stored here
+    private BatchSourceConfig batchSourceConfig;
 }

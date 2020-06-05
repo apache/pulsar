@@ -84,6 +84,13 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private long tickDurationMillis = 1000;
 
     private int priorityLevel = 0;
+    
+    // max pending chunked message to avoid sitting incomplete message into the queue and memory
+    private int maxPendingChuckedMessage = 10;
+    
+    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
