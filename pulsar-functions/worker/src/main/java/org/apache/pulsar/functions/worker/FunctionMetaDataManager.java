@@ -91,6 +91,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             Reader<byte[]> reader = pulsarClient.newReader()
                     .topic(this.workerConfig.getFunctionMetadataTopic())
                     .startMessageId(MessageId.earliest)
+                    .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
                     .create();
 
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this, reader);
@@ -432,6 +433,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
-        return new ServiceRequestManager(pulsarClient.newProducer().topic(functionMetadataTopic).create());
+        return new ServiceRequestManager(pulsarClient.newProducer()
+                .topic(functionMetadataTopic)
+                .producerName(workerConfig.getWorkerId() + "-function-metadata-manager")
+                .create());
     }
 }
