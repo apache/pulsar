@@ -46,7 +46,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
-    private volatile Timeout recheckPatternTimeout;
+    protected NamespaceName namespaceName;
+    private volatile Timeout recheckPatternTimeout = null;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
                                           PulsarClientImpl client,
@@ -105,7 +106,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
 
         // schedule the next re-check task
         this.recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
-            Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+                Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
     }
 
     public Pattern getPattern() {

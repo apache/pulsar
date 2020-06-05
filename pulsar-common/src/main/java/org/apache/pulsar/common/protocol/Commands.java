@@ -1678,6 +1678,10 @@ public class Commands {
             singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
         }
 
+        if (msgBuilder.hasNullPartitionKey()) {
+            singleMessageMetadataBuilder.setNullPartitionKey(msgBuilder.hasNullPartitionKey());
+        }
+
         try {
             return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
         } finally {

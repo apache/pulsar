@@ -85,6 +85,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -861,7 +862,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
                 }
-
+                if (data.getProxyProtocol() != null && StringUtils.isNotBlank(data.getProxyServiceUrl())) {
+                    clientBuilder.proxyServiceUrl(data.getProxyServiceUrl(), data.getProxyProtocol());
+                    log.info("Configuring proxy-url {} with protocol {}", data.getProxyServiceUrl(),
+                            data.getProxyProtocol());
+                }
                 // Share all the IO threads across broker and client connections
                 ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
                 return new PulsarClientImpl(conf, workerGroup);
@@ -2135,7 +2140,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return Optional.empty();
         }
     }
-    private void checkMessagePublishBuffer() {
+
+    @VisibleForTesting
+    void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
         foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
         if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
