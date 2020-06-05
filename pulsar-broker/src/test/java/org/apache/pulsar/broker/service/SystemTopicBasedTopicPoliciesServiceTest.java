@@ -180,6 +180,12 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         admin.namespaces().createNamespace(NAMESPACE1);
         admin.namespaces().createNamespace(NAMESPACE2);
         admin.namespaces().createNamespace(NAMESPACE3);
+        admin.lookups().lookupTopic(TOPIC1.toString());
+        admin.lookups().lookupTopic(TOPIC2.toString());
+        admin.lookups().lookupTopic(TOPIC3.toString());
+        admin.lookups().lookupTopic(TOPIC4.toString());
+        admin.lookups().lookupTopic(TOPIC5.toString());
+        admin.lookups().lookupTopic(TOPIC6.toString());
         systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
     }
