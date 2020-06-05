@@ -121,6 +121,43 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
     }
 
+    @Test(dataProvider = "data")
+    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch)
+            throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        for (int i = 0; i < 1000; i++) {
+            // Send the same key twice so that we'll have a batch message
+            String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .sendAsync();
+
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .sendAsync();
+        }
+
+        producer.flush();
+
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+    }
+
     @Test(dataProvider = "batch")
     public void testSendAndReceiveWithHashRangeExclusiveStickyKeyConsumerSelector(boolean enableBatch) throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
