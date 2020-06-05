@@ -1,13 +1,13 @@
 const globby = require('globby');
 const fs = require('fs');
 const CWD = process.cwd();
-var path = require('path')
+var path = require('path');
 let staticPath = path.resolve(__dirname, '..');
-const patterns = [`${CWD}/static/swagger/*/*.json`];
+const patterns = [`${CWD}/static/swagger/*/**.json`];
+
 (async () => {
     const jsonFiles = await globby(patterns);
     let restApiVersions = {}
-    
     
     jsonFiles.map(async (filePath) => {
         let data = fs.readFileSync(filePath)
