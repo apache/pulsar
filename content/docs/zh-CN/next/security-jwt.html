@@ -79,7 +79,7 @@
 <p>Pulsar supports authenticating clients using security tokens that are based on <a href="https://jwt.io/introduction/">JSON Web Tokens</a> (<a href="https://tools.ietf.org/html/rfc7519">RFC-7519</a>).</p>
 <p>您可以使用 tokens 来标识 Pulsar 客户端，以及关联上被授予相应操作权限（例如: 发布到某个 Topic 或从某个 Topic 消费）的 “principal” 或 “role” 上。</p>
 <p>通常用户需要从管理员（或某些自动化服务）处获得 token 字符串。</p>
-<p>The compact representation of a signed JWT is a string that looks like as the follwing:</p>
+<p>The compact representation of a signed JWT is a string that looks like as the following:</p>
 <pre><code class="hljs">eyJhbGciOiJIUzI<span class="hljs-number">1</span><span class="hljs-symbol">NiJ9</span>.eyJzdWIiOiJKb<span class="hljs-number">2</span>UifQ.ipevR<span class="hljs-symbol">NuRP6</span>Hfl<span class="hljs-name">G8</span>cFK<span class="hljs-symbol">nmUPtypruRC4</span>fb<span class="hljs-number">1</span>DWtoLL<span class="hljs-number">62</span>SY
 </code></pre>
 <p>应用程序在创建客户端实例时传入 token。 An alternative is to pass a &quot;token supplier&quot; (a function that returns the token when the client library needs one).</p>

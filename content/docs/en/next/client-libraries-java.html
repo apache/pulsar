@@ -555,6 +555,18 @@ Consumer consumer2 = client.newConsumer()
 (<span class="hljs-string">"key-4"</span>, <span class="hljs-string">"message-4-1"</span>)
 (<span class="hljs-string">"key-4"</span>, <span class="hljs-string">"message-4-2"</span>)
 </code></pre>
+<p>If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the <code>KeyBasedBatcher</code>.</p>
+<pre><code class="hljs css language-java">Producer producer = client.newProducer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .batcherBuilder(BatcherBuilder.KEY_BASED)
+        .create();
+</code></pre>
+<p>Or the producer can disable batching.</p>
+<pre><code class="hljs css language-java">Producer producer = client.newProducer()
+        .topic(<span class="hljs-string">"my-topic"</span>)
+        .enableBatching(<span class="hljs-keyword">false</span>)
+        .create();
+</code></pre>
 <blockquote>
 <p>Note:</p>
 <p>If the message key is not specified, messages without key are dispatched to one consumer in order by default.</p>

@@ -80,7 +80,7 @@
 <p><a href="https://github.com/yahoo/athenz/blob/master/docs/dev_decentralized_access.md">分散的 Athenz 系统</a> 包含一个 <a href="https://github.com/yahoo/athenz/blob/master/docs/setup_zms.md">authori<strong>Z</strong> <strong>M</strong>anagement <strong>S</strong>system</a> (ZMS) 服务器和一个 <a href="https://github.com/yahoo/athenz/blob/master/docs/setup_zts.md">authori<strong>Z</strong> <strong>T</strong>oken <strong>S</strong>system</a> (ZTS) 服务器。</p>
 <p>首先，你需要设置 Athenz 的服务访问控制。 你需要为 <em>提供商</em> 创建域名(通过某些身份验证/授权策略为其他服务提供一些资源)和 <em>租户</em> (为访问某个提供商中的某些资源预设)。 在这种情况下，供应商与 Pulsar 服务本身相对应，租户与使用 Pulsar 的每个应用程序相对应(通常情况下)。 <a href="/docs/zh-CN/next/reference-terminology#tenant"> Pulsar 租户</a> )。</p>
 <h3><a class="anchor" aria-hidden="true" id="创建租户域和服务"></a><a href="#创建租户域和服务" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建租户域和服务</h3>
-<p>在 <a href="/docs/zh-CN/next/reference-terminology#tenant">租户</a> 一侧，你需要做以下事情：</p>
+<p>On the <a href="/docs/zh-CN/next/reference-terminology#tenant">tenant</a> side, you need to do the following things:</p>
 <ol>
 <li>创建一个域名，如 <code>购物</code></li>
 <li>生成私钥/公钥对</li>
@@ -89,7 +89,7 @@
 <p>请注意，当 Pulsar 客户端连接到 <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> 时，需要指定步骤2 生成的私钥(参见 <a href="/docs/zh-CN/next/client-libraries-java#tls-authentication">Java</a> 和 <a href="/docs/zh-CN/next/client-libraries-cpp#tls-authentication">C++</a> 的客户端配置示例。</p>
 <p>关于涉及 Athenz UI 的更多具体步骤，请参阅 <a href="https://github.com/yahoo/athenz/blob/master/docs/example_service_athenz_setup.md#client-tenant-domain">示例服务访问控制设置</a>。</p>
 <h3><a class="anchor" aria-hidden="true" id="创建提供商域并将租户服务添加到某些角色成员"></a><a href="#创建提供商域并将租户服务添加到某些角色成员" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建提供商域并将租户服务添加到某些角色成员</h3>
-<p>在提供者一方，你需要做以下事情：</p>
+<p>On the provider side, you need to do the following things:</p>
 <ol>
 <li>创建一个域名，例如 <code>pulsar</code></li>
 <li>创建角色</li>

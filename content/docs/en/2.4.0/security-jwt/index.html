@@ -80,7 +80,7 @@
 <p>You can use tokens to identify a Pulsar client and associate with some &quot;principal&quot; (or &quot;role&quot;) that
 is permitted to do some actions (eg: publish to a topic or consume from a topic).</p>
 <p>A user typically gets a token string from the administrator (or some automated service).</p>
-<p>The compact representation of a signed JWT is a string that looks like as the follwing:</p>
+<p>The compact representation of a signed JWT is a string that looks like as the following:</p>
 <pre><code class="hljs">eyJhbGciOiJIUzI<span class="hljs-number">1</span><span class="hljs-symbol">NiJ9</span>.eyJzdWIiOiJKb<span class="hljs-number">2</span>UifQ.ipevR<span class="hljs-symbol">NuRP6</span>Hfl<span class="hljs-name">G8</span>cFK<span class="hljs-symbol">nmUPtypruRC4</span>fb<span class="hljs-number">1</span>DWtoLL<span class="hljs-number">62</span>SY
 </code></pre>
 <p>Application specifies the token when you create the client instance. An alternative is to pass a &quot;token supplier&quot; (a function that returns the token when the client library needs one).</p>

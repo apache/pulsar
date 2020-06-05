@@ -735,6 +735,24 @@ You can configure parameters if you do not want to use the default configuration
       (&quot;key-4&quot;, &quot;message-4-2&quot;)
       
   
+  If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
+  
+  ```java
+  Producer producer = client.newProducer()
+          .topic(&quot;my-topic&quot;)
+          .batcherBuilder(BatcherBuilder.KEY_BASED)
+          .create();
+  ```
+  
+  Or the producer can disable batching.
+  
+  ```java
+  Producer producer = client.newProducer()
+          .topic(&quot;my-topic&quot;)
+          .enableBatching(false)
+          .create();
+  ```
+  
   &gt; Note:
   &gt; 
   &gt; If the message key is not specified, messages without key are dispatched to one consumer in order by default.
