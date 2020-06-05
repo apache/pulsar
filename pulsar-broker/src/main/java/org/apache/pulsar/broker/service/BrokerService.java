@@ -97,7 +97,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
-import org.apache.pulsar.broker.events.BrokerEventListeners;
+import org.apache.pulsar.broker.events.BrokerEventListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -239,7 +239,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long maxMessagePublishBufferBytes;
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
-    private BrokerEventListeners eventListeners;
+    private BrokerEventListener eventListener;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -329,9 +329,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
 
         this.defaultServerBootstrap = defaultServerBootstrap();
-
-        // Initialize broker event listeners
-        this.eventListeners = BrokerEventListeners.load(pulsar.getConfiguration());
     }
 
     // This call is used for starting additional protocol handlers
@@ -624,9 +621,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
-        if (eventListeners != null) {
-            eventListeners.close();
-            eventListeners = null;
+        if (eventListener != null) {
+            eventListener.close();
+            eventListener = null;
         }
 
         acceptorGroup.shutdownGracefully();
@@ -2266,5 +2263,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
+    }
+
+    public void setEventListener(BrokerEventListener eventListener) {
+        this.eventListener = eventListener;
     }
 }

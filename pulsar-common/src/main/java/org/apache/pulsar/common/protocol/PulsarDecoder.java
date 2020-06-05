@@ -74,7 +74,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
-import org.apache.pulsar.common.events.BrokerEventListener;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,8 +82,6 @@ import org.slf4j.LoggerFactory;
  * Basic implementation of the channel handler to process inbound Pulsar data.
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
-
-    protected BrokerEventListener brokerEventListener = BrokerEventListener.DISABLED;
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -108,9 +105,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel().remoteAddress(), cmd.getType());
             }
-
+            onCommand(cmd);
             messageReceived();
-            brokerEventListener.onCommand(cmd, this);
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
                 checkArgument(cmd.hasPartitionMetadata());
@@ -431,6 +427,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected abstract void messageReceived();
+
+    protected void onCommand(BaseCommand command) {
+        //No-op
+    }
 
     protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata response) {
         throw new UnsupportedOperationException();

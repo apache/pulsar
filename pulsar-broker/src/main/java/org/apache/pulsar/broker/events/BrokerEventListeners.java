@@ -21,10 +21,12 @@ package org.apache.pulsar.broker.events;
 import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.events.BrokerEventListener;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
 
+import javax.servlet.FilterChain;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.Map;
 
@@ -36,22 +38,8 @@ public class BrokerEventListeners implements BrokerEventListener {
 
     private final Map<String, SafeBrokerEventListenerWithClassLoader> listeners;
 
-    private static final BrokerEventListeners DISABLED = new BrokerEventListenersDisabled();
-
     public BrokerEventListeners(Map<String, SafeBrokerEventListenerWithClassLoader> listeners) {
         this.listeners = listeners;
-    }
-
-    private static class BrokerEventListenersDisabled extends BrokerEventListeners {
-
-        public BrokerEventListenersDisabled() {
-            super(null);
-        }
-
-        @Override
-        public void onCommand(BaseCommand command, PulsarDecoder decoder) {
-            // No-op
-        }
     }
 
     /**
@@ -60,7 +48,7 @@ public class BrokerEventListeners implements BrokerEventListener {
      * @param conf the pulsar broker service configuration
      * @return the collection of broker event listener
      */
-    public static BrokerEventListeners load(ServiceConfiguration conf) throws IOException {
+    public static BrokerEventListener load(ServiceConfiguration conf) throws IOException {
         BrokerEventListenerDefinitions definitions =
                 BrokerEventListenerUtils.searchForListeners(conf.getBrokerListenersDirectory(), conf.getNarExtractionDirectory());
 
@@ -96,14 +84,19 @@ public class BrokerEventListeners implements BrokerEventListener {
     }
 
     @Override
-    public void onCommand(BaseCommand command,  PulsarDecoder decoder) {
-        listeners.forEach((k, v) -> v.onCommand(command, decoder));
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+        listeners.forEach((k, v) -> v.onPulsarCommand(command, cnx));
     }
 
     @Override
-    public void initialize() throws Exception {
+    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
+        listeners.forEach((k, v) -> v.onWebServiceRequest(request, response, chain));
+    }
+
+    @Override
+    public void initialize(ServiceConfiguration conf) throws Exception {
         for (SafeBrokerEventListenerWithClassLoader v : listeners.values()) {
-            v.initialize();
+            v.initialize(conf);
         }
     }
 

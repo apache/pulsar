@@ -16,11 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.broker.events;
 
 import com.google.common.annotations.Beta;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 /**
  * A plugin interface that allows you to listen (and possibly mutate) the
@@ -37,16 +45,20 @@ public interface BrokerEventListener extends AutoCloseable {
 
     /**
      * Called by the broker while new command incoming.
-
      */
-    void onCommand(BaseCommand command, PulsarDecoder decoder);
+    void onPulsarCommand(BaseCommand command, ServerCnx cnx);
+
+    /**
+     * Called by the web service while new request incoming.
+     */
+    void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
 
     /**
      * Initialize the broker event listener.
      *
      * @throws Exception when fail to initialize the broker event listener.
      */
-    void initialize() throws Exception;
+    void initialize(ServiceConfiguration conf) throws Exception;
 
     BrokerEventListener DISABLED = new BrokerEventListenerDisabled();
 
@@ -56,12 +68,17 @@ public interface BrokerEventListener extends AutoCloseable {
     class BrokerEventListenerDisabled implements BrokerEventListener {
 
         @Override
-        public void onCommand(BaseCommand command,  PulsarDecoder decoder) {
+        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
             //No-op
         }
 
         @Override
-        public void initialize() throws Exception {
+        public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void initialize(ServiceConfiguration conf) throws Exception {
             //No-op
         }
 
