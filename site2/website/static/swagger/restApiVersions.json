@@ -1,46 +1,14 @@
 {
     "2.3.0": [
         {
-            "vesion": "v2",
-            "hasFileName": [
+            "version": "v2",
+            "fileName": [
                 "swagger"
             ]
         },
         {
-            "vesion": "v3",
-            "hasFileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.3.1": [
-        {
-            "vesion": "v2",
-            "hasFileName": [
-                "swagger"
-            ]
-        },
-        {
-            "vesion": "v3",
-            "hasFileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.3.2": [
-        {
-            "vesion": "v2",
-            "hasFileName": [
-                "swagger"
-            ]
-        },
-        {
-            "vesion": "v3",
-            "hasFileName": [
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
@@ -49,14 +17,46 @@
     ],
     "2.4.0": [
         {
-            "vesion": "v2",
-            "hasFileName": [
+            "version": "v2",
+            "fileName": [
                 "swagger"
             ]
         },
         {
-            "vesion": "v3",
-            "hasFileName": [
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.3.2": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.3.1": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
@@ -65,14 +65,14 @@
     ],
     "2.4.1": [
         {
-            "vesion": "v2",
-            "hasFileName": [
+            "version": "v2",
+            "fileName": [
                 "swagger"
             ]
         },
         {
-            "vesion": "v3",
-            "hasFileName": [
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
@@ -81,31 +81,14 @@
     ],
     "2.4.2": [
         {
-            "vesion": "v2",
-            "hasFileName": [
+            "version": "v2",
+            "fileName": [
                 "swagger"
             ]
         },
         {
-            "vesion": "v3",
-            "hasFileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.5.0": [
-        {
-            "vesion": "v2",
-            "hasFileName": [
-                "swagger"
-            ]
-        },
-        {
-            "vesion": "v3",
-            "hasFileName": [
-                "swagger",
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
@@ -114,14 +97,30 @@
     ],
     "2.5.1": [
         {
-            "vesion": "v2",
-            "hasFileName": [
+            "version": "v2",
+            "fileName": [
                 "swagger"
             ]
         },
         {
-            "vesion": "v3",
-            "hasFileName": [
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.5.0": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"

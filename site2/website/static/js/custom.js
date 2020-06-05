@@ -149,10 +149,10 @@ window.addEventListener('load', function () {
     let pathName = window.location.pathname;
     let apiVersionList = [];
     restApiVersions[version].forEach(ele => {
-        let hasRestApi = ele.hasFileName.find(h => h == 'swagger');
-        let hasFunctions = ele.hasFileName.find(h => h == 'swaggerfunctions');
-        let hasSink = ele.hasFileName.find(h => h == 'swaggersink');
-        let hasSource = ele.hasFileName.find(h => h == 'swaggersource');
+        let hasRestApi = ele.fileName.find(h => h == 'swagger');
+        let hasFunctions = ele.fileName.find(h => h == 'swaggerfunctions');
+        let hasSink = ele.fileName.find(h => h == 'swaggersink');
+        let hasSource = ele.fileName.find(h => h == 'swaggersource');
 
         if ( pathName === '/admin-rest-api' && hasRestApi ) {
             apiVersionList.push(ele);
@@ -176,11 +176,8 @@ window.addEventListener('load', function () {
         || pathName === '/source-rest-api'
         || pathName === '/sink-rest-api') {
         wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select" id="version_select">
-                                    ${apiVersionList.map(v => `<option value="${v.vesion}">${v.vesion}</option>`).join("")}
+                                    ${apiVersionList.map(v => `<option value="${v.version}">${v.version}</option>`).join("")}
                                 </select>`;
-        // wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select">
-        //                             <option></option>
-        //                         </select>`;
 
     } else {
         return;
@@ -214,14 +211,3 @@ window.addEventListener('load', function () {
     })
 
 });
-
-function getSwagger(callback) {
-    var url = "../swagger/restApiVersions.json";/*json文件url*/
-    var request = new XMLHttpRequest();
-    request.open("get", url);/*设置请求方法与路径*/
-    request.send(null);/*不发送数据到服务器*/
-    request.onload = function (callback) {/*XHR对象获取到返回信息后执行*/
-        if (request.status != 200) return;
-        callback(JSON.parse(request.responseText));
-    }
-}
