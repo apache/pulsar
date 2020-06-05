@@ -203,7 +203,7 @@ client = Client("pulsar+ssl://broker.example.com:6651/",
 ```c++
 #include <pulsar/Client.h>
 
-lientConfiguration config = ClientConfiguration();
+ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);  // shouldn't be needed soon
 config.setTlsTrustCertsFilePath(caPath);
 config.setTlsAllowInsecureConnection(false);
