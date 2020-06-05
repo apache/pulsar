@@ -211,6 +211,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         log.info("/** Initializing Runtime Manager **/");
         try {
             Reader<byte[]> reader = this.getWorkerService().getClient().newReader()
+                    .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
                     .topic(this.getWorkerConfig().getFunctionAssignmentTopic()).readCompacted(true)
                     .startMessageId(MessageId.earliest).create();
 

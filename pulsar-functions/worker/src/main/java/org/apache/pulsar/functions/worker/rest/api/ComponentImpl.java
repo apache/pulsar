@@ -994,10 +994,17 @@ public abstract class ComponentImpl {
         Producer<byte[]> producer = null;
         try {
             if (outputTopic != null && !outputTopic.isEmpty()) {
-                reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
+                reader = worker().getClient().newReader()
+                        .topic(outputTopic)
+                        .startMessageId(MessageId.latest)
+                        .readerName(worker().getWorkerConfig().getWorkerId() + "-trigger-" +
+                                FunctionCommon.getFullyQualifiedName(tenant, namespace, functionName))
+                        .create();
             }
             producer = worker().getClient().newProducer(Schema.AUTO_PRODUCE_BYTES())
                     .topic(inputTopicToWrite)
+                    .producerName(worker().getWorkerConfig().getWorkerId() + "-trigger-" +
+                            FunctionCommon.getFullyQualifiedName(tenant, namespace, functionName))
                     .create();
             byte[] targetArray;
             if (uploadedInputStream != null) {
