@@ -169,7 +169,7 @@ if (BUILD_PYTHON_WRAPPER)
         list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
         set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
         # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
+        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
     else ()
         # Regular boost_python
         set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)

@@ -160,7 +160,6 @@ public class ZooKeeperSessionWatcherTest {
 
     @Test
     public void testRun6() throws Exception {
-        zkClient.failAfter(0, Code.OK);
         sessionWatcher.run();
         assertFalse(sessionWatcher.isShutdownStarted());
         assertEquals(sessionWatcher.getKeeperState(), KeeperState.SyncConnected);

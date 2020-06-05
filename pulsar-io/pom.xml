@@ -33,6 +33,9 @@
 
   <modules>
     <module>core</module>
+    <module>batch</module>
+    <module>batch-discovery-triggerers</module>
+    <module>batch-data-generator</module>
     <module>common</module>
     <module>docs</module>
     <module>aws</module>

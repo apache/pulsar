@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.common.compression;
 
-import com.github.luben.zstd.Zstd;
-
+import io.airlift.compress.zstd.ZStdRawCompressor;
+import io.airlift.compress.zstd.ZStdRawDecompressor;
+import io.airlift.compress.zstd.ZstdCompressor;
+import io.airlift.compress.zstd.ZstdDecompressor;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -34,23 +37,45 @@ public class CompressionCodecZstd implements CompressionCodec {
 
     private static final int ZSTD_COMPRESSION_LEVEL = 3;
 
+    private static final ZstdCompressor ZSTD_COMPRESSOR = new ZstdCompressor();
+
+    private static final FastThreadLocal<ZStdRawDecompressor> ZSTD_RAW_DECOMPRESSOR = //
+            new FastThreadLocal<ZStdRawDecompressor>() {
+                @Override
+                protected ZStdRawDecompressor initialValue() throws Exception {
+                    return new ZStdRawDecompressor();
+                }
+            };
+
+    private static final FastThreadLocal<ZstdDecompressor> ZSTD_DECOMPRESSOR = //
+            new FastThreadLocal<ZstdDecompressor>() {
+                @Override
+                protected ZstdDecompressor initialValue() throws Exception {
+                    return new ZstdDecompressor();
+                }
+            };
+
     @Override
     public ByteBuf encode(ByteBuf source) {
         int uncompressedLength = source.readableBytes();
-        int maxLength = (int) Zstd.compressBound(uncompressedLength);
+        int maxLength = (int) ZSTD_COMPRESSOR.maxCompressedLength(uncompressedLength);
 
-        ByteBuf target = PulsarByteBufAllocator.DEFAULT.directBuffer(maxLength, maxLength);
+        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
         int compressedLength;
 
-        if (source.hasMemoryAddress()) {
-            compressedLength = (int) Zstd.compressUnsafe(target.memoryAddress(), maxLength,
+        if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
+            compressedLength = ZStdRawCompressor.compress(
                     source.memoryAddress() + source.readerIndex(),
-                    uncompressedLength, ZSTD_COMPRESSION_LEVEL);
+                    source.memoryAddress() + source.writerIndex(),
+                    target.memoryAddress() + target.writerIndex(),
+                    target.memoryAddress() + target.writerIndex() + maxLength,
+                    ZSTD_COMPRESSION_LEVEL);
         } else {
             ByteBuffer sourceNio = source.nioBuffer(source.readerIndex(), source.readableBytes());
             ByteBuffer targetNio = target.nioBuffer(0, maxLength);
 
-            compressedLength = Zstd.compress(targetNio, sourceNio, ZSTD_COMPRESSION_LEVEL);
+            ZSTD_COMPRESSOR.compress(sourceNio, targetNio);
+            compressedLength = targetNio.position();
         }
 
         target.writerIndex(compressedLength);
@@ -59,17 +84,21 @@ public class CompressionCodecZstd implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.directBuffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
 
-        if (encoded.hasMemoryAddress()) {
-            Zstd.decompressUnsafe(uncompressed.memoryAddress(), uncompressedLength,
+        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+            ZSTD_RAW_DECOMPRESSOR.get().decompress(
+                    null,
                     encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.readableBytes());
+                    encoded.memoryAddress() + encoded.writerIndex(),
+                    null,
+                    uncompressed.memoryAddress() + uncompressed.writerIndex(),
+                    uncompressed.memoryAddress() + uncompressed.writerIndex() + uncompressedLength);
         } else {
             ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
             ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
-            Zstd.decompress(uncompressedNio, encodedNio);
+            ZSTD_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
         }
 
         uncompressed.writerIndex(uncompressedLength);

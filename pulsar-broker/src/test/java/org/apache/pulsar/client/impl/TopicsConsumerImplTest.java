@@ -18,32 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.util.Timeout;
-
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.IntStream;
-
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -65,6 +45,26 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
@@ -102,13 +102,13 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 2. Create consumer
         try {
-            pulsarClient.newConsumer()
+            Consumer consumer = pulsarClient.newConsumer()
                 .topics(topicNames)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscribe();
-            fail("subscribe for topics from different namespace should fail.");
+            assertTrue(consumer instanceof MultiTopicsConsumerImpl);
         } catch (IllegalArgumentException e) {
             // expected for have different namespace
         }
@@ -1021,6 +1021,58 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+    @Test(timeOut = testTimeout)
+    public void multiTopicsInDifferentNameSpace() throws PulsarAdminException, PulsarClientException {
+        List<String> topics = new ArrayList<>();
+        topics.add("persistent://prop/use/ns-abc/topic-1");
+        topics.add("persistent://prop/use/ns-abc/topic-2");
+        topics.add("persistent://prop/use/ns-abc1/topic-3");
+        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString()));
+        admin.tenants().createTenant("prop", new TenantInfo(null, Sets.newHashSet("use")));
+        admin.namespaces().createNamespace("prop/use/ns-abc");
+        admin.namespaces().createNamespace("prop/use/ns-abc1");
+        Consumer consumer = pulsarClient.newConsumer()
+                .topics(topics)
+                .subscriptionName("multiTopicSubscription")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+        // create Producer
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://prop/use/ns-abc/topic-1")
+                .producerName("producer")
+                .create();
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://prop/use/ns-abc/topic-2")
+                .producerName("producer1")
+                .create();
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic("persistent://prop/use/ns-abc1/topic-3")
+                .producerName("producer2")
+                .create();
+        //send message
+        producer.send("ns-abc/topic-1-Message1");
+
+        producer1.send("ns-abc/topic-2-Message1");
+
+        producer2.send("ns-abc1/topic-3-Message1");
+
+        int messageSet = 0;
+        Message<byte[]> message = consumer.receive();
+        do {
+            messageSet ++;
+            consumer.acknowledge(message);
+            log.info("Consumer acknowledged : " + new String(message.getData()));
+            message = consumer.receive(200, TimeUnit.MILLISECONDS);
+        } while (message != null);
+        assertEquals(messageSet, 3);
+
+        consumer.unsubscribe();
+        consumer.close();
+        producer.close();
+        producer1.close();
+        producer2.close();
     }
 
 }

@@ -37,11 +37,8 @@ import static org.testng.Assert.fail;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
@@ -106,15 +103,12 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -1467,7 +1461,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
         bkc.failNow(BKException.Code.NoBookieAvailableException);
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
+
         try {
             ledger.addEntry("entry".getBytes());
             fail("Should have received exception");
@@ -2507,7 +2505,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     /**
      * It verifies that managed-cursor can recover metadata-version if it fails to update due to version conflict. This
      * test verifies that version recovery happens if checkOwnership supplier is passed while creating managed-ledger.
-     * 
+     *
      * @param checkOwnershipFlag
      * @throws Exception
      */
@@ -2640,6 +2638,24 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, checkOwnershipFlag ? () -> true : null, null);
         latch.await();
+    }
+
+    @Test
+    public void deleteWithoutOpen() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        assertEquals(ledger.getNumberOfEntries(), 1);
+        ledger.close();
+
+        factory.delete("my_test_ledger");
+
+        try {
+            factory.open("my_test_ledger", new ManagedLedgerConfig().setCreateIfMissing(false));
+            fail("Should have failed");
+        } catch (ManagedLedgerNotFoundException e) {
+            // Expected
+        }
     }
 
     private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

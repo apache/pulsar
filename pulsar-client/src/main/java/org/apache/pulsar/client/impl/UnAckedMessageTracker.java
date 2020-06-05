@@ -131,6 +131,7 @@ public class UnAckedMessageTracker implements Closeable {
                     if (!headPartition.isEmpty()) {
                         log.warn("[{}] {} messages have timed-out", consumerBase, headPartition.size());
                         headPartition.forEach(messageId -> {
+                            addChunkedMessageIdsAndRemoveFromSequnceMap(messageId, messageIds, consumerBase);
                             messageIds.add(messageId);
                             messageIdPartitionMap.remove(messageId);
                         });
@@ -148,6 +149,19 @@ public class UnAckedMessageTracker implements Closeable {
                 }
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
+    }
+
+    public static void addChunkedMessageIdsAndRemoveFromSequnceMap(MessageId messageId, Set<MessageId> messageIds,
+            ConsumerBase<?> consumerBase) {
+        if (messageId instanceof MessageIdImpl) {
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunckedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
+                for (MessageIdImpl msgId : chunkedMsgIds) {
+                    messageIds.add(msgId);
+                }
+            }
+            consumerBase.unAckedChunckedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
+        }
     }
 
     public void clear() {
