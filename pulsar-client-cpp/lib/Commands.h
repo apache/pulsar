@@ -97,6 +97,7 @@ class Commands {
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
+    static SharedBuffer newMultiMessageAck(uint64_t consumerId, const std::set<MessageId>& msgIds);
 
     static SharedBuffer newFlow(uint64_t consumerId, uint32_t messagePermits);
 
@@ -125,6 +126,12 @@ class Commands {
     static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp);
     static SharedBuffer newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
     static SharedBuffer newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
+
+    static bool peerSupportsGetLastMessageId(int32_t peerVersion);
+    static bool peerSupportsActiveConsumerListener(int32_t peerVersion);
+    static bool peerSupportsMultiMessageAcknowledgement(int32_t peerVersion);
+    static bool peerSupportsJsonSchemaAvroFormat(int32_t peerVersion);
+    static bool peerSupportsGetOrCreateSchema(int32_t peerVersion);
 
    private:
     Commands();

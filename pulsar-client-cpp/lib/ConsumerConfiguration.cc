@@ -112,6 +112,18 @@ long ConsumerConfiguration::getNegativeAckRedeliveryDelayMs() const {
     return impl_->negativeAckRedeliveryDelayMs;
 }
 
+void ConsumerConfiguration::setAckGroupingTimeMs(long ackGroupingMillis) {
+    impl_->ackGroupingTimeMs = ackGroupingMillis;
+}
+
+long ConsumerConfiguration::getAckGroupingTimeMs() const { return impl_->ackGroupingTimeMs; }
+
+void ConsumerConfiguration::setAckGroupingMaxSize(long maxGroupingSize) {
+    impl_->ackGroupingMaxSize = maxGroupingSize;
+}
+
+long ConsumerConfiguration::getAckGroupingMaxSize() const { return impl_->ackGroupingMaxSize; }
+
 bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }
 
 const CryptoKeyReaderPtr ConsumerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }

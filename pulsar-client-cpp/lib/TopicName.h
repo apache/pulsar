@@ -28,6 +28,12 @@
 #include <mutex>
 
 namespace pulsar {
+class PULSAR_PUBLIC TopicDomain {
+   public:
+    static const std::string Persistent;
+    static const std::string NonPersistent;
+};  // class TopicDomain
+
 class PULSAR_PUBLIC TopicName : public ServiceUnitId {
    private:
     std::string topicName_;
@@ -49,6 +55,7 @@ class PULSAR_PUBLIC TopicName : public ServiceUnitId {
     std::string getLocalName();
     std::string getEncodedLocalName();
     std::string toString();
+    bool isPersistent() const;
     NamespaceNamePtr getNamespaceName();
     static std::shared_ptr<TopicName> get(const std::string& topicName);
     bool operator==(const TopicName& other);
@@ -64,7 +71,7 @@ class PULSAR_PUBLIC TopicName : public ServiceUnitId {
     TopicName();
     bool validate();
     bool init(const std::string& topicName);
-};
+};  // class TopicName
 typedef std::shared_ptr<TopicName> TopicNamePtr;
 }  // namespace pulsar
 // end of namespace pulsar
