@@ -36,6 +36,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -46,8 +48,6 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.stats.CacheMetricsCollector;
-import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
-import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -88,6 +88,15 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final AsyncLoadingCache<String, Set<String>> childrenCache;
     protected final AsyncLoadingCache<String, Boolean> existsCache;
     private final OrderedExecutor executor;
+    private final ForkJoinPool cacheExecutor = new ForkJoinPool(
+            4, (pool) -> {
+                ForkJoinWorkerThread t = ForkJoinPool.defaultForkJoinWorkerThreadFactory.newThread(pool);
+                t.setName("zk-cache-fj-" + t.getPoolIndex());
+                return t;
+            },
+            (thread, exception) -> {
+                LOG.error("Uncaught exception in thread {}", thread.getName(), exception);
+            }, false);
     private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
     private final int zkOperationTimeoutSeconds;
@@ -98,7 +107,7 @@ public abstract class ZooKeeperCache implements Watcher {
     public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
         this(cacheName, zkSession, zkOperationTimeoutSeconds, executor, CACHE_EXPIRY_SECONDS);
     }
-    
+
     public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
             OrderedExecutor executor, int cacheExpirySeconds) {
         checkNotNull(executor);
@@ -109,16 +118,19 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.dataCache = Caffeine.newBuilder()
                 .recordStats()
+                .executor(cacheExecutor)
                 .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.childrenCache = Caffeine.newBuilder()
                 .recordStats()
+                .executor(cacheExecutor)
                 .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
         this.existsCache = Caffeine.newBuilder()
                 .recordStats()
+                .executor(cacheExecutor)
                 .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
@@ -505,6 +517,7 @@ public abstract class ZooKeeperCache implements Watcher {
         }
 
         this.backgroundExecutor.shutdown();
+        this.cacheExecutor.shutdown();
     }
 
     public boolean checkRegNodeAndWaitExpired(String regPath) throws IOException {

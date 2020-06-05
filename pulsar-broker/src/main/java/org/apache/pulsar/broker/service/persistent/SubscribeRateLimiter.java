@@ -45,17 +45,17 @@ public class SubscribeRateLimiter {
     private ScheduledFuture<?> resetTask;
     private SubscribeRate subscribeRate;
 
-    public SubscribeRateLimiter(PersistentTopic topic) {
+    public SubscribeRateLimiter(PersistentTopic topic, Optional<Policies> policies) {
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         subscribeRateLimiter = new ConcurrentHashMap<>();
         this.executorService = brokerService.pulsar().getExecutor();
-        this.subscribeRate = getPoliciesSubscribeRate();
-        if (this.subscribeRate == null) {
-            this.subscribeRate = new SubscribeRate(brokerService.pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
-                    brokerService.pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond());
+        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
+        this.subscribeRate = getPoliciesSubscribeRate(cluster, policies, topicName)
+            .orElseGet(() -> new SubscribeRate(
+                               brokerService.pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                               brokerService.pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()));
 
-        }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
             resetTask = createTask();
             log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
@@ -162,49 +162,26 @@ public class SubscribeRateLimiter {
         }
     }
 
-    /**
-     * Gets configured subscribe-rate from namespace policies. Returns null if subscribe-rate is not configured
-     *
-     * @return
-     */
-    public SubscribeRate getPoliciesSubscribeRate() {
-        return getPoliciesSubscribeRate(brokerService, topicName);
-    }
-
-    public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
-            String topicName) {
+    public static boolean isDispatchRateNeeded(BrokerService brokerService,
+                                               Optional<Policies> policies, String topicName) {
         ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
-        policies = policies.isPresent() ? policies : DispatchRateLimiter.getPolicies(brokerService, topicName);
-        return isDispatchRateNeeded(serviceConfig, policies, topicName);
+        return getPoliciesSubscribeRate(serviceConfig.getClusterName(), policies, topicName)
+            .map(p -> true)
+            .orElseGet(() -> serviceConfig.getSubscribeThrottlingRatePerConsumer() > 0
+                       || serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0);
     }
 
-    private static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
-            final Optional<Policies> policies, final String topicName) {
-        SubscribeRate subscribeRate = getPoliciesSubscribeRate(serviceConfig.getClusterName(), policies, topicName);
-        if (subscribeRate == null) {
-            return serviceConfig.getSubscribeThrottlingRatePerConsumer() > 0
-                    || serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0;
-        }
-        return true;
-    }
-
-    public static SubscribeRate getPoliciesSubscribeRate(BrokerService brokerService, final String topicName) {
-        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        final Optional<Policies> policies = DispatchRateLimiter.getPolicies(brokerService, topicName);
-        return getPoliciesSubscribeRate(cluster, policies, topicName);
-    }
-
-    public static SubscribeRate getPoliciesSubscribeRate(final String cluster, final Optional<Policies> policies,
-            String topicName) {
+    public static Optional<SubscribeRate> getPoliciesSubscribeRate(final String cluster,
+            final Optional<Policies> policies, String topicName) {
         // return policy-subscribe rate only if it's enabled in policies
         return policies.map(p -> {
-            if (p.clusterSubscribeRate != null) {
-                SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
-                return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
-            } else {
-                return null;
-            }
-        }).orElse(null);
+                if (p.clusterSubscribeRate != null) {
+                    SubscribeRate subscribeRate = p.clusterSubscribeRate.get(cluster);
+                    return isSubscribeRateEnabled(subscribeRate) ? subscribeRate : null;
+                } else {
+                    return null;
+                }
+            });
     }
 
     /**

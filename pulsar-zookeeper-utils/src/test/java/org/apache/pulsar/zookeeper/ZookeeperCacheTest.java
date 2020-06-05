@@ -432,18 +432,17 @@ public class ZookeeperCacheTest {
         zkClient.create(key1, value.getBytes(), null, null);
         zkClient.create(key2, value.getBytes(), null, null);
 
-        CountDownLatch latch = new CountDownLatch(1);
+        CompletableFuture<Void> promise = new CompletableFuture<>();
 
         zkCache.getAsync(key).thenAccept(val -> {
             try {
                 zkCache.get(key1);
             } catch (Exception e) {
-                fail("failed to get " + key2, e);
+                promise.completeExceptionally(e);
             }
-            latch.countDown();
+            promise.complete(null);
         });
-
-        latch.await();
+        promise.get();
         executor.shutdown();
         zkExecutor.shutdown();
         scheduledExecutor.shutdown();

@@ -83,7 +83,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
-        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+
+        initializeDispatchRateLimiterIfNeeded(PersistentTopic.getPolicies(topic.getBrokerService(), topic.getName()));
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -543,7 +544,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
                 .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.SUBSCRIPTION)) {
-            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION, policies));
         }
     }
 

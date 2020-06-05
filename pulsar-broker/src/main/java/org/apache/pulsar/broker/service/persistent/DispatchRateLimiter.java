@@ -18,19 +18,12 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
-
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.RateLimiter;
@@ -55,14 +48,16 @@ public class DispatchRateLimiter {
     private long subscriptionRelativeRatelimiterOnMessage;
     private long subscriptionRelativeRatelimiterOnByte;
 
-    public DispatchRateLimiter(PersistentTopic topic, Type type) {
+    public DispatchRateLimiter(PersistentTopic topic, Type type, Optional<Policies> policies) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         this.type = type;
         this.subscriptionRelativeRatelimiterOnMessage = -1;
         this.subscriptionRelativeRatelimiterOnByte = -1;
-        updateDispatchRate();
+
+        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
+        updateDispatchRate(cluster, policies);
     }
 
     /**
@@ -142,48 +137,32 @@ public class DispatchRateLimiter {
                 config.isDispatchThrottlingRateRelativeToPublishRate());
     }
 
-    /**
-     * Update dispatch-throttling-rate. gives first priority to namespace-policy configured dispatch rate else applies
-     * default broker dispatch-throttling-rate
-     */
-    public void updateDispatchRate() {
-        DispatchRate dispatchRate = getPoliciesDispatchRate(brokerService);
-
-        if (dispatchRate == null) {
-            dispatchRate = createDispatchRate();
-        }
-
-        updateDispatchRate(dispatchRate);
-        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate);
-    }
-
     public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
             String topicName, Type type) {
         final ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
-        policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
         return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
     }
 
     public static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
             final Optional<Policies> policies, final String topicName, final Type type) {
-        DispatchRate dispatchRate = getPoliciesDispatchRate(serviceConfig.getClusterName(), policies, type);
-        if (dispatchRate == null) {
-            switch (type) {
-                case TOPIC:
-                    return serviceConfig.getDispatchThrottlingRatePerTopicInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerTopicInByte() > 0;
-                case SUBSCRIPTION:
-                    return serviceConfig.getDispatchThrottlingRatePerSubscriptionInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerSubscriptionInByte() > 0;
-                case REPLICATOR:
-                    return serviceConfig.getDispatchThrottlingRatePerReplicatorInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerReplicatorInByte() > 0;
-                default:
-                    log.error("error DispatchRateLimiter type: {} ", type);
-                    return false;
-            }
-        }
-        return true;
+        return getPoliciesDispatchRate(serviceConfig.getClusterName(), policies, type)
+            .map(r -> true)
+            .orElseGet(() -> {
+                    switch (type) {
+                    case TOPIC:
+                        return serviceConfig.getDispatchThrottlingRatePerTopicInMsg() > 0
+                            || serviceConfig.getDispatchThrottlingRatePerTopicInByte() > 0;
+                    case SUBSCRIPTION:
+                        return serviceConfig.getDispatchThrottlingRatePerSubscriptionInMsg() > 0
+                            || serviceConfig.getDispatchThrottlingRatePerSubscriptionInByte() > 0;
+                    case REPLICATOR:
+                        return serviceConfig.getDispatchThrottlingRatePerReplicatorInMsg() > 0
+                            || serviceConfig.getDispatchThrottlingRatePerReplicatorInByte() > 0;
+                    default:
+                        log.error("error DispatchRateLimiter type: {} ", type);
+                        return false;
+                    }
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -224,11 +203,12 @@ public class DispatchRateLimiter {
     }
 
     @SuppressWarnings("deprecation")
-    public static DispatchRate getPoliciesDispatchRate(final String cluster, Optional<Policies> policies, Type type) {
+    public static Optional<DispatchRate> getPoliciesDispatchRate(
+            final String cluster, Optional<Policies> policies, Type type) {
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
-            DispatchRate dispatchRate;
-            switch (type) {
+                DispatchRate dispatchRate;
+                switch (type) {
                 case TOPIC:
                     dispatchRate = p.topicDispatchRate.get(cluster);
                     if (dispatchRate == null) {
@@ -244,34 +224,15 @@ public class DispatchRateLimiter {
                 default:
                     log.error("error DispatchRateLimiter type: {} ", type);
                     return null;
-            }
-            return isDispatchRateEnabled(dispatchRate) ? dispatchRate : null;
-        }).orElse(null);
+                }
+                return isDispatchRateEnabled(dispatchRate) ? dispatchRate : null;
+            });
     }
 
-
-    /**
-     * Gets configured dispatch-rate from namespace policies. Returns null if dispatch-rate is not configured
-     *
-     * @return
-     */
-    public DispatchRate getPoliciesDispatchRate(BrokerService brokerService) {
-        final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-        final Optional<Policies> policies = getPolicies(brokerService, topicName);
-        return getPoliciesDispatchRate(cluster, policies, type);
-    }
-
-    public static Optional<Policies> getPolicies(BrokerService brokerService, String topicName) {
-        final NamespaceName namespace = TopicName.get(topicName).getNamespaceObject();
-        final String path = path(POLICIES, namespace.toString());
-        Optional<Policies> policies = Optional.empty();
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
-                    .get(brokerService.pulsar().getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        } catch (Exception e) {
-            log.warn("Failed to get message-rate for {} ", topicName, e);
-        }
-        return policies;
+    public synchronized void updateDispatchRate(String cluster,
+                                                Optional<Policies> policies) {
+        updateDispatchRate(getPoliciesDispatchRate(cluster, policies, type)
+                           .orElseGet(this::createDispatchRate));
     }
 
     /**
@@ -327,6 +288,7 @@ public class DispatchRateLimiter {
                 this.dispatchRateLimiterOnByte = null;
             }
         }
+        log.info("[{}] configured {} message-dispatch rate at broker {}", this.topicName, type, dispatchRate);
     }
 
     private long getRelativeDispatchRateInMsg(DispatchRate dispatchRate) {

@@ -920,19 +920,19 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         DispatchRate topicDispatchRate = new DispatchRate(200, 1024, 1);
 
         // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        DispatchRate dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
+        Optional<DispatchRate> dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies,
                 DispatchRateLimiter.Type.TOPIC);
-        Assert.assertNull(dispatchRate);
+        Assert.assertFalse(dispatchRate.isPresent());
 
         // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
         policies.get().clusterDispatchRate.put(cluster, clusterDispatchRate);
         dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
-        Assert.assertEquals(dispatchRate, clusterDispatchRate);
+        Assert.assertEquals(dispatchRate.get(), clusterDispatchRate);
 
         // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
         policies.get().topicDispatchRate.put(cluster, topicDispatchRate);
         dispatchRate = DispatchRateLimiter.getPoliciesDispatchRate(cluster, policies, DispatchRateLimiter.Type.TOPIC);
-        Assert.assertEquals(dispatchRate, topicDispatchRate);
+        Assert.assertEquals(dispatchRate.get(), topicDispatchRate);
     }
 
     @SuppressWarnings("deprecation")
@@ -944,7 +944,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC);
+        DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC,
+                Optional.empty());
 
         Policies policies = new Policies();
         DispatchRate clusterDispatchRate = new DispatchRate(100, 512, 1);
