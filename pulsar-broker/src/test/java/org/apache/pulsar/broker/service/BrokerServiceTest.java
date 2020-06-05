@@ -919,7 +919,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
      * version.
-     * 
+     *
      * @throws Exception
      */
     @Test

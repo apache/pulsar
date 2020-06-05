@@ -171,6 +171,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
+        public TopicPoliciesCacheNotInitException() {
+            super("Topic policies cache have not init.");
+        }
+    }
+
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         return getClientErrorCode(t, true);
     }

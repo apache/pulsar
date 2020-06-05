@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
@@ -106,6 +106,7 @@ public class SchedulerManager implements AutoCloseable {
                                 .blockIfQueueFull(true)
                                 .compressionType(CompressionType.LZ4)
                                 .sendTimeout(0, TimeUnit.MILLISECONDS)
+                                .producerName(config.getWorkerId() + "-scheduler-manager")
                                 .createAsync().get(10, TimeUnit.SECONDS);
                         return Actions.ActionResult.builder().success(true).result(producer).build();
                     } catch (Exception e) {

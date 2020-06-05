@@ -5,26 +5,26 @@ sidebar_label: Messaging
 original_id: concepts-messaging
 ---
 
-Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern, aka pub-sub. In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) can then [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete.
+Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (short for pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete.
 
-Once a subscription has been created, all messages will be [retained](concepts-architecture-overview.md#persistent-storage) by Pulsar, even if the consumer gets disconnected. Retained messages will be discarded only when a consumer acknowledges that they've been successfully processed.
+Once a subscription has been created, all messages are [retained](concepts-architecture-overview.md#persistent-storage) by Pulsar, even if the consumer gets disconnected. Retained messages are discarded only when a consumer acknowledges that those messages are processed successfully.
 
 ## Messages
 
-Messages are the basic "unit" of Pulsar. They're what producers publish to topics and what consumers then consume from topics (and acknowledge when the message has been processed). Messages are the analogue of letters in a postal service system.
+Messages are the basic "unit" of Pulsar. Messages are what producers publish to topics and what consumers then consume from topics (and acknowledge when the message has been processed). Messages are the analogue of letters in a postal service system.
 
 Component | Purpose
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](schema-get-started.md)
-Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction.md)
-Properties | An optional key/value map of user-defined properties
-Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well)
+Value / data payload | The data carried by the message. All Pulsar messages carry raw bytes, although message data can also conform to data [schemas](schema-get-started.md).
+Key | Messages can optionally be tagged with keys, which can be useful for things like [topic compaction](concepts-topic-compaction.md).
+Properties | An optional key/value map of user-defined properties.
+Producer name | The name of the producer that produced the message (producers are automatically given default names, but you can apply your own explicitly as well).
 Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. A message's sequence ID is its ordering in that sequence.
-Publish time | The timestamp of when the message was published (automatically applied by the producer)
-Event time | An optional timestamp that applications can attach to the message representing when something happened, e.g. when the message was processed. The event time of a message is 0 if none is explicitly set.
+Publish time | The timestamp of when the message was published (automatically applied by the producer).
+Event time | An optional timestamp that applications can attach to the message representing when something happened, for example, when the message was processed. The event time of a message is 0 if none is explicitly set.
+TypedMessageBuilder | `TypedMessageBuilder` is used to construct a message. You can set message properties like the message key, message value with `TypedMessageBuilder`. </br> When you set `TypedMessageBuilder`, the best practice is to set the key as a string. If you set the key as other types, for example, an AVRO object, the key is sent as bytes, and it is difficult to get the AVRO object back on the consumer.
 
-
-> For a more in-depth breakdown of Pulsar message contents, see the documentation on Pulsar's [binary protocol](developing-binary-protocol.md).
+> For a more in-depth breakdown of Pulsar message contents, see Pulsar [binary protocol](developing-binary-protocol.md).
 
 ## Producers
 
@@ -50,11 +50,20 @@ Messages published by producers can be compressed during transportation in order
 
 ### Batching
 
-If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batching size is defined by the maximum number of messages and maximum publish latency.
+If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batch size is defined by the maximum number of messages and maximum publish latency.
+
+Batches are tracked and stored by Pulsar as batches rather than as individual messages. Under the hood the consumer unbundles these batches into individual messages. Since the messages are stored as batches, the backlog size will also represent the total number of batches rather than the total number of messages.
+
+Scheduled messages (using `deliverAt` or `deliverAfter`) are always sent as individual messages even when batching is enabled.
+
+> Note
+> Since batches are tracked as single units, a batch will only be considered acknowledged when all its messages are acknowledged by the consumer. This means unexpected failures, negative acknowledgements, and acknowledgement timeouts can result in redelivery of all messages in the batch, even if some of the messages have already been acknowledged.
 
 ## Consumers
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
+
+A consumer sends a [flow permit request](developing-binary-protocol.md#flow-control) to a broker to get messages. There is a queue at the consumer side to receive messages pushed from the broker. The queue size is configurable by [`receiverQueueSize`](client-libraries-java.md#configure-consumer) (default: 1000). Each time `consumer.receive()` is called, a message is dequeued from the buffer.  
 
 ### Receive modes
 
@@ -71,7 +80,7 @@ Client libraries provide listener implementation for consumers. For example, the
 
 ### Acknowledgement
 
-When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker, so that the broker will discard the message. Otherwise, it [stores](concepts-architecture-overview.md#persistent-storage) the message.
+When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker. This message is permanently [stored](concepts-architecture-overview.md#persistent-storage) and then it is deleted only after all the subscriptions have acknowledged it. If you want to store the message that has been acknowledged by a consumer, you need to configure the [message retention policy](concepts-messaging.md#message-retention-and-expiry).
 
 Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.
 
@@ -90,12 +99,18 @@ In the exclusive and failover subscription modes, consumers only negatively ackn
 
 In the shared and Key_Shared subscription modes, you can negatively acknowledge messages individually.
 
+> Note
+> If batching is enabled, other messages in the same batch may be redelivered to the consumer as well as the negatively acknowledged messages.
+
 ### Acknowledgement timeout
 
 When a message is not consumed successfully, and you want to trigger the broker to redeliver the message automatically, you can adopt the unacknowledged message automatic re-delivery mechanism. Client will track the unacknowledged messages within the entire `acktimeout` time range, and send a `redeliver unacknowledged messages` request to the broker automatically when the acknowledgement timeout is specified.
 
+> Note
+> If batching is enabled, other messages in the same batch may be redelivered to the consumer as well as the unacknowledged messages.
+
 > Note    
-> Use negative acknowledgement prior to acknowledgement timeout. Negative acknowledgement controls re-delivery of individual messages with more precise, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
+> Prefer negative acknowledgements over acknowledgement timeout. Negative acknowledgement controls the re-delivery of individual messages with more precision, and avoids invalid redeliveries when the message processing time exceeds the acknowledgement timeout.
 
 ### Dead letter topic
 
@@ -134,7 +149,6 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 
 ```
   
-
 Dead letter topic depends on message re-delivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
 
 > Note    
@@ -159,16 +173,21 @@ Topic name component | Description
 > #### No need to explicitly create new topics
 > You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces) provided in the [topic name](#topics).
 
-
 ## Namespaces
 
 A namespace is a logical nomenclature within a tenant. A tenant can create multiple namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
-## Subscription modes
+## Subscriptions
 
-A subscription is a named configuration rule that determines how messages are delivered to consumers. There are three available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), and [failover](#failover). These modes are illustrated in the figure below.
+A subscription is a named configuration rule that determines how messages are delivered to consumers. There are four available subscription modes in Pulsar: [exclusive](#exclusive), [shared](#shared), [failover](#failover), and [key_shared](#key_shared). These modes are illustrated in the figure below.
 
 ![Subscription modes](assets/pulsar-subscription-modes.png)
+
+> #### Pub-Sub, Queuing, or Both
+> There is a lot of flexibility in how to combine subscriptions:
+> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, you can make each consumer have a unique subscription name (exclusive)
+> * If you want to achieve "message queuing" among consumers, you can make multiple consumers have the same subscription name (shared, failover, key_shared)
+> * If you want to do both simultaneously, you can have some consumers with exclusive subscriptions while others do not
 
 ### Exclusive
 
@@ -182,11 +201,11 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the *master consumer*.
+In *failover* mode, multiple consumers can attach to the same subscription. In failover mode, the broker selects the master consumer based on the priority level and the lexicographical sorting of a consumer name. If two consumers have an identical priority level, the broker selects the master consumer based on the lexicographical sorting. If these two consumers have different priority levels, the broker selects the consumer with a higher priority level as the master consumer. The master consumer is initially the only one receiving messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
+For partitioned topics, the broker assigns partitioned topics to the consumer with the highest priority level. If multiple consumers have the highest priority level, the broker evenly assigns topics to consumers with these consumers.
 
-In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next in line to receive messages if **Consumer-B-0** disconnected.
+In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 
@@ -197,7 +216,7 @@ In *shared* or *round robin* mode, multiple consumers can attach to the same sub
 In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
 
 > #### Limitations of shared mode
-> There are two important things to be aware of when using shared mode:
+> When using shared mode, be aware that:
 > * Message ordering is not guaranteed.
 > * You cannot use cumulative acknowledgment with shared mode.
 
@@ -208,13 +227,13 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 In *Key_Shared* mode, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
 
 > #### Limitations of Key_Shared mode
-> There are two important things to be aware of when using Key_Shared mode:
+> When using Key_Shared mode, be aware that:
 > * You need to specify a key or orderingKey for messages
 > * You cannot use cumulative acknowledgment with Key_Shared mode.
 
 ![Key_Shared subscriptions](assets/pulsar-key-shared-subscriptions.png)
 
-**Key_Shared subscription is a beta feature. You can disable it at broker.config.**
+**You can disable Key_Shared subscription in the `broker.config` file.**
 
 ## Multi-topic subscriptions
 
@@ -227,8 +246,8 @@ When a consumer subscribes to a Pulsar topic, by default it subscribes to one sp
 
 When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.
 
-> #### No ordering guarantees
-> When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature.
+> #### No ordering guarantees across multiple topics
+> When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
 
 Here are some multi-topic subscription examples for Java:
 
@@ -271,7 +290,7 @@ The diagram below illustrates this:
 
 Here, the topic **Topic1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
-Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines both which broker handles each partition, while the [subscription mode](#subscription-modes) determines which messages go to which consumers.
+Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines each message should be published to which partition, while the [subscription mode](#subscription-modes) determines which messages go to which consumers.
 
 Decisions about routing and subscription modes can be made separately in most cases. In general, throughput concerns should guide partitioning/routing decisions while subscription decisions should be guided by application semantics.
 

@@ -101,6 +101,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -183,6 +184,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -268,6 +270,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -397,6 +400,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -558,6 +562,7 @@ public class FunctionRuntimeManagerTest {
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readerName(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
@@ -574,6 +579,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -632,7 +638,7 @@ public class FunctionRuntimeManagerTest {
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
-                kubernetesRuntimeFactory, null, null, null));
+                kubernetesRuntimeFactory, null, null, null, null));
 
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
@@ -641,6 +647,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
 
@@ -744,6 +751,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -767,6 +775,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -790,6 +799,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             fail();
@@ -813,6 +823,7 @@ public class FunctionRuntimeManagerTest {
                     mock(Namespace.class),
                     mock(MembershipManager.class),
                     mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
                     mock(FunctionMetaDataManager.class));
 
             assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
@@ -841,6 +852,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), KubernetesRuntimeFactory.class);
@@ -868,6 +880,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ProcessRuntimeFactory.class);
@@ -891,6 +904,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class));
 
         assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);

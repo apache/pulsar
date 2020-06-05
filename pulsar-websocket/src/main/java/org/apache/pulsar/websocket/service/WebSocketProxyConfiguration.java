@@ -66,6 +66,8 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
     // Hostname or IP address the service binds on, default is 0.0.0.0.
     private String bindAddress;
+    // The maximum size of a text message during parsing in WebSocket proxy
+    private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
     // Enable authentication
     private boolean authenticationEnabled;
@@ -230,6 +232,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setBindAddress(String bindAddress) {
         this.bindAddress = bindAddress;
+    }
+
+    public int getWebSocketMaxTextFrameSize() {
+        return webSocketMaxTextFrameSize;
+    }
+
+    public void setWebSocketMaxTextFrameSize(int webSocketMaxTextFrameSize) {
+        this.webSocketMaxTextFrameSize = webSocketMaxTextFrameSize;
     }
 
     public boolean isAuthenticationEnabled() {

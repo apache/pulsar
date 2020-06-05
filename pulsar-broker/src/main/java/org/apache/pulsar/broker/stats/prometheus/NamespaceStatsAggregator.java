@@ -136,8 +136,6 @@ public class NamespaceStatsAggregator {
             subsStats.msgBacklog = subscriptionStats.msgBacklog;
             subsStats.msgDelayed = subscriptionStats.msgDelayed;
             subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
-            stats.rateOut += subsStats.msgRateOut;
-            stats.throughputOut += subsStats.msgThroughputOut;
             subscriptionStats.consumers.forEach(cStats -> {
                 stats.consumersCount++;
                 subsStats.unackedMessages += cStats.unackedMessages;
@@ -150,6 +148,8 @@ public class NamespaceStatsAggregator {
                     subsStats.blockedSubscriptionOnUnackedMsgs = true;
                 }
             });
+            stats.rateOut += subsStats.msgRateOut;
+            stats.throughputOut += subsStats.msgThroughputOut;
         });
 
         // Consumer stats can be a lot if a subscription has many consumers
