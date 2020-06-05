@@ -110,8 +110,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             try {
                 assignment = Assignment.parseFrom(msg.getData());
             } catch (IOException e) {
-                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
-                  e);
+                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(), e);
                 throw new RuntimeException(e);
             }
             log.info("Received assignment update: {}", assignment);
