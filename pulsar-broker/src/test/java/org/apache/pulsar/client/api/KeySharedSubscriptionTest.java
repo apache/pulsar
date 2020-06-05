@@ -41,7 +41,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -389,6 +392,74 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     fail("should have failed");
                 } catch (PulsarClientException.InvalidConfigurationException ignore) {}
             }
+        }
+    }
+
+    @Test(dataProvider = "batch")
+    public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
+
+        String slowKey = "slowKey";
+
+        List<PulsarClient> clients = new ArrayList<>();
+
+        AtomicInteger receivedMessages = new AtomicInteger();
+
+        for (int i = 0; i < 10; i++) {
+            PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(brokerUrl.toString())
+                    .build();
+            clients.add(client);
+
+            client.newConsumer(Schema.INT32)
+                    .topic(topic)
+                    .subscriptionName("key_shared")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .receiverQueueSize(1)
+                    .messageListener((consumer, msg) -> {
+                        try {
+                            if (slowKey.equals(msg.getKey())) {
+                                // Block the thread to simulate a slow consumer
+                                Thread.sleep(10000);
+                            }
+
+                            receivedMessages.incrementAndGet();
+                            consumer.acknowledge(msg);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .subscribe();
+        }
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        // First send the "slow key" so that 1 consumer will get stuck
+        producer.newMessage()
+                .key(slowKey)
+                .value(-1)
+                .send();
+
+        int N = 1000;
+
+        // Then send all the other keys
+        for (int i = 0; i < N; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
+        // plus or minus for some skew in the key distribution.
+        Thread.sleep(5000);
+
+        assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+
+        for (PulsarClient c : clients) {
+            c.close();
         }
     }
 

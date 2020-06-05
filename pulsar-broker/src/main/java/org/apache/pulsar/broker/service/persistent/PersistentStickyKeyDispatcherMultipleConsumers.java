@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import io.netty.util.concurrent.FastThreadLocal;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
@@ -37,6 +39,7 @@ import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers.ReadType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +47,8 @@ import org.slf4j.LoggerFactory;
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
 
     private final StickyKeyConsumerSelector selector;
+
+    private boolean isDispatcherStuckOnReplays = false;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
            Subscription subscription, StickyKeyConsumerSelector selector) {
@@ -158,6 +163,30 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (dispatchRateLimiter.isPresent()) {
                 dispatchRateLimiter.get().tryDispatchPermit(totalMessagesSent, totalBytesSent);
             }
+        }
+
+        if (totalMessagesSent == 0) {
+            // This means, that all the messages we've just read cannot be dispatched right now.
+            // This condition can only happen when:
+            //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)
+            //  2. All keys in the current set of messages are routing to consumers that are currently busy
+            //
+            // The solution here is to move on and read next batch of messages which might hopefully contain
+            // also keys meant for other consumers.
+            isDispatcherStuckOnReplays = true;
+            readMoreEntries();
+        }
+    }
+
+    protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+        if (isDispatcherStuckOnReplays) {
+            // If we're stuck on replay, we want to move forward reading on the topic (until the overall max-unacked
+            // messages kicks in), instead of keep replaying the same old messages, since the consumer that these
+            // messages are routing to might be busy at the moment
+            this.isDispatcherStuckOnReplays = false;
+            return Collections.emptySet();
+        } else {
+            return super.getMessagesToReplayNow(maxMessagesToRead);
         }
     }
 
