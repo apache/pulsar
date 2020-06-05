@@ -82,12 +82,6 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     public void close() {
         log.info("Stopping function assignment tailer");
         try {
-            if (!isRunning) {
-                if (reader != null) {
-                    reader.close();
-                }
-                return;
-            }
             isRunning = false;
             if (tailerThread != null && tailerThread.isAlive()) {
                 tailerThread.interrupt();
