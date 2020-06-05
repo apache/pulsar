@@ -140,11 +140,6 @@ public class ZooKeeperSessionWatcherTest {
                     this.watcher = watcher;
                 }
             });
-    }
-  
-    @Test
-    public void testRun1() throws Exception {
-        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 1000, shutdownService);
         sessionWatcherZkNull.run();
         assertFalse(sessionWatcherZkNull.isShutdownStarted());
         assertEquals(sessionWatcherZkNull.getKeeperState(), KeeperState.Disconnected);
@@ -169,11 +164,6 @@ public class ZooKeeperSessionWatcherTest {
                     this.watcher = watcher;
                 }
             });
-    }
-
-    @Test
-    public void testRun2() throws Exception {
-        ZooKeeperSessionWatcher sessionWatcherZkNull = new ZooKeeperSessionWatcher(null, 0, shutdownService);
         sessionWatcherZkNull.run();
         assertTrue(sessionWatcherZkNull.isShutdownStarted());
         assertEquals(sessionWatcherZkNull.getKeeperState(), KeeperState.Disconnected);
