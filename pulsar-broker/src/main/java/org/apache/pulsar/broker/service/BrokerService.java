@@ -1919,7 +1919,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName topicName) {
         if(pulsar.getNamespaceService() == null){
-            return CompletableFuture.completedFuture(null);
+            return FutureUtil.failedFuture(new NullPointerException("namespaceService is null"));
         }
         return pulsar.getNamespaceService().checkTopicExists(topicName)
                 .thenCompose(topicExists -> {
