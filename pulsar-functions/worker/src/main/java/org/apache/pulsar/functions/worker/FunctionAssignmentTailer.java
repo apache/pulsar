@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -36,7 +35,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private final FunctionRuntimeManager functionRuntimeManager;
     @Getter
     private final Reader<byte[]> reader;
-    private volatile boolean running = false;
+    private volatile boolean isRunning = false;
 
     private final Thread tailerThread;
     
@@ -54,12 +53,12 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         this.tailerThread = new Thread(() -> {
             while(true) {
                 try {
-                    while(running) {
+                    while(isRunning) {
                         Message<byte[]> msg = reader.readNext();
                         processAssignment(msg);
                     }
                 } catch (Exception e) {
-                    if (running) {
+                    if (isRunning) {
                         log.error("Encountered error in assignment tailer", e);
 
                         // trigger fatal error
@@ -77,18 +76,18 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     }
 
     public void start() {
-        running = true;
+        isRunning = true;
         tailerThread.start();
     }
 
     @Override
     public void close() {
-        if (!running) {
+        if (!isRunning) {
             return;
         }
         log.info("Stopping function assignment tailer");
         try {
-            running = false;
+            isRunning = false;
             if (tailerThread != null && tailerThread.isAlive()) {
                 tailerThread.interrupt();
             }
