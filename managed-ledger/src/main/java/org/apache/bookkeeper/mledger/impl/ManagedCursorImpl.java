@@ -722,7 +722,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // If the managed ledger was indeed terminated, we need to notify the cursor
                     callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
                 }
-            }), 10, TimeUnit.MILLISECONDS);
+            }), config.getNewEntriesCheckDelayInMillis(), TimeUnit.MILLISECONDS);
         }
     }
 

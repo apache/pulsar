@@ -63,7 +63,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
     }
 
-    public Consumer select(int hash) {
+    Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);

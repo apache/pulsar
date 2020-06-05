@@ -62,8 +62,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class WebSocketService implements Closeable {
 
-    public static final int MaxTextFrameSize = 1024 * 1024;
-
     AuthenticationService authenticationService;
     AuthorizationService authorizationService;
     PulsarClient pulsarClient;
