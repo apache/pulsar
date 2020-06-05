@@ -644,9 +644,9 @@ The following Go Function example shows different log levels based on the functi
 
 ```
 import (
-	"context"
+    "context"
 
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+    "github.com/apache/pulsar/pulsar-function-go/pf"
 
     log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
