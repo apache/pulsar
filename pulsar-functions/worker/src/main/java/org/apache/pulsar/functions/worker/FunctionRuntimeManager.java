@@ -239,7 +239,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
-        log.info("Starting function assignment tailer...");
         this.functionAssignmentTailer.start();
     }
 

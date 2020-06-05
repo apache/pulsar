@@ -66,7 +66,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                         // TODO add mechanism to notify main thread
                     } else {
                         if (!(e instanceof InterruptedException)) {
-                            log.warn("Encountered error in when assignment tailer is not running", e);
+                            log.warn("Encountered error when assignment tailer is not running", e);
                         }
                     }
 
