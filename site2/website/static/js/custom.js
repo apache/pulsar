@@ -1,38 +1,13 @@
 // Turn off ESLint for this file because it's sent down to users as-is.
 /* eslint-disable */
-window.addEventListener('load', function () {
 
-    // setup apache menu items in nav bar
-    /*const community = document.querySelector("a[href='#community']").parentNode;
-    const communityMenu =
-      '<li>' +
-      '<a id="community-menu" href="#">Community</a>' +
-      '<div id="community-dropdown" class="hide">' +
-        '<ul id="community-dropdown-items">' +
-          '<li><a href="/contact">Contant</a></li>' +
-          '<li><a href="/events">Events</a></li>' +
-          '<li><a href="https://twitter.com/Apache_Pulsar">Twitter</a></li>' +
-          '<li><a href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a></li>' +
-          '<li><a href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a></li>' +
-          '<li><a href="/resources">Resources</a></li>' +
-          '<li><a href="/team">Team</a></li>' +
-        '</ul>' +
-      '</div>' +
-      '</li>';
-  
-    community.innerHTML = communityMenu;
-  
-    const communityMenuItem = document.getElementById("community-menu");
-    const communityDropDown = document.getElementById("community-dropdown");
-    communityMenuItem.addEventListener("click", function(event) {
-      event.preventDefault();
-  
-      if (communityDropDown.className == 'hide') {
-        communityDropDown.className = 'visible';
-      } else {
-        communityDropDown.className = 'hide';
-      }
-    });*/
+window.addEventListener('load', function () {
+    let restApiVersions = null;
+    var url = "../swagger/restApiVersions.json";
+    var request = new XMLHttpRequest();
+    request.open("get", url, false);
+    request.send(null);
+    restApiVersions = JSON.parse(request.responseText);
 
     // setup apache menu items in nav bar
     const apache = document.querySelector("a[href='#apache']").parentNode;
@@ -78,10 +53,10 @@ window.addEventListener('load', function () {
         '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="restapis-dropdown" class="hide">' +
         '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=v1">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=v1">Functions </a></li>' +
-        '<li><a href="/source-rest-api?version=' + version + '&apiversion=v1">Sources </a></li>' +
-        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=v1">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '&apiversion=">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=">Sinks </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -171,26 +146,54 @@ window.addEventListener('load', function () {
     });
 
     // setup input of api version
-    const wrapperDiv = document.querySelectorAll('.wrapper')[1];
-    versionMenu = `<select name="apiVersion" class="version_select">
-                        <option value="v1">v1</option>
-                        <option value="v2">v2</option>
-                        <option value="v3">v3</option>
-                    </select>`;
-
     let pathName = window.location.pathname;
+    let apiVersionList = [];
+    restApiVersions[version].forEach(ele => {
+        let hasRestApi = ele.hasFileName.find(h => h == 'swagger');
+        let hasFunctions = ele.hasFileName.find(h => h == 'swaggerfunctions');
+        let hasSink = ele.hasFileName.find(h => h == 'swaggersink');
+        let hasSource = ele.hasFileName.find(h => h == 'swaggersource');
+
+        if ( pathName === '/admin-rest-api' && hasRestApi ) {
+            apiVersionList.push(ele);
+        }
+        if ( pathName === '/functions-rest-api' && hasFunctions ) {
+            apiVersionList.push(ele);
+        }
+        if ( pathName === '/sink-rest-api' && hasSink ) {
+            apiVersionList.push(ele);
+        }
+        if ( pathName === '/source-rest-api' && hasSource ) {
+            apiVersionList.push(ele);
+        }
+    });
+    
+
+    const wrapperDiv = document.querySelectorAll('.wrapper')[1];
+    
     if (pathName === '/admin-rest-api'
         || pathName === '/functions-rest-api'
         || pathName === '/source-rest-api'
         || pathName === '/sink-rest-api') {
-        wrapperDiv.innerHTML = versionMenu;
+        wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select" id="version_select">
+                                    ${apiVersionList.map(v => `<option value="${v.vesion}">${v.vesion}</option>`).join("")}
+                                </select>`;
+        // wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select">
+        //                             <option></option>
+        //                         </select>`;
+
     } else {
         return;
     }
 
 
     const versionSelect = document.querySelectorAll('.version_select')[0];
-    let aversion = window.location.search.split('&')[1].split('=')[1];
+    let aversion = '';
+    if (!window.location.search.split('&')[1]) {
+        aversion = apiVersionList[0];
+    } else {
+        aversion = window.location.search.split('&')[1].split('=')[1];
+    }
     let versionOption = versionSelect.querySelectorAll('option');
     versionOption.forEach(ele => {
         if (ele.value == aversion) {
@@ -211,3 +214,14 @@ window.addEventListener('load', function () {
     })
 
 });
+
+function getSwagger(callback) {
+    var url = "../swagger/restApiVersions.json";/*json文件url*/
+    var request = new XMLHttpRequest();
+    request.open("get", url);/*设置请求方法与路径*/
+    request.send(null);/*不发送数据到服务器*/
+    request.onload = function (callback) {/*XHR对象获取到返回信息后执行*/
+        if (request.status != 200) return;
+        callback(JSON.parse(request.responseText));
+    }
+}
