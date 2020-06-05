@@ -63,6 +63,9 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
+    // When set to false, this inactive topic can not be deleted
+    protected boolean deleteWhileInactive;
+
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
 
@@ -95,6 +98,8 @@ public abstract class AbstractTopic implements Topic {
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
+        this.deleteWhileInactive =
+                brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled();
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -458,6 +463,14 @@ public abstract class AbstractTopic implements Topic {
 
     public long getBytesOutCounter() {
         return getStats(false).bytesOutCounter;
+    }
+
+    public boolean isDeleteWhileInactive() {
+        return deleteWhileInactive;
+    }
+
+    public void setDeleteWhileInactive(boolean deleteWhileInactive) {
+        this.deleteWhileInactive = deleteWhileInactive;
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);

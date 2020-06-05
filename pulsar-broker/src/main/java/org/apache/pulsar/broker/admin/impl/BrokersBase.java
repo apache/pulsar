@@ -67,7 +67,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-
+/**
+ * Broker admin base.
+ */
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;

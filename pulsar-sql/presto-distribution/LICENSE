@@ -278,6 +278,7 @@ The Apache Software License, Version 2.0
     - cglib-nodep-3.2.5.jar
   * Airlift
     - aircompressor-0.11.jar
+    - aircompressor-0.16.jar
     - airline-0.8.jar
     - bootstrap-0.170.jar
     - bootstrap-0.171.jar
@@ -385,8 +386,6 @@ The Apache Software License, Version 2.0
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
     - snakeyaml-1.17.jar
-  * Snappy Java
-    - snappy-java-1.1.1.3.jar
   * Bean Validation API
     - validation-api-1.1.0.Final.jar
   * Objectsize
@@ -400,8 +399,6 @@ The Apache Software License, Version 2.0
     - simpleclient_common-0.5.0.jar
     - simpleclient_hotspot-0.5.0.jar
     - simpleclient_servlet-0.5.0.jar
-  * LZ4
-    - lz4-java-1.5.0.jar
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
@@ -476,8 +473,6 @@ BSD License
     - asm-util-6.0.jar
  * JLine
    - jline-2.14.6.jar
- * Zstd-jni
-   - zstd-jni-1.3.7-3.jar
 
 MIT License
  * Animal Sniffer Annotations
