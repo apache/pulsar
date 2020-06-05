@@ -601,6 +601,21 @@ public class PersistentTopics extends PersistentTopicsBase {
         return internalTerminate(authoritative);
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/{topic}/terminate/partitions")
+    @ApiOperation(hidden = true, value = "Terminate all partitioned topic. A topic that is terminated will not accept any more "
+            + "messages to be published and will let consumer to drain existing messages in backlog")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Operation not allowed on non-persistent topic"),
+            @ApiResponse(code = 404, message = "Topic does not exist") })
+    public void terminatePartitionedTopic(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalTerminatePartitionedTopic(asyncResponse, authoritative);
+    }
+
     @PUT
     @Path("/{property}/{cluster}/{namespace}/{topic}/compaction")
     @ApiOperation(value = "Trigger a compaction operation on a topic.")

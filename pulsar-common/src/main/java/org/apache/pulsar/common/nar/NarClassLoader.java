@@ -139,12 +139,12 @@ public class NarClassLoader extends URLClassLoader {
 
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
                                                 String narExtractionDirectory) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        try {
-            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader());
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IOException(e);
-        }
+        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
+                                                NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    }
+
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
+        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
     }
 
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,

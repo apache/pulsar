@@ -316,7 +316,7 @@ public class PulsarClientImpl implements PulsarClient {
                 || (conf.getSubscriptionType() != SubscriptionType.Exclusive
                         && conf.getSubscriptionType() != SubscriptionType.Failover))) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Read compacted can only be used with exclusive of failover persistent subscriptions"));
+                    "Read compacted can only be used with exclusive or failover persistent subscriptions"));
         }
 
         if (conf.getConsumerEventListener() != null && conf.getSubscriptionType() != SubscriptionType.Failover) {

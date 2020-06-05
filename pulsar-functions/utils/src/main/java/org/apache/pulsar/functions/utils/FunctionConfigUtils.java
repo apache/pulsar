@@ -54,6 +54,8 @@ public class FunctionConfigUtils {
 	
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
+        
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
@@ -247,6 +249,11 @@ public class FunctionConfigUtils {
 
         if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
             functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
+        }
+
+        if (isBuiltin) {
+            String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
+            functionDetailsBuilder.setBuiltin(builtin);
         }
 
         return functionDetailsBuilder.build();
@@ -596,12 +603,6 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
-        if (!isEmpty(functionConfig.getJar()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
-                && functionConfig.getJar().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getJar()).exists()) {
-                throw new IllegalArgumentException("The supplied jar file does not exist");
-            }
-        }
         if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getPy()).exists()) {
@@ -696,6 +697,10 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
+        }
+
+        if (!StringUtils.isEmpty(newConfig.getJar())) {
+            mergedConfig.setJar(newConfig.getJar());
         }
 
         if (newConfig.getInputSpecs() == null) {
