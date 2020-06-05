@@ -8,6 +8,8 @@ var searchData=
   ['send',['send',['../classpulsar_1_1_producer.html#ad4737186cf798acfb24a167796259443',1,'pulsar::Producer']]],
   ['sendasync',['sendAsync',['../classpulsar_1_1_producer.html#a7b31f92eb0362bdff32316fc9ab70fd7',1,'pulsar::Producer']]],
   ['serialize',['serialize',['../classpulsar_1_1_message_id.html#a665b97923d70670a87361038e5ec3fe6',1,'pulsar::MessageId']]],
+  ['setackgroupingmaxsize',['setAckGroupingMaxSize',['../classpulsar_1_1_consumer_configuration.html#a593295c1aa0cd77c32a6cfdee80cd452',1,'pulsar::ConsumerConfiguration']]],
+  ['setackgroupingtimems',['setAckGroupingTimeMs',['../classpulsar_1_1_consumer_configuration.html#af3f26276c9027a78b9e3243a3e2e38bb',1,'pulsar::ConsumerConfiguration']]],
   ['setallocatedcontent',['setAllocatedContent',['../classpulsar_1_1_message_builder.html#ae991bf6b34952c2ee0fee1c756b269cf',1,'pulsar::MessageBuilder']]],
   ['setauth',['setAuth',['../classpulsar_1_1_client_configuration.html#a16a85a3a43b649d3e45b4e998695b723',1,'pulsar::ClientConfiguration']]],
   ['setbrokerconsumerstatscachetimeinms',['setBrokerConsumerStatsCacheTimeInMs',['../classpulsar_1_1_consumer_configuration.html#a453a6af922fea7c45d56264d57925507',1,'pulsar::ConsumerConfiguration']]],

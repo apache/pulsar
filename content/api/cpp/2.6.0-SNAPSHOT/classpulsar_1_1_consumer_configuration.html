@@ -155,6 +155,14 @@ long&#160;</td><td class="memItemRight" valign="bottom"><b>getTickDurationInMs</
 <tr class="separator:aef99f71cd13324351864dd1e376d8788"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a95033f005edf9b42fde4c276f3de4ee4"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a95033f005edf9b42fde4c276f3de4ee4">getNegativeAckRedeliveryDelayMs</a> () const </td></tr>
 <tr class="separator:a95033f005edf9b42fde4c276f3de4ee4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:af3f26276c9027a78b9e3243a3e2e38bb"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#af3f26276c9027a78b9e3243a3e2e38bb">setAckGroupingTimeMs</a> (long ackGroupingMillis)</td></tr>
+<tr class="separator:af3f26276c9027a78b9e3243a3e2e38bb"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a11f10805e23f3d86fb6533ffacb2d292"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a11f10805e23f3d86fb6533ffacb2d292">getAckGroupingTimeMs</a> () const </td></tr>
+<tr class="separator:a11f10805e23f3d86fb6533ffacb2d292"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a593295c1aa0cd77c32a6cfdee80cd452"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a593295c1aa0cd77c32a6cfdee80cd452">setAckGroupingMaxSize</a> (long maxGroupingSize)</td></tr>
+<tr class="separator:a593295c1aa0cd77c32a6cfdee80cd452"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3beadfaddac3776199f8f449db523243"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a3beadfaddac3776199f8f449db523243">getAckGroupingMaxSize</a> () const </td></tr>
+<tr class="separator:a3beadfaddac3776199f8f449db523243"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a453a6af922fea7c45d56264d57925507"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a453a6af922fea7c45d56264d57925507">setBrokerConsumerStatsCacheTimeInMs</a> (const long cacheTimeInMs)</td></tr>
 <tr class="separator:a453a6af922fea7c45d56264d57925507"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a8dbae5f4af0e2bd078419096c9cdd8e6"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a8dbae5f4af0e2bd078419096c9cdd8e6">getBrokerConsumerStatsCacheTimeInMs</a> () const </td></tr>
@@ -224,6 +232,40 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>Create a new instance of <a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a> with the same initial settings as the current one. </p>
+
+</div>
+</div>
+<a class="anchor" id="a3beadfaddac3776199f8f449db523243"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long pulsar::ConsumerConfiguration::getAckGroupingMaxSize </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get max number of grouped messages within one grouping time window.</p>
+<dl class="section return"><dt>Returns</dt><dd>max number of grouped messages within one grouping time window. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a11f10805e23f3d86fb6533ffacb2d292"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long pulsar::ConsumerConfiguration::getAckGroupingTimeMs </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Get grouping time window in milliseconds.</p>
+<dl class="section return"><dt>Returns</dt><dd>grouping time window in milliseconds. </dd></dl>
 
 </div>
 </div>
@@ -371,6 +413,52 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <dl class="section return"><dt>Returns</dt><dd>true if the message has the specified property </dd>
 <dd>
 false if the property is not defined </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a593295c1aa0cd77c32a6cfdee80cd452"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ConsumerConfiguration::setAckGroupingMaxSize </td>
+          <td>(</td>
+          <td class="paramtype">long&#160;</td>
+          <td class="paramname"><em>maxGroupingSize</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set max number of grouped messages within one grouping time window. If it's set to a non-positive value, number of grouped messages is not limited. Default is 1000.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">maxGroupingSize</td><td>max number of grouped messages with in one grouping time window. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="af3f26276c9027a78b9e3243a3e2e38bb"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ConsumerConfiguration::setAckGroupingTimeMs </td>
+          <td>(</td>
+          <td class="paramtype">long&#160;</td>
+          <td class="paramname"><em>ackGroupingMillis</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set time window in milliseconds for grouping message ACK requests. An ACK request is not sent to broker until the time window reaches its end, or the number of grouped messages reaches limit. Default is 100 milliseconds. If it's set to a non-positive value, ACK requests will be directly sent to broker without grouping.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">ackGroupMillis</td><td>time of ACK grouping window in milliseconds. </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
