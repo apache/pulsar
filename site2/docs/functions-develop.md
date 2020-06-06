@@ -644,10 +644,11 @@ The following Go Function example shows different log levels based on the functi
 
 ```
 import (
-	"context"
+    "context"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+    "github.com/apache/pulsar/pulsar-function-go/pf"
+
+    log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
 func loggerFunc(ctx context.Context, input []byte) {
@@ -663,7 +664,7 @@ func main() {
 }
 ```
 
-When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/log`, and you do not have to use the `getLogger()` context object. 
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object. 
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
