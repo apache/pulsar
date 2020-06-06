@@ -20,7 +20,6 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
-#include "PulsarApi.pb.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
 #include "Utils.h"
@@ -342,6 +341,20 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
         ack->set_validation_error((CommandAck_ValidationError)validationError);
     }
     *(ack->add_message_id()) = messageId;
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newMultiMessageAck(uint64_t consumerId, const std::set<MessageId>& msgIds) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::ACK);
+    CommandAck* ack = cmd.mutable_ack();
+    ack->set_consumer_id(consumerId);
+    ack->set_ack_type(CommandAck_AckType_Individual);
+    for (const auto& msgId : msgIds) {
+        auto newMsgId = ack->add_message_id();
+        newMsgId->set_ledgerid(msgId.ledgerId());
+        newMsgId->set_entryid(msgId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 
@@ -687,5 +700,17 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     return singleMessage;
 }
+
+bool Commands::peerSupportsGetLastMessageId(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsActiveConsumerListener(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsMultiMessageAcknowledgement(int32_t peerVersion) {
+    return peerVersion >= proto::v12;
+}
+
+bool Commands::peerSupportsJsonSchemaAvroFormat(int32_t peerVersion) { return peerVersion >= proto::v13; }
+
+bool Commands::peerSupportsGetOrCreateSchema(int32_t peerVersion) { return peerVersion >= proto::v15; }
 }  // namespace pulsar
 /* namespace pulsar */

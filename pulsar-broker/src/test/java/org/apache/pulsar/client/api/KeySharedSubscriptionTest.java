@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -596,6 +597,62 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // We need to ensure that dispatcher does not keep to look ahead in the topic,
         PositionImpl readPosition = (PositionImpl) sub.getCursor().getReadPosition();
         assertTrue(readPosition.getEntryId() < 1000);
+    }
+
+    @Test
+    public void testRemoveFirstConsumer() throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .consumerName("c1")
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .consumerName("c2")
+                .subscribe();
+
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
+        assertNull(c2.receive(100, TimeUnit.MILLISECONDS));
+
+        c1.close();
+
+        // Now C2 will get all messages
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = c2.receive();
+            assertEquals(msg.getValue().intValue(), i);
+            c2.acknowledge(msg);
+        }
     }
 
     private Producer<Integer> createProducer(String topic, boolean enableBatch) throws PulsarClientException {
