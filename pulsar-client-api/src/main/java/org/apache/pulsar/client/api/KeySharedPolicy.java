@@ -29,6 +29,8 @@ public abstract class KeySharedPolicy {
 
     protected KeySharedMode keySharedMode;
 
+    protected boolean allowOutOfOrderDelivery = false;
+
     public static final int DEFAULT_HASH_RANGE_SIZE = 2 << 15;
 
     public static KeySharedPolicyAutoSplit autoSplitHashRange() {
@@ -40,6 +42,25 @@ public abstract class KeySharedPolicy {
     }
 
     public abstract void validate();
+
+    /**
+     * If enabled, it will relax the ordering requirement, allowing the broker to send out-of-order messages in case of
+     * failures. This will make it faster for new consumers to join without being stalled by an existing slow consumer.
+     *
+     * <p>In this case, a single consumer will still receive all the keys, but they may be coming in different orders.
+     *
+     * @param allowOutOfOrderDelivery
+     *            whether to allow for out of order delivery
+     * @return KeySharedPolicy instance
+     */
+    public KeySharedPolicy setAllowOutOfOrderDelivery(boolean allowOutOfOrderDelivery) {
+        this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
+        return this;
+    }
+
+    public boolean isAllowOutOfOrderDelivery() {
+        return allowOutOfOrderDelivery;
+    }
 
     public KeySharedMode getKeySharedMode() {
         return this.keySharedMode;
