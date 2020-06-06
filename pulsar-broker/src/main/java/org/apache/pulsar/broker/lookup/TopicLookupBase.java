@@ -92,7 +92,7 @@ public class TopicLookupBase extends PulsarWebResource {
             LookupResult result = optionalResult.get();
             // We have found either a broker that owns the topic, or a broker to which we should redirect the client to
             if (result.isRedirect()) {
-                boolean newAuthoritative = this.isLeaderBroker();
+                boolean newAuthoritative = result.isAuthoritativeRedirect();
                 URI redirect;
                 try {
                     String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
@@ -266,7 +266,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
                             LookupData lookupData = lookupResult.get().getLookupData();
                             if (lookupResult.get().isRedirect()) {
-                                boolean newAuthoritative = isLeaderBroker(pulsarService);
+                                boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));

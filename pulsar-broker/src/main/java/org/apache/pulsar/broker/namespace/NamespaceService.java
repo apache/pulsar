@@ -426,6 +426,8 @@ public class NamespaceService {
                                           CompletableFuture<Optional<LookupResult>> lookupFuture, boolean authoritative,
                                           final String advertisedListenerName) {
         String candidateBroker = null;
+        boolean authoritativeRedirect = pulsar.getLeaderElectionService().isLeader();
+
         try {
             // check if this is Heartbeat or SLAMonitor namespace
             candidateBroker = checkHeartbeatNamespace(bundle);
@@ -438,7 +440,10 @@ public class NamespaceService {
             }
 
             if (candidateBroker == null) {
-                if (!this.loadManager.get().isCentralized()
+                if (authoritative) {
+                    // leader broker already assigned the current broker as owner
+                    candidateBroker = pulsar.getSafeWebServiceAddress();
+                } else if (!this.loadManager.get().isCentralized()
                         || pulsar.getLeaderElectionService().isLeader()
 
                         // If leader is not active, fallback to pick the least loaded from current broker loadmanager
@@ -450,14 +455,10 @@ public class NamespaceService {
                         return;
                     }
                     candidateBroker = availableBroker.get();
+                    authoritativeRedirect = true;
                 } else {
-                    if (authoritative) {
-                        // leader broker already assigned the current broker as owner
-                        candidateBroker = pulsar.getSafeWebServiceAddress();
-                    } else {
-                        // forward to leader broker to make assignment
-                        candidateBroker = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
-                    }
+                    // forward to leader broker to make assignment
+                    candidateBroker = pulsar.getLeaderElectionService().getCurrentLeader().getServiceUrl();
                 }
             }
         } catch (Exception e) {
@@ -519,7 +520,7 @@ public class NamespaceService {
                 }
 
                 // Now setting the redirect url
-                createLookupResult(candidateBroker)
+                createLookupResult(candidateBroker, authoritativeRedirect)
                         .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
@@ -533,7 +534,8 @@ public class NamespaceService {
         }
     }
 
-    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker) throws Exception {
+    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect)
+            throws Exception {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
         try {
@@ -546,7 +548,7 @@ public class NamespaceService {
                     ServiceLookupData lookupData = reportData.get();
                     lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
                             lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
-                            lookupData.getPulsarServiceUrlTls()));
+                            lookupData.getPulsarServiceUrlTls(), authoritativeRedirect));
                 } else {
                     lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
                 }
