@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.base.Preconditions;
+
 import io.netty.util.concurrent.FastThreadLocal;
 
 import java.util.ArrayList;
@@ -63,7 +65,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     private final Map<Consumer, PositionImpl> recentlyJoinedConsumers;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-            Subscription subscription, KeySharedMeta ksm) {
+            Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription);
 
         this.allowOutOfOrderDelivery = ksm.getAllowOutOfOrderDelivery();
@@ -71,7 +73,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         switch (ksm.getKeySharedMode()) {
         case AUTO_SPLIT:
-            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
                 selector = new ConsistentHashingStickyKeyConsumerSelector(
                         conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
