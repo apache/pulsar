@@ -213,10 +213,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         log.info("/** Initializing Runtime Manager **/");
         try {
             this.functionAssignmentTailer = new FunctionAssignmentTailer(
-              this,
-              this.getWorkerService().getClient().newReader(),
-              this.workerConfig,
-              this.errorNotifier);
+                    this,
+                    this.getWorkerService().getClient().newReader(),
+                    this.workerConfig,
+                    this.errorNotifier);
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages
