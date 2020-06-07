@@ -118,6 +118,7 @@ public class FunctionConfigUtils {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(consumerConf.getReceiverQueueSize()).build());
                 }
+                bldr.setReadCompacted(consumerConf.isReadCompacted());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -278,6 +279,7 @@ public class FunctionConfigUtils {
             if (input.getValue().hasReceiverQueueSize()) {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
+            consumerConfig.setReadCompacted(input.getValue().getReadCompacted());
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }

@@ -37,4 +37,5 @@ public class ConsumerConfig {
     private String serdeClassName;
     private boolean isRegexPattern;
     private Integer receiverQueueSize;
+    private boolean readCompacted;
 }

@@ -685,6 +685,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
+                consumerConfig.setReadCompacted(conf.getReadCompacted());
                 pulsarSourceConfig.getTopicSchema().put(topic, consumerConfig);
             });
 

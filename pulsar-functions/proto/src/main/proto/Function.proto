@@ -94,6 +94,7 @@ message ConsumerSpec {
         int32 value = 1;
     }
     ReceiverQueueSize receiverQueueSize = 4;
+    bool readCompacted = 5;
 }
 
 message SourceSpec {

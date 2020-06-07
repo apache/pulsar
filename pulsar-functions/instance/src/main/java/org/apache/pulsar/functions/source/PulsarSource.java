@@ -86,6 +86,9 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (conf.getReceiverQueueSize() != null) {
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
             }
+            if (conf.readCompacted) {
+                cb = cb.readCompacted(true);
+            }
             cb = cb.properties(properties);
             if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
                     && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
@@ -94,7 +97,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
-
             if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
                 DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
                 deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
@@ -169,7 +171,11 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
             }
             configs.put(topic,
-                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
+                    ConsumerConfig.<T> builder().
+                            schema(schema).
+                            isRegexPattern(conf.isRegexPattern()).
+                            receiverQueueSize(conf.getReceiverQueueSize()).
+                            readCompacted(conf.isReadCompacted()).build());
         });
 
         return configs;
@@ -189,6 +195,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         private Schema<T> schema;
         private boolean isRegexPattern;
         private Integer receiverQueueSize;
+        private boolean readCompacted;
     }
 
 }

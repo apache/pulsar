@@ -233,6 +233,8 @@ public class CmdFunctions extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
         protected String customSchemaInputString;
+        @Parameter(names = "--input-specs", description = "Custom config for each topic (as a JSON string)")
+        protected String inputSpecs;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -367,6 +369,10 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
                 functionConfig.setCustomSchemaInputs(customschemaInputMap);
+            }
+            if (null != inputSpecs) {
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
