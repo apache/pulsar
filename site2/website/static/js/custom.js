@@ -46,7 +46,7 @@ window.addEventListener('load', function () {
         version = 'master'
     }
 
-    const adminApiVersion = ''
+    let adminApiVersion = ''
     if (restApiVersions[version][0]['fileName'].indexOf('swagger') == 0) {
         adminApiVersion = restApiVersions[version][0]['version']
     } else {
