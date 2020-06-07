@@ -39,15 +39,6 @@ function getSwaggerByVersion(){
     const wrapper = document.querySelector('.pageContainer .wrapper')
     const redoc = document.createElement('redoc');
 
-    let options = document.querySelector('#version_select').querySelectorAll('option');
-    let optionList = [];
-    options.forEach(ele => {
-        optionList.push(ele.value);
-    })
-    
-    if (!optionList.find(o => apiversion == o)) {
-        apiversion = optionList[0];
-    }
 
     if (pathName.indexOf('admin-rest-api') >= 0) {
         redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swagger.json')
