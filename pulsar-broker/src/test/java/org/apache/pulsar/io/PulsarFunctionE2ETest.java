@@ -574,6 +574,64 @@ public class PulsarFunctionE2ETest {
     }
 
     @Test(timeOut = 30000)
+    public void testReadCompactedSink() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic2";
+        final String sinkName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        final int messageNum = 20;
+        final int maxKeys = 10;
+        // 1 Setup producer
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(sourceTopic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        pulsarClient.newConsumer().topic(sourceTopic).subscriptionName(subscriptionName).readCompacted(true).subscribe().close();
+        // 2 Send messages and record the expected values after compaction
+        Map<String, String> expected = new HashMap<>();
+        for (int j = 0; j < messageNum; j++) {
+            String key = "key" + j % maxKeys;
+            String value = "my-message-" + key + j;
+            producer.newMessage().key(key).value(value).send();
+            //Duplicate keys will exist, the value of the new key will be retained
+            expected.put(key, value);
+        }
+        // 3 Trigger compaction
+        ScheduledExecutorService compactionScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
+        TwoPhaseCompactor twoPhaseCompactor = new TwoPhaseCompactor(config,
+                pulsarClient, pulsar.getBookKeeperClient(), compactionScheduler);
+        twoPhaseCompactor.compact(sourceTopic).get();
+
+        // 4 Setup sink
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().readCompacted(true).build()));
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
+
+        // 5 Sink should only read compacted value，so we will only receive compacted messages
+        retryStrategically((test) -> {
+            try {
+                String prometheusMetrics = getPrometheusMetrics(pulsar.getListenPortHTTP().get());
+                Map<String, Metric> metrics = parseMetrics(prometheusMetrics);
+                Metric m = metrics.get("pulsar_sink_received_total");
+                return m.value == (double) maxKeys;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 50, 1000);
+
+        compactionScheduler.shutdownNow();
+        producer.close();
+    }
+
+    @Test(timeOut = 30000)
     private void testPulsarSinkDLQ() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;

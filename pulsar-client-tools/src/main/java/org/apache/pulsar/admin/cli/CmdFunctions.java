@@ -49,6 +49,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -233,7 +234,7 @@ public class CmdFunctions extends CmdBase {
         protected String customSerdeInputString;
         @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
         protected String customSchemaInputString;
-        @Parameter(names = "--input-specs", description = "Custom config for each topic (as a JSON string)")
+        @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
         protected String inputSpecs;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
@@ -371,7 +372,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setCustomSchemaInputs(customschemaInputMap);
             }
             if (null != inputSpecs) {
-                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
             if (null != topicsPattern) {

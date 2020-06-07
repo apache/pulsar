@@ -86,9 +86,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (conf.getReceiverQueueSize() != null) {
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
             }
-            if (conf.readCompacted) {
-                cb = cb.readCompacted(true);
-            }
+            cb = cb.readCompacted(conf.readCompacted);
             cb = cb.properties(properties);
             if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
                     && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
