@@ -10159,10 +10159,10 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -10537,6 +10537,12 @@
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -10560,12 +10566,6 @@
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
         },
         "loadReportType" : {
           "type" : "string"
@@ -10740,13 +10740,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
@@ -11611,13 +11611,13 @@
             "type" : "string"
           }
         },
-        "clientVersion" : {
+        "producerName" : {
           "type" : "string"
         },
         "connectedSince" : {
           "type" : "string"
         },
-        "producerName" : {
+        "clientVersion" : {
           "type" : "string"
         },
         "address" : {
