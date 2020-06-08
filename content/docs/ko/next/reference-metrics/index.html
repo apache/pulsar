@@ -193,6 +193,7 @@
 </ul></li>
 <li><a href="#subscription-metrics">Subscription metrics</a></li>
 <li><a href="#consumer-metrics">Consumer metrics</a></li>
+<li><a href="#managed-ledger-bookie-client-metrics">ManagedLedger bookie client metrics</a></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="namespace-metrics"></a><a href="#namespace-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace metrics</h3>
 <blockquote>
@@ -526,6 +527,34 @@ Available quantile:</p>
 <li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li>
 </ul>
 <p>| | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). | | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). | | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |</p>
+<h3><a class="anchor" aria-hidden="true" id="managed-ledger-bookie-client-metrics"></a><a href="#managed-ledger-bookie-client-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed ledger bookie client metrics</h3>
+<p>All the managed ledger bookie client metrics labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_*</td><td>Gauge</td><td>The number of tasks the scheduler executor execute completed.</td></tr>
+<tr><td>The number of metrics determined by the scheduler executor thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_*</td><td>Gauge</td><td>The number of tasks queued in the scheduler executor's queue.</td></tr>
+<tr><td>The number of metrics determined by scheduler executor's thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_*</td><td>Gauge</td><td>The total number of tasks the scheduler executor received.</td></tr>
+<tr><td>The number of metrics determined by scheduler executor's thread number configured by <code>managedLedgerNumSchedulerThreads</code> in <code>broker.conf</code>.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_*</td><td>Gauge</td><td>The number of tasks the worker executor execute completed.</td></tr>
+<tr><td>The number of metrics determined by the number of worker task thread number configured by <code>managedLedgerNumWorkerThreads</code> in <code>broker.conf</code></td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_queue_*</td><td>Gauge</td><td>The number of tasks queued in the worker executor's queue.</td></tr>
+<tr><td>The number of metrics determined by scheduler executor's thread number configured by <code>managedLedgerNumWorkerThreads</code> in <code>broker.conf</code>.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_total_tasks_*</td><td>Gauge</td><td>The total number of tasks the worker executor received.</td></tr>
+<tr><td>The number of metrics determined by worker executor's thread number configured by <code>managedLedgerNumWorkerThreads</code> in <code>broker.conf</code>.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution</td><td>Summary</td><td>The scheduler task execution latency calculated in milliseconds.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued</td><td>Summary</td><td>The scheduler task queued latency calculated in milliseconds.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution</td><td>Summary</td><td>The worker task execution latency calculated in milliseconds.</td></tr>
+<tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued</td><td>Summary</td><td>The worker task queued latency calculated in milliseconds.</td></tr>
+</tbody>
+</table>
 <h1><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h1>
 <p>All the Pulsar Functions metrics are labelled with the following labels:</p>
 <ul>
@@ -605,7 +634,7 @@ Available quantile:</p>
 <li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
 <li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

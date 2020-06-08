@@ -12503,23 +12503,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -12538,6 +12521,23 @@
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -12721,10 +12721,10 @@
                 "clientVersion": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -13624,10 +13624,10 @@
                 "clientVersion": {
                     "type": "string"
                 },
-                "producerName": {
+                "connectedSince": {
                     "type": "string"
                 },
-                "connectedSince": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
