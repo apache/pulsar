@@ -1643,7 +1643,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         updateFunctionParallelism(functionName, 2);
 
         //get function status
-        getFunctionStatus(functionName, numMessages, true, 2);
+        getFunctionStatus(functionName, 0, true, 2);
 
         // delete function
         deleteFunction(functionName);
