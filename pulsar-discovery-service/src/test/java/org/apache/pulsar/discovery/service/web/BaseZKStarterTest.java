@@ -34,14 +34,14 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 public class BaseZKStarterTest {
 
-    protected MockZooKeeper mockZookKeeper;
+    protected MockZooKeeper mockZooKeeper;
 
     protected void start() throws Exception {
-        mockZookKeeper = createMockZooKeeper();
+        mockZooKeeper = createMockZooKeeper();
     }
 
     protected void close() throws Exception {
-        mockZookKeeper.shutdown();
+        mockZooKeeper.shutdown();
     }
 
     /**

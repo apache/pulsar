@@ -20,12 +20,17 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class PulsarTestBase {
 
@@ -80,6 +85,41 @@ public class PulsarTestBase {
                     for (int i = 0; i < numMessages; i++) {
                         producer.send("smoke-message-" + i);
                     }
+                }
+
+                for (int i = 0; i < numMessages; i++) {
+                    Message<String> m = consumer.receive();
+                    assertEquals("smoke-message-" + i, m.getValue());
+                }
+            }
+        }
+    }
+
+    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
+        String topicName = generateTopicName("test-batch-publish-consume", isPersistent);
+
+        final int numMessages = 10000;
+        try (PulsarClient client = PulsarClient.builder()
+            .serviceUrl(serviceUrl)
+            .build()) {
+
+            try (Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .receiverQueueSize(10000)
+                .subscriptionName("my-sub")
+                .subscribe()) {
+
+                try (Producer<String> producer = client.newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .blockIfQueueFull(true)
+                    .create()) {
+
+                    List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+                    for (int i = 0; i < numMessages; i++) {
+                        futures.add(producer.sendAsync("smoke-message-" + i));
+                    }
+                    // Wait for all messages are publish succeed.
+                    FutureUtil.waitForAll(futures).get();
                 }
 
                 for (int i = 0; i < numMessages; i++) {

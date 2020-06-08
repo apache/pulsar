@@ -87,10 +87,10 @@ public class KerberosName {
         } else {
             classRef = Class.forName("sun.security.krb5.Config");
         }
-        getInstanceMethod = classRef.getMethod("getInstance", new Class<?>[0]);
-        kerbConf = getInstanceMethod.invoke(classRef, new Object[0]);
-        getDefaultRealmMethod = classRef.getDeclaredMethod("getDefaultRealm",
-            new Class<?>[0]);
+        getInstanceMethod = classRef.getMethod("getInstance");
+        kerbConf = getInstanceMethod.invoke(classRef);
+        getDefaultRealmMethod = classRef.getDeclaredMethod("getDefaultRealm"
+        );
         return (String) getDefaultRealmMethod.invoke(kerbConf, new Object[0]);
     }
 
@@ -271,7 +271,7 @@ public class KerberosName {
                 if (paramNum != null) {
                     try {
                         int num = Integer.parseInt(paramNum);
-                        if (num < 0 || num > params.length) {
+                        if (num < 0 || num >= params.length) {
                             throw new BadFormatString("index " + num + " from " + format
                                 + " is outside of the valid range 0 to " + (params.length - 1));
                         }

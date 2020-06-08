@@ -82,6 +82,46 @@ class PULSAR_PUBLIC Reader {
      */
     Result hasMessageAvailable(bool& hasMessageAvailable);
 
+    /**
+     * Reset the this reader to a specific message id.
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+     * seek() on the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     */
+    Result seek(const MessageId& msgId);
+
+    /**
+     * Reset this reader to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    Result seek(uint64_t timestamp);
+
+    /**
+     * Asynchronously reset this reader to a specific message id.
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+     * seek() on the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     */
+    void seekAsync(const MessageId& msgId, ResultCallback callback);
+
+    /**
+     * Asynchronously reset this reader to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    void seekAsync(uint64_t timestamp, ResultCallback callback);
+
    private:
     typedef std::shared_ptr<ReaderImpl> ReaderImplPtr;
     ReaderImplPtr impl_;

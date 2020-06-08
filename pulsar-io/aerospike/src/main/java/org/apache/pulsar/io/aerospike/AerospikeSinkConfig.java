@@ -21,7 +21,7 @@ package org.apache.pulsar.io.aerospike;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
+import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.io.File;
@@ -30,10 +30,6 @@ import java.io.Serializable;
 import java.util.Map;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class AerospikeSinkConfig implements Serializable {
 

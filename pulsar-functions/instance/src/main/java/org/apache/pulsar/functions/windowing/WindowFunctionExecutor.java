@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.functions.api.*;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
@@ -131,7 +131,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         try {
             theCls = Class.forName(windowConfig.getTimestampExtractorClassName(),
                     true, Thread.currentThread().getContextClassLoader());
-        } catch (ClassNotFoundException cnfe) {
+        } catch (ClassNotFoundException | NoClassDefFoundError cnfe) {
             throw new RuntimeException(
                     String.format("Timestamp extractor class %s must be in class path",
                             windowConfig.getTimestampExtractorClassName()), cnfe);

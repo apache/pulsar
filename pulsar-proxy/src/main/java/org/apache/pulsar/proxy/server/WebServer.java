@@ -19,12 +19,9 @@
 package org.apache.pulsar.proxy.server;
 
 import com.google.common.collect.Lists;
-
 import io.prometheus.client.jetty.JettyStatisticsCollector;
-
 import java.io.IOException;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,15 +29,14 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.TimeZone;
-
 import javax.servlet.DispatcherType;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -78,6 +74,9 @@ public class WebServer {
     protected int externalServicePort;
     private URI serviceURI = null;
 
+    private ServerConnector connector;
+    private ServerConnector connectorTls;
+
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
@@ -91,23 +90,39 @@ public class WebServer {
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            ServerConnector connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
             connector.setPort(externalServicePort);
             connectors.add(connector);
         }
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        config.isTlsAllowInsecureConnection(),
-                        config.getTlsTrustCertsFilePath(),
-                        config.getTlsCertificateFilePath(),
-                        config.getTlsKeyFilePath(),
-                        config.isTlsRequireTrustedClientCertOnConnect(),
-                        true,
-                        config.getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(config.getWebServicePortTls().get());
-                connectors.add(tlsConnector);
+                SslContextFactory sslCtxFactory;
+                if (config.isTlsEnabledWithKeyStore()) {
+                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                            config.getTlsProvider(),
+                            config.getTlsKeyStoreType(),
+                            config.getTlsKeyStore(),
+                            config.getTlsKeyStorePassword(),
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustStoreType(),
+                            config.getTlsTrustStore(),
+                            config.getTlsTrustStorePassword(),
+                            config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getTlsCertRefreshCheckDurationSec()
+                    );
+                } else {
+                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustCertsFilePath(),
+                            config.getTlsCertificateFilePath(),
+                            config.getTlsKeyFilePath(),
+                            config.isTlsRequireTrustedClientCertOnConnect(),
+                            true,
+                            config.getTlsCertRefreshCheckDurationSec());
+                }
+                connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
+                connectorTls.setPort(config.getWebServicePortTls().get());
+                connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -233,6 +248,22 @@ public class WebServer {
 
     public boolean isStarted() {
         return server.isStarted();
+    }
+
+    public Optional<Integer> getListenPortHTTP() {
+        if (connector != null) {
+            return Optional.of(connector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (connectorTls != null) {
+            return Optional.of(connectorTls.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebServer.class);

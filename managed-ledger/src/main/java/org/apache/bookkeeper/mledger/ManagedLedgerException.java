@@ -39,8 +39,12 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static class MetaStoreException extends ManagedLedgerException {
-        public MetaStoreException(Exception e) {
-            super(e);
+        public MetaStoreException(Throwable t) {
+            super(t);
+        }
+
+        public MetaStoreException(String msg) {
+            super(msg);
         }
     }
 
@@ -48,11 +52,19 @@ public class ManagedLedgerException extends Exception {
         public BadVersionException(Exception e) {
             super(e);
         }
+
+        public BadVersionException(String msg) {
+            super(msg);
+        }
     }
 
     public static class MetadataNotFoundException extends MetaStoreException {
         public MetadataNotFoundException(Exception e) {
             super(e);
+        }
+
+        public MetadataNotFoundException(String msg) {
+            super(msg);
         }
     }
 
@@ -70,6 +82,10 @@ public class ManagedLedgerException extends Exception {
     public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
         public ManagedLedgerNotFoundException(Exception e) {
             super(e);
+        }
+
+        public ManagedLedgerNotFoundException(String message) {
+            super(message);
         }
     }
 

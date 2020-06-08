@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
 
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -173,6 +174,20 @@ public interface Context {
     CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
 
     /**
+     * Delete the state value for the key.
+     *
+     * @param key   name of the key
+     */
+    void deleteState(String key);
+
+    /**
+     * Delete the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key   name of the key
+     */
+    CompletableFuture<Void> deleteStateAsync(String key);
+
+    /**
      * Retrieve the state value for the key.
      *
      * @param key name of the key
@@ -260,4 +275,14 @@ public interface Context {
      * @throws PulsarClientException
      */
     <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+
+    /**
+     * Create a ConsumerBuilder with the schema.
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <O>
+     * @return the consumer builder instance
+     * @throws PulsarClientException
+     */
+    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
 }

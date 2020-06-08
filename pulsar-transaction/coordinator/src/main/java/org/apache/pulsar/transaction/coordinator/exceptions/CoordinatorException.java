@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.transaction.coordinator.exceptions;
 
+import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
+
 /**
  * The base exception for exceptions thrown from coordinator.
  */
@@ -34,5 +38,59 @@ public abstract class CoordinatorException extends Exception {
 
     public CoordinatorException(Throwable cause) {
         super(cause);
+    }
+
+    /**
+     * Exception is thrown when transaction coordinator not found.
+     */
+    public static class CoordinatorNotFoundException extends CoordinatorException {
+
+        public CoordinatorNotFoundException(String msg) {
+            super(msg);
+        }
+
+        public CoordinatorNotFoundException(TransactionCoordinatorID tcId) {
+            super(String.format("Transaction coordinator with id %s not found!", tcId.getId()));
+        }
+    }
+
+    /**
+     * Exception is thrown when transaction is not in the right status.
+     */
+    public static class InvalidTxnStatusException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public InvalidTxnStatusException(String message) {
+            super(message);
+        }
+
+        public InvalidTxnStatusException(TxnID txnID,
+                                         TxnStatus expectedStatus,
+                                         TxnStatus actualStatus) {
+            super("Expect Txn `" + txnID + "` to be in " + expectedStatus
+                            + " status but it is in " + actualStatus + " status");
+
+        }
+    }
+
+    /**
+     * Exception is thrown when a transaction is not found in coordinator.
+     */
+    public static class TransactionNotFoundException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public TransactionNotFoundException(String message) {
+            super(message);
+        }
+
+        public TransactionNotFoundException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public TransactionNotFoundException(Throwable cause) {
+            super(cause);
+        }
     }
 }

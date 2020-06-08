@@ -23,12 +23,15 @@ import com.google.common.annotations.VisibleForTesting;
 import java.net.BindException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import javax.servlet.DispatcherType;
 
+import io.prometheus.client.exporter.MetricsServlet;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -63,6 +66,9 @@ public class WorkerServer {
     private final WebExecutorThreadPool webServerExecutor;
     private Server server;
 
+    private ServerConnector httpConnector;
+    private ServerConnector httpsConnector;
+
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
             final URI uri = server.getURI();
@@ -88,9 +94,9 @@ public class WorkerServer {
         server = new Server(webServerExecutor);
 
         List<ServerConnector> connectors = new ArrayList<>();
-        ServerConnector connector = new ServerConnector(server, 1, 1);
-        connector.setPort(this.workerConfig.getWorkerPort());
-        connectors.add(connector);
+        httpConnector = new ServerConnector(server, 1, 1);
+        httpConnector.setPort(this.workerConfig.getWorkerPort());
+        connectors.add(httpConnector);
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(
@@ -99,7 +105,8 @@ public class WorkerServer {
                 newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
                 newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
-        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
+        // don't require auth for metrics or config routes
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService, workerConfig.isAuthenticateMetricsEndpoint()));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -124,9 +131,9 @@ public class WorkerServer {
                         this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
                         true,
                         this.workerConfig.getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(this.workerConfig.getWorkerPortTls());
-                connectors.add(tlsConnector);
+                httpsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
+                connectors.add(httpsConnector);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -138,6 +145,10 @@ public class WorkerServer {
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
+        return newServletContextHandler(contextPath, config, workerService, true);
+    }
+
+    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService, boolean requireAuthentication) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -149,7 +160,7 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
-        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+        if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
@@ -161,6 +172,7 @@ public class WorkerServer {
     public void stop() {
         if (this.server != null) {
             try {
+                this.server.stop();
                 this.server.destroy();
             } catch (Exception e) {
                 log.error("Failed to stop function web-server ", e);
@@ -175,4 +187,19 @@ public class WorkerServer {
         }
     }
 
+    public Optional<Integer> getListenPortHTTP() {
+        if (httpConnector != null) {
+            return Optional.of(httpConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (httpsConnector != null) {
+            return Optional.of(httpsConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
 }

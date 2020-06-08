@@ -20,12 +20,14 @@ package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.HandlerState.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class ConnectionHandler {
+public class ConnectionHandler {
     private static final AtomicReferenceFieldUpdater<ConnectionHandler, ClientCnx> CLIENT_CNX_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ConnectionHandler.class, ClientCnx.class, "clientCnx");
     @SuppressWarnings("unused")
@@ -33,6 +35,7 @@ class ConnectionHandler {
 
     protected final HandlerState state;
     protected final Backoff backoff;
+    protected long epoch = 0L;
 
     interface Connection {
         void connectionFailed(PulsarClientException exception);
@@ -72,7 +75,13 @@ class ConnectionHandler {
 
     private Void handleConnectionError(Throwable exception) {
         log.warn("[{}] [{}] Error connecting to broker: {}", state.topic, state.getHandlerName(), exception.getMessage());
-        connection.connectionFailed(new PulsarClientException(exception));
+        if (exception instanceof PulsarClientException) {
+            connection.connectionFailed((PulsarClientException) exception);
+        } else if (exception.getCause() instanceof  PulsarClientException) {
+            connection.connectionFailed((PulsarClientException)exception.getCause());
+        } else {
+            connection.connectionFailed(new PulsarClientException(exception));
+        }
 
         State state = this.state.getState();
         if (state == State.Uninitialized || state == State.Connecting || state == State.Ready) {
@@ -94,11 +103,13 @@ class ConnectionHandler {
         state.setState(State.Connecting);
         state.client.timer().newTimeout(timeout -> {
             log.info("[{}] [{}] Reconnecting after connection was closed", state.topic, state.getHandlerName());
+            ++epoch;
             grabCnx();
         }, delayMs, TimeUnit.MILLISECONDS);
     }
 
-    protected void connectionClosed(ClientCnx cnx) {
+    @VisibleForTesting
+    public void connectionClosed(ClientCnx cnx) {
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!isValidStateForReconnection()) {
                 log.info("[{}] [{}] Ignoring reconnection request (state: {})", state.topic, state.getHandlerName(), state.getState());
@@ -110,6 +121,7 @@ class ConnectionHandler {
                     delayMs / 1000.0);
             state.client.timer().newTimeout(timeout -> {
                 log.info("[{}] [{}] Reconnecting after timeout", state.topic, state.getHandlerName());
+                ++epoch;
                 grabCnx();
             }, delayMs, TimeUnit.MILLISECONDS);
         }
@@ -119,15 +131,8 @@ class ConnectionHandler {
         backoff.reset();
     }
 
-    protected ClientCnx cnx() {
-        return CLIENT_CNX_UPDATER.get(this);
-    }
-
-    protected boolean isRetriableError(PulsarClientException e) {
-        return e instanceof PulsarClientException.LookupException;
-    }
-
-    protected ClientCnx getClientCnx() {
+    @VisibleForTesting
+    public ClientCnx cnx() {
         return CLIENT_CNX_UPDATER.get(this);
     }
 
@@ -151,6 +156,11 @@ class ConnectionHandler {
                 return false;
         }
         return false;
+    }
+
+    @VisibleForTesting
+    public long getEpoch() {
+        return epoch;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionHandler.class);

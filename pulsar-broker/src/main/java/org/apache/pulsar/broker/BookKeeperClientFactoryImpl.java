@@ -37,6 +37,9 @@ import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -53,7 +56,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
-            Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass, Map<String, Object> properties) throws IOException {
+                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                             Map<String, Object> properties) throws IOException {
+        return create(conf, zkClient, ensemblePlacementPolicyClass, properties, NullStatsLogger.INSTANCE);
+    }
+
+    @Override
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
         ClientConfiguration bkConf = createBkClientConfiguration(conf);
         if (properties != null) {
             properties.forEach((key, value) -> bkConf.setProperty(key, value));
@@ -66,7 +77,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         try {
             return BookKeeper.forConfig(bkConf)
                     .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .zk(zkClient)
+                    .statsLogger(statsLogger)
                     .build();
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
@@ -106,6 +117,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
 
+        if (StringUtils.isNotBlank(conf.getBookkeeperMetadataServiceUri())) {
+            bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataServiceUri());
+        } else {
+            String metadataServiceUri = PulsarService.bookieMetadataServiceUri(conf);
+            bkConf.setMetadataServiceUri(metadataServiceUri);
+        }
+
         if (conf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
             bkConf.setBookieHealthCheckInterval(conf.getBookkeeperHealthCheckIntervalSec(), TimeUnit.SECONDS);
@@ -115,6 +133,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
 
         bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
+        bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
+        bkConf.setGetBookieInfoIntervalSeconds(conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setGetBookieInfoRetryIntervalSeconds(conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
 
         return bkConf;
     }
@@ -154,7 +175,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     REPP_DNS_RESOLVER_CLASS,
                     ZkBookieRackAffinityMapping.class.getName()));
 
-            ZooKeeperCache zkc = new ZooKeeperCache(zkClient, conf.getZooKeeperOperationTimeoutSeconds()) {
+            ZooKeeperCache zkc = new ZooKeeperCache("bookies-racks", zkClient,
+                    conf.getZooKeeperOperationTimeoutSeconds()) {
             };
             if (!rackawarePolicyZkCache.compareAndSet(null, zkc)) {
                 zkc.stop();
@@ -170,7 +192,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientSecondaryIsolationGroups());
             if (bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) == null) {
-                ZooKeeperCache zkc = new ZooKeeperCache(zkClient, conf.getZooKeeperOperationTimeoutSeconds()) {
+                ZooKeeperCache zkc = new ZooKeeperCache("bookies-isolation", zkClient,
+                        conf.getZooKeeperOperationTimeoutSeconds()) {
                 };
 
                 if (!clientIsolationZkCache.compareAndSet(null, zkc)) {
@@ -185,7 +208,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         if (bkConf.getProperty(ZooKeeperCache.ZK_CACHE_INSTANCE) == null) {
-            ZooKeeperCache zkc = new ZooKeeperCache(zkClient, conf.getZooKeeperOperationTimeoutSeconds()) {
+            ZooKeeperCache zkc = new ZooKeeperCache("bookies-rackaware", zkClient,
+                    conf.getZooKeeperOperationTimeoutSeconds()) {
             };
             if (!zkCache.compareAndSet(null, zkc)) {
                 zkc.stop();

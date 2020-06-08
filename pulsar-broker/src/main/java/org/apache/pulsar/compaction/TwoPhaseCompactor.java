@@ -37,12 +37,14 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -72,8 +74,16 @@ public class TwoPhaseCompactor extends Compactor {
 
     @Override
     protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
-        return phaseOne(reader).thenCompose(
-                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+        return reader.hasMessageAvailableAsync()
+                .thenCompose(available -> {
+                    if (available) {
+                        return phaseOne(reader).thenCompose(
+                                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, r.latestForKey, bk));
+                    } else {
+                        log.info("Skip compaction of the empty topic {}", reader.getTopic());
+                        return CompletableFuture.completedFuture(-1L);
+                    }
+                });
     }
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
@@ -87,7 +97,10 @@ public class TwoPhaseCompactor extends Compactor {
                     } else {
                         log.info("Commencing phase one of compaction for {}, reading to {}",
                                  reader.getTopic(), lastMessageId);
-                        phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastMessageId, latestForKey,
+                        // Each entry is processed as a whole, discard the batchIndex part deliberately.
+                        MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
+                        MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(), lastImpl.getEntryId(), lastImpl.getPartitionIndex());
+                        phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
                                 loopPromise);
                     }
                 });
@@ -116,8 +129,17 @@ public class TwoPhaseCompactor extends Compactor {
                         boolean deletedMessage = false;
                         if (RawBatchConverter.isReadableBatch(m)) {
                             try {
-                                RawBatchConverter.extractIdsAndKeys(m)
-                                    .forEach(e -> latestForKey.put(e.getRight(), e.getLeft()));
+                                for (ImmutableTriple<MessageId, String, Integer> e :
+                                        RawBatchConverter.extractIdsAndKeysAndSize(m)) {
+                                    if (e != null) {
+                                        if (e.getRight() > 0) {
+                                            latestForKey.put(e.getMiddle(), e.getLeft());
+                                        } else {
+                                            deletedMessage = true;
+                                            latestForKey.remove(e.getMiddle());
+                                        }
+                                    }
+                                }
                             } catch (IOException ioe) {
                                 log.info("Error decoding batch for message {}. Whole batch will be included in output",
                                          id, ioe);
@@ -137,7 +159,8 @@ public class TwoPhaseCompactor extends Compactor {
                         MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                         MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                         if (id.compareTo(lastMessageId) == 0) {
-                            loopPromise.complete(new PhaseOneResult(first, to, lastMessageId, latestForKey));
+                            loopPromise.complete(new PhaseOneResult(first == null ? id : first, to == null ? id : to,
+                                    lastMessageId, latestForKey));
                         } else {
                             phaseOneLoop(reader,
                                          Optional.ofNullable(first),
@@ -200,52 +223,51 @@ public class TwoPhaseCompactor extends Compactor {
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
                               LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
+        if (promise.isDone()) {
+            return;
+        }
         reader.readNextAsync().whenCompleteAsync(
                 (m, exception) -> {
                     if (exception != null) {
                         promise.completeExceptionally(exception);
                         return;
                     } else if (promise.isDone()) {
+                        m.close();
                         return;
                     }
-                    MessageId id = m.getMessageId();
-                    Optional<RawMessage> messageToAdd = Optional.empty();
-                    if (RawBatchConverter.isReadableBatch(m)) {
-                        try {
-                            messageToAdd = RawBatchConverter.rebatchMessage(
-                                    m, (key, subid) -> latestForKey.get(key).equals(subid));
-                        } catch (IOException ioe) {
-                            log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                                     id, ioe);
-                            messageToAdd = Optional.of(m);
-                        }
-                    } else {
-                        Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
-                        MessageId msg;
-                        if (keyAndSize == null) { // pass through messages without a key
-                            messageToAdd = Optional.of(m);
-                        } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
-                                && msg.equals(id)) { // consider message only if present into latestForKey map
-                            if (keyAndSize.getRight() <= 0) {
-                                promise.completeExceptionally(new IllegalArgumentException(
-                                        "Compaction phase found empty record from sorted key-map"));
+                    try {
+                        MessageId id = m.getMessageId();
+                        Optional<RawMessage> messageToAdd = Optional.empty();
+                        if (RawBatchConverter.isReadableBatch(m)) {
+                            try {
+                                messageToAdd = RawBatchConverter.rebatchMessage(
+                                        m, (key, subid) -> subid.equals(latestForKey.get(key)));
+                            } catch (IOException ioe) {
+                                log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                                        id, ioe);
+                                messageToAdd = Optional.of(m);
                             }
-                            messageToAdd = Optional.of(m);
                         } else {
-                            m.close();
-                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so, not
-                            // present under latestForKey. Complete the compaction.
-                            if (to.equals(id)) {
-                                promise.complete(null);
+                            Pair<String,Integer> keyAndSize = extractKeyAndSize(m);
+                            MessageId msg;
+                            if (keyAndSize == null) { // pass through messages without a key
+                                messageToAdd = Optional.of(m);
+                            } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
+                                    && msg.equals(id)) { // consider message only if present into latestForKey map
+                                if (keyAndSize.getRight() <= 0) {
+                                    promise.completeExceptionally(new IllegalArgumentException(
+                                            "Compaction phase found empty record from sorted key-map"));
+                                }
+                                messageToAdd = Optional.of(m);
                             }
                         }
-                    }
 
-                    messageToAdd.ifPresent((toAdd) -> {
+                        if (messageToAdd.isPresent()) {
+                            RawMessage message = messageToAdd.get();
                             try {
                                 outstanding.acquire();
-                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, toAdd)
-                                    .whenComplete((res, exception2) -> {
+                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message)
+                                        .whenComplete((res, exception2) -> {
                                             outstanding.release();
                                             if (exception2 != null) {
                                                 promise.completeExceptionally(exception2);
@@ -253,17 +275,36 @@ public class TwoPhaseCompactor extends Compactor {
                                         });
                                 if (to.equals(id)) {
                                     addFuture.whenComplete((res, exception2) -> {
-                                            if (exception2 == null) {
-                                                promise.complete(null);
-                                            }
-                                        });
+                                        if (exception2 == null) {
+                                            promise.complete(null);
+                                        }
+                                    });
                                 }
                             } catch (InterruptedException ie) {
                                 Thread.currentThread().interrupt();
                                 promise.completeExceptionally(ie);
+                            } finally {
+                                if (message != m) {
+                                    message.close();
+                                }
                             }
-                        });
-                    phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                        } else if (to.equals(id)) {
+                            // Reached to last-id and phase-one found it deleted-message while iterating on ledger so,
+                            // not present under latestForKey. Complete the compaction.
+                            try {
+                                // make sure all inflight writes have finished
+                                outstanding.acquire(MAX_OUTSTANDING);
+                                promise.complete(null);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                promise.completeExceptionally(e);
+                            }
+                            return;
+                        }
+                        phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
+                    } finally {
+                        m.close();
+                    }
                 }, scheduler);
     }
 

@@ -20,3 +20,4 @@
 name: netty
 description: Netty Tcp or Udp Source Connector
 sourceClass: org.apache.pulsar.io.netty.NettySource
+sourceConfigClass: org.apache.pulsar.io.netty.NettySourceConfig

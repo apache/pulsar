@@ -63,9 +63,16 @@ static inline void _pulsar_producer_close_async(pulsar_producer_t *producer, voi
 
 void pulsarProducerSendCallbackProxy(pulsar_result result, pulsar_message_t *message, void *ctx);
 
+void pulsarProducerSendCallbackProxyWithMsgID(pulsar_result result, pulsar_message_id_t *messageId, void *ctx);
+
 static inline void _pulsar_producer_send_async(pulsar_producer_t *producer, pulsar_message_t *message,
                                                void *ctx) {
     pulsar_producer_send_async(producer, message, pulsarProducerSendCallbackProxy, ctx);
+}
+
+static inline void _pulsar_producer_send_async_msg_id(pulsar_producer_t *producer, pulsar_message_t *message,
+                                               void *ctx) {
+    pulsar_producer_send_async(producer, message, pulsarProducerSendCallbackProxyWithMsgID, ctx);
 }
 
 int pulsarRouterCallbackProxy(pulsar_message_t *msg, pulsar_topic_metadata_t *topicMetadata, void* ctx);

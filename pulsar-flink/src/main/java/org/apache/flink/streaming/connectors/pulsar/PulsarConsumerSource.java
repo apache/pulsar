@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -53,7 +54,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
 
     private static final Logger LOG = LoggerFactory.getLogger(PulsarConsumerSource.class);
 
-    private final int messageReceiveTimeoutMs = 100;
+    private int messageReceiveTimeoutMs;
 
     private ClientConfigurationData clientConfigurationData;
     private ConsumerConfigurationData<byte[]> consumerConfigurationData;
@@ -80,6 +81,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         this.consumerConfigurationData = builder.consumerConfigurationData;
         this.deserializer = builder.deserializationSchema;
         this.acknowledgementBatchSize = builder.acknowledgementBatchSize;
+        this.messageReceiveTimeoutMs = builder.messageReceiveTimeoutMs;
     }
 
     @Override
@@ -91,7 +93,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
             isCheckpointingEnabled = ((StreamingRuntimeContext) context).isCheckpointingEnabled();
         }
 
-        client = createClient();
+        client = getClient();
         consumer = createConsumer(client);
 
         isRunning = true;
@@ -163,7 +165,7 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         }
     }
 
-    private T deserialize(Message message) throws IOException {
+    protected T deserialize(Message message) throws IOException {
         return deserializer.deserialize(message.getData());
     }
 
@@ -188,8 +190,8 @@ class PulsarConsumerSource<T> extends MessageAcknowledgingSourceBase<T, MessageI
         return isCheckpointingEnabled;
     }
 
-    PulsarClient createClient() throws PulsarClientException {
-        return new PulsarClientImpl(clientConfigurationData);
+    PulsarClient getClient() throws ExecutionException {
+        return CachedPulsarClient.getOrCreate(clientConfigurationData);
     }
 
     Consumer<byte[]> createConsumer(PulsarClient client) throws PulsarClientException {

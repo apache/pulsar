@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -46,12 +47,11 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
 
@@ -162,7 +162,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         future = findMessage(result, c1, beginTimestamp);
         future.get();
         assertNull(result.exception);
-        assertEquals(result.position, c1.getFirstPosition());
+        assertNull(result.position);
 
         result.reset();
         future = findMessage(result, c1, endTimestamp);
@@ -199,10 +199,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
     }
-    
+
     /**
      * It tests that message expiry doesn't get stuck if it can't read deleted ledger's entry.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -231,7 +231,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger);
 
         // this will make sure that all entries should be deleted
-        Thread.sleep(ttlSeconds);
+        Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
 
         bkc.deleteLedger(ledgers.get(0).getLedgerId());
         bkc.deleteLedger(ledgers.get(1).getLedgerId());

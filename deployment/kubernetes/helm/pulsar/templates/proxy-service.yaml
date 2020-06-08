@@ -17,25 +17,38 @@
 # under the License.
 #
 
-{{- if .Values.extra.proxy }}
+{{- if or .Values.components.proxy .Values.extra.proxy }}
 apiVersion: v1
 kind: Service
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.proxy.component }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.proxy.component }}
-    cluster: {{ template "pulsar.fullname" . }}
   annotations:
-{{ toYaml .Values.proxy.service.annotations | indent 4 }}
+  {{- with .Values.proxy.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.proxy.service.type }}
   ports:
-{{ toYaml .Values.proxy.service.ports | indent 2 }}
+    {{- if or (not .Values.tls.enabled) (not .Values.tls.proxy.enabled) }}
+    - name: http
+      port: {{ .Values.proxy.ports.http }}
+      protocol: TCP
+    - name: pulsar
+      port: {{ .Values.proxy.ports.pulsar }}
+      protocol: TCP
+    {{- end }}
+    {{- if and .Values.tls.enabled .Values.tls.proxy.enabled }}
+    - name: https
+      port: {{ .Values.proxy.ports.https }}
+      protocol: TCP
+    - name: pulsarssl
+      port: {{ .Values.proxy.ports.pulsarssl }}
+      protocol: TCP
+    {{- end }}
   selector:
     app: {{ template "pulsar.name" . }}
     release: {{ .Release.Name }}

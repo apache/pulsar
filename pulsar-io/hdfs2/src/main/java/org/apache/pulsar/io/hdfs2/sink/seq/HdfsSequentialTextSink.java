@@ -61,7 +61,7 @@ public class HdfsSequentialTextSink extends HdfsAbstractSequenceFileSink<Long, S
     @Override
     public KeyValue<Long, String> extractKeyValue(Record<String> record) {
        Long sequence = record.getRecordSequence().orElseGet(() -> new Long(counter.incrementAndGet()));
-       return new KeyValue<>(sequence, new String(record.getValue()));
+       return new KeyValue<>(sequence, record.getValue());
     }
 
     @Override

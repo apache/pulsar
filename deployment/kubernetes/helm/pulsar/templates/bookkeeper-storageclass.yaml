@@ -17,20 +17,17 @@
 # under the License.
 #
 
-{{- if .Values.persistence }}
-{{- if .Values.bookkeeper.volumes.journal.storageClass }}
+{{- if .Values.components.bookkeeper }}
+{{- if and (and .Values.persistence .Values.volumes.persistence) .Values.bookkeeper.volumes.persistence }}
+{{- if and (not (and .Values.volumes.local_storage .Values.bookkeeper.volumes.journal.local_storage)) .Values.bookkeeper.volumes.journal.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.journal.name }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.bookkeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 provisioner: {{ .Values.bookkeeper.volumes.journal.storageClass.provisioner }}
 parameters:
   type: {{ .Values.bookkeeper.volumes.journal.storageClass.type }}
@@ -38,22 +35,20 @@ parameters:
 {{- end }}
 ---
 
-{{- if .Values.bookkeeper.volumes.ledgers.storageClass }}
+{{- if and (not (and .Values.volumes.local_storage .Values.bookkeeper.volumes.journal.local_storage)) .Values.bookkeeper.volumes.ledgers.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.bookkeeper.component }}-{{ .Values.bookkeeper.volumes.ledgers.name }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.bookkeeper.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 provisioner: {{ .Values.bookkeeper.volumes.ledgers.storageClass.provisioner }}
 parameters:
   type: {{ .Values.bookkeeper.volumes.ledgers.storageClass.type }}
   fsType: {{ .Values.bookkeeper.volumes.ledgers.storageClass.fsType }}
+{{- end }}
+
 {{- end }}
 {{- end }}

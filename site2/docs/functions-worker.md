@@ -1,7 +1,7 @@
 ---
 id: functions-worker
 title: Deploy and manage functions worker
-sidebar_label: Setup: Pulsar Functions Worker
+sidebar_label: "Setup: Pulsar Functions Worker"
 ---
 Before using Pulsar Functions, you need to learn how to set up Pulsar Functions worker and how to [configure Functions runtime](functions-runtime.md).  
 
@@ -26,7 +26,7 @@ functionsWorkerEnabled=true
 
 When you set `functionsWorkerEnabled` to `true`, it means that you start functions-worker as part of a broker. You need to configure the `conf/functions_worker.yml` file to customize your functions_worker.
 
-Before you run Functions-work with broker, you have to configure Functions-worker, and then start it with brokers.
+Before you run Functions-worker with broker, you have to configure Functions-worker, and then start it with brokers.
 
 ### Configure Functions-Worker to run with brokers
 In this mode, since `functions-worker` is running as part of broker, most of the settings already inherit from your broker configuration (for example, configurationStore settings, authentication settings, and so on).
@@ -134,7 +134,7 @@ properties:
 ```
 
 For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
-See [Token Authentication](security-token-admin.md) for more details.
+See [Token Authentication](security-jwt.md) for more details.
 ```
 properties:
   tokenSecretKey:       file://my/secret.key 

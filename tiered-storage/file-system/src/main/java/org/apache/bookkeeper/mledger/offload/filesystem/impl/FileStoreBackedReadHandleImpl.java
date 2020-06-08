@@ -18,12 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.LedgerMetadataBuilder;
-import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -32,8 +29,6 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 
-import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
@@ -43,10 +38,11 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 
 public class FileStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(FileStoreBackedReadHandleImpl.class);
@@ -184,56 +180,4 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
             return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
     }
-
-    private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
-        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
-                .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
-                .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
-                .withClosedState()
-                .withMetadataFormatVersion(2)
-                .withLength(ledgerMetadataFormat.getLength())
-                .withAckQuorumSize(ledgerMetadataFormat.getAckQuorumSize())
-                .withCreationTime(ledgerMetadataFormat.getCtime())
-                .withWriteQuorumSize(ledgerMetadataFormat.getQuorumSize())
-                .withEnsembleSize(ledgerMetadataFormat.getEnsembleSize());
-        ledgerMetadataFormat.getSegmentList().forEach(segment -> {
-            ArrayList<BookieSocketAddress> addressArrayList = new ArrayList<>();
-            segment.getEnsembleMemberList().forEach(address -> {
-                try {
-                    addressArrayList.add(new BookieSocketAddress(address));
-                } catch (IOException e) {
-                    log.error("Exception when create BookieSocketAddress. ", e);
-                }
-            });
-            builder.newEnsembleEntry(segment.getFirstEntryId(), addressArrayList);
-        });
-
-        if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-            Map<String, byte[]> customMetadata = Maps.newHashMap();
-            ledgerMetadataFormat.getCustomMetadataList().forEach(
-                    entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
-            builder.withCustomMetadata(customMetadata);
-        }
-
-        switch (ledgerMetadataFormat.getDigestType()) {
-            case HMAC:
-                builder.withDigestType(DigestType.MAC);
-                break;
-            case CRC32:
-                builder.withDigestType(DigestType.CRC32);
-                break;
-            case CRC32C:
-                builder.withDigestType(DigestType.CRC32C);
-                break;
-            case DUMMY:
-                builder.withDigestType(DigestType.DUMMY);
-                break;
-            default:
-                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
-        }
-
-        return builder.build();
-    }
-
 }

@@ -1,6 +1,11 @@
 module.exports = {
   committers: [
     {
+      name: 'Ali Ahmed',
+      apacheId: 'aahmed',
+      roles: 'Committer'
+    },
+    {
       name: 'Boyang Jerry Peng',
       apacheId: 'jerrypeng',
       org: 'Streamlio',
@@ -18,9 +23,19 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Fangbin Sun',
+      apacheId: 'sunfangbin',
+      roles: 'Committer'
+    },
+    {
       name: 'Francis Christopher Liu',
       apacheId: 'toffer',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Guangning E',
+      apacheId: 'guangning',
+      roles: 'Committer'
     },
     {
       name: 'Hiroyuki Sakai',
@@ -41,9 +56,15 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Jennifer Huang',
+      apacheId: 'hjf',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
       name: 'Jia Zhai',
       apacheId: 'zhaijia',
-      org: 'Streamlio',
+      org: 'StreamNative',
       roles: 'Committer, PMC'
     },
     {
@@ -93,6 +114,11 @@ module.exports = {
       roles: 'Committer, PMC'
     },
     {
+      name: 'Penghui Li',
+      apacheId: 'penghui',
+      roles: 'Committer, PMC'
+    },
+    {
       name: 'Rajan Dhabalia',
       apacheId: 'rdhabalia',
       org: 'Yahoo',
@@ -125,8 +151,20 @@ module.exports = {
     {
       name: 'Sijie Guo',
       apacheId: 'sijie',
-      org: 'Streamlio',
+      org: 'StreamNative',
       roles: 'Committer, PMC'
+    },
+    {
+      name: 'Xiaolong Ran',
+      apacheId: 'rxl',
+      org: 'StreamNative',
+      roles: 'Committer'
+    },
+    {
+        name: 'Yu Liu',
+        apacheId: 'liuyu',
+        org: 'StreamNative',
+        roles: 'Committer'
     },
     {
       name: 'Yuki Shiga',

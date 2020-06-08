@@ -23,14 +23,14 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.stats.Rate;
 
 public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000 };
-    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2084, 4096, 16_384, 102_400, 1_232_896 };
+    public static final long[] ENTRY_SIZE_BUCKETS_BYTES = { 128, 512, 1024, 2048, 4096, 16_384, 102_400, 1_232_896 };
 
     private final ManagedLedgerImpl managedLedger;
 
@@ -263,7 +263,7 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         long count = 0;
 
         for (ManagedCursor cursor : managedLedger.getCursors()) {
-            count += cursor.getNumberOfEntriesInBacklog();
+            count += cursor.getNumberOfEntriesInBacklog(false);
         }
 
         return count;

@@ -28,15 +28,21 @@ import java.sql.Timestamp;
  * A schema for `java.sql.Timestamp`.
  */
 public class TimestampSchema extends AbstractSchema<Timestamp> {
+
+   private static final TimestampSchema INSTANCE;
+   private static final SchemaInfo SCHEMA_INFO;
+
+   static {
+       SCHEMA_INFO = new SchemaInfo()
+             .setName("Timestamp")
+             .setType(SchemaType.TIMESTAMP)
+             .setSchema(new byte[0]);
+       INSTANCE = new TimestampSchema();
+   }
+
    public static TimestampSchema of() {
       return INSTANCE;
    }
-
-   private static final TimestampSchema INSTANCE = new TimestampSchema();
-   private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-         .setName("Timestamp")
-         .setType(SchemaType.TIMESTAMP)
-         .setSchema(new byte[0]);
 
    @Override
    public byte[] encode(Timestamp message) {

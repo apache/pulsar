@@ -26,16 +26,24 @@ import org.apache.pulsar.client.api.MessageId;
 public class BatchMessageIdImpl extends MessageIdImpl {
     private final static int NO_BATCH = -1;
     private final int batchIndex;
+    private final int batchSize;
 
-    private final BatchMessageAcker acker;
+    private final transient BatchMessageAcker acker;
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
-        this(ledgerId, entryId, partitionIndex, batchIndex, BatchMessageAckerDisabled.INSTANCE);
+    // Private constructor used only for json deserialization
+    @SuppressWarnings("unused")
+    private BatchMessageIdImpl() {
+        this(-1, -1, -1, -1);
     }
 
-    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, BatchMessageAcker acker) {
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
+        this(ledgerId, entryId, partitionIndex, batchIndex, 0, BatchMessageAckerDisabled.INSTANCE);
+    }
+
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize, BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
+        this.batchSize = batchSize;
         this.acker = acker;
     }
 
@@ -44,9 +52,11 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         if (other instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl otherId = (BatchMessageIdImpl) other;
             this.batchIndex = otherId.batchIndex;
+            this.batchSize = otherId.batchSize;
             this.acker = otherId.acker;
         } else {
             this.batchIndex = NO_BATCH;
+            this.batchSize = 0;
             this.acker = BatchMessageAckerDisabled.INSTANCE;
         }
     }

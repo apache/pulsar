@@ -107,7 +107,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String topic1 = "persistent://" + namespace1 + "/topic1";
         final String topic2 = "persistent://" + namespace2 + "/topic2";
 
-        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
+        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS)
+            .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
         try {
             // try to create producer for topic1 (part of cluster: r1) by calling cluster: r3
             client3.newProducer().topic(topic1).create();

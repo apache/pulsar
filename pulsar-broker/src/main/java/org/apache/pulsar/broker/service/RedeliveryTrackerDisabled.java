@@ -52,4 +52,14 @@ public class RedeliveryTrackerDisabled implements RedeliveryTracker {
     public void clear() {
         // no-op
     }
+
+    @Override
+    public boolean contains(Position position) {
+        return false;
+    }
+
+    @Override
+    public void addIfAbsent(Position position) {
+        // no-op
+    }
 }

@@ -164,6 +164,11 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
         }
     }
 
+    public T getDataIfPresent(String path) {
+        return (T) cache.getDataIfPresent(path);
+    }
+
+
     public void close() {
         IS_SHUTDOWN_UPDATER.set(this, TRUE);
     }

@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.common.sasl.SaslConstants;
-import org.asynchttpclient.RequestBuilder;
-
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -31,6 +25,15 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.common.sasl.SaslConstants;
+import org.asynchttpclient.RequestBuilder;
+
+/**
+ * Abstract base class for component resources.
+ */
 public class ComponentResource extends BaseResource {
 
     protected ComponentResource(Authentication auth, long readTimeoutMs) {

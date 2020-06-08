@@ -40,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -64,6 +66,7 @@ import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +75,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @PrepareForTest({ ZooKeeperDataCache.class, BrokerService.class })
+@PowerMockIgnore({"org.apache.logging.log4j.*"})
 public class PersistentSubscriptionTest {
 
     private PulsarService pulsarMock;
@@ -92,8 +96,12 @@ public class PersistentSubscriptionTest {
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 
+    private ExecutorService executor;
+
     @BeforeMethod
     public void setup() throws Exception {
+        executor = Executors.newSingleThreadExecutor();
+
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsarMock = spy(new PulsarService(svcConfig));
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
@@ -104,7 +112,7 @@ public class PersistentSubscriptionTest {
 
         ZooKeeper zkMock = createMockZooKeeper();
         doReturn(zkMock).when(pulsarMock).getZkClient();
-        doReturn(createMockBookKeeper(zkMock, pulsarMock.getOrderedExecutor().chooseThread(0)))
+        doReturn(createMockBookKeeper(zkMock, executor))
                 .when(pulsarMock).getBookKeeperClient();
 
         ZooKeeperCache cache = mock(ZooKeeperCache.class);
@@ -152,6 +160,8 @@ public class PersistentSubscriptionTest {
             log.warn("Failed to close pulsar service", e);
             throw e;
         }
+
+        executor.shutdownNow();
     }
 
     @Test

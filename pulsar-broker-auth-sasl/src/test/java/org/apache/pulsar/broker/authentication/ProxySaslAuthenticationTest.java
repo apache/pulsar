@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Sets;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
@@ -31,9 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.login.Configuration;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -61,8 +61,6 @@ import org.testng.annotations.Test;
 
 public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxySaslAuthenticationTest.class);
-    private int webServicePort;
-    private int servicePort;
 
 	public static File kdcDir;
 	public static File kerberosWorkDir;
@@ -179,8 +177,6 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	@Override
 	protected void setup() throws Exception {
 		log.info("-- {} --, start at host: {}", methodName, localHostname);
-		webServicePort = PortManager.nextFreePort();
-		servicePort = PortManager.nextFreePort();
 		isTcpLookup = true;
 		conf.setAdvertisedAddress(localHostname);
 		conf.setAuthenticationEnabled(true);
@@ -194,7 +190,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
 		super.init();
 
-		lookupUrl = new URI("broker://" + "localhost" + ":" + BROKER_PORT);
+		lookupUrl = new URI(pulsar.getBrokerServiceUrl());
 
 		// set admin auth, to verify admin web resources
 		Map<String, String> clientSaslConfig = Maps.newHashMap();
@@ -220,15 +216,15 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		log.info("-- Starting {} test --", methodName);
 
 		// Step 1: Create Admin Client
-		final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
+
 		// create a client which connects to proxy and pass authData
 		String topicName = "persistent://my-property/my-ns/my-topic1";
 
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
-		proxyConfig.setServicePort(Optional.of(servicePort));
-		proxyConfig.setWebServicePort(Optional.of(webServicePort));
-		proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
+		proxyConfig.setServicePort(Optional.of(0));
+		proxyConfig.setWebServicePort(Optional.of(0));
+		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
 		proxyConfig.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		proxyConfig.setSaslJaasServerSectionName("PulsarProxy");
 
@@ -249,6 +245,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
+		final String proxyServiceUrl = "pulsar://localhost:" + proxyService.getListenPort().get();
 		log.info("1 proxy service started {}", proxyService);
 
 		// Step 3: Pass correct client params

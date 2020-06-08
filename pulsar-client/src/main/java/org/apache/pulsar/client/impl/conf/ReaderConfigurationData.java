@@ -20,10 +20,12 @@ package org.apache.pulsar.client.impl.conf;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
+import java.util.List;
 
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderListener;
 
 import lombok.Data;
@@ -35,6 +37,9 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     @JsonIgnore
     private MessageId startMessageId;
+
+    @JsonIgnore
+    private long startMessageFromRollbackDurationInSec;
 
     private int receiverQueueSize = 1000;
 
@@ -48,6 +53,8 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean readCompacted = false;
     private boolean resetIncludeHead = false;
+
+    private List<Range> keyHashRanges;
 
     @SuppressWarnings("unchecked")
     public ReaderConfigurationData<T> clone() {

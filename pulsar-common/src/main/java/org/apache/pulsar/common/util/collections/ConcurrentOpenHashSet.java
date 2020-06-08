@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -177,6 +178,8 @@ public class ConcurrentOpenHashSet<V> {
         private volatile V[] values;
 
         private volatile int capacity;
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -270,7 +273,7 @@ public class ConcurrentOpenHashSet<V> {
                         }
 
                         values[bucket] = value;
-                        ++size;
+                        SIZE_UPDATER.incrementAndGet(this);
                         return true;
                     } else if (storedValue == DeletedValue) {
                         // The bucket contained a different deleted key
@@ -305,7 +308,7 @@ public class ConcurrentOpenHashSet<V> {
 
                     V storedValue = values[bucket];
                     if (value.equals(storedValue)) {
-                        --size;
+                        SIZE_UPDATER.decrementAndGet(this);
                         cleanBucket(bucket);
                         return true;
                     } else if (storedValue == EmptyValue) {
@@ -345,7 +348,7 @@ public class ConcurrentOpenHashSet<V> {
                     if (storedValue != DeletedValue && storedValue != EmptyValue) {
                         if (filter.test(storedValue)) {
                             // Removing item
-                            --size;
+                            SIZE_UPDATER.decrementAndGet(this);
                             ++removedCount;
                             cleanBucket(bucket);
                         }

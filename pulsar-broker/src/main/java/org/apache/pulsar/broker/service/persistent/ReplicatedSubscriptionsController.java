@@ -124,7 +124,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         // Send response containing the current last written message id. The response
         // marker we're publishing locally and then replicating will have a higher
         // message id.
-        PositionImpl lastMsgId = (PositionImpl) topic.getLastMessageId();
+        PositionImpl lastMsgId = (PositionImpl) topic.getLastPosition();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received snapshot request. Last msg id: {}", topic.getName(), lastMsgId);
         }

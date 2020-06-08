@@ -1,5 +1,5 @@
 ---
-id: io-rabbitmq
+id: io-rabbitmq-source
 title: RabbitMQ source connector
 sidebar_label: RabbitMQ source connector
 ---
@@ -61,7 +61,7 @@ Before using the RabbitMQ source connector, you need to create a configuration f
     configs:
         host: "localhost"
         port: 5672
-        virtualHost: "/",
+        virtualHost: "/"
         username: "guest"
         password: "guest"
         queueName: "test-queue"

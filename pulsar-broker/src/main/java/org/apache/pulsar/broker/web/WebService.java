@@ -19,21 +19,19 @@
 package org.apache.pulsar.broker.web;
 
 import com.google.common.collect.Lists;
-
 import io.prometheus.client.jetty.JettyStatisticsCollector;
-
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TimeZone;
-
 import javax.servlet.DispatcherType;
-
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -72,6 +70,9 @@ public class WebService implements AutoCloseable {
     private final List<Handler> handlers;
     private final WebExecutorThreadPool webServiceExecutor;
 
+    private final ServerConnector httpConnector;
+    private final ServerConnector httpsConnector;
+
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = Lists.newArrayList();
         this.pulsar = pulsar;
@@ -83,29 +84,50 @@ public class WebService implements AutoCloseable {
 
         Optional<Integer> port = pulsar.getConfiguration().getWebServicePort();
         if (port.isPresent()) {
-            ServerConnector connector = new PulsarServerConnector(server, 1, 1);
-            connector.setPort(port.get());
-            connector.setHost(pulsar.getBindAddress());
-            connectors.add(connector);
+            httpConnector = new PulsarServerConnector(server, 1, 1);
+            httpConnector.setPort(port.get());
+            httpConnector.setHost(pulsar.getBindAddress());
+            connectors.add(httpConnector);
+        } else {
+            httpConnector = null;
         }
 
         Optional<Integer> tlsPort = pulsar.getConfiguration().getWebServicePortTls();
         if (tlsPort.isPresent()) {
             try {
-                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        pulsar.getConfiguration().isTlsAllowInsecureConnection(),
-                        pulsar.getConfiguration().getTlsTrustCertsFilePath(),
-                        pulsar.getConfiguration().getTlsCertificateFilePath(),
-                        pulsar.getConfiguration().getTlsKeyFilePath(),
-                        pulsar.getConfiguration().isTlsRequireTrustedClientCertOnConnect(), true,
-                        pulsar.getConfiguration().getTlsCertRefreshCheckDurationSec());
-                ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-                tlsConnector.setPort(tlsPort.get());
-                tlsConnector.setHost(pulsar.getBindAddress());
-                connectors.add(tlsConnector);
+                SslContextFactory sslCtxFactory;
+                ServiceConfiguration config = pulsar.getConfiguration();
+                if (config.isTlsEnabledWithKeyStore()) {
+                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                            config.getTlsProvider(),
+                            config.getTlsKeyStoreType(),
+                            config.getTlsKeyStore(),
+                            config.getTlsKeyStorePassword(),
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustStoreType(),
+                            config.getTlsTrustStore(),
+                            config.getTlsTrustStorePassword(),
+                            config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getTlsCertRefreshCheckDurationSec()
+                    );
+                } else {
+                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustCertsFilePath(),
+                            config.getTlsCertificateFilePath(),
+                            config.getTlsKeyFilePath(),
+                            config.isTlsRequireTrustedClientCertOnConnect(), true,
+                            config.getTlsCertRefreshCheckDurationSec());
+                }
+                httpsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
+                httpsConnector.setPort(tlsPort.get());
+                httpsConnector.setHost(pulsar.getBindAddress());
+                connectors.add(httpsConnector);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
             }
+        } else {
+            httpsConnector = null;
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
@@ -139,9 +161,15 @@ public class WebService implements AutoCloseable {
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
+        if (pulsar.getConfig().getHttpMaxRequestSize() > 0) {
+            context.addFilter(new FilterHolder(
+                    new MaxRequestSizeFilter(
+                            pulsar.getConfig().getHttpMaxRequestSize())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-
         handlers.add(context);
     }
 
@@ -184,10 +212,22 @@ public class WebService implements AutoCloseable {
             handlers.add(stats);
 
             server.setHandler(stats);
-
             server.start();
 
-            log.info("Web Service started at {}", pulsar.getSafeWebServiceAddress());
+            if (httpConnector != null) {
+                log.info("HTTP Service started at http://{}:{}", httpConnector.getHost(), httpConnector.getLocalPort());
+                pulsar.getConfiguration().setWebServicePort(Optional.of(httpConnector.getLocalPort()));
+            } else {
+                log.info("HTTP Service disabled");
+            }
+
+            if (httpsConnector != null) {
+                log.info("HTTPS Service started at https://{}:{}", httpsConnector.getHost(),
+                        httpsConnector.getLocalPort());
+                pulsar.getConfiguration().setWebServicePortTls(Optional.of(httpsConnector.getLocalPort()));
+            } else {
+                log.info("HTTPS Service disabled");
+            }
         } catch (Exception e) {
             throw new PulsarServerException(e);
         }
@@ -201,6 +241,22 @@ public class WebService implements AutoCloseable {
             log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTP() {
+        if (httpConnector != null) {
+            return Optional.of(httpConnector.getLocalPort());
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        if (httpsConnector != null) {
+            return Optional.of(httpsConnector.getLocalPort());
+        } else {
+            return Optional.empty();
         }
     }
 

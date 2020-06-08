@@ -23,6 +23,7 @@ import static org.testng.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -170,7 +171,7 @@ public class KafkaProducerSimpleConsumerTest extends ProducerConsumerBase {
 
             byte[] bytes = new byte[payload.limit()];
             payload.get(bytes);
-            received.add(new String(bytes, "UTF-8"));
+            received.add(new String(bytes, StandardCharsets.UTF_8));
         }
         lastOffset -= 1;
         

@@ -359,7 +359,7 @@ Pulsar was built as a fundamentally multi-tenant system.
 To allow a new tenant to use the system, we need to create a new one. You can create a new tenant using the [`pulsar-admin`](reference-pulsar-admin.md#tenants-create) CLI tool:
 
 ```shell
-$ bin/pulsar-admin tenants create test-tentant \
+$ bin/pulsar-admin tenants create test-tenant \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
 ```

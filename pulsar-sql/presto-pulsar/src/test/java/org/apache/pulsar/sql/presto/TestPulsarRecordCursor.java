@@ -19,21 +19,34 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import org.apache.pulsar.common.naming.TopicName;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
-@Test(singleThreaded = true)
 public class TestPulsarRecordCursor extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarRecordCursor.class);
 
-    @Test
+    @Test(singleThreaded = true)
     public void testTopics() throws Exception {
 
         for (Map.Entry<TopicName, PulsarRecordCursor> entry : pulsarRecordCursors.entrySet()) {
@@ -41,6 +54,15 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             log.info("!------ topic %s ------!", entry.getKey());
             setup();
             PulsarRecordCursor pulsarRecordCursor = entry.getValue();
+
+            SchemaHandler schemaHandler = pulsarRecordCursor.getSchemaHandler();
+            PulsarSqlSchemaInfoProvider pulsarSqlSchemaInfoProvider = mock(PulsarSqlSchemaInfoProvider.class);
+            if (schemaHandler instanceof AvroSchemaHandler) {
+                AvroSchemaHandler avroSchemaHandler = (AvroSchemaHandler) schemaHandler;
+                avroSchemaHandler.getSchema().setSchemaInfoProvider(pulsarSqlSchemaInfoProvider);
+                when(pulsarSqlSchemaInfoProvider.getSchemaByVersion(any())).thenReturn(completedFuture(avroSchemaHandler.getSchemaInfo()));
+            }
+
             TopicName topicName = entry.getKey();
 
             int count = 0;
@@ -129,4 +151,45 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
             pulsarRecordCursor.close();
         }
     }
+
+    @Test
+    public void testRecordToBytes() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        PulsarRecordCursor pulsarRecordCursor = Mockito.mock(PulsarRecordCursor.class);
+        Method method = PulsarRecordCursor.class.getDeclaredMethod("toBytes", Object.class);
+        method.setAccessible(true);
+
+        final String msg = "Hello!";
+
+        byte[] bytes = msg.getBytes();
+        Object obj = method.invoke(pulsarRecordCursor, bytes);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuffer byteBuffer1 = ByteBuffer.wrap(msg.getBytes());
+        assertTrue(byteBuffer1.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuffer1);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuffer byteBuffer2 = ByteBuffer.allocateDirect(msg.getBytes().length);
+        byteBuffer2.put(msg.getBytes());
+        assertFalse(byteBuffer2.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuffer2);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuf byteBuf1 = Unpooled.wrappedBuffer(msg.getBytes());
+        assertTrue(byteBuf1.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuf1);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+
+        ByteBuf byteBuf2 = Unpooled.directBuffer();
+        byteBuf2.writeBytes(msg.getBytes());
+        assertFalse(byteBuf2.hasArray());
+        obj = method.invoke(pulsarRecordCursor, byteBuf2);
+        assertNotNull(obj);
+        assertEquals(new String((byte[]) obj), msg);
+    }
+
 }

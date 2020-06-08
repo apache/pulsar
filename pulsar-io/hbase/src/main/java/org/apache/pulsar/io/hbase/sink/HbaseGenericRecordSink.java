@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.hbase.sink;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
@@ -57,11 +58,16 @@ public class HbaseGenericRecordSink extends HbaseAbstractSink<GenericRecord> {
         byte[] familyValueBytes = getBytes(familyName);
 
         List<String> qualifierNames = tableDefinition.getQualifierNames();
-        for (String qualifierName : qualifierNames) {
-            Object qualifierValue = record.getField(qualifierName);
-            if (null != qualifierValue) {
-                Put put = new Put(getBytes(rowKeyValue));
-                put.addColumn(familyValueBytes, getBytes(qualifierName), getBytes(qualifierValue));
+        if (CollectionUtils.isNotEmpty(qualifierNames)) {
+            Put put = new Put(getBytes(rowKeyValue));
+            for (String qualifierName : qualifierNames) {
+                Object qualifierValue = record.getField(qualifierName);
+                if (null != qualifierValue) {
+                    put.addColumn(familyValueBytes, getBytes(qualifierName),
+                      getBytes(qualifierValue));
+                }
+            }
+            if (CollectionUtils.isNotEmpty(put.getFamilyCellMap().values())) {
                 puts.add(put);
             }
         }

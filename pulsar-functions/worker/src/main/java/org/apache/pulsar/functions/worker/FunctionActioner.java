@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.io.MoreFiles;	
+import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -35,6 +31,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
@@ -46,6 +43,7 @@ import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 import java.io.File;
@@ -73,10 +71,6 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Slf4j
 public class FunctionActioner {
 
@@ -84,16 +78,18 @@ public class FunctionActioner {
     private final RuntimeFactory runtimeFactory;
     private final Namespace dlogNamespace;
     private final ConnectorsManager connectorsManager;
+    private final FunctionsManager functionsManager;
     private final PulsarAdmin pulsarAdmin;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            ConnectorsManager connectorsManager, PulsarAdmin pulsarAdmin) {
+                            ConnectorsManager connectorsManager,FunctionsManager functionsManager,PulsarAdmin pulsarAdmin) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.connectorsManager = connectorsManager;
+        this.functionsManager = functionsManager;
         this.pulsarAdmin = pulsarAdmin;
     }
 
@@ -138,14 +134,12 @@ public class FunctionActioner {
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
-            return;
         } catch (Exception ex) {
             FunctionDetails details = functionRuntimeInfo.getFunctionInstance()
                     .getFunctionMetaData().getFunctionDetails();
             log.info("{}/{}/{} Error starting function", details.getTenant(), details.getNamespace(),
                     details.getName(), ex);
             functionRuntimeInfo.setStartupException(ex);
-            return;
         }
     }
 
@@ -174,7 +168,6 @@ public class FunctionActioner {
         return runtimeSpawner;
     }
 
-
     InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
             functionAuthSpec, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -187,6 +180,7 @@ public class FunctionActioner {
         instanceConfig.setPort(FunctionCommon.findAvailablePort());
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setFunctionAuthenticationSpec(functionAuthSpec);
+        instanceConfig.setMaxPendingAsyncRequests(workerConfig.getMaxPendingAsyncRequests());
         return instanceConfig;
     }
 
@@ -290,25 +284,28 @@ public class FunctionActioner {
         FunctionDetails details = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
         String fqfn = FunctionCommon.getFullyQualifiedName(details);
         log.info("{}-{} Terminating function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+        FunctionDetails funcDetails = functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
 
             // cleanup any auth data cached
             if (workerConfig.isAuthenticationEnabled()) {
-                try {
-                    log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
-                    functionRuntimeInfo.getRuntimeSpawner()
-                            .getRuntimeFactory().getAuthProvider()
-                            .cleanUpAuthData(
-                                    details.getTenant(), details.getNamespace(), details.getName(),
-                                    Optional.ofNullable(getFunctionAuthData(
-                                            Optional.ofNullable(
-                                                    functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
+                functionRuntimeInfo.getRuntimeSpawner()
+                        .getRuntimeFactory().getAuthProvider().ifPresent(functionAuthProvider -> {
+                            try {
+                                log.info("{}-{} Cleaning up authentication data for function...", fqfn,functionRuntimeInfo.getFunctionInstance().getInstanceId());
+                                functionAuthProvider
+                                        .cleanUpAuthData(
+                                                details,
+                                                Optional.ofNullable(getFunctionAuthData(
+                                                        Optional.ofNullable(
+                                                                functionRuntimeInfo.getRuntimeSpawner().getInstanceConfig().getFunctionAuthenticationSpec()))));
 
-                } catch (Exception e) {
-                    log.error("Failed to cleanup auth data for function: {}", fqfn, e);
-                }
+                            } catch (Exception e) {
+                                log.error("Failed to cleanup auth data for function: {}", fqfn, e);
+                            }
+                        });
             }
             functionRuntimeInfo.setRuntimeSpawner(null);
         }
@@ -329,62 +326,78 @@ public class FunctionActioner {
                             ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails())
                             : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
 
-                    try {
-                        Actions.newBuilder()
-                                .addAction(
-                                        Actions.Action.builder()
-                                                .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
-                                                .numRetries(10)
-                                                .sleepBetweenInvocationsMs(1000)
-                                                .supplier(() -> {
-                                                    try {
-                                                        if (consumerSpec.getIsRegexPattern()) {
-                                                            pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
-                                                                    .get(topic).getNamespace(), subscriptionName);
-                                                        } else {
-                                                            pulsarAdmin.topics().deleteSubscription(topic,
-                                                                    subscriptionName);
-                                                        }
-                                                    } catch (PulsarAdminException e) {
-                                                        if (e instanceof PulsarAdminException.NotFoundException) {
-                                                            return Actions.ActionResult.builder()
-                                                                    .success(true)
-                                                                    .build();
-                                                        } else {
-                                                            // for debugging purposes
-                                                            List<Map<String, String>> existingConsumers = Collections.emptyList();
-                                                            try {
-                                                                TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                                                                SubscriptionStats sub = stats.subscriptions.get(subscriptionName);
-                                                                if (sub != null) {
-                                                                    existingConsumers = sub.consumers.stream()
-                                                                            .map(consumerStats -> consumerStats.metadata)
-                                                                            .collect(Collectors.toList());
-                                                                }
-                                                            } catch (PulsarAdminException e1) {
-
-                                                            }
-
-                                                            String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
-                                                            return Actions.ActionResult.builder()
-                                                                    .success(false)
-                                                                    .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
-                                                                    .build();
-                                                        }
-                                                    }
-
-                                                    return Actions.ActionResult.builder()
-                                                            .success(true)
-                                                            .build();
-
-                                                })
-                                                .build())
-                                .run();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    deleteSubscription(topic, consumerSpec, subscriptionName, fqfn);
                 }
             });
+        }
+        if (InstanceUtils.calculateSubjectType(details) == FunctionDetails.ComponentType.SOURCE) {
+            // topicName -> subscriptions
+            Map<String, String> subscriptions =
+                    SourceConfigUtils.computeBatchSourceIntermediateTopicSubscriptions(details,
+                            FunctionCommon.getFullyQualifiedName(details));
+            if (subscriptions != null) {
+                subscriptions.forEach((topic, subscriptionName) -> {
+                    Function.ConsumerSpec consumerSpec = Function.ConsumerSpec.newBuilder().setIsRegexPattern(false).build();
+                    deleteSubscription(topic, consumerSpec, subscriptionName, fqfn);
+                });
+            }
+        }
+    }
+
+    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec, String subscriptionName, String fqfn) {
+        try {
+            Actions.newBuilder()
+                    .addAction(
+                            Actions.Action.builder()
+                                    .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
+                                    .numRetries(10)
+                                    .sleepBetweenInvocationsMs(1000)
+                                    .supplier(() -> {
+                                        try {
+                                            if (consumerSpec.getIsRegexPattern()) {
+                                                pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
+                                                        .get(topic).getNamespace(), subscriptionName);
+                                            } else {
+                                                pulsarAdmin.topics().deleteSubscription(topic,
+                                                        subscriptionName);
+                                            }
+                                        } catch (PulsarAdminException e) {
+                                            if (e instanceof PulsarAdminException.NotFoundException) {
+                                                return Actions.ActionResult.builder()
+                                                        .success(true)
+                                                        .build();
+                                            } else {
+                                                // for debugging purposes
+                                                List<Map<String, String>> existingConsumers = Collections.emptyList();
+                                                try {
+                                                    TopicStats stats = pulsarAdmin.topics().getStats(topic);
+                                                    SubscriptionStats sub = stats.subscriptions.get(subscriptionName);
+                                                    if (sub != null) {
+                                                        existingConsumers = sub.consumers.stream()
+                                                                .map(consumerStats -> consumerStats.metadata)
+                                                                .collect(Collectors.toList());
+                                                    }
+                                                } catch (PulsarAdminException e1) {
+
+                                                }
+
+                                                String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
+                                                return Actions.ActionResult.builder()
+                                                        .success(false)
+                                                        .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
+                                                        .build();
+                                            }
+                                        }
+
+                                        return Actions.ActionResult.builder()
+                                                .success(true)
+                                                .build();
+
+                                    })
+                                    .build())
+                    .run();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -404,7 +417,7 @@ public class FunctionActioner {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
                 File archive = connectorsManager.getSourceArchive(sourceSpec.getBuiltin()).toFile();
-                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSourceClass();
+                String sourceClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSourceClass();
                 SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
                 builder.setClassName(sourceClass);
                 functionDetails.setSource(builder);
@@ -418,7 +431,7 @@ public class FunctionActioner {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 File archive = connectorsManager.getSinkArchive(sinkSpec.getBuiltin()).toFile();
-                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString()).getSinkClass();
+                String sinkClass = ConnectorUtils.getConnectorDefinition(archive.toString(), workerConfig.getNarExtractionDirectory()).getSinkClass();
                 SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
                 builder.setClassName(sinkClass);
                 functionDetails.setSink(builder);
@@ -428,12 +441,16 @@ public class FunctionActioner {
             }
         }
 
+        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+            return functionsManager.getFunctionArchive(functionDetails.getBuiltin()).toFile();
+        }
+
         throw new IOException("Could not find built in archive definition");
     }
 
     private void fillSourceTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
             throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
             String typeArg = getSourceType(className, ncl).getName();
 
             SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
@@ -451,7 +468,7 @@ public class FunctionActioner {
 
     private void fillSinkTypeClass(FunctionDetails.Builder functionDetails, File archive, String className)
             throws IOException, ClassNotFoundException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(archive, Collections.emptySet(), workerConfig.getNarExtractionDirectory())) {
             String typeArg = getSinkType(className, ncl).getName();
 
             SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());

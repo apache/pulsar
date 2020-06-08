@@ -26,6 +26,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.test.InstanceSpec;
 import org.apache.curator.test.TestingServer;
 import org.apache.curator.utils.EnsurePath;
 import org.apache.flume.conf.FlumeConfiguration;
@@ -53,7 +54,9 @@ public abstract class TestAbstractZooKeeperConfigurationProvider {
 
     @Before
     public void setUp() throws Exception {
-        zkServer = new TestingServer();
+        // start the instance without the admin server!
+        InstanceSpec serverSpec = new InstanceSpec(null, -1, -1, -1, true, -1, -1, -1, Collections.singletonMap("zookeeper.admin.enableServer", "false"));
+        zkServer = new TestingServer(serverSpec, true);
         client = CuratorFrameworkFactory
                 .newClient("localhost:" + zkServer.getPort(),
                         new ExponentialBackoffRetry(1000, 3));

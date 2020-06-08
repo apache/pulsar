@@ -124,13 +124,14 @@ typedef std::unique_lock<std::mutex> Lock;
 
 typedef std::chrono::high_resolution_clock Clock;
 
-void sendCallback(pulsar::Result result, const pulsar::Message& msg, Clock::time_point& publishTime) {
+void sendCallback(pulsar::Result result, const pulsar::MessageId& msgId, Clock::time_point& publishTime) {
     LOG_DEBUG("result = " << result);
     assert(result == pulsar::ResultOk);
     uint64_t latencyUsec = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - publishTime).count();
     Lock lock(mutex);
     ++messagesProduced;
-    bytesProduced += msg.getLength();
+    // FIXME: Please fix me in here.
+    // bytesProduced += msg.getLength();
     e2eLatencyAccumulator(latencyUsec);
 }
 
@@ -368,7 +369,7 @@ int main(int argc, char** argv) {
 
     pulsar::Client client(pulsar::PulsarFriend::getClient(args.serviceURL, conf, false));
 
-    std::atomic<bool> exitCondition;
+    std::atomic<bool> exitCondition(false);
     startPerfProducer(args, producerConf, client, exitCondition);
 
     Clock::time_point oldTime = Clock::now();

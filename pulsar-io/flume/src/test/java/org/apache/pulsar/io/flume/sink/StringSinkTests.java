@@ -18,8 +18,23 @@
  */
 package org.apache.pulsar.io.flume.sink;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.Maps;
-import org.apache.flume.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.apache.flume.Channel;
+import org.apache.flume.ChannelSelector;
+import org.apache.flume.Context;
+import org.apache.flume.Event;
+import org.apache.flume.Transaction;
 import org.apache.flume.channel.ChannelProcessor;
 import org.apache.flume.channel.MemoryChannel;
 import org.apache.flume.channel.ReplicatingChannelSelector;
@@ -28,21 +43,13 @@ import org.apache.flume.source.AvroSource;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.flume.AbstractFlumeTests;
+import org.junit.Assert;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import org.junit.Assert;
-
-import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.Mockito.*;
 
 public class StringSinkTests extends AbstractFlumeTests {
 
@@ -55,13 +62,11 @@ public class StringSinkTests extends AbstractFlumeTests {
 
     private AvroSource source;
     private Channel channel;
-    private InetAddress localhost;
 
     @BeforeMethod
     public void setUp() throws Exception {
         mockRecord = mock(Record.class);
         mockSinkContext = mock(SinkContext.class);
-        localhost = InetAddress.getByName("127.0.0.1");
         source = new AvroSource();
         channel = new MemoryChannel();
         Context context = new Context();

@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -182,6 +183,8 @@ public class ConcurrentOpenHashMap<K, V> {
         private volatile Object[] table;
 
         private volatile int capacity;
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -276,7 +279,7 @@ public class ConcurrentOpenHashMap<K, V> {
 
                         table[bucket] = key;
                         table[bucket + 1] = value;
-                        ++size;
+                        SIZE_UPDATER.incrementAndGet(this);
                         return valueProvider != null ? value : null;
                     } else if (storedKey == DeletedKey) {
                         // The bucket contained a different deleted key
@@ -310,7 +313,7 @@ public class ConcurrentOpenHashMap<K, V> {
                     V storedValue = (V) table[bucket + 1];
                     if (key.equals(storedKey)) {
                         if (value == null || value.equals(storedValue)) {
-                            --size;
+                            SIZE_UPDATER.decrementAndGet(this);
 
                             int nextInArray = (bucket + 2) & (table.length - 1);
                             if (table[nextInArray] == EmptyKey) {

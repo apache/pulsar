@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.utils.io.Connectors;
@@ -31,7 +32,7 @@ public class ConnectorsManager {
     private Connectors connectors;
 
     public ConnectorsManager(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory());
+        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 
     public List<ConnectorDefinition> getConnectors() {
@@ -42,11 +43,19 @@ public class ConnectorsManager {
         return connectors.getSources().get(sourceType);
     }
 
+    public List<ConfigFieldDefinition> getSourceConfigDefinition(String sourceType) {
+        return connectors.getSourceConfigDefinitions().get(sourceType);
+    }
+
+    public List<ConfigFieldDefinition> getSinkConfigDefinition(String sinkType) {
+        return connectors.getSinkConfigDefinitions().get(sinkType);
+    }
+
     public Path getSinkArchive(String sinkType) {
         return connectors.getSinks().get(sinkType);
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory());
+        this.connectors = ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(), workerConfig.getNarExtractionDirectory());
     }
 }

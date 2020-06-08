@@ -69,8 +69,8 @@ class Record(with_metaclass(RecordMeta, object)):
                 # Value is a subrecord
                 self.__setattr__(k, value)
             else:
-                # Set field to default value
-                self.__setattr__(k, value.default())
+                # Set field to default value, without revalidating the default value type
+                super(Record, self).__setattr__(k, value.default())
 
     @classmethod
     def schema(cls):
@@ -92,6 +92,10 @@ class Record(with_metaclass(RecordMeta, object)):
     def __setattr__(self, key, value):
         if key not in self._fields:
             raise AttributeError('Cannot set undeclared field ' + key + ' on record')
+
+        # Check that type of value matches the field type
+        field = self._fields[key]
+        value = field.validate_type(key, value)
         super(Record, self).__setattr__(key, value)
 
     def __eq__(self, other):
@@ -106,15 +110,32 @@ class Record(with_metaclass(RecordMeta, object)):
     def type(self):
         return str(self.__class__.__name__)
 
+    def validate_type(self, name, val):
+        if not isinstance(val, self.__class__):
+            raise TypeError("Invalid type '%s' for sub-record field '%s'. Expected: %s" % (
+                type(val), name, self.__class__))
+        return val
+
 
 class Field(object):
     def __init__(self, default=None, required=False):
+        if default is not None:
+            default = self.validate_type('default', default)
         self._default = default
         self._required = required
 
     @abstractmethod
     def type(self):
         pass
+
+    @abstractmethod
+    def python_type(self):
+        pass
+
+    def validate_type(self, name, val):
+        if type(val) != self.python_type():
+            raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
+        return val
 
     def schema(self):
         # For primitive types, the schema would just be the type itself
@@ -130,53 +151,114 @@ class Null(Field):
     def type(self):
         return 'null'
 
+    def python_type(self):
+        return type(None)
+
+    def validate_type(self, name, val):
+        if val is not None:
+            raise TypeError('Field ' + name + ' is set to be None')
+        return val
+
 
 class Boolean(Field):
     def type(self):
         return 'boolean'
+
+    def python_type(self):
+        return bool
 
 
 class Integer(Field):
     def type(self):
         return 'int'
 
+    def python_type(self):
+        return int
+
 
 class Long(Field):
     def type(self):
         return 'long'
+
+    def python_type(self):
+        return int
 
 
 class Float(Field):
     def type(self):
         return 'float'
 
+    def python_type(self):
+        return float
+
 
 class Double(Field):
     def type(self):
         return 'double'
+
+    def python_type(self):
+        return float
 
 
 class Bytes(Field):
     def type(self):
         return 'bytes'
 
+    def python_type(self):
+        return bytes
+
 
 class String(Field):
     def type(self):
         return 'string'
 
+    def python_type(self):
+        return str
+
+    def validate_type(self, name, val):
+        t = type(val)
+        if not (t is str or t.__name__ == 'unicode'):
+            raise TypeError("Invalid type '%s' for field '%s'. Expected a string" % (t, name))
+        return val
 
 # Complex types
+
 
 class _Enum(Field):
     def __init__(self, enum_type):
         if not issubclass(enum_type, Enum):
             raise Exception(enum_type + " is not a valid Enum type")
         self.enum_type = enum_type
+        self.values = {}
+        for x in enum_type.__members__.values():
+            self.values[x.value] = x
         super(_Enum, self).__init__()
 
     def type(self):
         return 'enum'
+
+    def python_type(self):
+        return self.enum_type
+
+    def validate_type(self, name, val):
+        if type(val) is str:
+            # The enum was passed as a string, we need to check it against the possible values
+            if val in self.enum_type.__members__:
+                return self.enum_type.__members__[val]
+            else:
+                raise TypeError(
+                    "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.enum_type.__members__.keys()))
+        elif type(val) is int:
+            # The enum was passed as an int, we need to check it against the possible values
+            if val in self.values:
+                return self.values[val]
+            else:
+                raise TypeError(
+                    "Invalid enum value '%s' for field '%s'. Expected: %s" % (val, name, self.values.keys()))
+        elif type(val) != self.python_type():
+            raise TypeError("Invalid type '%s' for field '%s'. Expected: %s" % (type(val), name, self.python_type()))
+        else:
+            return val
 
     def schema(self):
         return {
@@ -195,6 +277,18 @@ class Array(Field):
     def type(self):
         return 'array'
 
+    def python_type(self):
+        return list
+
+    def validate_type(self, name, val):
+        super(Array, self).validate_type(name, val)
+
+        for x in val:
+            if type(x) != self.array_type.python_type():
+                raise TypeError('Array field ' + name + ' items should all be of type '
+                                + self.array_type.python_type())
+        return val
+
     def schema(self):
         return {
             'type': self.type(),
@@ -211,6 +305,21 @@ class Map(Field):
 
     def type(self):
         return 'map'
+
+    def python_type(self):
+        return dict
+
+    def validate_type(self, name, val):
+        super(Map, self).validate_type(name, val)
+
+        for k, v in val.items():
+            if type(k) != str:
+                raise TypeError('Map keys for field ' + name + '  should all be strings')
+            if type(v) != self.value_type.python_type():
+                raise TypeError('Map values for field ' + name + ' should all be of type '
+                                + self.value_type.python_type())
+
+        return val
 
     def schema(self):
         return {

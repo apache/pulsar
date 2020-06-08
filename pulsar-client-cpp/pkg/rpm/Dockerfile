@@ -62,12 +62,20 @@ RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
     cd zlib-1.2.11 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /v1.2.11.tar.gz /zlib-1.2.11
+
+# Zstandard
+RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
+    tar xvfz zstd-1.3.7.tar.gz && \
+    cd zstd-1.3.7 && \
+    CFLAGS="-fPIC -O3" make -j8 && \
+    make install && \
+    rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
     tar xvfz OpenSSL_1_1_0j.tar.gz && \
     cd openssl-OpenSSL_1_1_0j/ && \
-    ./Configure -fPIC --prefix=/usr/local/ssl/ no-shared linux-x86_64 && \
+    ./Configure -fPIC --prefix=/usr/local/ssl/ linux-x86_64 && \
     make && make install && \
     rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
@@ -78,13 +86,5 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-
     CFLAGS=-fPIC ./configure --with-ssl=/usr/local/ssl/ && \
     make && make install && \
     rm -rf /curl-7.61.0.tar.gz /curl-7.61.0
-
-# Zstandard
-RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \
-    tar xvfz zstd-1.3.7.tar.gz && \
-    cd zstd-1.3.7 && \
-    CFLAGS="-fPIC -O3" make -j8 && \
-    make install && \
-    rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
 ENV OPENSSL_ROOT_DIR /usr/local/ssl/

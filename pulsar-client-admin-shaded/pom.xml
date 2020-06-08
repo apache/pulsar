@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -63,8 +63,6 @@
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
                   <include>org.asynchttpclient:*</include>
-                  <include>io.netty:netty-codec-http</include>
-                  <include>io.netty:netty-transport-native-epoll</include>
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
@@ -72,8 +70,7 @@
                   <include>com.google.guava:guava</include>
                   <include>com.google.code.gson:gson</include>
                   <include>com.fasterxml.jackson.core</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
+                  <include>io.netty:*</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
@@ -84,7 +81,6 @@
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
                   <include>com.yahoo.datasketches:*</include>
-                  <include>io.netty:*</include>
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
@@ -97,6 +93,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>io.swagger:*</include>
                   <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
                 </includes>
               </artifactSet>
               <filters>

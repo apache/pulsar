@@ -16,27 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <set>
+#include <mutex>
+#include <chrono>
+#include <thread>
+#include <vector>
+#include <cstring>
+#include <sstream>
+#include <algorithm>
+#include <functional>
+
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
-#include <lib/LogUtils.h>
+#include <pulsar/Consumer.h>
 #include <pulsar/MessageBuilder.h>
-#include <lib/Commands.h>
+
 #include <lib/Latch.h>
-#include <sstream>
-#include "CustomRoutingPolicy.h"
-#include <mutex>
+#include <lib/Utils.h>
+#include <lib/Future.h>
+#include <lib/Commands.h>
+#include <lib/LogUtils.h>
+#include <lib/TimeUtils.h>
 #include <lib/TopicName.h>
-#include "PulsarFriend.h"
-#include "HttpHelper.h"
-#include <set>
-#include <vector>
+#include <lib/ClientImpl.h>
+#include <lib/ConsumerImpl.h>
+#include <lib/PulsarApi.pb.h>
 #include <lib/MultiTopicsConsumerImpl.h>
+#include <lib/AckGroupingTrackerEnabled.h>
+#include <lib/AckGroupingTrackerDisabled.h>
 #include <lib/PatternMultiTopicsConsumerImpl.h>
-#include "lib/Future.h"
-#include "lib/Utils.h"
-#include <functional>
-#include <thread>
-#include <chrono>
+
+#include "HttpHelper.h"
+#include "PulsarFriend.h"
+#include "CustomRoutingPolicy.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -48,6 +60,15 @@ static int globalCount = 0;
 static long globalResendMessageCount = 0;
 static std::string lookupUrl = "pulsar://localhost:6650";
 static std::string adminUrl = "http://localhost:8080/";
+static int uniqueCounter = 0;
+
+static std::string unique_str() {
+    long nanos = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     std::chrono::steady_clock::now().time_since_epoch())
+                     .count();
+
+    return std::to_string(uniqueCounter++) + "_" + std::to_string(nanos);
+}
 
 static void messageListenerFunction(Consumer consumer, const Message &msg) {
     globalCount++;
@@ -61,13 +82,10 @@ static void messageListenerFunctionWithoutAck(Consumer consumer, const Message &
     latch.countdown();
 }
 
-static void sendCallBack(Result r, const Message &msg, std::string prefix, int *count) {
+static void sendCallBack(Result r, const MessageId &msgId, std::string prefix, int *count) {
     static std::mutex sendMutex_;
     sendMutex_.lock();
     ASSERT_EQ(r, ResultOk);
-    std::string messageContent = prefix + std::to_string(*count);
-    ASSERT_EQ(messageContent, msg.getDataAsString());
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
     *count += 1;
     sendMutex_.unlock();
 }
@@ -90,12 +108,12 @@ static void receiveCallBack(Result r, const Message &msg, std::string &messageCo
     receiveMutex_.unlock();
 }
 
-static void sendCallBackWithDelay(Result r, const Message &msg, std::string prefix, double percentage,
+static void sendCallBackWithDelay(Result r, const MessageId &msgId, std::string prefix, double percentage,
                                   uint64_t delayInMicros, int *count) {
     if ((rand() % 100) <= percentage) {
         std::this_thread::sleep_for(std::chrono::microseconds(delayInMicros));
     }
-    sendCallBack(r, msg, prefix, count);
+    sendCallBack(r, msgId, prefix, count);
 }
 
 class EncKeyReader : public CryptoKeyReader {
@@ -209,7 +227,7 @@ TEST(BasicEndToEndTest, testBatchMessages) {
     ASSERT_EQ(i, numOfMessages);
 }
 
-void resendMessage(Result r, const Message msg, Producer producer) {
+void resendMessage(Result r, const MessageId msgId, Producer producer) {
     Lock lock(mutex_);
     if (r != ResultOk) {
         LOG_DEBUG("globalResendMessageCount" << globalResendMessageCount);
@@ -260,6 +278,53 @@ TEST(BasicEndToEndTest, testProduceConsume) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testRedeliveryCount) {
+    ClientConfiguration config;
+    Client client(lookupUrl, config);
+    std::string topicName = "persistent://public/default/test-redelivery-count";
+    std::string subName = "my-sub-name";
+
+    Producer producer;
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setNegativeAckRedeliveryDelayMs(500);
+    consumerConf.setConsumerType(ConsumerShared);
+    client.subscribeAsync(topicName, subName, consumerConf, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+    std::string temp = producer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    temp = consumer.getTopic();
+    ASSERT_EQ(temp, topicName);
+    ASSERT_EQ(consumer.getSubscriptionName(), subName);
+
+    std::string content = "msg-content";
+    Message msg = MessageBuilder().setContent(content).build();
+    producer.send(msg);
+
+    int redeliveryCount = 0;
+    Message msgReceived;
+    for (int i = 0; i < 4; i++) {
+        consumer.receive(msgReceived);
+        LOG_INFO("Received message " << msgReceived.getDataAsString());
+        consumer.negativeAcknowledge(msgReceived);
+        redeliveryCount = msgReceived.getRedeliveryCount();
+    }
+
+    ASSERT_EQ(3, redeliveryCount);
+    consumer.acknowledge(msgReceived);
+    consumer.close();
+    producer.close();
 }
 
 TEST(BasicEndToEndTest, testLookupThrottling) {
@@ -528,12 +593,10 @@ TEST(BasicEndToEndTest, testPartitionedProducerConsumer) {
 
 TEST(BasicEndToEndTest, testPartitionedProducerConsumerSubscriptionName) {
     Client client(lookupUrl);
-    std::string topicName = "testPartitionedProducerConsumerSubscriptionName";
+    std::string topicName = "testPartitionedProducerConsumerSubscriptionName" + unique_str();
 
     // call admin api to make it partitioned
-    std::string url =
-        adminUrl +
-        "admin/v2/persistent/public/default/testPartitionedProducerConsumerSubscriptionName/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -563,6 +626,7 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -572,6 +636,10 @@ TEST(BasicEndToEndTest, testMessageTooBig) {
     msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer.send(msg);
     ASSERT_EQ(ResultOk, result);
+
+    for (const auto &q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
 
     delete[] content;
 }
@@ -670,11 +738,10 @@ TEST(BasicEndToEndTest, testConfigurationFile) {
 
 TEST(BasicEndToEndTest, testSinglePartitionRoutingPolicy) {
     Client client(lookupUrl);
-    std::string topicName = "partition-testSinglePartitionRoutingPolicy";
+    std::string topicName = "partition-testSinglePartitionRoutingPolicy" + unique_str();
 
     // call admin api to make it partitioned
-    std::string url =
-        adminUrl + "admin/v2/persistent/public/default/partition-testSinglePartitionRoutingPolicy/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/" + topicName + "/partitions";
     int res = makePutRequest(url, "5");
 
     LOG_INFO("res = " << res);
@@ -1116,6 +1183,7 @@ TEST(BasicEndToEndTest, testProduceMessageSize) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1167,6 +1235,7 @@ TEST(BasicEndToEndTest, testBigMessageSizeBatching) {
 
     int size = Commands::DefaultMaxMessageSize + 1000 * 100;
     char *content = new char[size];
+    memset(content, 0, size);
     Message msg = MessageBuilder().setAllocatedContent(content, size).build();
     result = producer1.send(msg);
     ASSERT_EQ(ResultMessageTooBig, result);
@@ -1483,7 +1552,7 @@ TEST(BasicEndToEndTest, testSeek) {
     LOG_INFO("Trying to receive 100 messages");
     Message msgReceived;
     for (msgNum = 0; msgNum < 100; msgNum++) {
-        consumer.receive(msgReceived, 100);
+        consumer.receive(msgReceived, 3000);
         LOG_DEBUG("Received message :" << msgReceived.getMessageId());
         std::stringstream expected;
         expected << msgContent << msgNum;
@@ -1497,7 +1566,7 @@ TEST(BasicEndToEndTest, testSeek) {
     std::this_thread::sleep_for(std::chrono::microseconds(500 * 1000));
 
     ASSERT_EQ(ResultOk, result);
-    consumer.receive(msgReceived, 100);
+    consumer.receive(msgReceived, 3000);
     LOG_ERROR("Received message :" << msgReceived.getMessageId());
     std::stringstream expected;
     msgNum = 0;
@@ -1558,11 +1627,14 @@ TEST(BasicEndToEndTest, testPartitionTopicUnAckedMessageTimeout) {
     Client client(lookupUrl);
     long unAckedMessagesTimeoutMs = 10000;
 
-    std::string topicName = "persistent://public/default/testPartitionTopicUnAckedMessageTimeout";
+    std::string uniqueChunk = unique_str();
+    std::string topicName =
+        "persistent://public/default/testPartitionTopicUnAckedMessageTimeout" + uniqueChunk;
 
     // call admin api to make it partitioned
-    std::string url =
-        adminUrl + "admin/v2/persistent/public/default/testPartitionTopicUnAckedMessageTimeout/partitions";
+    std::string url = adminUrl +
+                      "admin/v2/persistent/public/default/testPartitionTopicUnAckedMessageTimeout" +
+                      uniqueChunk + "/partitions";
     int res = makePutRequest(url, "3");
 
     LOG_INFO("res = " << res);
@@ -2063,9 +2135,12 @@ TEST(BasicEndToEndTest, testPatternEmptyUnsubscribe) {
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
     LOG_INFO("created topics consumer on a pattern that match 0 topics");
 
-    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+    result = consumer.unsubscribe();
+    LOG_INFO("unsubscribed topics consumer : " << result);
+    ASSERT_EQ(ResultOk, result) << "expected " << ResultOk << " but found " << result;
 
-    client.shutdown();
+    // TODO: flaky test
+    // client.shutdown();
 }
 
 // create a pattern consumer, which contains no match topics at beginning.
@@ -2098,7 +2173,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string topicName2 = "persistent://public/default/patternTopicsAutoConsumerPubSub2";
     std::string topicName3 = "persistent://public/default/patternTopicsAutoConsumerPubSub3";
     // This will not match pattern
-    std::string topicName4 = "persistent://public/default/patternMultiTopicsNotMatchPubSub4";
+    std::string topicName4 = "persistent://public/default/notMatchPatternTopicsAutoConsumerPubSub4";
 
     // call admin api to make topics partitioned
     std::string url1 =
@@ -2108,7 +2183,7 @@ TEST(BasicEndToEndTest, testPatternMultiTopicsConsumerAutoDiscovery) {
     std::string url3 =
         adminUrl + "admin/v2/persistent/public/default/patternTopicsAutoConsumerPubSub3/partitions";
     std::string url4 =
-        adminUrl + "admin/v2/persistent/public/default/patternMultiTopicsNotMatchPubSub4/partitions";
+        adminUrl + "admin/v2/persistent/public/default/notMatchPatternTopicsAutoConsumerPubSub4/partitions";
 
     int res = makePutRequest(url1, "2");
     ASSERT_FALSE(res != 204 && res != 409);
@@ -2290,16 +2365,17 @@ TEST(BasicEndToEndTest, testSyncFlushBatchMessages) {
 }
 
 // for partitioned reason, it may hard to verify message id.
-static void simpleCallback(Result code, const Message &msg) {
-    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
+static void simpleCallback(Result code, const MessageId &msgId) {
+    LOG_INFO("Received code: " << code << " -- MsgID: " << msgId);
 }
 
 TEST(BasicEndToEndTest, testSyncFlushBatchMessagesPartitionedTopic) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://public/default/partition-testSyncFlushBatchMessages";
+    std::string uniqueChunk = unique_str();
+    std::string topicName = "persistent://public/default/partition-testSyncFlushBatchMessages" + uniqueChunk;
     // call admin api to make it partitioned
-    std::string url =
-        adminUrl + "admin/v2/persistent/public/default/partition-testSyncFlushBatchMessages/partitions";
+    std::string url = adminUrl + "admin/v2/persistent/public/default/partition-testSyncFlushBatchMessages" +
+                      uniqueChunk + "/partitions";
     int res = makePutRequest(url, "5");
     const int numberOfPartitions = 5;
 
@@ -2509,10 +2585,13 @@ TEST(BasicEndToEndTest, testFlushInProducer) {
 
 TEST(BasicEndToEndTest, testFlushInPartitionedProducer) {
     Client client(lookupUrl);
-    std::string topicName = "persistent://public/default/partition-testFlushInPartitionedProducer";
+    std::string uniqueChunk = unique_str();
+    std::string topicName =
+        "persistent://public/default/partition-testFlushInPartitionedProducer" + uniqueChunk;
     // call admin api to make it partitioned
-    std::string url =
-        adminUrl + "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer/partitions";
+    std::string url = adminUrl +
+                      "admin/v2/persistent/public/default/partition-testFlushInPartitionedProducer" +
+                      uniqueChunk + "/partitions";
     int res = makePutRequest(url, "5");
     const int numberOfPartitions = 5;
 
@@ -2865,12 +2944,22 @@ TEST(BasicEndToEndTest, testPartitionedReceiveAsyncFailedConsumer) {
     client.shutdown();
 }
 
+static void expectTimeoutOnRecv(Consumer &consumer) {
+    Message msg;
+    Result res = consumer.receive(msg, 100);
+    if (res != ResultTimeout) {
+        LOG_ERROR("Received a msg when not expecting to id(" << msg.getMessageId() << ") "
+                                                             << msg.getDataAsString());
+    }
+    ASSERT_EQ(ResultTimeout, res);
+}
+
 void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     Client client(lookupUrl);
     Consumer consumer;
     ConsumerConfiguration conf;
     conf.setNegativeAckRedeliveryDelayMs(100);
-    Result result = client.subscribe(topic, "test", consumer);
+    Result result = client.subscribe(topic, "test", conf, consumer);
     ASSERT_EQ(ResultOk, result);
 
     Producer producer;
@@ -2886,17 +2975,29 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
 
     producer.flush();
 
+    std::vector<MessageId> toNeg;
     for (int i = 0; i < 10; i++) {
         Message msg;
         consumer.receive(msg);
 
+        LOG_INFO("Received message " << msg.getDataAsString());
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
-        consumer.negativeAcknowledge(msg);
+        toNeg.push_back(msg.getMessageId());
     }
+    // No more messages expected
+    expectTimeoutOnRecv(consumer);
+
+    PulsarFriend::setNegativeAckEnabled(consumer, false);
+    // negatively acknowledge all at once
+    for (auto &&msgId : toNeg) {
+        consumer.negativeAcknowledge(msgId);
+    }
+    PulsarFriend::setNegativeAckEnabled(consumer, true);
 
     for (int i = 0; i < 10; i++) {
         Message msg;
         consumer.receive(msg);
+        LOG_INFO("-- Redelivery -- Received message " << msg.getDataAsString());
 
         ASSERT_EQ(msg.getDataAsString(), "test-" + std::to_string(i));
 
@@ -2904,9 +3005,7 @@ void testNegativeAcks(const std::string &topic, bool batchingEnabled) {
     }
 
     // No more messages expected
-    Message msg;
-    Result res = consumer.receive(msg, 100);
-    ASSERT_EQ(ResultTimeout, res);
+    expectTimeoutOnRecv(consumer);
 
     client.shutdown();
 }
@@ -2979,10 +3078,46 @@ TEST(BasicEndToEndTest, testRegexTopicsWithMessageListener) {
     }
 }
 
+TEST(BasicEndToEndTest, testRegexTopicsWithInitialPosition) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+
+    std::string topicName =
+        "persistent://public/default/test-regex-initial-position-" + std::to_string(time(NULL));
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    for (int i = 0; i < 10; i++) {
+        producer.send(MessageBuilder().setContent("test-" + std::to_string(i)).build());
+    }
+
+    std::string subsName = "testRegexTopicsWithMessageListener-sub";
+    std::string pattern = topicName + ".*";
+
+    // Subscription gets created after messages are produced but it will start from the beginning of the topic
+    ConsumerConfiguration consumerConf;
+    consumerConf.setSubscriptionInitialPosition(InitialPositionEarliest);
+
+    Consumer consumer;
+    result = client.subscribeWithRegex(pattern, subsName, consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(consumer.getSubscriptionName(), subsName);
+
+    for (int i = 0; i < 10; i++) {
+        Message msg;
+        Result res = consumer.receive(msg);
+        ASSERT_EQ(ResultOk, result);
+    }
+
+    client.close();
+}
+
 TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     ClientConfiguration config;
     Client client(lookupUrl);
-    std::string topicName = "testPartitionedTopicWithOnePartition";
+    std::string topicName = "testPartitionedTopicWithOnePartition" + unique_str();
     std::string subsName = topicName + "-sub-";
 
     // call admin api to make 1 partition
@@ -3029,11 +3164,11 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
         LOG_INFO("begin to receive message " << i);
 
         Message msg;
-        Result res = consumer1.receive(msg, 100);
+        Result res = consumer1.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         consumer1.acknowledge(msg);
 
-        res = consumer2.receive(msg, 100);
+        res = consumer2.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         consumer2.acknowledge(msg);
     }
@@ -3046,6 +3181,38 @@ TEST(BasicEndToEndTest, testPartitionedTopicWithOnePartition) {
     res = consumer2.receive(msg, 100);
     ASSERT_EQ(ResultTimeout, res);
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testDelayedMessages) {
+    std::string topicName = "testDelayedMessages-" + std::to_string(TimeUtils::currentTimeMillis());
+    Client client(lookupUrl);
+
+    Producer producer;
+    Result result = client.createProducer(topicName, producer);
+    ASSERT_EQ(ResultOk, result);
+
+    Consumer consumer;
+    ConsumerConfiguration consumerConf;
+    consumerConf.setConsumerType(ConsumerShared);
+    result = client.subscribe(topicName, "my-sub-name", consumerConf, consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    Message msg1 =
+        MessageBuilder().setContent("msg-1").setDeliverAfter(std::chrono::milliseconds(5000)).build();
+    ASSERT_EQ(ResultOk, producer.send(msg1));
+
+    // 2nd message without delay
+    Message msg2 = MessageBuilder().setContent("msg-2").build();
+    ASSERT_EQ(ResultOk, producer.send(msg2));
+
+    Message msgReceived;
+    result = consumer.receive(msgReceived);
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ("msg-2", msgReceived.getDataAsString());
+
+    auto result1 = client.close();
+    std::cout << "closed with " << result1 << std::endl;
+    ASSERT_EQ(ResultOk, result1);
 }
 
 TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
@@ -3082,7 +3249,7 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
     // test cannot use acknowledgeCumulative on Shared subscription
     for (int i = 0; i < numMessages; i++) {
         Message msg;
-        Result res = consumer1.receive(msg, 100);
+        Result res = consumer1.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         if (i == 9) {
             res = consumer1.acknowledgeCumulative(msg);
@@ -3093,7 +3260,7 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
     // test cannot use acknowledgeCumulative on Key_Shared subscription
     for (int i = 0; i < numMessages; i++) {
         Message msg;
-        Result res = consumer2.receive(msg, 100);
+        Result res = consumer2.receive(msg, 3000);
         ASSERT_EQ(ResultOk, res);
         if (i == 9) {
             res = consumer2.acknowledgeCumulative(msg);
@@ -3101,4 +3268,475 @@ TEST(BasicEndToEndTest, testCumulativeAcknowledgeNotAllowed) {
         }
     }
     client.shutdown();
+}
+
+TEST(BasicEndToEndTest, testSendCallback) {
+    const std::string topicName = "persistent://public/default/BasicEndToEndTest-testSendCallback";
+
+    Client client(lookupUrl);
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, "SubscriptionName", consumer));
+
+    Latch latch(100);
+    std::set<MessageId> sentIdSet;
+    for (int i = 0; i < 100; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+            ASSERT_EQ(ResultOk, result);
+            sentIdSet.emplace(id);
+            latch.countdown();
+        });
+    }
+
+    std::set<MessageId> receivedIdSet;
+    for (int i = 0; i < 100; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    consumer.close();
+    producer.close();
+
+    const std::string partitionedTopicName = topicName + "-" + std::to_string(time(nullptr));
+    const std::string url = adminUrl + "admin/v2/persistent/" +
+                            partitionedTopicName.substr(partitionedTopicName.find("://") + 3) + "/partitions";
+    const int numPartitions = 3;
+
+    int res = makePutRequest(url, std::to_string(numPartitions));
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(false);
+    producerConfig.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+    ASSERT_EQ(ResultOk, client.createProducer(partitionedTopicName, producerConfig, producer));
+    ASSERT_EQ(ResultOk, client.subscribe(partitionedTopicName, "SubscriptionName", consumer));
+
+    sentIdSet.clear();
+    receivedIdSet.clear();
+
+    const int numMessages = numPartitions * 2;
+    latch = Latch(numMessages);
+    for (int i = 0; i < numMessages; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId &id) {
+            ASSERT_EQ(ResultOk, result);
+            sentIdSet.emplace(id);
+            latch.countdown();
+        });
+    }
+
+    for (int i = 0; i < numMessages; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    std::set<int> partitionIndexSet;
+    for (const auto &id : sentIdSet) {
+        partitionIndexSet.emplace(id.partition());
+    }
+    std::set<int> expectedPartitionIndexSet;
+    for (int i = 0; i < numPartitions; i++) {
+        expectedPartitionIndexSet.emplace(i);
+    }
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    consumer.close();
+    producer.close();
+    client.close();
+}
+
+class AckGroupingTrackerMock : public AckGroupingTracker {
+   public:
+    explicit AckGroupingTrackerMock(bool mockAck) : mockAck_(mockAck) {}
+
+    bool callDoImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId, const MessageId &msgId,
+                            proto::CommandAck_AckType ackType) {
+        if (!this->mockAck_) {
+            // Not mocking ACK, expose this method.
+            return this->doImmediateAck(connWeakPtr, consumerId, msgId, ackType);
+        } else {
+            // Mocking ACK.
+            return true;
+        }
+    }
+
+    bool callDoImmediateAck(ClientConnectionWeakPtr connWeakPtr, uint64_t consumerId,
+                            const std::set<MessageId> &msgIds) {
+        if (!this->mockAck_) {
+            // Not mocking ACK, expose this method.
+            return this->doImmediateAck(connWeakPtr, consumerId, msgIds);
+        } else {
+            // Mocking ACK.
+            return true;
+        }
+    }
+
+   private:
+    bool mockAck_;
+};  // class AckGroupingTrackerMock
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerDefaultBehavior) {
+    ConsumerConfiguration configConsumer;
+    ASSERT_EQ(configConsumer.getAckGroupingTimeMs(), 100);
+    ASSERT_EQ(configConsumer.getAckGroupingMaxSize(), 1000);
+
+    AckGroupingTracker tracker;
+    Message msg;
+    ASSERT_FALSE(tracker.isDuplicate(msg.getMessageId()));
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerSingleAckBehavior) {
+    constexpr auto numMsg = 10;
+    const std::string topicName = "testAckGroupingTrackerSingleAckBehavior" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-single-ack-behavior";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    auto &consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    auto connWeakPtr = PulsarFriend::getClientConnection(consumerImpl);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerMock tracker(false);
+    for (auto msgIdx = 0; msgIdx < numMsg; ++msgIdx) {
+        auto connPtr = connWeakPtr.lock();
+        ASSERT_NE(connPtr, nullptr);
+        ASSERT_TRUE(tracker.callDoImmediateAck(connWeakPtr, consumerImpl.getConsumerId(), recvMsgId[msgIdx],
+                                               proto::CommandAck::Individual));
+    }
+    Message msg;
+    ASSERT_EQ(ResultTimeout, consumer.receive(msg, 1000));
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    ASSERT_EQ(ResultTimeout, consumer.receive(msg, 1000));
+    consumer.close();
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerMultiAckBehavior) {
+    constexpr auto numMsg = 10;
+    const std::string topicName = "testAckGroupingTrackerMultiAckBehavior" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-multi-ack-behavior";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+
+    auto &consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+    auto connWeakPtr = PulsarFriend::getClientConnection(consumerImpl);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerMock tracker(false);
+    std::set<MessageId> restMsgId(recvMsgId.begin(), recvMsgId.end());
+    ASSERT_EQ(restMsgId.size(), numMsg);
+    ASSERT_TRUE(tracker.callDoImmediateAck(connWeakPtr, consumerImpl.getConsumerId(), restMsgId));
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+    consumer.close();
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerDisabledIndividualAck) {
+    constexpr auto numMsg = 10;
+    const std::string topicName =
+        "testAckGroupingTrackerDisabledIndividualAck" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-disabled-ind-ack";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    auto &consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerDisabled tracker(consumerImpl, consumerImpl.getConsumerId());
+    for (auto &msgId : recvMsgId) {
+        tracker.addAcknowledge(msgId);
+    }
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+    consumer.close();
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerDisabledCumulativeAck) {
+    constexpr auto numMsg = 10;
+    const std::string topicName =
+        "testAckGroupingTrackerDisabledCumulativeAck" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-disabled-cum-ack";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    auto &consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    // Send ACK.
+    AckGroupingTrackerDisabled tracker(consumerImpl, consumerImpl.getConsumerId());
+    auto &latestMsgId = *std::max_element(recvMsgId.begin(), recvMsgId.end());
+    tracker.addAcknowledgeCumulative(latestMsgId);
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+    consumer.close();
+}
+
+class AckGroupingTrackerEnabledMock : public AckGroupingTrackerEnabled {
+   public:
+    AckGroupingTrackerEnabledMock(ClientImplPtr clientPtr, HandlerBase &handler, uint64_t consumerId,
+                                  long ackGroupingTimeMs, long ackGroupingMaxSize)
+        : AckGroupingTrackerEnabled(clientPtr, handler, consumerId, ackGroupingTimeMs, ackGroupingMaxSize) {}
+    const std::set<MessageId> &getPendingIndividualAcks() { return this->pendingIndividualAcks_; }
+    const long getAckGroupingTimeMs() { return this->ackGroupingTimeMs_; }
+    const long getAckGroupingMaxSize() { return this->ackGroupingMaxSize_; }
+    const MessageId getNextCumulativeAckMsgId() { return this->nextCumulativeAckMsgId_; }
+    const bool requireCumulativeAck() { return this->requireCumulativeAck_; }
+};  // class AckGroupingTrackerEnabledMock
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerEnabledIndividualAck) {
+    constexpr auto numMsg = 10;
+    constexpr auto ackGroupingTimeMs = 1000;
+    constexpr auto ackGroupingMaxSize = 5000;
+    const std::string topicName =
+        "testAckGroupingTrackerEnabledIndividualAck" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-enabled-ind-ack";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+    auto clientImplPtr = PulsarFriend::getClientImplPtr(client);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    auto &consumerImpl = PulsarFriend::getConsumerImpl(consumer);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+
+    AckGroupingTrackerEnabledMock tracker(clientImplPtr, consumerImpl, consumerImpl.getConsumerId(),
+                                          ackGroupingTimeMs, ackGroupingMaxSize);
+    ASSERT_EQ(tracker.getPendingIndividualAcks().size(), 0);
+    ASSERT_EQ(tracker.getAckGroupingTimeMs(), ackGroupingTimeMs);
+    ASSERT_EQ(tracker.getAckGroupingMaxSize(), ackGroupingMaxSize);
+    for (auto &msgId : recvMsgId) {
+        ASSERT_FALSE(tracker.isDuplicate(msgId));
+        tracker.addAcknowledge(msgId);
+        ASSERT_TRUE(tracker.isDuplicate(msgId));
+    }
+    ASSERT_EQ(tracker.getPendingIndividualAcks().size(), recvMsgId.size());
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    ASSERT_EQ(tracker.getPendingIndividualAcks().size(), 0);
+    for (auto &msgId : recvMsgId) {
+        ASSERT_FALSE(tracker.isDuplicate(msgId));
+    }
+    consumer.close();
+
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+}
+
+TEST(BasicEndToEndTest, testAckGroupingTrackerEnabledCumulativeAck) {
+    constexpr auto numMsg = 10;
+    constexpr auto ackGroupingTimeMs = 1000;
+    constexpr auto ackGroupingMaxSize = 5000;
+    const std::string topicName =
+        "testAckGroupingTrackerEnabledCumulativeAck" + std::to_string(time(nullptr));
+    const std::string subName = "sub-ack-grp-enabled-cum-ack";
+
+    // Setup client, producer and consumer.
+    Client client(lookupUrl);
+    auto clientImplPtr = PulsarFriend::getClientImplPtr(client);
+
+    Producer producer;
+    ProducerConfiguration configProducer;
+    configProducer.setBatchingEnabled(false);
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, configProducer, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    auto &consumerImpl0 = PulsarFriend::getConsumerImpl(consumer);
+
+    // Sending and receiving messages.
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg = MessageBuilder().setContent(std::string("MSG-") + std::to_string(count)).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    std::vector<MessageId> recvMsgId;
+    for (auto count = 0; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        recvMsgId.emplace_back(msg.getMessageId());
+    }
+    std::sort(recvMsgId.begin(), recvMsgId.end());
+
+    AckGroupingTrackerEnabledMock tracker0(clientImplPtr, consumerImpl0, consumerImpl0.getConsumerId(),
+                                           ackGroupingTimeMs, ackGroupingMaxSize);
+    ASSERT_EQ(tracker0.getNextCumulativeAckMsgId(), MessageId::earliest());
+    ASSERT_FALSE(tracker0.requireCumulativeAck());
+
+    auto targetMsgId = recvMsgId[numMsg / 2];
+    for (auto idx = 0; idx <= numMsg / 2; ++idx) {
+        ASSERT_FALSE(tracker0.isDuplicate(recvMsgId[idx]));
+    }
+    tracker0.addAcknowledgeCumulative(targetMsgId);
+    for (auto idx = 0; idx <= numMsg / 2; ++idx) {
+        ASSERT_TRUE(tracker0.isDuplicate(recvMsgId[idx]));
+    }
+    ASSERT_EQ(tracker0.getNextCumulativeAckMsgId(), targetMsgId);
+    ASSERT_TRUE(tracker0.requireCumulativeAck());
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    ASSERT_FALSE(tracker0.requireCumulativeAck());
+    for (auto idx = 0; idx <= numMsg / 2; ++idx) {
+        ASSERT_TRUE(tracker0.isDuplicate(recvMsgId[idx]));
+    }
+    consumer.close();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    auto &consumerImpl1 = PulsarFriend::getConsumerImpl(consumer);
+    std::set<MessageId> restMsgId(recvMsgId.begin() + numMsg / 2 + 1, recvMsgId.end());
+    for (auto count = numMsg / 2 + 1; count < numMsg; ++count) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg, 1000));
+        ASSERT_EQ(restMsgId.count(msg.getMessageId()), 1);
+    }
+    Message msg;
+    auto ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message: " << msg.getDataAsString();
+    AckGroupingTrackerEnabledMock tracker1(clientImplPtr, consumerImpl1, consumerImpl1.getConsumerId(),
+                                           ackGroupingTimeMs, ackGroupingMaxSize);
+    tracker1.addAcknowledgeCumulative(recvMsgId[numMsg - 1]);
+    tracker1.close();
+    consumer.close();
+
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, subName, consumer));
+    ret = consumer.receive(msg, 1000);
+    ASSERT_EQ(ResultTimeout, ret) << "Received redundant message ID: " << msg.getMessageId();
 }

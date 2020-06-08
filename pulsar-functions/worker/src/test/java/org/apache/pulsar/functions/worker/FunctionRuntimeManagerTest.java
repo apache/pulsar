@@ -28,9 +28,15 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.KubernetesRuntime;
-import org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
+import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -40,6 +46,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import static org.mockito.Mockito.doNothing;
@@ -58,6 +65,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
@@ -67,7 +75,10 @@ public class FunctionRuntimeManagerTest {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -90,6 +101,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -135,8 +147,8 @@ public class FunctionRuntimeManagerTest {
             functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)));
         verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0"),
                 new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
@@ -147,7 +159,10 @@ public class FunctionRuntimeManagerTest {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
 
@@ -169,6 +184,7 @@ public class FunctionRuntimeManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
                 mock(FunctionMetaDataManager.class)));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
@@ -201,7 +217,7 @@ public class FunctionRuntimeManagerTest {
         functionRuntimeManager.setAssignment(assignment2);
         reset(functionRuntimeManager);
 
-        functionRuntimeManager.functionRuntimeInfoMap.put(
+        functionRuntimeManager.functionRuntimeInfos.put(
                 "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
@@ -222,14 +238,17 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner).terminateFunction(argThat(
             functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 0);
     }
 
     @Test
     public void testProcessAssignmentUpdateModifyFunctions() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
 
@@ -245,13 +264,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment update functions
-        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+        FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                mock(FunctionMetaDataManager.class)));
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
@@ -280,7 +300,6 @@ public class FunctionRuntimeManagerTest {
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
         functionRuntimeManager.setAssignment(assignment2);
-        reset(functionRuntimeManager);
         reset(functionActioner);
 
         Function.Assignment assignment3 = Function.Assignment.newBuilder()
@@ -289,11 +308,11 @@ public class FunctionRuntimeManagerTest {
                         .setFunctionMetaData(function2).setInstanceId(0).build())
                 .build();
 
-        functionRuntimeManager.functionRuntimeInfoMap.put(
+        functionRuntimeManager.functionRuntimeInfos.put(
                 "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
-        functionRuntimeManager.functionRuntimeInfoMap.put(
+        functionRuntimeManager.functionRuntimeInfos.put(
                 "test-tenant/test-namespace/func-2:0", new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
                                 .build()));
@@ -312,14 +331,13 @@ public class FunctionRuntimeManagerTest {
         verify(functionActioner).startFunction(argThat(
             functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 2);
         assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
 
-        reset(functionRuntimeManager);
         reset(functionActioner);
 
         // add a stop
@@ -344,7 +362,7 @@ public class FunctionRuntimeManagerTest {
 
         verify(functionActioner, times(0)).startFunction(any(FunctionRuntimeInfo.class));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 2);
         assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
@@ -357,7 +375,10 @@ public class FunctionRuntimeManagerTest {
     public void testReassignment() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
 
@@ -373,13 +394,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment update functions
-        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+        FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                mock(FunctionMetaDataManager.class)));
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
@@ -401,7 +423,6 @@ public class FunctionRuntimeManagerTest {
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
-        reset(functionRuntimeManager);
 
         // new assignment with different worker
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
@@ -413,7 +434,7 @@ public class FunctionRuntimeManagerTest {
         FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo().setFunctionInstance(
                 Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                         .build());
-        functionRuntimeManager.functionRuntimeInfoMap.put(
+        functionRuntimeManager.functionRuntimeInfos.put(
                 "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 
         functionRuntimeManager.processAssignment(assignment2);
@@ -424,11 +445,10 @@ public class FunctionRuntimeManagerTest {
 
         assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
-        assertNull(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"));
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 0);
+        assertNull(functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0"));
 
         /** Test transfer from other worker to me **/
-        reset(functionRuntimeManager);
         reset(functionActioner);
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
@@ -452,15 +472,18 @@ public class FunctionRuntimeManagerTest {
         assertNull(functionRuntimeManager.workerIdToAssignments
             .get("worker-2"));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0"), functionRuntimeInfo);
     }
 
     @Test
     public void testRuntimeManagerInitialize() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -491,17 +514,18 @@ public class FunctionRuntimeManagerTest {
                 .build();
 
         List<Message<byte[]>> messageList = new LinkedList<>();
+        PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
         Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null));
+                new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
         Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
-                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null));
+                new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
         messageList.add(message1);
@@ -528,7 +552,6 @@ public class FunctionRuntimeManagerTest {
             }
         });
 
-
         when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
             @Override
             public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
@@ -536,10 +559,11 @@ public class FunctionRuntimeManagerTest {
             }
         });
 
-
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
         doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readerName(anyString());
+        doReturn(readerBuilder).when(readerBuilder).subscriptionRolePrefix(anyString());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
         doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
@@ -550,13 +574,14 @@ public class FunctionRuntimeManagerTest {
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
         // test new assignment add functions
-        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+        FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                mock(FunctionMetaDataManager.class)));
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
         FunctionActioner functionActioner = spy(functionRuntimeManager.getFunctionActioner());
         doNothing().when(functionActioner).startFunction(any(FunctionRuntimeInfo.class));
         doNothing().when(functionActioner).stopFunction(any(FunctionRuntimeInfo.class));
@@ -567,16 +592,15 @@ public class FunctionRuntimeManagerTest {
 
         assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));
-        // Ideally this should be zero, but it will nevertheless be called with null runtimespawner which essentially
-        // results in it being noop. We ensure that in the check below.
-        verify(functionActioner, times(1)).stopFunction(any(FunctionRuntimeInfo.class));
+
+        // verify stop function is called zero times because we don't want to unnecessarily restart any functions during initialization
+        verify(functionActioner, times(0)).stopFunction(any(FunctionRuntimeInfo.class));
         verify(functionActioner, times(0)).terminateFunction(any(FunctionRuntimeInfo.class));
 
         verify(functionActioner).startFunction(argThat(functionRuntimeInfo -> functionRuntimeInfo.getFunctionInstance().equals(assignment1.getInstance())));
-        verify(functionActioner).stopFunction(argThat(functionRuntimeInfo -> functionRuntimeInfo.getRuntimeSpawner() == null));
 
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.size(), 1);
+        assertEquals(functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0"),
                 new FunctionRuntimeInfo().setFunctionInstance(
                         Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
                                 .build()));
@@ -586,9 +610,11 @@ public class FunctionRuntimeManagerTest {
     public void testExternallyManagedRuntimeUpdate() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setKubernetesContainerFactory(
-                new WorkerConfig.KubernetesContainerFactory()
-                        .setSubmittingInsidePod(false));
+        workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getThreadLocal()
+                        .convertValue(new KubernetesRuntimeFactoryConfig()
+                        .setSubmittingInsidePod(false), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setPulsarFunctionsCluster("cluster");
@@ -613,16 +639,17 @@ public class FunctionRuntimeManagerTest {
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
-                kubernetesRuntimeFactory, null, null, null));
+                kubernetesRuntimeFactory, null, null, null, null));
 
         // test new assignment update functions
-        FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
+        FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
                 workerConfig,
                 workerService,
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                mock(FunctionMetaDataManager.class)));
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -642,7 +669,6 @@ public class FunctionRuntimeManagerTest {
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
-        reset(functionRuntimeManager);
 
         // new assignment with different worker
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
@@ -656,7 +682,7 @@ public class FunctionRuntimeManagerTest {
         FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
                 .setFunctionInstance(instance)
                 .setRuntimeSpawner(functionActioner.getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath()));
-        functionRuntimeManager.functionRuntimeInfoMap.put(
+        functionRuntimeManager.functionRuntimeInfos.put(
                 "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 
         functionRuntimeManager.processAssignment(assignment2);
@@ -668,7 +694,7 @@ public class FunctionRuntimeManagerTest {
 
         assertEquals(functionRuntimeManager.workerIdToAssignments
                 .get("worker-2").get("test-tenant/test-namespace/func-1:0"), assignment2);
-        assertNull(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"));
+        assertNull(functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0"));
 
         /** Test transfer from other worker to me **/
 
@@ -691,22 +717,199 @@ public class FunctionRuntimeManagerTest {
             .get("worker-2"));
 
         assertEquals(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getFunctionInstance(),
+                functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getFunctionInstance(),
                 functionRuntimeInfo.getFunctionInstance());
         assertNotNull(
-            functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner());
+            functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner());
 
         assertEquals(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getFunctionDetails(),
+                functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getFunctionDetails(),
                 function1.getFunctionDetails());
         assertEquals(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getInstanceId(),
+                functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getInstanceConfig().getInstanceId(),
                 instance.getInstanceId());
         assertTrue(
-                functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntimeFactory() instanceof KubernetesRuntimeFactory);
+                functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntimeFactory() instanceof KubernetesRuntimeFactory);
         assertNotNull(
-            functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntime());
+            functionRuntimeManager.functionRuntimeInfos.get("test-tenant/test-namespace/func-1:0").getRuntimeSpawner().getRuntime());
 
         verify(kubernetesRuntime, times(1)).reinitialize();
+    }
+
+    @Test
+    public void testFunctionRuntimeSetCorrectly() {
+
+        // Function runtime not set
+        try {
+            WorkerConfig workerConfig = new WorkerConfig();
+            workerConfig.setWorkerId("worker-1");
+            workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+            workerConfig.setStateStorageServiceUrl("foo");
+            workerConfig.setFunctionAssignmentTopicName("assignments");
+            new FunctionRuntimeManager(
+                    workerConfig,
+                    mock(WorkerService.class),
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    mock(FunctionMetaDataManager.class));
+
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getMessage(), "A Function Runtime Factory needs to be set");
+        }
+
+        // Function runtime class not found
+        try {
+            WorkerConfig workerConfig = new WorkerConfig();
+            workerConfig.setWorkerId("worker-1");
+            workerConfig.setFunctionRuntimeFactoryClassName("foo");
+            workerConfig.setFunctionRuntimeFactoryConfigs(
+                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+            workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+            workerConfig.setStateStorageServiceUrl("foo");
+            workerConfig.setFunctionAssignmentTopicName("assignments");
+            new FunctionRuntimeManager(
+                    workerConfig,
+                    mock(WorkerService.class),
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    mock(FunctionMetaDataManager.class));
+
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getCause().getClass(), ClassNotFoundException.class);
+        }
+
+        // Function runtime class does not implement correct interface
+        try {
+            WorkerConfig workerConfig = new WorkerConfig();
+            workerConfig.setWorkerId("worker-1");
+            workerConfig.setFunctionRuntimeFactoryClassName(FunctionRuntimeManagerTest.class.getName());
+            workerConfig.setFunctionRuntimeFactoryConfigs(
+                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+            workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+            workerConfig.setStateStorageServiceUrl("foo");
+            workerConfig.setFunctionAssignmentTopicName("assignments");
+            new FunctionRuntimeManager(
+                    workerConfig,
+                    mock(WorkerService.class),
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    mock(FunctionMetaDataManager.class));
+
+            fail();
+        } catch (Exception e) {
+            assertEquals(e.getMessage(), "org.apache.pulsar.functions.worker.FunctionRuntimeManagerTest does not implement org.apache.pulsar.functions.runtime.RuntimeFactory");
+        }
+
+        // Correct runtime class
+        try {
+            WorkerConfig workerConfig = new WorkerConfig();
+            workerConfig.setWorkerId("worker-1");
+            workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+            workerConfig.setFunctionRuntimeFactoryConfigs(
+                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+            workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+            workerConfig.setStateStorageServiceUrl("foo");
+            workerConfig.setFunctionAssignmentTopicName("assignments");
+            FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
+                    workerConfig,
+                    mock(WorkerService.class),
+                    mock(Namespace.class),
+                    mock(MembershipManager.class),
+                    mock(ConnectorsManager.class),
+                    mock(FunctionsManager.class),
+                    mock(FunctionMetaDataManager.class));
+
+            assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
+        } catch (Exception e) {
+            fail();
+        }
+    }
+
+    @Test
+    public void testFunctionRuntimeFactoryConfigsBackwardsCompatibility() throws Exception {
+
+        // Test kubernetes runtime
+        WorkerConfig.KubernetesContainerFactory kubernetesContainerFactory
+                = new WorkerConfig.KubernetesContainerFactory();
+        kubernetesContainerFactory.setK8Uri("k8Uri");
+        kubernetesContainerFactory.setJobNamespace("jobNamespace");
+        kubernetesContainerFactory.setPulsarDockerImageName("pulsarDockerImageName");
+        kubernetesContainerFactory.setImagePullPolicy("imagePullPolicy");
+        kubernetesContainerFactory.setPulsarRootDir("pulsarRootDir");
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setKubernetesContainerFactory(kubernetesContainerFactory);
+
+        FunctionRuntimeManager functionRuntimeManager = new FunctionRuntimeManager(
+                workerConfig,
+                mock(WorkerService.class),
+                mock(Namespace.class),
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
+
+        assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), KubernetesRuntimeFactory.class);
+        KubernetesRuntimeFactory kubernetesRuntimeFactory = (KubernetesRuntimeFactory) functionRuntimeManager.getRuntimeFactory();
+        assertEquals(kubernetesRuntimeFactory.getK8Uri(), "k8Uri");
+        assertEquals(kubernetesRuntimeFactory.getJobNamespace(), "jobNamespace");
+        assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "pulsarDockerImageName");
+        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "imagePullPolicy");
+        assertEquals(kubernetesRuntimeFactory.getPulsarRootDir(), "pulsarRootDir");
+
+        // Test process runtime
+
+        WorkerConfig.ProcessContainerFactory processContainerFactory
+                = new WorkerConfig.ProcessContainerFactory();
+        processContainerFactory.setExtraFunctionDependenciesDir("extraDependenciesDir");
+        processContainerFactory.setLogDirectory("logDirectory");
+        processContainerFactory.setPythonInstanceLocation("pythonInstanceLocation");
+        processContainerFactory.setJavaInstanceJarLocation("javaInstanceJarLocation");
+        workerConfig = new WorkerConfig();
+        workerConfig.setProcessContainerFactory(processContainerFactory);
+
+        functionRuntimeManager = new FunctionRuntimeManager(
+                workerConfig,
+                mock(WorkerService.class),
+                mock(Namespace.class),
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
+
+        assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ProcessRuntimeFactory.class);
+        ProcessRuntimeFactory processRuntimeFactory = (ProcessRuntimeFactory) functionRuntimeManager.getRuntimeFactory();
+        assertEquals(processRuntimeFactory.getExtraDependenciesDir(), "extraDependenciesDir");
+        assertEquals(processRuntimeFactory.getLogDirectory(), "logDirectory/functions");
+        assertEquals(processRuntimeFactory.getPythonInstanceFile(), "pythonInstanceLocation");
+        assertEquals(processRuntimeFactory.getJavaInstanceJarFile(), "javaInstanceJarLocation");
+
+        // Test thread runtime
+
+        WorkerConfig.ThreadContainerFactory threadContainerFactory
+                = new WorkerConfig.ThreadContainerFactory();
+        threadContainerFactory.setThreadGroupName("threadGroupName");
+        workerConfig = new WorkerConfig();
+        workerConfig.setThreadContainerFactory(threadContainerFactory);
+
+        functionRuntimeManager = new FunctionRuntimeManager(
+                workerConfig,
+                mock(WorkerService.class),
+                mock(Namespace.class),
+                mock(MembershipManager.class),
+                mock(ConnectorsManager.class),
+                mock(FunctionsManager.class),
+                mock(FunctionMetaDataManager.class));
+
+        assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
+        ThreadRuntimeFactory threadRuntimeFactory = (ThreadRuntimeFactory) functionRuntimeManager.getRuntimeFactory();
+        assertEquals(threadRuntimeFactory.getThreadGroup().getName(), "threadGroupName");
     }
 }

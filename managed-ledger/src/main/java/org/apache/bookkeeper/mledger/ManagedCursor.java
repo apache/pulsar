@@ -144,6 +144,22 @@ public interface ManagedCursor {
     List<Entry> readEntriesOrWait(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>
+     * If no entries are available, the method will block until at least a new message will be persisted.
+     *
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @return the list of entries
+     * @throws ManagedLedgerException
+     */
+    List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Asynchronously read entries from the ManagedLedger.
      *
      * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
@@ -158,6 +174,24 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
@@ -193,9 +227,10 @@ public interface ManagedCursor {
      *
      * <p/>This method has linear time complexity on the number of ledgers included in the managed ledger.
      *
+     * @param isPrecise set to true to get precise backlog count
      * @return the number of entries
      */
-    long getNumberOfEntriesInBacklog();
+    long getNumberOfEntriesInBacklog(boolean isPrecise);
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -310,7 +345,7 @@ public interface ManagedCursor {
      * The deletion of the messages is not persisted into the durable storage and cannot be recovered upon the reopening
      * of the ManagedLedger
      *
-     * @param positions
+     * @param position
      *            the positions of the messages to be deleted
      * @param callback
      *            callback object
@@ -593,7 +628,7 @@ public interface ManagedCursor {
 
     /**
      * Get {@link ManagedLedger} attached with cursor
-     * 
+     *
      * @return ManagedLedger
      */
     ManagedLedger getManagedLedger();
@@ -608,4 +643,9 @@ public interface ManagedCursor {
      * Trim delete entries for the given entries
      */
     void trimDeletedEntries(List<Entry> entries);
+
+    /**
+     * Get deleted batch indexes list for a batch message.
+     */
+    long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
 }

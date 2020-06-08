@@ -23,10 +23,9 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <version>2.6.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>latest-version-image</artifactId>
   <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
   <packaging>pom</packaging>
@@ -75,6 +74,28 @@
                       <destFileName>java-test-functions.jar</destFileName>
                     </artifactItem>
                   </artifactItems>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-pulsar-function-go</id>
+                <phase>generate-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.directory}/pulsar-function-go/</outputDirectory>
+                  <overwrite>true</overwrite>
+                  <resources>
+                    <resource>
+                      <directory>../../../pulsar-function-go/</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
                 </configuration>
               </execution>
             </executions>

@@ -1,10 +1,13 @@
 ---
 id: administration-dashboard
-title: The Pulsar dashboard
+title: Pulsar dashboard
 sidebar_label: Dashboard
 ---
 
-The Pulsar dashboard is a web application that enables users to monitor current stats for all [topics](reference-terminology.md#topic) in tabular form.
+> Note   
+> Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager.md). 
+
+Pulsar dashboard is a web application that enables users to monitor current stats for all [topics](reference-terminology.md#topic) in tabular form.
 
 The dashboard is a data collector that polls stats from all the brokers in a Pulsar instance (across multiple clusters) and stores all the information in a [PostgreSQL](https://www.postgresql.org/) database.
 
@@ -56,4 +59,4 @@ $ bin/pulsar standalone --advertised-address 1.2.3.4
 
 ### Known issues
 
-Only Pulsar Token [authentication](security-overview.md#authentication-providers)  is supported as of now.
+Currently, only Pulsar Token [authentication](security-overview.md#authentication-providers) is supported.

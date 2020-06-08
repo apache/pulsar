@@ -118,14 +118,12 @@ public class LoadManagerShared {
             try {
                 brokerUrl = new URL(brokerUrlString);
             } catch (MalformedURLException e) {
-                log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
+                log.error("Unable to parse brokerUrl from ResourceUnitId", e);
                 continue;
             }
-            // todo: in future check if the resource unit has resources to take
-            // the namespace
+            // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
-                // note: serviceUnitID is namespace name and ResourceID is
-                // brokerName
+                // note: serviceUnitID is namespace name and ResourceID is brokerName
                 if (policies.isPrimaryBroker(namespace, brokerUrl.getHost())) {
                     primariesCache.add(broker);
                     if (log.isDebugEnabled()) {
@@ -211,7 +209,7 @@ public class LoadManagerShared {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
         int pos = bundleName.lastIndexOf("/");
         checkArgument(pos != -1);
-        return bundleName.substring(pos + 1, bundleName.length());
+        return bundleName.substring(pos + 1);
     }
 
     // From a full bundle name, extract the namespace name.
@@ -475,14 +473,14 @@ public class LoadManagerShared {
      * @param currentBroker
      * @param pulsar
      * @param brokerToNamespaceToBundleRange
-     * @param candidateBroekrs
+     * @param candidateBrokers
      * @return
      * @throws Exception
      */
     public static boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker,
             final PulsarService pulsar,
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> brokerToNamespaceToBundleRange,
-            Set<String> candidateBroekrs) throws Exception {
+            Set<String> candidateBrokers) throws Exception {
 
         Map<String, Integer> brokerNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar, namespace,
                 brokerToNamespaceToBundleRange).get(10, TimeUnit.SECONDS);
@@ -490,7 +488,7 @@ public class LoadManagerShared {
             int leastNsCount = Integer.MAX_VALUE;
             int currentBrokerNsCount = 0;
 
-            for (String broker : candidateBroekrs) {
+            for (String broker : candidateBrokers) {
                 int nsCount = brokerNamespaceCount.getOrDefault(broker, 0);
                 if (currentBroker.equals(broker)) {
                     currentBrokerNsCount = nsCount;
@@ -505,13 +503,13 @@ public class LoadManagerShared {
             }
             // check if all the brokers having same number of ns-count then broker can't unload
             int leastNsOwnerBrokers = 0;
-            for (String broker : candidateBroekrs) {
+            for (String broker : candidateBrokers) {
                 if (leastNsCount == brokerNamespaceCount.getOrDefault(broker, 0)) {
                     leastNsOwnerBrokers++;
                 }
             }
             // if all candidate brokers own same-number of ns then broker can't unload
-            return candidateBroekrs.size() != leastNsOwnerBrokers;
+            return candidateBrokers.size() != leastNsOwnerBrokers;
         }
         return true;
     }

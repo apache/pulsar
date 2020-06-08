@@ -30,6 +30,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -50,7 +51,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 public class RuntimeUtils {
 
     private static final String FUNCTIONS_EXTRA_DEPS_PROPERTY = "pulsar.functions.extra.dependencies.dir";
-    static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
+    public static final String FUNCTIONS_INSTANCE_CLASSPATH = "pulsar.functions.instance.classpath";
 
     public static List<String> composeCmd(InstanceConfig instanceConfig,
                                           String instanceFile,
@@ -69,7 +70,8 @@ public class RuntimeUtils {
                                           Boolean installUserCodeDependencies,
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
-                                          int metricsPort) throws Exception {
+                                          int metricsPort,
+                                          String narExtractionDirectory) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -78,7 +80,7 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort));
+                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory));
         return cmd;
     }
 
@@ -243,7 +245,8 @@ public class RuntimeUtils {
                                       Boolean installUserCodeDependencies,
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
-                                      int metricsPort) throws Exception {
+                                      int metricsPort,
+                                      String narExtractionDirectory) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -385,6 +388,13 @@ public class RuntimeUtils {
 
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            if (!StringUtils.isEmpty(narExtractionDirectory)) {
+                args.add("--nar_extraction_directory");
+                args.add(narExtractionDirectory);
+            }
+        }
         return args;
     }
 
@@ -414,6 +424,10 @@ public class RuntimeUtils {
      */
     public static String[] splitRuntimeArgs(String input) {
         return input.split("\\s(?=([^\"]*\"[^\"]*\")*[^\"]*$)");
+    }
+
+    public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
+        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
     }
 
 }
