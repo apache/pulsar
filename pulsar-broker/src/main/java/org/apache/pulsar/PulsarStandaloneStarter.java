@@ -121,5 +121,6 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             log.error("Failed to start pulsar service.", th);
             Runtime.getRuntime().exit(1);
         }
+
     }
 }

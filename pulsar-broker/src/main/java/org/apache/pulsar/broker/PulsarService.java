@@ -254,6 +254,7 @@ public class PulsarService implements AutoCloseable {
     @Override
     public void close() throws PulsarServerException {
         mutex.lock();
+
         try {
             if (state == State.Closed) {
                 return;
@@ -661,7 +662,6 @@ public class PulsarService implements AutoCloseable {
         try {
             while (state != State.Closed) {
                 isClosedCondition.await();
-
             }
         } finally {
             mutex.unlock();
