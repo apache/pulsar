@@ -284,7 +284,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                 if (info.getCursorsLedgerId() == -1L) {
                     // There is no cursor ledger to read the last position from. It means the cursor has been properly
-                    // closed and the last mark-delete position is stored in the ManagedCursorInfo itself.s
+                    // closed and the last mark-delete position is stored in the ManagedCursorInfo itself.
                     PositionImpl recoveredPosition = new PositionImpl(info.getMarkDeleteLedgerId(),
                             info.getMarkDeleteEntryId());
                     if (info.getIndividualDeletedMessagesCount() > 0) {
