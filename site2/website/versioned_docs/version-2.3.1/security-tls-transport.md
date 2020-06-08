@@ -1,5 +1,5 @@
 ---
-id: version-2.2.0-security-tls-transport
+id: version-2.3.1-security-tls-transport
 title: Transport Encryption using TLS
 sidebar_label: Transport Encryption using TLS
 original_id: security-tls-transport
@@ -125,6 +125,23 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 
 > A full list of parameters available in the `conf/broker.conf` file,
 > as well as the default values for those parameters, can be found in [Broker Configuration](reference-configuration.md#broker) 
+
+### TLS Protocol Version and Cipher
+
+The broker (and proxy) can be configured to require specific TLS protocol versions and ciphers for TLS negiotation. This can be used to stop clients from requesting downgraded TLS protocol versions or ciphers which may have weaknesses.
+
+Both the TLS protocol versions and cipher properties can take multiple values, separated by commas. The possible values for protocol version and ciphers depend on the TLS provider being used. Pulsar uses OpenSSL if available, but if not defaults back to the JDK implementation.
+
+```properties
+tlsProtocols=TLSv1.2,TLSv1.1
+tlsCiphers=TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA
+```
+
+OpenSSL currently supports ```SSL2```, ```SSL3```, ```TLSv1```, ```TLSv1.1``` and ```TLSv1.2``` for the protocol version. A list of supported cipher can be acquired from the openssl ciphers command, i.e. ```openssl ciphers -tls_v2```.
+
+For JDK 8, a list of supported values can be obtained from the documentation:
+- [TLS protocol](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#SSLContext)
+- [Ciphers](https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites)
 
 ## Proxy Configuration
 
