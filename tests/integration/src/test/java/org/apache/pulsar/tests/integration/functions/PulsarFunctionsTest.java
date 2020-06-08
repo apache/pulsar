@@ -1989,17 +1989,32 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStatus.getNumInstances(), parallelism);
         assertEquals(functionStatus.getNumRunning(), parallelism);
         assertEquals(functionStatus.getInstances().size(), parallelism);
-        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
-        assertTrue(functionStatus.getInstances().get(0).getStatus().getAverageLatency() > 0.0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
-        assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
-        if (checkRestarts) {
-            assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        boolean avgLatencyGreaterThanZero = false;
+        int totalMessagesProcessed = 0;
+        int totalMessagesSuccessfullyProcessed = 0;
+        boolean lastInvocationTimeGreaterThanZero = false;
+        for (int i = 0; i < parallelism; ++i) {
+            assertEquals(functionStatus.getInstances().get(i).getStatus().isRunning(), true);
+            assertTrue(functionStatus.getInstances().get(i).getInstanceId() >= 0);
+            assertTrue(functionStatus.getInstances().get(i).getInstanceId() < parallelism);
+            avgLatencyGreaterThanZero = avgLatencyGreaterThanZero
+                    || functionStatus.getInstances().get(i).getStatus().getAverageLatency() > 0.0;
+            lastInvocationTimeGreaterThanZero = lastInvocationTimeGreaterThanZero
+                    || functionStatus.getInstances().get(i).getStatus().getLastInvocationTime() > 0;
+            totalMessagesProcessed += functionStatus.getInstances().get(i).getStatus().getNumReceived();
+            totalMessagesSuccessfullyProcessed += functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
+            if (checkRestarts) {
+                assertEquals(functionStatus.getInstances().get(i).getStatus().getNumRestarts(), 0);
+            }
+            assertEquals(functionStatus.getInstances().get(i).getStatus().getLatestUserExceptions().size(), 0);
+            assertEquals(functionStatus.getInstances().get(i).getStatus().getLatestSystemExceptions().size(), 0);
         }
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+        if (numMessages > 0) {
+            assertTrue(avgLatencyGreaterThanZero);
+            assertTrue(lastInvocationTimeGreaterThanZero);
+        }
+        assertEquals(totalMessagesProcessed, numMessages);
+        assertEquals(totalMessagesSuccessfullyProcessed, numMessages);
     }
 
     private static void publishAndConsumeMessages(String inputTopic,
