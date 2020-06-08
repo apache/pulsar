@@ -16,35 +16,49 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
 import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
-public class MockBrokerEventListener implements BrokerEventListener {
+@Slf4j
+public class CounterBrokerInterceptor implements BrokerInterceptor {
+
+    int count = 0;
 
     @Override
     public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) {
-        // no-op
+        log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
+        count ++;
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
-        // no-op
+    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        count ++;
+        log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        chain.doFilter(request, response);
     }
 
     @Override
     public void initialize(ServiceConfiguration conf) throws Exception {
-        // no-op
+
     }
 
     @Override
     public void close() {
-        // no-op
+
+    }
+
+    public int getCount() {
+        return count;
     }
 }

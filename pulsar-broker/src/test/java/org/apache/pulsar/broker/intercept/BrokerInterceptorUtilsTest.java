@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -40,10 +40,10 @@ import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
 @PrepareForTest({
-        BrokerEventListenerUtils.class, NarClassLoader.class
+        BrokerInterceptorUtils.class, NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
-public class BrokerEventListenerUtilsTest {
+public class BrokerInterceptorUtilsTest {
 
     // Necessary to make PowerMockito.mockStatic work with TestNG.
     @ObjectFactory
@@ -53,21 +53,21 @@ public class BrokerEventListenerUtilsTest {
 
     @Test
     public void testLoadBrokerEventListener() throws Exception {
-        BrokerEventListenerDefinition def = new BrokerEventListenerDefinition();
-        def.setListenerClass(MockBrokerEventListener.class.getName());
+        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
+        def.setInterceptorClass(MockBrokerInterceptor.class.getName());
         def.setDescription("test-broker-listener");
 
         String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerEventListenerMetadata metadata = new BrokerEventListenerMetadata();
+        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerEventListenerUtils.BROKER_LISTENER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockBrokerEventListener.class;
-        when(mockLoader.loadClass(eq(MockBrokerEventListener.class.getName())))
+        Class listenerClass = MockBrokerInterceptor.class;
+        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);
@@ -78,29 +78,29 @@ public class BrokerEventListenerUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        SafeBrokerEventListenerWithClassLoader returnedPhWithCL = BrokerEventListenerUtils.load(metadata, "");
-        BrokerEventListener returnedPh = returnedPhWithCL.getListener();
+        BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
+        BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
         assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockBrokerEventListener);
+        assertTrue(returnedPh instanceof MockBrokerInterceptor);
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testLoadBrokerEventListenerWithBlankListerClass() throws Exception {
-        BrokerEventListenerDefinition def = new BrokerEventListenerDefinition();
+        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setDescription("test-broker-listener");
 
         String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerEventListenerMetadata metadata = new BrokerEventListenerMetadata();
+        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerEventListenerUtils.BROKER_LISTENER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockBrokerEventListener.class;
-        when(mockLoader.loadClass(eq(MockBrokerEventListener.class.getName())))
+        Class listenerClass = MockBrokerInterceptor.class;
+        when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);
@@ -111,23 +111,23 @@ public class BrokerEventListenerUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        BrokerEventListenerUtils.load(metadata, "");
+        BrokerInterceptorUtils.load(metadata, "");
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testLoadBrokerEventListenerWithWrongListerClass() throws Exception {
-        BrokerEventListenerDefinition def = new BrokerEventListenerDefinition();
-        def.setListenerClass(Runnable.class.getName());
+        BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
+        def.setInterceptorClass(Runnable.class.getName());
         def.setDescription("test-broker-listener");
 
         String archivePath = "/path/to/broker/listener/nar";
 
-        BrokerEventListenerMetadata metadata = new BrokerEventListenerMetadata();
+        BrokerInterceptorMetadata metadata = new BrokerInterceptorMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(BrokerEventListenerUtils.BROKER_LISTENER_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
         Class listenerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
@@ -141,6 +141,6 @@ public class BrokerEventListenerUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        BrokerEventListenerUtils.load(metadata, "");
+        BrokerInterceptorUtils.load(metadata, "");
     }
 }

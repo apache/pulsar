@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,16 +24,16 @@ import lombok.NoArgsConstructor;
 import java.nio.file.Path;
 
 /**
- * The metadata of broker event listener
+ * The metadata of broker interceptor
  */
 @Data
 @NoArgsConstructor
-public class BrokerEventListenerMetadata {
+public class BrokerInterceptorMetadata {
 
     /**
-     * The definition of the broker event listener.
+     * The definition of the broker interceptor.
      */
-    private BrokerEventListenerDefinition definition;
+    private BrokerInterceptorDefinition definition;
 
     /**
      * The path to the handler package.

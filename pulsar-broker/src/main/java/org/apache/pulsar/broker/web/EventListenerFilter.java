@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
-import org.apache.pulsar.broker.events.BrokerEventListener;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -30,9 +30,9 @@ import java.io.IOException;
 
 public class EventListenerFilter implements Filter {
 
-    private final BrokerEventListener eventListener;
+    private final BrokerInterceptor eventListener;
 
-    public EventListenerFilter(BrokerEventListener eventListener) {
+    public EventListenerFilter(BrokerInterceptor eventListener) {
         this.eventListener = eventListener;
     }
 

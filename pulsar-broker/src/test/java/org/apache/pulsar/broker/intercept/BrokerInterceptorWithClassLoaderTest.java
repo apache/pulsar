@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -28,15 +28,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Unit test {@link SafeBrokerEventListenerWithClassLoader}.
+ * Unit test {@link BrokerInterceptorWithClassLoader}.
  */
-public class BrokerEventListenerWithClassLoaderTest {
+public class BrokerInterceptorWithClassLoaderTest {
 
     @Test
     public void testWrapper() throws Exception {
-        BrokerEventListener h = mock(BrokerEventListener.class);
+        BrokerInterceptor h = mock(BrokerInterceptor.class);
         NarClassLoader loader = mock(NarClassLoader.class);
-        SafeBrokerEventListenerWithClassLoader wrapper = new SafeBrokerEventListenerWithClassLoader(h, loader);
+        BrokerInterceptorWithClassLoader wrapper = new BrokerInterceptorWithClassLoader(h, loader);
 
         ServiceConfiguration conf = new ServiceConfiguration();
         wrapper.initialize(conf);

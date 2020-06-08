@@ -711,15 +711,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "The directory to locate broker listeners"
+            doc = "The directory to locate broker interceptors"
     )
-    private String brokerListenersDirectory = "./brokerListeners";
+    private String brokerInterceptorsDirectory = "./interceptors";
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "List of broker listener to load, which is a list of broker listener names"
+            doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
-    private Set<String> brokerListeners = Sets.newTreeSet();
+    private Set<String> brokerInterceptors = Sets.newTreeSet();
 
     @FieldContext(
         doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"

@@ -97,7 +97,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
-import org.apache.pulsar.broker.events.BrokerEventListener;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -240,7 +240,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long maxMessagePublishBufferBytes;
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
-    private BrokerEventListener eventListener;
+    private BrokerInterceptor interceptor;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -631,9 +631,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
-        if (eventListener != null) {
-            eventListener.close();
-            eventListener = null;
+        if (interceptor != null) {
+            interceptor.close();
+            interceptor = null;
         }
 
         acceptorGroup.shutdownGracefully();
@@ -2291,7 +2291,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
     }
 
-    public void setEventListener(BrokerEventListener eventListener) {
-        this.eventListener = eventListener;
+    public void setInterceptor(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 }

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import com.google.common.annotations.Beta;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -27,26 +27,22 @@ import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
- * A plugin interface that allows you to listen (and possibly mutate) the
+ * A plugin interface that allows you to intercept the
  * client requests to the Pulsar brokers.
  *
- * <p>Exceptions thrown by BrokerEventListener methods will be caught, logged, but
- * not propagated further.
- *
- * <p>BrokerEventListener callbacks may be called from multiple threads. Interceptor
+ * <p>BrokerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
 @Beta
-public interface BrokerEventListener extends AutoCloseable {
+public interface BrokerInterceptor extends AutoCloseable {
 
     /**
      * Called by the broker while new command incoming.
      */
-    void onPulsarCommand(BaseCommand command, ServerCnx cnx);
+    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception;
 
     /**
      * Called by the web service while new request incoming.
@@ -54,21 +50,21 @@ public interface BrokerEventListener extends AutoCloseable {
     void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
 
     /**
-     * Initialize the broker event listener.
+     * Initialize the broker interceptor.
      *
-     * @throws Exception when fail to initialize the broker event listener.
+     * @throws Exception when fail to initialize the broker interceptor.
      */
     void initialize(ServiceConfiguration conf) throws Exception;
 
-    BrokerEventListener DISABLED = new BrokerEventListenerDisabled();
+    BrokerInterceptor DISABLED = new BrokerInterceptorDisabled();
 
     /**
-     * Broker event listener disabled implementation.
+     * Broker interceptor disabled implementation.
      */
-    class BrokerEventListenerDisabled implements BrokerEventListener {
+    class BrokerInterceptorDisabled implements BrokerInterceptor {
 
         @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
             //No-op
         }
 
@@ -89,7 +85,7 @@ public interface BrokerEventListener extends AutoCloseable {
     }
 
     /**
-     * Close this broker event listener.
+     * Close this broker interceptor.
      */
     @Override
     void close();

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -27,51 +27,44 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
 
 /**
- * A broker listener with it's classloader.
+ * A broker interceptor with it's classloader.
  */
 @Slf4j
 @Data
 @RequiredArgsConstructor
-public class SafeBrokerEventListenerWithClassLoader implements BrokerEventListener {
+public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
 
-    private final BrokerEventListener listener;
+    private final BrokerInterceptor interceptor;
     private final NarClassLoader classLoader;
 
     @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        try {
-            this.listener.onPulsarCommand(command, cnx);
-        } catch (Throwable e) {
-            log.error("Fail to execute pulsar command on broker listener", e);
-        }
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
+        this.interceptor.onPulsarCommand(command, cnx);
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
-        try {
-            this.listener.onWebServiceRequest(request, response, chain);
-        } catch (Throwable e) {
-            log.error("Fail to execute webservice request on broker listener", e);
-        }
+    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        this.interceptor.onWebServiceRequest(request, response, chain);
     }
 
     @Override
     public void initialize(ServiceConfiguration conf) throws Exception {
-        this.listener.initialize(conf);
+        this.interceptor.initialize(conf);
     }
 
     @Override
     public void close() {
-        listener.close();
+        interceptor.close();
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the broker listener class loader", e);
+            log.warn("Failed to close the broker interceptor class loader", e);
         }
     }
 }

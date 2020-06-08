@@ -428,7 +428,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
     protected abstract void messageReceived();
 
-    protected void onCommand(BaseCommand command) {
+    protected void onCommand(BaseCommand command) throws Exception {
         //No-op
     }
 

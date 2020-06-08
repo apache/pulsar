@@ -77,8 +77,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.events.BrokerEventListener;
-import org.apache.pulsar.broker.events.BrokerEventListeners;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -204,7 +204,7 @@ public class PulsarService implements AutoCloseable {
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
-    private BrokerEventListener brokerEventListener;
+    private BrokerInterceptor brokerInterceptor;
 
     public enum State {
         Init, Started, Closed
@@ -453,9 +453,9 @@ public class PulsarService implements AutoCloseable {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
-            this.brokerEventListener = BrokerEventListeners.load(config);
-            brokerService.setEventListener(getBrokerEventListener());
-            this.brokerEventListener.initialize(config);
+            this.brokerInterceptor = BrokerInterceptors.load(config);
+            brokerService.setInterceptor(getBrokerInterceptor());
+            this.brokerInterceptor.initialize(config);
             brokerService.start();
 
             this.webService = new WebService(this);

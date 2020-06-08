@@ -18,6 +18,6 @@
  */
 
 /**
- * Pulsar events listener.
+ * Pulsar broker interceptor.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;

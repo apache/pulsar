@@ -16,30 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+import java.util.Map;
+import java.util.TreeMap;
 
 /**
- * Metadata information about a broker event listener.
+ * The collection of broker interceptor.
  */
 @Data
-@NoArgsConstructor
-public class BrokerEventListenerDefinition {
+@Accessors(fluent = true)
+public class BrokerInterceptorDefinitions {
 
-    /**
-     * The name of the broker event listener.
-     */
-    private String name;
-
-    /**
-     * The description of the broker event listener to be used for user help.
-     */
-    private String description;
-
-    /**
-     * The class name for the broker event listener.
-     */
-    private String listenerClass;
+    private final Map<String, BrokerInterceptorMetadata> interceptors = new TreeMap<>();
 }

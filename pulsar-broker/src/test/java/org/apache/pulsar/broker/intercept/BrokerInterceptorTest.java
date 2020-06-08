@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.events;
+package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -38,33 +37,33 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class BrokerEventListenerTest extends ProducerConsumerBase {
+public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     private static final String listenerName1 = "listener1";
-    private BrokerEventListener listener1;
+    private BrokerInterceptor listener1;
     private NarClassLoader ncl1;
     private static final String listenerName2 = "listener2";
-    private BrokerEventListener listener2;
+    private BrokerInterceptor listener2;
     private NarClassLoader ncl2;
 
-    private Map<String, SafeBrokerEventListenerWithClassLoader> listenerMap;
-    private BrokerEventListeners listeners;
+    private Map<String, BrokerInterceptorWithClassLoader> listenerMap;
+    private BrokerInterceptors listeners;
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.listener1 = mock(BrokerEventListener.class);
+        this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
-        this.listener2 = mock(BrokerEventListener.class);
+        this.listener2 = mock(BrokerInterceptor.class);
         this.ncl2 = mock(NarClassLoader.class);
 
         this.listenerMap = new HashMap<>();
         this.listenerMap.put(
                 listenerName1,
-                new SafeBrokerEventListenerWithClassLoader(listener1, ncl1));
+                new BrokerInterceptorWithClassLoader(listener1, ncl1));
         this.listenerMap.put(
                 listenerName2,
-                new SafeBrokerEventListenerWithClassLoader(listener2, ncl2));
-        this.listeners = new BrokerEventListeners(this.listenerMap);
+                new BrokerInterceptorWithClassLoader(listener2, ncl2));
+        this.listeners = new BrokerInterceptors(this.listenerMap);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -95,18 +94,18 @@ public class BrokerEventListenerTest extends ProducerConsumerBase {
 
     @Test
     public void testWebserviceRequest() throws PulsarAdminException {
-        BrokerEventListener listener = pulsar.getBrokerEventListener();
-        Assert.assertTrue(listener instanceof CounterBrokerEventListener);
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         admin.namespaces().createNamespace("public/test", 4);
-        Assert.assertTrue(((CounterBrokerEventListener)listener).getCount() >= 1);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 1);
     }
 
     @Test
     public void testPulsarCommand() throws PulsarClientException {
-        BrokerEventListener listener = pulsar.getBrokerEventListener();
-        Assert.assertTrue(listener instanceof CounterBrokerEventListener);
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         // CONNECT and PRODUCER
-        Assert.assertTrue(((CounterBrokerEventListener)listener).getCount() >= 2);
+        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
     }
 }
