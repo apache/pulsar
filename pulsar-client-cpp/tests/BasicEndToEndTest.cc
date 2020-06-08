@@ -1613,6 +1613,8 @@ TEST(BasicEndToEndTest, testSeekOnPartitionedTopic) {
     ASSERT_EQ(temp, topicName);
     ASSERT_EQ(consumer.getSubscriptionName(), subName);
 
+    uint64_t timestampMillis = TimeUtils::currentTimeMillis();
+
     // Send 100 messages synchronously
     std::string msgContent = "msg-content";
     LOG_INFO("Publishing 100 messages synchronously");
@@ -1635,8 +1637,8 @@ TEST(BasicEndToEndTest, testSeekOnPartitionedTopic) {
         ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
     }
 
-    // seek to earliest, expected receive first message.
-    result = consumer.seek(MessageId::earliest());
+    // seek to the time before sending messages, expected receive first message.
+    result = consumer.seek(timestampMillis);
     // Sleeping for 500ms to wait for consumer re-connect
     std::this_thread::sleep_for(std::chrono::microseconds(500 * 1000));
 
