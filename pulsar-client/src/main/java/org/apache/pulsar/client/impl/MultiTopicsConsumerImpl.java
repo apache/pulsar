@@ -271,7 +271,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             listenerExecutor.execute(() -> {
                 Message<T> msg;
                 try {
-                    msg = internalReceive();
+                    msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                    if (msg == null) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
+                        }
+                        return;
+                    }
                 } catch (PulsarClientException e) {
                     log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
                     return;
