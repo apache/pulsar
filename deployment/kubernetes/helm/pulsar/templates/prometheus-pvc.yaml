@@ -17,8 +17,8 @@
 # under the License.
 #
 
-{{- if .Values.extra.monitoring }}
-{{- if .Values.persistence }}
+{{- if or .Values.monitoring.prometheus .Values.extra.monitoring }}
+{{- if and (and .Values.persistence .Values.volumes.persistence) .Values.prometheus.volumes.persistence }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -29,8 +29,12 @@ spec:
     requests:
       storage: {{ .Values.prometheus.volumes.data.size }}
   accessModes: [ "ReadWriteOnce" ]
-{{- if .Values.prometheus.volumes.data.storageClass }}
+{{- if .Values.prometheus.volumes.data.storageClassName }}
+  storageClassName: "{{ .Values.prometheus.volumes.data.storageClassName }}"
+{{- else if and (not (and .Values.volumes.local_storage .Values.prometheus.volumes.data.local_storage)) .Values.prometheus.volumes.data.storageClass }}
   storageClassName: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
+{{- else if and .Values.volumes.local_storage .Values.prometheus.volumes.data.local_storage }}
+  storageClassName: "local-storage"
 {{- end }}
 {{- end }}
 {{- end }}

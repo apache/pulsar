@@ -34,8 +34,8 @@ import com.google.gson.reflect.TypeToken;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -48,7 +48,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.stats.Metrics;
@@ -73,7 +72,6 @@ import org.testng.annotations.Test;
 
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
-    private int port;
 
     private ProxyServer proxyServer;
     private WebSocketService service;
@@ -87,9 +85,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         super.internalSetup();
         super.producerBaseSetup();
 
-        port = PortManager.nextFreePort();
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(port));
+        config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
         config.setConfigurationStoreServers("dummy-zk-servers");
         service = spy(new WebSocketService(config));
@@ -110,10 +107,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void socketTest() throws Exception {
-        final String consumerUri = "ws://localhost:" + port
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
-        String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
-        String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+        String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/reader/persistent/my-property/my-ns/my-topic1";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI consumeUri = URI.create(consumerUri);
         URI readUri = URI.create(readerUri);
@@ -188,7 +185,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     public void emptySubcriptionConsumerTest() throws Exception {
 
         // Empty subcription name
-        final String consumerUri = "ws://localhost:" + port
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic2/?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
 
@@ -213,7 +210,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void conflictingConsumerTest() throws Exception {
-        final String consumerUri = "ws://localhost:" + port
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
         URI consumeUri = URI.create(consumerUri);
 
@@ -249,7 +246,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void conflictingProducerTest() throws Exception {
-        final String producerUri = "ws://localhost:" + port
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/producer/persistent/my-property/my-ns/my-topic4?producerName=my-producer";
         URI produceUri = URI.create(producerUri);
 
@@ -293,8 +290,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
         final String topic = namespace + "/my-topic5";
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
-        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic;
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -359,10 +356,10 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void testProxyStats() throws Exception {
         final String topic = "my-property/my-ns/my-topic6";
-        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic
                 + "/my-sub?subscriptionType=Failover";
-        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic + "/";
-        final String readerUri = "ws://localhost:" + port + "/ws/v2/reader/persistent/" + topic;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic + "/";
+        final String readerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/reader/persistent/" + topic;
         System.out.println(consumerUri + ", " + producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -412,7 +409,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
             Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getSafeWebServiceAddress()
-                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()), (Integer.toString(port)))
+                    .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort().get()),
+                            (Integer.toString(proxyServer.getListenPortHTTP().get())))
                     + "/admin/v2/proxy-stats/";
 
             // verify proxy metrics
@@ -425,7 +423,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             verifyTopicStat(client, baseUrl + "persistent/", topic);
 
         } finally {
-            stopWebSocketClient(consumeClient1, produceClient);
+            stopWebSocketClient(consumeClient1, produceClient, readClient);
         }
     }
 
@@ -436,8 +434,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic("persistent://" + topic, 3);
 
         final String subscription = "my-sub";
-        final String consumerUri = "ws://localhost:" + port + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
-        final String producerUri = "ws://localhost:" + port + "/ws/v2/producer/persistent/" + topic;
+        final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic + "/" + subscription;
+        final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/" + topic;
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -476,9 +474,9 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String subscription = "my-sub";
         final String consumerUri = String.format(
                 "ws://localhost:%d/ws/v2/consumer/persistent/%s/%s?pullMode=true&subscriptionType=Shared",
-                port, topic, subscription
+                proxyServer.getListenPortHTTP().get(), topic, subscription
         );
-        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", port, topic);
+        final String producerUri = String.format("ws://localhost:%d/ws/v2/producer/persistent/%s", proxyServer.getListenPortHTTP().get(), topic);
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -598,18 +596,19 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         ExecutorService executor = newFixedThreadPool(1);
         try {
             executor.submit(() -> {
-                try {
-                    for (WebSocketClient client : clients) {
+                for (WebSocketClient client : clients) {
+                    try {
                         client.stop();
+                    } catch (Exception e) {
+                        log.error(e.getMessage());
                     }
-                    log.info("proxy clients are stopped successfully");
-                } catch (Exception e) {
-                    log.error(e.getMessage());
                 }
+                log.info("proxy clients are stopped successfully");
             }).get(2, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("failed to close proxy clients", e);
         }
+        executor.shutdownNow();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);

@@ -104,16 +104,16 @@ public class DefaultImplementation {
     }
 
     public static Authentication newAuthenticationToken(String token) {
-        return catchExceptions(() -> (Authentication) AUTHENTICATION_TOKEN_String.newInstance(token));
+        return catchExceptions(() -> AUTHENTICATION_TOKEN_String.newInstance(token));
     }
 
     public static Authentication newAuthenticationToken(Supplier<String> supplier) {
-        return catchExceptions(() -> (Authentication) AUTHENTICATION_TOKEN_Supplier.newInstance(supplier));
+        return catchExceptions(() -> AUTHENTICATION_TOKEN_Supplier.newInstance(supplier));
     }
 
     public static Authentication newAuthenticationTLS(String certFilePath, String keyFilePath) {
         return catchExceptions(
-                () -> (Authentication) AUTHENTICATION_TLS_String_String.newInstance(certFilePath, keyFilePath));
+                () -> AUTHENTICATION_TLS_String_String.newInstance(certFilePath, keyFilePath));
     }
 
     public static Authentication createAuthentication(String authPluginClassName, String authParamsString)
@@ -254,6 +254,13 @@ public class DefaultImplementation {
                 () -> (Schema<byte[]>) newClassInstance(
                     "org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema")
                         .newInstance());
+    }
+
+    public static Schema<byte[]> newAutoProduceSchema(Schema<?> schema) {
+        return catchExceptions(
+                () -> (Schema<byte[]>) getConstructor(
+                    "org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema", Schema.class)
+                        .newInstance(schema));
     }
 
     public static Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {

@@ -126,6 +126,6 @@ public class Summary extends SimpleCollector<Summary.Child> implements Collector
 
     @Override
     public List<MetricFamilySamples> describe() {
-        return Collections.<MetricFamilySamples> singletonList(new SummaryMetricFamily(fullname, help, labelNames));
+        return Collections.singletonList(new SummaryMetricFamily(fullname, help, labelNames));
     }
 }

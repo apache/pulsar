@@ -22,6 +22,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.DeleteOption;
+import org.apache.bookkeeper.api.kv.options.Option;
+import org.apache.bookkeeper.api.kv.options.Options;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
@@ -51,9 +54,23 @@ public class StateContextImpl implements StateContext {
 
     @Override
     public CompletableFuture<Void> put(String key, ByteBuffer value) {
-        return table.put(
-            Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            Unpooled.wrappedBuffer(value));
+        if(value != null) {
+            return table.put(
+                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                    Unpooled.wrappedBuffer(value));
+        } else {
+            return table.put(
+                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                    null);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> delete(String key) {
+        return table.delete(
+                Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                Options.delete()
+        ).thenApply(ignored -> null);
     }
 
     @Override

@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -145,7 +145,7 @@ public class StatsOutputStreamTest {
     }
 
     public String str() {
-        String s = buf.toString(Charset.forName("utf-8"));
+        String s = buf.toString(StandardCharsets.UTF_8);
         reset();
         return s;
     }

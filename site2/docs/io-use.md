@@ -88,13 +88,13 @@ configs:
 
 **Example 3**
 
-Below is a YAML configuration file of a MySQL JDBC sink.
+Below is a YAML configuration file of a PostgreSQL JDBC sink.
 
 ```shell
 configs:
-   userName: "root"
-   password: "jdbc"
-   jdbcUrl: "jdbc:mysql://127.0.0.1:3306/test_jdbc"
+   userName: "postgres"
+   password: "password"
+   jdbcUrl: "jdbc:postgresql://localhost:5432/test_jdbc"
    tableName: "test_jdbc"
 ```
 
@@ -118,7 +118,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sources reload
 ```
 
-For more information, see [`here`](reference-connector-admin/#reload).
+For more information, see [`here`](io-cli#reload).
 
 #### Sink
 
@@ -128,7 +128,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sinks reload
 ```
 
-For more information, see [`here`](reference-connector-admin/#reload-1).
+For more information, see [`here`](io-cli#reload-1).
 
 ### `available`
 
@@ -162,7 +162,7 @@ To run a connector, you can perform the following operations:
 
 ### `create`
 
-You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.
+You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.f
 
 #### Source
 
@@ -178,7 +178,7 @@ Use the `create` subcommand.
 $ pulsar-admin sources create options
 ```
 
-For more information, see [here](reference-connector-admin.md#create).
+For more information, see [here](io-cli.md#create).
 
 <!--REST API-->
 
@@ -255,7 +255,7 @@ Use the `create` subcommand.
 $ pulsar-admin sinks create options
 ```
 
-For more information, see [here](reference-connector-admin.md#create-1).
+For more information, see [here](io-cli.md#create-1).
 
 <!--REST API-->
 
@@ -336,7 +336,7 @@ Use the `start` subcommand.
 $ pulsar-admin sources start options
 ```
 
-For more information, see [here](reference-connector-admin.md#start).
+For more information, see [here](io-cli.md#start).
 
 <!--REST API-->
 
@@ -364,7 +364,7 @@ Use the `start` subcommand.
 $ pulsar-admin sinks start options
 ```
 
-For more information, see [here](reference-connector-admin.md#start-1).
+For more information, see [here](io-cli.md#start-1).
 
 <!--REST API-->
 
@@ -396,7 +396,7 @@ Use the `localrun` subcommand.
 $ pulsar-admin sources localrun options
 ```
 
-For more information, see [here](reference-connector-admin.md#localrun).
+For more information, see [here](io-cli.md#localrun).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -414,7 +414,7 @@ Use the `localrun` subcommand.
 $ pulsar-admin sinks localrun options
 ```
 
-For more information, see [here](reference-connector-admin.md#localrun-1).
+For more information, see [here](io-cli.md#localrun-1).
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -446,7 +446,7 @@ Use the `get` subcommand.
 $ pulsar-admin sources get options
 ```
 
-For more information, see [here](reference-connector-admin.md#get).
+For more information, see [here](io-cli.md#get).
 
 <!--REST API-->
 
@@ -543,7 +543,7 @@ Use the `get` subcommand.
 $ pulsar-admin sinks get options
 ```
 
-For more information, see [here](reference-connector-admin.md#get-1).
+For more information, see [here](io-cli.md#get-1).
 
 <!--REST API-->
 
@@ -562,7 +562,7 @@ SinkConfig getSink(String tenant,
 
 This is a sinkConfig.
 
-```
+```json
 {
 "tenant": "tenantName",
 "namespace": "namespaceName",
@@ -583,27 +583,27 @@ This is a sinkConfig.
 
 This is a sinkConfig example.
 
-```  
+```json
 {
-"tenant": "public",
-"namespace": "default",
-"name": "pulsar-mysql-jdbc-sink",
-"className": "org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink",
-"inputSpecs": {
-"pulsar-mysql-jdbc-sink-topic": {
-    "isRegexPattern": false
-}
-},
-"configs": {
-"password": "jdbc",
-"jdbcUrl": "jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink",
-"userName": "root",
-"tableName": "pulsar_mysql_jdbc_sink"
-},
-"parallelism": 1,
-"processingGuarantees": "ATLEAST_ONCE",
-"retainOrdering": false,
-"autoAck": true
+  "tenant": "public",
+  "namespace": "default",
+  "name": "pulsar-postgres-jdbc-sink",
+  "className": "org.apache.pulsar.io.jdbc.PostgresJdbcAutoSchemaSink",
+  "inputSpecs": {
+  "pulsar-postgres-jdbc-sink-topic": {
+     "isRegexPattern": false
+    }
+  },
+  "configs": {
+    "password": "password",
+    "jdbcUrl": "jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink",
+    "userName": "postgres",
+    "tableName": "pulsar_postgres_jdbc_sink"
+  },
+  "parallelism": 1,
+  "processingGuarantees": "ATLEAST_ONCE",
+  "retainOrdering": false,
+  "autoAck": true
 }
 ```
 
@@ -637,7 +637,7 @@ Use the `list` subcommand.
 $ pulsar-admin sources list options
 ```
 
-For more information, see [here](reference-connector-admin.md#list).
+For more information, see [here](io-cli.md#list).
 
 <!--REST API-->
 
@@ -682,7 +682,7 @@ Use the `list` subcommand.
 $ pulsar-admin sinks list options
 ```
 
-For more information, see [here](reference-connector-admin.md#list-1).
+For more information, see [here](io-cli.md#list-1).
 
 <!--REST API-->
 
@@ -731,7 +731,7 @@ Use the `status` subcommand.
 $ pulsar-admin sources status options
 ```
 
-For more information, see [here](reference-connector-admin.md#status).
+For more information, see [here](io-cli.md#status).
 
 <!--REST API-->
 
@@ -813,7 +813,7 @@ Use the `status` subcommand.
 $ pulsar-admin sinks status options
 ```
 
-For more information, see [here](reference-connector-admin.md#status-1).
+For more information, see [here](io-cli.md#status-1).
 
 <!--REST API-->
 
@@ -901,7 +901,7 @@ Use the `update` subcommand.
 $ pulsar-admin sources update options
 ```
 
-For more information, see [here](reference-connector-admin.md#update).
+For more information, see [here](io-cli.md#update).
 
 <!--REST API-->
 
@@ -982,7 +982,7 @@ Use the `update` subcommand.
 $ pulsar-admin sinks update options
 ```
 
-For more information, see [here](reference-connector-admin.md#update-1).
+For more information, see [here](io-cli.md#update-1).
 
 <!--REST API-->
 
@@ -1069,7 +1069,7 @@ Use the `stop` subcommand.
 $ pulsar-admin sources stop options
 ```
 
-For more information, see [here](reference-connector-admin.md#stop).
+For more information, see [here](io-cli.md#stop).
 
 <!--REST API-->
 
@@ -1151,7 +1151,7 @@ Use the `stop` subcommand.
 $ pulsar-admin sinks stop options
 ```
 
-For more information, see [here](reference-connector-admin.md#stop-1).
+For more information, see [here](io-cli.md#stop-1).
 
 <!--REST API-->
 
@@ -1239,7 +1239,7 @@ Use the `restart` subcommand.
 $ pulsar-admin sources restart options
 ```
 
-For more information, see [here](reference-connector-admin.md#restart).
+For more information, see [here](io-cli.md#restart).
 
 <!--REST API-->
 
@@ -1321,7 +1321,7 @@ Use the `restart` subcommand.
 $ pulsar-admin sinks restart options
 ```
 
-For more information, see [here](reference-connector-admin.md#restart-1).
+For more information, see [here](io-cli.md#restart-1).
 
 <!--REST API-->
 
@@ -1409,7 +1409,7 @@ Use the `delete` subcommand.
 $ pulsar-admin sources delete options
 ```
 
-For more information, see [here](reference-connector-admin.md#delete).
+For more information, see [here](io-cli.md#delete).
 
 <!--REST API-->
 
@@ -1463,7 +1463,7 @@ Use the `delete` subcommand.
 $ pulsar-admin sinks delete options
 ```
 
-For more information, see [here](reference-connector-admin.md#delete-1).
+For more information, see [here](io-cli.md#delete-1).
 
 <!--REST API-->
 

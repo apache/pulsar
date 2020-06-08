@@ -56,11 +56,20 @@ public interface Dispatcher {
     boolean isClosed();
 
     /**
+     * Disconnect active consumers
+     */
+    CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor);
+
+    /**
      * disconnect all consumers
      *
      * @return
      */
-    CompletableFuture<Void> disconnectAllConsumers();
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
+
+    default CompletableFuture<Void> disconnectAllConsumers() {
+        return disconnectAllConsumers(false);
+    }
 
     void resetCloseFuture();
 
@@ -101,5 +110,9 @@ public interface Dispatcher {
 
     default void cursorIsReset() {
         //No-op
+    }
+
+    default void acknowledgementWasProcessed() {
+        // No-op
     }
 }

@@ -67,7 +67,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             zkServers = this.getAdvertisedAddress();
         } else if (isBlank(config.getAdvertisedAddress())) {
             // Use advertised address as local hostname
-            config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+            config.setAdvertisedAddress("localhost");
         } else {
             // Use advertised address from config file
         }
@@ -76,14 +76,12 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         // Priority: args > conf > default
         if (argsContains(args,"--zookeeper-port")) {
             config.setZookeeperServers(zkServers + ":" + this.getZkPort());
+            config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         } else {
             if (config.getZookeeperServers() != null) {
                 this.setZkPort(Integer.parseInt(config.getZookeeperServers().split(":")[1]));
             }
             config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-        }
-
-        if (config.getConfigurationStoreServers() == null) {
             config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
         }
 

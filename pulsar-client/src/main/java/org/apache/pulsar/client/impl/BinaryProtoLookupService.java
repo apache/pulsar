@@ -54,13 +54,22 @@ public class BinaryProtoLookupService implements LookupService {
     private final ServiceNameResolver serviceNameResolver;
     private final boolean useTls;
     private final ExecutorService executor;
+    private final String listenerName;
+    private final int maxLookupRedirects;
 
     public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls, ExecutorService executor)
+            throws PulsarClientException {
+        this(client, serviceUrl, null, useTls, executor);
+    }
+
+    public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, String listenerName, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
         this.executor = executor;
+        this.maxLookupRedirects = client.getConfiguration().getMaxLookupRedirects();
         this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.listenerName = listenerName;
         updateServiceUrl(serviceUrl);
     }
 
@@ -77,7 +86,7 @@ public class BinaryProtoLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        return findBroker(serviceNameResolver.resolveHost(), false, topicName);
+        return findBroker(serviceNameResolver.resolveHost(), false, topicName, 0);
     }
 
     /**
@@ -89,12 +98,18 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, TopicName topicName) {
+            boolean authoritative, TopicName topicName, final int redirectCount) {
         CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
+
+        if (maxLookupRedirects > 0 && redirectCount > maxLookupRedirects) {
+            addressFuture.completeExceptionally(
+                    new PulsarClientException.LookupException("Too many redirects: " + maxLookupRedirects));
+            return addressFuture;
+        }
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), this.listenerName, authoritative, requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 URI uri = null;
                 try {
@@ -110,13 +125,20 @@ public class BinaryProtoLookupService implements LookupService {
 
                     // (2) redirect to given address if response is: redirect
                     if (lookupDataResult.redirect) {
-                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, topicName)
+                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, topicName, redirectCount + 1)
                                 .thenAccept(addressPair -> {
                                     addressFuture.complete(addressPair);
                                 }).exceptionally((lookupException) -> {
                                     // lookup failed
-                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
-                                            lookupException.getMessage(), lookupException);
+                                    if (redirectCount > 0) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] lookup redirection failed ({}) : {}", topicName.toString(),
+                                                    redirectCount, lookupException.getMessage());
+                                        }
+                                    } else {
+                                        log.warn("[{}] lookup failed : {}", topicName.toString(),
+                                                lookupException.getMessage(), lookupException);
+                                    }
                                     addressFuture.completeExceptionally(lookupException);
                                     return null;
                                 });
@@ -167,8 +189,9 @@ public class BinaryProtoLookupService implements LookupService {
                     partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
                 } catch (Exception e) {
                     partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
-                            format("Failed to parse partition-response redirect=%s , partitions with %s",
-                                    lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
+                        format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s",
+                            lookupDataResult.redirect, topicName.toString(), lookupDataResult.partitions,
+                            e.getMessage())));
                 }
             }).exceptionally((e) -> {
                 log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
@@ -212,7 +235,7 @@ public class BinaryProtoLookupService implements LookupService {
         Backoff backoff = new BackoffBuilder()
                 .setInitialTime(100, TimeUnit.MILLISECONDS)
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(0, TimeUnit.MILLISECONDS)
+                .setMax(1, TimeUnit.MINUTES)
                 .create();
         getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
         return topicsFuture;
@@ -251,8 +274,10 @@ public class BinaryProtoLookupService implements LookupService {
         }).exceptionally((e) -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                topicsFuture.completeExceptionally(new PulsarClientException
-                    .TimeoutException("Could not getTopicsUnderNamespace within configured timeout."));
+                topicsFuture.completeExceptionally(
+                    new PulsarClientException.TimeoutException(
+                        format("Could not get topics of namespace %s within configured timeout",
+                            namespace.toString())));
                 return null;
             }
 

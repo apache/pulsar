@@ -116,7 +116,7 @@ public class BlobStoreBackedInputStreamImpl extends BackedInputStream {
 
     @Override
     public void seek(long position) {
-        log.debug("Seeking to {} on {}/{}, current position {}", position, bucket, key, cursor);
+        log.debug("Seeking to {} on {}/{}, current position {} (bufStart:{}, bufEnd:{})", position, bucket, key, cursor, bufferOffsetStart, bufferOffsetEnd);
         if (position >= bufferOffsetStart && position <= bufferOffsetEnd) {
             long newIndex = position - bufferOffsetStart;
             buffer.readerIndex((int)newIndex);

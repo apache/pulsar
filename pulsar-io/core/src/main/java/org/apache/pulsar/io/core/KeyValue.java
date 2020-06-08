@@ -19,7 +19,7 @@
 package org.apache.pulsar.io.core;
 
 /**
- * A simple KeyValue class
+ * A simple KeyValue class.
  */
 public class KeyValue<K, V> {
     private K key;

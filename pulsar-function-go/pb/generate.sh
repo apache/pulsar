@@ -54,7 +54,7 @@ fi
 protoFiles="${protoDefinitions}/*.proto"
 
 protoc \
-	--go_out=import_path=${pkg}:. \
+	--go_out=import_path=${pkg},plugins=grpc:. \
 	--proto_path="${protoDefinitions}" ${protoFiles}
 
 pulsarGitRev=$(git -C ${pulsarSrc} rev-parse HEAD)

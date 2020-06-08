@@ -47,6 +47,8 @@ public class NamespaceName implements ServiceUnitId {
                 }
             });
 
+    public static final NamespaceName SYSTEM_NAMESPACE = NamespaceName.get("pulsar/system");
+
     public static NamespaceName get(String tenant, String namespace) {
         validateNamespaceName(tenant, namespace);
         return get(tenant + '/' + namespace);

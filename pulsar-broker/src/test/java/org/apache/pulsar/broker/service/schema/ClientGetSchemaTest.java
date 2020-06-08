@@ -86,8 +86,10 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     @DataProvider(name = "serviceUrl")
     public String[] serviceUrls() {
-        return new String[] { "pulsar://" + pulsar.getAdvertisedAddress() + ":" + BROKER_PORT,
-                "http://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT };
+        return new String[] {
+                pulsar.getBrokerServiceUrl(),
+                pulsar.getWebServiceAddress()
+        };
     }
 
     @Test(dataProvider = "serviceUrl")

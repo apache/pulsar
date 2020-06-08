@@ -78,6 +78,11 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(clazz, schemaType));
     }
 
+    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
+    }
+
+
     /**
      * If the topic is already created, we should be able to fetch the schema type (avro, json, ...)
      */
@@ -146,7 +151,7 @@ public class TopicSchema {
             return (Schema<T>)Schema.KV_BYTES();
 
         case PROTOBUF:
-            return ProtobufSchema.ofGenericClass(clazz, Collections.emptyMap());
+            return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
 
         default:
             throw new RuntimeException("Unsupported schema type" + type);
@@ -157,14 +162,14 @@ public class TopicSchema {
         try {
             Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf
             return false;
         }
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
 
@@ -191,12 +196,17 @@ public class TopicSchema {
         // First try with Schema
         try {
             return (Schema<T>) InstanceUtils.initializeCustomSchema(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz, input);
+                    classLoader, clazz, input);
         } catch (Throwable t) {
             // Now try with Serde or just fail
             SerDe<T> serDe = (SerDe<T>) InstanceUtils.initializeSerDe(schemaTypeOrClassName,
-                    Thread.currentThread().getContextClassLoader(), clazz, input);
+                    classLoader, clazz, input);
             return new SerDeSchema<>(serDe);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
+        return newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, Thread.currentThread().getContextClassLoader());
     }
 }

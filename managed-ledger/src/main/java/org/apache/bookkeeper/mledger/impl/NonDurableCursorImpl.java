@@ -42,7 +42,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         if (startCursorPosition == null || startCursorPosition.getLedgerId() == PositionImpl.latest.getLedgerId()) {
             // Start from last entry
             initializeCursorPosition(ledger.getLastPositionAndCounter());
-        } else if (startCursorPosition.equals(PositionImpl.earliest)) {
+        } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
             recoverCursor(ledger.getPreviousPosition(ledger.getFirstPosition()));
         } else {
@@ -62,9 +62,14 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
-        long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
+        if (null != this.readPosition) {
+            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
                 ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
-        messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+            messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
+        } else {
+            log.warn("Recovered a non-durable cursor from position {} but didn't find a valid read position {}",
+                mdPosition, readPosition);
+        }
     }
 
     @Override
@@ -83,22 +88,13 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
     protected void internalAsyncMarkDelete(final PositionImpl newPosition, Map<String, Long> properties,
             final MarkDeleteCallback callback, final Object ctx) {
         // Bypass persistence of mark-delete position and individually deleted messages info
+
+        MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
+        lastMarkDeleteEntry = mdEntry;
+        // it is important to advance cursor so the retention can kick in as expected.
+        ledger.updateCursor(NonDurableCursorImpl.this, mdEntry.newPosition);
+
         callback.markDeleteComplete(ctx);
-    }
-
-    @Override
-    public void setActive() {
-        /// No-Op
-    }
-
-    @Override
-    public boolean isActive() {
-        return false;
-    }
-
-    @Override
-    public void setInactive() {
-        /// No-Op
     }
 
     @Override

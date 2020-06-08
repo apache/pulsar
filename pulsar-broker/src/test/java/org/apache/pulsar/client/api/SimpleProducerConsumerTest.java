@@ -47,12 +47,14 @@ import java.nio.file.Paths;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -68,16 +70,19 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import lombok.Cleanup;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageCrypto;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
@@ -106,6 +111,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+    }
+
+    @DataProvider
+    public static Object[][] variationsForExpectedPos() {
+        return new Object[][] {
+                // batching / start-inclusive / num-of-messages
+                {true, true, 10 },
+                {true, false, 10 },
+                {false, true, 10 },
+                {false, false, 10 },
+
+                {true, true, 100 },
+                {true, false, 100 },
+                {false, true, 100 },
+                {false, false, 100 },
+        };
     }
 
     @AfterMethod
@@ -435,6 +456,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic4")
                 .subscriptionName("my-subscriber-name")
+                .startMessageIdInclusive()
                 .subscribe();
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic4");
@@ -523,7 +545,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        PulsarClient client1 = PulsarClient.builder().serviceUrl("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT).build();
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         client1.close();
 
         try {
@@ -668,6 +690,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic7").subscriptionName(subName)
+                .startMessageIdInclusive()
                 .receiverQueueSize(recvQueueSize).subscribe();
         ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -1018,7 +1041,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Thread.sleep(maxMessageCacheRetentionTimeMillis);
 
         // 4. deactivate subscriber which has built the backlog
-        ledger.checkBackloggedCursors();
+        topicRef.checkBackloggedCursors();
         Thread.sleep(100);
 
         // 5. verify: active subscribers
@@ -1033,7 +1056,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             subscriber2.acknowledge(msg);
         }
 
-        ledger.checkBackloggedCursors();
+        topicRef.checkBackloggedCursors();
 
         activeSubscriber.clear();
         ledger.getActiveCursors().forEach(c -> activeSubscriber.add(c.getName()));
@@ -1117,6 +1140,44 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testtSendCallBackReturnSequenceId() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .enableBatching(false)
+                .topic("persistent://my-property/my-ns/my-topic5")
+                .sendTimeout(1, TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+        final String message = "my-message";
+
+        // Trigger the send timeout
+        stopBroker();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<CompletableFuture<MessageId>>();
+        for(int i = 0 ; i < 3 ; i++) {
+             CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value(message.getBytes()).sendAsync();
+             futures.add(future);
+        }
+        Thread.sleep(3000);
+        futures.get(0).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 0L);
+            return null;
+        });
+        futures.get(1).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 1L);
+            return null;
+        });
+        futures.get(2).exceptionally(ex -> {
+            long sequenceId = ((PulsarClientException) ex.getCause()).getSequenceId();
+            Assert.assertEquals(sequenceId, 2L);
+            return null;
+        });
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -1400,7 +1461,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer1 which doesn't send ack will not impact Consumer2 which sends ack for consumed message.
      *
      *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -1717,7 +1777,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Verify: Consumer2 sends ack of Consumer1 and consumer1 should be unblock if it is blocked due to unack-messages
      *
      *
-     * @param batchMessageDelayMs
      * @throws Exception
      */
     @Test
@@ -1981,7 +2040,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // client should not receive all produced messages and should be blocked due to unack-messages
-            assertEquals(messages1.size(), receiverQueueSize);
             Set<MessageIdImpl> redeliveryMessages = messages1.stream().map(m -> {
                 return (MessageIdImpl) m.getMessageId();
             }).collect(Collectors.toSet());
@@ -2841,8 +2899,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int batchSize = encryptionCtx.getBatchSize().orElse(0);
 
         ByteBuf payloadBuf = Unpooled.wrappedBuffer(msg.getData());
-        // try to decrypt
-        MessageCrypto crypto = new MessageCrypto("test", false);
+        // try to decrypt use default MessageCryptoBc
+        MessageCrypto crypto = new MessageCryptoBc("test", false);
         Builder metadataBuilder = MessageMetadata.newBuilder();
         org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.Builder encKeyBuilder = EncryptionKeys.newBuilder();
         encKeyBuilder.setKey(encryptionKeyName);
@@ -2857,7 +2915,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         metadataBuilder.addEncryptionKeys(encKey);
         metadataBuilder.setCompression(CompressionCodecProvider.convertToWireProtocol(compressionType));
         metadataBuilder.setUncompressedSize(uncompressedSize);
-        ByteBuf decryptedPayload = crypto.decrypt(metadataBuilder.build(), payloadBuf, reader);
+        ByteBuf decryptedPayload = crypto.decrypt(() -> metadataBuilder.build(), payloadBuf, reader);
 
         // try to uncompress
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
@@ -2962,6 +3020,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic("persistent://my-property/my-ns/test-flush-disabled")
+                .startMessageIdInclusive()
             .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -3195,6 +3254,102 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertNull(consumer1.receive(200, TimeUnit.MILLISECONDS));
         assertNull(consumer2.receive(200, TimeUnit.MILLISECONDS));
 
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "variationsForExpectedPos")
+    public void testConsumerStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
+            throws Exception {
+        final String topicName = "persistent://my-property/my-ns/ConsumerStartMessageIdAtExpectedPos";
+        final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
+        final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(batching)
+                .create();
+
+        CountDownLatch latch = new CountDownLatch(numOfMessages);
+
+        final AtomicReference<MessageId> resetPos = new AtomicReference<>();
+
+        for (int i = 0; i < numOfMessages; i++) {
+
+            final int j = i;
+
+            producer.sendAsync(String.format("msg num %d", i).getBytes())
+                    .thenCompose(messageId -> FutureUtils.value(Pair.of(j, messageId)))
+                    .whenComplete((p, e) -> {
+                        if (e != null) {
+                            fail("send msg failed due to " + e.getMessage());
+                        } else {
+                            log.info("send msg with id {}", p.getRight());
+                            if (p.getLeft() == resetIndex) {
+                                resetPos.set(p.getRight());
+                            }
+                        }
+                        latch.countDown();
+                    });
+        }
+
+        latch.await();
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic(topicName);
+
+        if (startInclusive) {
+            consumerBuilder.startMessageIdInclusive();
+        }
+
+        Consumer<byte[]> consumer = consumerBuilder.subscriptionName("my-subscriber-name").subscribe();
+        consumer.seek(resetPos.get());
+        log.info("reset cursor to {}", resetPos.get());
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = firstMessage; i < numOfMessages; i++) {
+            Message<byte[]> message = consumer.receive();
+            String receivedMessage = new String(message.getData());
+            String expectedMessage = String.format("msg num %d", i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+
+        assertEquals(((ConsumerImpl) consumer).numMessagesInQueue(), 0);
+
+        // Processed messages should be the number of messages in the range: [FirstResetMessage..TotalNumOfMessages]
+        assertEquals(messageSet.size(), numOfMessages - firstMessage);
+
+        consumer.close();
+        producer.close();
+    }
+
+    /**
+     * It verifies that message failure successfully releases semaphore and client successfully receives
+     * InvalidMessageException.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testReleaseSemaphoreOnFailMessages() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        int maxPendingMessages = 10;
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().enableBatching(false)
+                .blockIfQueueFull(true).maxPendingMessages(maxPendingMessages)
+                .topic("persistent://my-property/my-ns/my-topic2");
+
+        Producer<byte[]> producer = producerBuilder.create();
+        List<Future<MessageId>> futures = Lists.newArrayList();
+
+        // Asynchronously produce messages
+        byte[] message = new byte[ClientCnx.getMaxMessageSize() + 1];
+        for (int i = 0; i < maxPendingMessages + 10; i++) {
+            Future<MessageId> future = producer.sendAsync(message);
+            try {
+                future.get();
+                fail("should fail with InvalidMessageException");
+            } catch (Exception e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.InvalidMessageException);
+            }
+        }
         log.info("-- Exiting {} test --", methodName);
     }
 }

@@ -14,7 +14,7 @@ To begin, you need to set up Athenz service access control. You need to create d
 
 ### Create the tenant domain and service
 
-On the [tenant](reference-terminology.md#tenant) side, you need to do the follwing things:
+On the [tenant](reference-terminology.md#tenant) side, you need to do the following things:
 
 1. Create a domain, such as `shopping`
 2. Generate a private/public key pair
@@ -26,7 +26,7 @@ For more specific steps involving the Athenz UI, refer to [Example Service Acces
 
 ### Create the provider domain and add the tenant service to some role members
 
-On the provider side, you need to do the follwing things:
+On the provider side, you need to do the following things:
 
 1. Create a domain, such as `pulsar`
 2. Create a role

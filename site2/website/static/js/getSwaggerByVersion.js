@@ -4,10 +4,14 @@ function getSwaggerByVersion(){
     params = params.replace('?', '')
     const paramsList = params.split('&')
     var version = 'master'
+    var apiversion = '';
     for (var i in paramsList) {
         var param = paramsList[i].split('=')
         if (param[0] === 'version') {
             version = param[1]
+        }
+        if (param[0] === 'apiversion') {
+            apiversion = param[1]
         }
     }
     var href = document.querySelector('a[href="/en/versions"]');
@@ -30,16 +34,20 @@ function getSwaggerByVersion(){
             version = '2.3.0'
         }
     }
+
+    
     const wrapper = document.querySelector('.pageContainer .wrapper')
     const redoc = document.createElement('redoc');
+
+
     if (pathName.indexOf('admin-rest-api') >= 0) {
-        redoc.setAttribute('spec-url', '/swagger/' + version + '/swagger.json')
+        redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swagger.json')
     } else if (pathName.indexOf('functions-rest-api') >= 0) {
-        redoc.setAttribute('spec-url', '/swagger/' + version + '/swaggerfunctions.json')
+        redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggerfunctions.json')
     } else if (pathName.indexOf('source-rest-api') >= 0) {
-        redoc.setAttribute('spec-url', '/swagger/' + version + '/swaggersource.json')
+        redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggersource.json')
     } else if (pathName.indexOf('sink-rest-api') >= 0) {
-        redoc.setAttribute('spec-url', '/swagger/' + version + '/swaggersink.json')
+        redoc.setAttribute('spec-url', '/swagger/' + version + '/' + apiversion  + '/swaggersink.json')
     }
     redoc.setAttribute('lazy-rendering', 'true')
     const redocLink = document.createElement('script');

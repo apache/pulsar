@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.windowing.EvictionPolicy;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * An eviction policy that tracks count based on watermark ts and
@@ -37,6 +38,8 @@ public class WatermarkCountEvictionPolicy<T>
     protected final AtomicLong currentCount;
     private EvictionContext context;
 
+    private static final AtomicLongFieldUpdater<WatermarkCountEvictionPolicy> PROCESSED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(WatermarkCountEvictionPolicy.class, "processed");
     private volatile long processed;
 
     public WatermarkCountEvictionPolicy(int count) {
@@ -58,7 +61,7 @@ public class WatermarkCountEvictionPolicy<T>
         if (event.getTimestamp() <= getContext().getReferenceTime() && processed < currentCount.get()) {
             action = doEvict(event);
             if (action == Action.PROCESS) {
-                ++processed;
+                PROCESSED_UPDATER.incrementAndGet(this);
             }
         } else {
             action = Action.KEEP;

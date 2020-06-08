@@ -65,6 +65,9 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,13 +81,14 @@ public class PerformanceProducer {
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
     private static final LongAdder messagesSent = new LongAdder();
+    private static final LongAdder messagesFailed = new LongAdder();
     private static final LongAdder bytesSent = new LongAdder();
 
     private static final LongAdder totalMessagesSent = new LongAdder();
     private static final LongAdder totalBytesSent = new LongAdder();
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     static class Arguments {
 
@@ -118,6 +122,10 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "-ch",
+                "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+        private boolean chunkingAllowed = false;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -126,10 +134,10 @@ public class PerformanceProducer {
         public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
-        public int maxOutstanding = 1000;
+        public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
 
         @Parameter(names = { "-p", "--max-outstanding-across-partitions" }, description = "Max number of outstanding messages across partitions")
-        public int maxPendingMessagesAcrossPartitions = 50000;
+        public int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -156,6 +164,16 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
+        
+        @Parameter(names = {
+            "-bm", "--batch-max-messages"
+        }, description = "Maximum number of messages per batch")
+        public int batchMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+
+        @Parameter(names = {
+            "-bb", "--batch-max-bytes"
+        }, description = "Maximum number of bytes per batch")
+        public int batchMaxBytes = 4 * 1024 * 1024;
 
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep publishing")
@@ -178,6 +196,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
+        
+        @Parameter(names = { "-ef",
+                "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
+        public boolean exitOnFailure = false;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -346,13 +368,15 @@ public class PerformanceProducer {
             double elapsed = (now - oldTime) / 1e9;
 
             double rate = messagesSent.sumThenReset() / elapsed;
+            double failureRate = messagesFailed.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
-                    "Throughput produced: {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    "Throughput produced: {}  msg/s --- {} Mbit/s --- failure {} msg/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
                     throughputFormat.format(rate), throughputFormat.format(throughput),
+                    throughputFormat.format(failureRate),
                     dec.format(reportHistogram.getMean() / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
                     dec.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
@@ -401,12 +425,17 @@ public class PerformanceProducer {
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-            if (arguments.batchTimeMillis == 0.0) {
+            if (arguments.batchTimeMillis == 0.0 && arguments.batchMaxMessages == 0) {
                 producerBuilder.enableBatching(false);
             } else {
                 long batchTimeUsec = (long) (arguments.batchTimeMillis * 1000);
-                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS)
-                        .enableBatching(true);
+                producerBuilder.batchingMaxPublishDelay(batchTimeUsec, TimeUnit.MICROSECONDS).enableBatching(true);
+            }
+            if (arguments.batchMaxMessages > 0) {
+                producerBuilder.batchingMaxMessages(arguments.batchMaxMessages);
+            }
+            if (arguments.batchMaxBytes > 0) {
+                producerBuilder.batchingMaxBytes(arguments.batchMaxBytes);
             }
 
             // Block if queue is full else we will start seeing errors in sendAsync
@@ -424,7 +453,12 @@ public class PerformanceProducer {
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {
-                    futures.add(producerBuilder.clone().topic(topic).createAsync());
+                    ProducerBuilder<byte[]> prodBuilder = producerBuilder.clone().topic(topic);
+                    if (arguments.chunkingAllowed) {
+                        prodBuilder.enableChunking(true);
+                        prodBuilder.enableBatching(false);
+                    }
+                    futures.add(prodBuilder.createAsync());
                 }
             }
 
@@ -496,8 +530,16 @@ public class PerformanceProducer {
                             cumulativeRecorder.recordValue(latencyMicros);
                         }
                     }).exceptionally(ex -> {
+                        // Ignore the exception of recorder since a very large latencyMicros will lead
+                        // ArrayIndexOutOfBoundsException in AbstractHistogram
+                        if (ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
+                            return null;
+                        }
                         log.warn("Write error on message", ex);
-                        System.exit(-1);
+                        messagesFailed.increment();
+                        if (arguments.exitOnFailure) {
+                            System.exit(-1);
+                        }
                         return null;
                     });
                 }

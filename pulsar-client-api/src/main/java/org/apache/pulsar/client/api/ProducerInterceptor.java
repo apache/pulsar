@@ -29,6 +29,7 @@ package org.apache.pulsar.client.api;
  * <p>ProducerInterceptor callbacks may be called from multiple threads. Interceptor
  * implementation must ensure thread-safety, if needed.
  */
+@Deprecated
 public interface ProducerInterceptor<T> extends AutoCloseable {
 
     /**

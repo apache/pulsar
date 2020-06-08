@@ -50,7 +50,7 @@ public class SchemaInfoTest {
         + "  \"schema\": {\n"
         + "    \"type\": \"record\",\n"
         + "    \"name\": \"Bar\",\n"
-        + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils$\",\n"
+        + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "    \"fields\": [\n"
         + "      {\n"
         + "        \"name\": \"field1\",\n"
@@ -61,6 +61,7 @@ public class SchemaInfoTest {
         + "  \"type\": \"JSON\",\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"true\",\n"
+        + "    \"__jsr310ConversionEnabled\": \"false\",\n"
         + "    \"bar1\": \"bar-value1\",\n"
         + "    \"bar2\": \"bar-value2\",\n"
         + "    \"bar3\": \"bar-value3\"\n"
@@ -72,7 +73,7 @@ public class SchemaInfoTest {
         + "  \"schema\": {\n"
         + "    \"type\": \"record\",\n"
         + "    \"name\": \"Foo\",\n"
-        + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils$\",\n"
+        + "    \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "    \"fields\": [\n"
         + "      {\n"
         + "        \"name\": \"field1\",\n"
@@ -132,6 +133,7 @@ public class SchemaInfoTest {
         + "  \"type\": \"AVRO\",\n"
         + "  \"properties\": {\n"
         + "    \"__alwaysAllowNull\": \"false\",\n"
+        + "    \"__jsr310ConversionEnabled\": \"false\",\n"
         + "    \"foo1\": \"foo-value1\",\n"
         + "    \"foo2\": \"foo-value2\",\n"
         + "    \"foo3\": \"foo-value3\"\n"
@@ -146,7 +148,7 @@ public class SchemaInfoTest {
         + "      \"schema\": {\n"
         + "        \"type\": \"record\",\n"
         + "        \"name\": \"Foo\",\n"
-        + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils$\",\n"
+        + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "        \"fields\": [\n"
         + "          {\n"
         + "            \"name\": \"field1\",\n"
@@ -206,6 +208,7 @@ public class SchemaInfoTest {
         + "      \"type\": \"AVRO\",\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"false\",\n"
+        + "        \"__jsr310ConversionEnabled\": \"false\",\n"
         + "        \"foo1\": \"foo-value1\",\n"
         + "        \"foo2\": \"foo-value2\",\n"
         + "        \"foo3\": \"foo-value3\"\n"
@@ -216,7 +219,7 @@ public class SchemaInfoTest {
         + "      \"schema\": {\n"
         + "        \"type\": \"record\",\n"
         + "        \"name\": \"Bar\",\n"
-        + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils$\",\n"
+        + "        \"namespace\": \"org.apache.pulsar.client.impl.schema.SchemaTestUtils\",\n"
         + "        \"fields\": [\n"
         + "          {\n"
         + "            \"name\": \"field1\",\n"
@@ -227,6 +230,7 @@ public class SchemaInfoTest {
         + "      \"type\": \"JSON\",\n"
         + "      \"properties\": {\n"
         + "        \"__alwaysAllowNull\": \"true\",\n"
+        + "        \"__jsr310ConversionEnabled\": \"false\",\n"
         + "        \"bar1\": \"bar-value1\",\n"
         + "        \"bar2\": \"bar-value2\",\n"
         + "        \"bar3\": \"bar-value3\"\n"
@@ -236,17 +240,17 @@ public class SchemaInfoTest {
         + "  \"type\": \"KEY_VALUE\",\n"
         + "  \"properties\": {\n"
         + "    \"key.schema.name\": \"\",\n"
-        + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\\"foo-value3\\\"}\",\n"
+        + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\\"foo-value3\\\"}\",\n"
         + "    \"key.schema.type\": \"AVRO\",\n"
         + "    \"kv.encoding.type\": \"SEPARATED\",\n"
         + "    \"value.schema.name\": \"\",\n"
-        + "    \"value.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"true\\\",\\\"bar1\\\":\\\"bar-value1\\\",\\\"bar2\\\":\\\"bar-value2\\\",\\\"bar3\\\":\\\"bar-value3\\\"}\",\n"
+        + "    \"value.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"true\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"bar1\\\":\\\"bar-value1\\\",\\\"bar2\\\":\\\"bar-value2\\\",\\\"bar3\\\":\\\"bar-value3\\\"}\",\n"
         + "    \"value.schema.type\": \"JSON\"\n"
         + "  }\n"
         + "}";
 
     @DataProvider(name = "schemas")
-    public Object[][] schemas() {
+    public static Object[][] schemas() {
         return new Object[][] {
             {
                 Schema.STRING.getSchemaInfo(), UTF8_SCHEMA_INFO

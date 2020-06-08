@@ -28,25 +28,30 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
@@ -86,27 +91,44 @@ public abstract class ZooKeeperCache implements Watcher {
     private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
     private final int zkOperationTimeoutSeconds;
+    private static final int CACHE_EXPIRY_SECONDS = 300; //5 minutes
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds, OrderedExecutor executor) {
+        this(cacheName, zkSession, zkOperationTimeoutSeconds, executor, CACHE_EXPIRY_SECONDS);
+    }
+    
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds,
+            OrderedExecutor executor, int cacheExpirySeconds) {
         checkNotNull(executor);
         this.zkOperationTimeoutSeconds = zkOperationTimeoutSeconds;
         this.executor = executor;
         this.zkSession.set(zkSession);
         this.shouldShutdownExecutor = false;
 
-        this.dataCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+        this.dataCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
 
-        this.childrenCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+        this.childrenCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
-        this.existsCache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+
+        this.existsCache = Caffeine.newBuilder()
+                .recordStats()
+                .expireAfterWrite(zkOperationTimeoutSeconds, TimeUnit.SECONDS)
                 .buildAsync((key, executor1) -> null);
+
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-data", dataCache);
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-children", childrenCache);
+        CacheMetricsCollector.CAFFEINE.addCache(cacheName + "-exists", existsCache);
     }
 
-    public ZooKeeperCache(ZooKeeper zkSession, int zkOperationTimeoutSeconds) {
-        this(zkSession, zkOperationTimeoutSeconds,
+    public ZooKeeperCache(String cacheName, ZooKeeper zkSession, int zkOperationTimeoutSeconds) {
+        this(cacheName, zkSession, zkOperationTimeoutSeconds,
                 OrderedExecutor.newBuilder().name("zk-cache-callback-executor").build());
         this.shouldShutdownExecutor = true;
     }
@@ -220,7 +242,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
 
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            zk.exists(path, watcher, (StatCallback) (rc, path1, ctx, stat) -> {
+            zk.exists(path, watcher, (rc, path1, ctx, stat) -> {
                 if (rc == Code.OK.intValue()) {
                     future.complete(true);
                 } else if (rc == Code.NONODE.intValue()) {
@@ -410,7 +432,7 @@ public abstract class ZooKeeperCache implements Watcher {
                     return;
                 }
 
-                zk.getChildren(path, watcher, (ChildrenCallback) (rc, path1, ctx, children) -> {
+                zk.getChildren(path, watcher, (rc, path1, ctx, children) -> {
                     if (rc == Code.OK.intValue()) {
                         future.complete(Sets.newTreeSet(children));
                     } else if (rc == Code.NONODE.intValue()) {
@@ -446,7 +468,12 @@ public abstract class ZooKeeperCache implements Watcher {
 
     @SuppressWarnings("unchecked")
     public <T> T getDataIfPresent(String path) {
-        return (T) dataCache.getIfPresent(path);
+        CompletableFuture<Map.Entry<Object, Stat>> f = dataCache.getIfPresent(path);
+        if (f != null && f.isDone() && !f.isCompletedExceptionally()) {
+            return (T) f.join().getKey();
+        } else {
+            return null;
+        }
     }
 
     public Set<String> getChildrenIfPresent(String path) {
@@ -479,4 +506,49 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.backgroundExecutor.shutdown();
     }
+
+    public boolean checkRegNodeAndWaitExpired(String regPath) throws IOException {
+        final CountDownLatch prevNodeLatch = new CountDownLatch(1);
+        Watcher zkPrevRegNodewatcher = new Watcher() {
+            @Override
+            public void process(WatchedEvent event) {
+                // Check for prev znode deletion. Connection expiration is
+                // not handling, since bookie has logic to shutdown.
+                if (EventType.NodeDeleted == event.getType()) {
+                    prevNodeLatch.countDown();
+                }
+            }
+        };
+        try {
+            Stat stat = getZooKeeper().exists(regPath, zkPrevRegNodewatcher);
+            if (null != stat) {
+                // if the ephemeral owner isn't current zookeeper client
+                // wait for it to be expired.
+                if (stat.getEphemeralOwner() != getZooKeeper().getSessionId()) {
+                    log.info("Previous bookie registration znode: {} exists, so waiting zk sessiontimeout:"
+                        + " {} ms for znode deletion", regPath, getZooKeeper().getSessionTimeout());
+                    // waiting for the previous bookie reg znode deletion
+                    if (!prevNodeLatch.await(getZooKeeper().getSessionTimeout(), TimeUnit.MILLISECONDS)) {
+                        throw new NodeExistsException(regPath);
+                    } else {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        } catch (KeeperException ke) {
+            log.error("ZK exception checking and wait ephemeral znode {} expired : ", regPath, ke);
+            throw new IOException("ZK exception checking and wait ephemeral znode "
+                + regPath + " expired", ke);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted checking and wait ephemeral znode {} expired : ", regPath, ie);
+            throw new IOException("Interrupted checking and wait ephemeral znode "
+                + regPath + " expired", ie);
+        }
+    }
+
+    private static Logger log = LoggerFactory.getLogger(ZooKeeperCache.class);
 }

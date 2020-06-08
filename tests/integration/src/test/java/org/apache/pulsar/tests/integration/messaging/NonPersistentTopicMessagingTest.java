@@ -56,11 +56,11 @@ public class NonPersistentTopicMessagingTest extends TopicMessagingBase {
 
     @Test(dataProvider = "ServiceUrls")
     public void testNonPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
-        nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
+        nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl, false);
     }
 
     @Test(dataProvider = "ServiceUrls")
     public void testPartitionedTopicMessagingWithKeyShared(String serviceUrl) throws Exception {
-        partitionedTopicSendAndReceiveWithKeyShared(serviceUrl, true);
+        partitionedTopicSendAndReceiveWithKeyShared(serviceUrl, false);
     }
 }

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
@@ -32,6 +35,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -54,9 +58,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
 @Slf4j
 public final class WorkerUtils {
 
@@ -75,13 +76,11 @@ public final class WorkerUtils {
         // if the dest directory does not exist, create it.
         if (dlogNamespace.logExists(destPkgPath)) {
             // if the destination file exists, write a log message
-            log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    destPkgPath));
+            log.info("Target function file already exists at '{}'. Overwriting it now", destPkgPath);
             dlogNamespace.deleteLog(destPkgPath);
         }
         // copy the topology package to target working directory
-        log.info(String.format("Uploading function package to '%s'",
-                destPkgPath));
+        log.info("Uploading function package to '{}'", destPkgPath);
 
         try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
             try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
@@ -119,6 +118,11 @@ public final class WorkerUtils {
         }
     }
 
+    public static void deleteFromBookkeeper(Namespace namespace, String packagePath) throws IOException {
+        log.info("Deleting {} from BK", packagePath);
+        namespace.deleteLog(packagePath);
+    }
+
     public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
         int numReplicas = workerConfig.getNumFunctionPackageReplicas();
 
@@ -148,10 +152,14 @@ public final class WorkerUtils {
         return conf;
     }
 
-    public static URI initializeDlogNamespace(String zkServers, String ledgersRootPath) throws IOException {
-        BKDLConfig dlConfig = new BKDLConfig(zkServers, ledgersRootPath);
+    public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
+        String zookeeperServers = internalConf.getZookeeperServers();
+        URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
+        String ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
+        String ledgersRootPath = metadataServiceUri.getPath();
+        BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
-        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
+        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
 
         try {
             dlMetadata.create(dlogUri);
@@ -299,6 +307,10 @@ public final class WorkerUtils {
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 return true;
             }
+        }
+
+        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+            return true;
         }
 
         return false;

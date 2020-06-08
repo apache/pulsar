@@ -24,8 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
-import org.apache.pulsar.transaction.coordinator.exceptions.InvalidTxnStatusException;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -100,7 +99,7 @@ class TxnMetaImpl implements TxnMeta {
      *
      * @param partitions the list of partitions that the txn produces to
      * @return the transaction itself.
-     * @throws CoordinatorException
+     * @throws InvalidTxnStatusException
      */
     @Override
     public synchronized TxnMetaImpl addProducedPartitions(List<String> partitions) throws InvalidTxnStatusException {
@@ -115,7 +114,7 @@ class TxnMetaImpl implements TxnMeta {
      *
      * @param partitions the list of partitions that the txn acknowledges to
      * @return the transaction itself.
-     * @throws CoordinatorException
+     * @throws InvalidTxnStatusException
      */
     @Override
     public synchronized TxnMetaImpl addAckedPartitions(List<String> partitions) throws InvalidTxnStatusException {

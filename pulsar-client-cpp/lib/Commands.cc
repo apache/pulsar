@@ -20,7 +20,6 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
-#include "PulsarApi.pb.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
 #include "Utils.h"
@@ -215,6 +214,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
+
+    FeatureFlags* flags = connect->mutable_feature_flags();
+    flags->set_supports_auth_refresh(true);
     if (connectingThroughProxy) {
         Url logicalAddressUrl;
         Url::parse(logicalAddress, logicalAddressUrl);
@@ -225,6 +227,23 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::AUTH_RESPONSE);
+    CommandAuthResponse* authResponse = cmd.mutable_authresponse();
+    authResponse->set_client_version(_PULSAR_VERSION_);
+
+    AuthData* authData = authResponse->mutable_response();
+    authData->set_auth_method_name(authentication->getAuthMethodName());
+
+    AuthenticationDataPtr authDataContent;
+    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+        authData->set_auth_data(authDataContent->getCommandData());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
@@ -325,6 +344,20 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
     return writeMessageWithSize(cmd);
 }
 
+SharedBuffer Commands::newMultiMessageAck(uint64_t consumerId, const std::set<MessageId>& msgIds) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::ACK);
+    CommandAck* ack = cmd.mutable_ack();
+    ack->set_consumer_id(consumerId);
+    ack->set_ack_type(CommandAck_AckType_Individual);
+    for (const auto& msgId : msgIds) {
+        auto newMsgId = ack->add_message_id();
+        newMsgId->set_ledgerid(msgId.ledgerId());
+        newMsgId->set_entryid(msgId.entryId());
+    }
+    return writeMessageWithSize(cmd);
+}
+
 SharedBuffer Commands::newFlow(uint64_t consumerId, uint32_t messagePermits) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::FLOW);
@@ -390,6 +423,16 @@ SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, const Me
     MessageIdData& messageIdData = *commandSeek->mutable_message_id();
     messageIdData.set_ledgerid(messageId.ledgerId());
     messageIdData.set_entryid(messageId.entryId());
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::SEEK);
+    CommandSeek* commandSeek = cmd.mutable_seek();
+    commandSeek->set_consumer_id(consumerId);
+    commandSeek->set_request_id(requestId);
+    commandSeek->set_message_publish_time(timestamp);
     return writeMessageWithSize(cmd);
 }
 
@@ -530,6 +573,10 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::ACK_RESPONSE:
             return "ACK_RESPONSE";
             break;
+        case BaseCommand::GET_OR_CREATE_SCHEMA:
+            return "GET_OR_CREATE_SCHEMA";
+        case BaseCommand::GET_OR_CREATE_SCHEMA_RESPONSE:
+            return "GET_OR_CREATE_SCHEMA_RESPONSE";
         case BaseCommand::NEW_TXN:
             return "NEW_TXN";
             break;
@@ -653,5 +700,17 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     return singleMessage;
 }
+
+bool Commands::peerSupportsGetLastMessageId(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsActiveConsumerListener(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsMultiMessageAcknowledgement(int32_t peerVersion) {
+    return peerVersion >= proto::v12;
+}
+
+bool Commands::peerSupportsJsonSchemaAvroFormat(int32_t peerVersion) { return peerVersion >= proto::v13; }
+
+bool Commands::peerSupportsGetOrCreateSchema(int32_t peerVersion) { return peerVersion >= proto::v15; }
 }  // namespace pulsar
 /* namespace pulsar */

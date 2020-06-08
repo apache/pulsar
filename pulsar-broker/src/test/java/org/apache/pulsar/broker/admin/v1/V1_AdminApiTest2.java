@@ -37,6 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
+
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
@@ -90,7 +92,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("use", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
@@ -138,7 +140,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/" + topicName;
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
+        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
@@ -146,6 +148,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 startPartitions);
 
         // create consumer and subscriptions : check subscriptions
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -233,8 +236,9 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(persistentTopicName).subscriptionName("my-sub")
                 .subscribe();
@@ -289,7 +293,7 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String namespace = "prop-xyz/use/ns2";
         admin.namespaces().createNamespace(namespace);
 
-        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(1, 1, 1, 0.0));
+        assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(2, 2, 2, 0.0));
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 3, 10.0));
         assertEquals(admin.namespaces().getPersistence(namespace), new PersistencePolicies(3, 3, 3, 10.0));
 
@@ -497,9 +501,8 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         try {
             messageId = new MessageIdImpl(0, 0, -1);
             admin.topics().resetCursor(topicName, "my-sub", messageId);
-            fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.PreconditionFailedException e) {
-            // Ok
+            fail("It shouldn't fail for a invalid position");
         }
 
         consumer.close();
@@ -553,13 +556,13 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
@@ -598,17 +601,17 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                new ClusterData("http://broker.messaging.west1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west1.example.com:8080"));
         admin.clusters().createCluster("us-west2",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west3",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-west4",
-                new ClusterData("http://broker.messaging.west2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.west2.example.com:8080"));
         admin.clusters().createCluster("us-east1",
-                new ClusterData("http://broker.messaging.east1.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east1.example.com:8080"));
         admin.clusters().createCluster("us-east2",
-                new ClusterData("http://broker.messaging.east2.example.com" + ":" + BROKER_WEBSERVICE_PORT));
+                new ClusterData("http://broker.messaging.east2.example.com:8080"));
         admin.clusters().createCluster("global", new ClusterData());
 
         final String property = "peer-prop";
@@ -703,13 +706,13 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
 
         Set<String> namespaces = new HashSet<>(
-                admin.namespaces().getAntiAffinityNamespaces("dummy", "use", antiAffinityGroup));
+                admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", antiAffinityGroup));
         assertEquals(namespaces.size(), 3);
         assertTrue(namespaces.contains(ns1));
         assertTrue(namespaces.contains(ns2));
         assertTrue(namespaces.contains(ns3));
 
-        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
+        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("prop-xyz", "use", "invalid-group");
         assertEquals(namespaces2.size(), 0);
     }
 
@@ -749,9 +752,8 @@ public class V1_AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://prop-xyz/use/ns1/" + topicName;
         final String producerName = "myProducer";
 
-        URL pulsarUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subscriberName)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         Producer<byte[]> producer = client.newProducer()

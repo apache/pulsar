@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.ObjectSet;
 
 import io.netty.buffer.ByteBuf;
 
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -47,6 +48,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+
+    private Random random = new Random(42);
 
     protected AbstractDispatcherMultipleConsumers(Subscription subscription) {
         super(subscription);
@@ -143,6 +146,21 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     }
 
     /**
+     * Get random consumer from consumerList.
+     *
+     * @return null if no consumer available, else return random consumer from consumerList
+     */
+    public Consumer getRandomConsumer() {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            // abort read if no consumers are connected of if disconnect is initiated
+            return null;
+        }
+
+        return consumerList.get(random.nextInt(consumerList.size()));
+    }
+
+
+    /**
      * Finds index of first available consumer which has higher priority then given targetPriority
      *
      * @param targetPriority
@@ -215,22 +233,6 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
             }
         }
         return -1;
-    }
-
-    public static final String NONE_KEY = "NONE_KEY";
-    protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        metadataAndPayload.markReaderIndex();
-        PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-        metadataAndPayload.resetReaderIndex();
-        String key = metadata.getPartitionKey();
-        if (log.isDebugEnabled()) {
-            log.debug("Parse message metadata, partition key is {}, ordering key is {}", key, metadata.getOrderingKey());
-        }
-        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
-            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
-        }
-        metadata.recycle();
-        return NONE_KEY.getBytes();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);

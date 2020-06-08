@@ -14,7 +14,7 @@ is permitted to do some actions (eg: publish to a topic or consume from a topic)
 
 A user typically gets a token string from the administrator (or some automated service).
 
-The compact representation of a signed JWT is a string that looks like as the follwing:
+The compact representation of a signed JWT is a string that looks like as the following:
 
 ```
 eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY
@@ -54,7 +54,7 @@ You can use tokens to authenticate the following Pulsar clients.
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
-        AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+        AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")）
     .build();
 ```
 
@@ -67,7 +67,7 @@ PulsarClient client = PulsarClient.builder()
         AuthenticationFactory.token(() -> {
             // Read token from custom source
             return readToken();
-        })
+        }))
     .build();
 ```
 
@@ -118,6 +118,13 @@ pulsar::ClientConfiguration config;
 config.setAuth(pulsar::AuthToken::createWithToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY"));
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
+```
+
+<!--C#-->
+```c#
+var client = PulsarClient.Builder()
+                         .AuthenticateUsingToken("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
+                         .Build();
 ```
 
 <!--END_DOCUSAURUS_CODE_TABS-->
@@ -213,7 +220,7 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 # If using secret key
 tokenSecretKey=file:///path/to/secret.key
 # The key can also be passed inline:
-# tokenSecretKey=data:base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
+# tokenSecretKey=data:;base64,FLFyW0oLJ2Fi22KKCm21J18mbAdztfSHN/lAT5ucEKU=
 
 # If using public/private
 # tokenPublicKey=file:///path/to/public.key

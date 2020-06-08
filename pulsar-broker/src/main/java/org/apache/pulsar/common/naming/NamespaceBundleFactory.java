@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -68,7 +69,9 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
 
-        this.bundlesCache = Caffeine.newBuilder().buildAsync((NamespaceName namespace, Executor executor) -> {
+        this.bundlesCache = Caffeine.newBuilder()
+                .recordStats()
+                .buildAsync((NamespaceName namespace, Executor executor) -> {
             String path = AdminResource.joinPath(LOCAL_POLICIES_ROOT, namespace.toString());
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Loading cache with bundles for {}", namespace);
@@ -100,6 +103,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             });
             return future;
         });
+
+        CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
         // local-policies have been changed which has contains namespace bundles
         pulsar.getLocalZkCacheService().policiesCache()
@@ -216,11 +221,19 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      *            {@link NamespaceBundle} needs to be split
      * @param numBundles
      *            split into numBundles
+     * @param splitBoundary
+     *            split into 2 numBundles by the given split key. The given split key must between the key range of the
+     *            given split bundle.
      * @return List of split {@link NamespaceBundle} and {@link NamespaceBundles} that contains final bundles including
      *         split bundles for a given namespace
      */
-    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles) {
+    public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles, Long splitBoundary) {
         checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
+        if (splitBoundary != null) {
+            checkArgument(splitBoundary > targetBundle.getLowerEndpoint() && splitBoundary < targetBundle.getUpperEndpoint(),
+                "The given fixed key must between the key range of the %s bundle", targetBundle);
+            numBundles = 2;
+        }
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
@@ -238,7 +251,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
                 splitPartition = i;
                 Long maxVal = sourceBundle.partitions[i + 1];
                 Long minVal = sourceBundle.partitions[i];
-                Long segSize = (maxVal - minVal) / numBundles;
+                Long segSize = splitBoundary == null ? (maxVal - minVal) / numBundles : splitBoundary - minVal;
                 partitions[pos++] = minVal;
                 Long curPartition = minVal + segSize;
                 for (int j = 0; j < numBundles - 1; j++) {

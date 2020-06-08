@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.cache;
 
-import java.nio.file.Paths;
 import java.util.Map;
 
 import org.apache.bookkeeper.util.ZkUtils;
@@ -111,7 +110,7 @@ public class ConfigurationCacheService {
             @Override
             @SuppressWarnings("unchecked")
             public NamespaceIsolationPolicies deserialize(String path, byte[] content) throws Exception {
-                return new NamespaceIsolationPolicies((Map<String, NamespaceIsolationData>) ObjectMapperFactory
+                return new NamespaceIsolationPolicies(ObjectMapperFactory
                         .getThreadLocal().readValue(content, new TypeReference<Map<String, NamespaceIsolationData>>() {
                         }));
             }
@@ -127,7 +126,8 @@ public class ConfigurationCacheService {
 
     private void createFailureDomainRoot(ZooKeeper zk, String path) {
         try {
-            final String clusterZnodePath = Paths.get(path).getParent().toString();
+            final int index = path.lastIndexOf('/');
+            final String clusterZnodePath = (index > 0) ? path.substring(0, index) : null;
             if (zk.exists(clusterZnodePath, false) != null && zk.exists(path, false) == null) {
                 try {
                     byte[] data = "".getBytes();

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -26,7 +27,7 @@ import java.util.concurrent.ExecutionException;
  */
 @SuppressWarnings("serial")
 public class PulsarClientException extends IOException {
-
+    private long sequenceId = -1;
     /**
      * Constructs an {@code PulsarClientException} with the specified detail message.
      *
@@ -39,6 +40,20 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Constructs an {@code PulsarClientException} with the specified detail message.
+     *
+     * @param msg
+     *        The detail message (which is saved for later retrieval
+     *        by the {@link #getMessage()} method)
+     * @param sequenceId
+     *        The sequenceId of the message
+     */
+    public PulsarClientException(String msg, long sequenceId) {
+        super(msg);
+        this.sequenceId = sequenceId;
+    }
+
+    /**
      * Constructs an {@code PulsarClientException} with the specified cause.
      *
      * @param t
@@ -48,6 +63,34 @@ public class PulsarClientException extends IOException {
      */
     public PulsarClientException(Throwable t) {
         super(t);
+    }
+
+    /**
+     * Constructs an {@code PulsarClientException} with the specified cause.
+     *
+     * @param msg
+     *            The detail message (which is saved for later retrieval by the {@link #getMessage()} method)
+     *
+     * @param t
+     *            The cause (which is saved for later retrieval by the {@link #getCause()} method). (A null value is
+     *            permitted, and indicates that the cause is nonexistent or unknown.)
+     */
+    public PulsarClientException(String msg, Throwable t) {
+        super(msg, t);
+    }
+
+    /**
+     * Constructs an {@code PulsarClientException} with the specified cause.
+     *
+     * @param t
+     *            The cause (which is saved for later retrieval by the {@link #getCause()} method). (A null value is
+     *            permitted, and indicates that the cause is nonexistent or unknown.)
+     * @param sequenceId
+     *            The sequenceId of the message
+     */
+    public PulsarClientException(Throwable t, long sequenceId) {
+        super(t);
+        this.sequenceId = sequenceId;
     }
 
     /**
@@ -64,6 +107,21 @@ public class PulsarClientException extends IOException {
          */
         public InvalidServiceURL(Throwable t) {
             super(t);
+        }
+
+        /**
+         * Constructs an {@code InvalidServiceURL} with the specified cause.
+         *
+         *@param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public InvalidServiceURL(String msg, Throwable t) {
+            super(msg, t);
         }
     }
 
@@ -92,6 +150,21 @@ public class PulsarClientException extends IOException {
          */
         public InvalidConfigurationException(Throwable t) {
             super(t);
+        }
+
+        /**
+         * Constructs an {@code InvalidConfigurationException} with the specified cause.
+         *
+         *@param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public InvalidConfigurationException(String msg, Throwable t) {
+            super(msg, t);
         }
     }
 
@@ -140,6 +213,20 @@ public class PulsarClientException extends IOException {
         }
 
         /**
+         * Constructs an {@code TimeoutException} with the specified cause.
+         *
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public TimeoutException(Throwable t, long sequenceId) {
+            super(t, sequenceId);
+        }
+
+        /**
          * Constructs an {@code TimeoutException} with the specified detail message.
          *
          * @param msg
@@ -149,6 +236,18 @@ public class PulsarClientException extends IOException {
         public TimeoutException(String msg) {
             super(msg);
         }
+
+        /**
+         * Constructs an {@code TimeoutException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public TimeoutException(String msg, long sequenceId) {
+            super(msg, sequenceId);
+        }
+
     }
 
     /**
@@ -269,6 +368,19 @@ public class PulsarClientException extends IOException {
         public AlreadyClosedException(String msg) {
             super(msg);
         }
+
+        /**
+         * Constructs an {@code AlreadyClosedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public AlreadyClosedException(String msg, long sequenceId) {
+            super(msg, sequenceId);
+        }
     }
 
     /**
@@ -284,6 +396,19 @@ public class PulsarClientException extends IOException {
          */
         public TopicTerminatedException(String msg) {
             super(msg);
+        }
+
+        /**
+         * Constructs an {@code TopicTerminatedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public TopicTerminatedException(String msg, long sequenceId) {
+            super(msg, sequenceId);
         }
     }
 
@@ -447,6 +572,10 @@ public class PulsarClientException extends IOException {
         public NotConnectedException() {
             super("Not connected to broker");
         }
+
+        public NotConnectedException(long sequenceId) {
+            super("Not connected to broker", sequenceId);
+        }
     }
 
     /**
@@ -462,6 +591,19 @@ public class PulsarClientException extends IOException {
          */
         public InvalidMessageException(String msg) {
             super(msg);
+        }
+
+        /**
+         * Constructs an {@code InvalidMessageException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public InvalidMessageException(String msg, long sequenceId) {
+            super(msg, sequenceId);
         }
     }
 
@@ -510,6 +652,19 @@ public class PulsarClientException extends IOException {
          */
         public ProducerQueueIsFullError(String msg) {
             super(msg);
+        }
+
+        /**
+         * Constructs an {@code ProducerQueueIsFullError} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param sequenceId
+         *        The sequenceId of the message
+         */
+        public ProducerQueueIsFullError(String msg, long sequenceId) {
+            super(msg, sequenceId);
         }
     }
 
@@ -577,13 +732,81 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    // wrap an exception to enriching more info messages.
+    public static Throwable wrap(Throwable t, String msg) {
+        msg += "\n" + t.getMessage();
+        // wrap an exception with new message info
+        if (t instanceof TimeoutException) {
+            return new TimeoutException(msg);
+        } else if (t instanceof InvalidConfigurationException) {
+            return new InvalidConfigurationException(msg);
+        } else if (t instanceof AuthenticationException) {
+            return new AuthenticationException(msg);
+        } else if (t instanceof IncompatibleSchemaException) {
+            return new IncompatibleSchemaException(msg);
+        } else if (t instanceof TooManyRequestsException) {
+            return new TooManyRequestsException(msg);
+        } else if (t instanceof LookupException) {
+            return new LookupException(msg);
+        } else if (t instanceof ConnectException) {
+            return new ConnectException(msg);
+        } else if (t instanceof AlreadyClosedException) {
+            return new AlreadyClosedException(msg);
+        } else if (t instanceof TopicTerminatedException) {
+            return new TopicTerminatedException(msg);
+        } else if (t instanceof AuthorizationException) {
+            return new AuthorizationException(msg);
+        } else if (t instanceof GettingAuthenticationDataException) {
+            return new GettingAuthenticationDataException(msg);
+        } else if (t instanceof UnsupportedAuthenticationException) {
+            return new UnsupportedAuthenticationException(msg);
+        } else if (t instanceof BrokerPersistenceException) {
+            return new BrokerPersistenceException(msg);
+        } else if (t instanceof BrokerMetadataException) {
+            return new BrokerMetadataException(msg);
+        } else if (t instanceof ProducerBusyException) {
+            return new ProducerBusyException(msg);
+        } else if (t instanceof ConsumerBusyException) {
+            return new ConsumerBusyException(msg);
+        } else if (t instanceof NotConnectedException) {
+            return new NotConnectedException();
+        } else if (t instanceof InvalidMessageException) {
+            return new InvalidMessageException(msg);
+        } else if (t instanceof InvalidTopicNameException) {
+            return new InvalidTopicNameException(msg);
+        } else if (t instanceof NotSupportedException) {
+            return new NotSupportedException(msg);
+        } else if (t instanceof ProducerQueueIsFullError) {
+            return new ProducerQueueIsFullError(msg);
+        } else if (t instanceof ProducerBlockedQuotaExceededError) {
+            return new ProducerBlockedQuotaExceededError(msg);
+        } else if (t instanceof ProducerBlockedQuotaExceededException) {
+            return new ProducerBlockedQuotaExceededException(msg);
+        } else if (t instanceof ChecksumException) {
+            return new ChecksumException(msg);
+        } else if (t instanceof CryptoException) {
+            return new CryptoException(msg);
+        } else if (t instanceof PulsarClientException) {
+            return new PulsarClientException(msg);
+        } else if (t instanceof CompletionException) {
+            return t;
+        } else if (t instanceof RuntimeException) {
+            return new RuntimeException(msg, t.getCause());
+        } else if (t instanceof InterruptedException) {
+            return t;
+        } else if (t instanceof ExecutionException) {
+            return t;
+        }
+
+        return t;
+    }
+
     public static PulsarClientException unwrap(Throwable t) {
         if (t instanceof PulsarClientException) {
             return (PulsarClientException) t;
         } else if (t instanceof RuntimeException) {
             throw (RuntimeException) t;
         }  else if (t instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
             return new PulsarClientException(t);
         } else if (!(t instanceof ExecutionException)) {
             // Generic exception
@@ -644,8 +867,38 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (cause instanceof TopicDoesNotExistException) {
+            return new TopicDoesNotExistException(msg);
         } else {
             return new PulsarClientException(t);
         }
+    }
+
+    public long getSequenceId() {
+        return sequenceId;
+    }
+
+    public void setSequenceId(long sequenceId) {
+        this.sequenceId = sequenceId;
+    }
+
+    public static boolean isRetriableError(Throwable t) {
+        if (t instanceof AuthorizationException
+                || t instanceof InvalidServiceURL
+                || t instanceof InvalidConfigurationException
+                || t instanceof NotFoundException
+                || t instanceof IncompatibleSchemaException
+                || t instanceof TopicDoesNotExistException
+                || t instanceof UnsupportedAuthenticationException
+                || t instanceof InvalidMessageException
+                || t instanceof InvalidTopicNameException
+                || t instanceof NotSupportedException
+                || t instanceof ChecksumException
+                || t instanceof CryptoException
+                || t instanceof ProducerBusyException
+                || t instanceof ConsumerBusyException) {
+            return false;
+        }
+        return true;
     }
 }

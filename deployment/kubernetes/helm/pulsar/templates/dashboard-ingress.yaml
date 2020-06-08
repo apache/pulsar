@@ -17,6 +17,7 @@
 # under the License.
 #
 
+{{- if .Values.extra.dashboard }}
 {{- if .Values.dashboard.ingress.enabled }}
 apiVersion: extensions/v1beta1                                                                                                                                                            
 kind: Ingress                                                                                                                                                                             
@@ -34,11 +35,13 @@ metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.dashboard.component }}"
   namespace: {{ .Values.namespace }}
 spec:                                                                                                                                                                                     
-{{- if .Values.dashboard.ingress.tls }}
+{{- if .Values.dashboard.ingress.tls.enabled }}
   tls:
     - hosts:
         - {{ .Values.dashboard.ingress.hostname }}
-      secretName: {{ .Values.dashboard.ingress.tls.secretName }}
+      {{- with .Values.dashboard.ingress.tls.secretName }}
+      secretName: {{ . }}
+      {{- end }}
 {{- end }}
   rules:
     - host: {{ required "Dashboard ingress hostname not provided" .Values.dashboard.ingress.hostname }}
@@ -48,4 +51,5 @@ spec:
             backend:
               serviceName: "{{ template "pulsar.fullname" . }}-{{ .Values.dashboard.component }}"
               servicePort: {{ .Values.dashboard.ingress.port }}
+{{- end }}
 {{- end }}

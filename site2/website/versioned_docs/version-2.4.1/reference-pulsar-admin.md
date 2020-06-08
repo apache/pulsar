@@ -1507,6 +1507,7 @@ Subcommands
 * `partitioned-stats`
 * `skip`
 * `skip-all`
+* `clear-backlog`
 * `expire-messages`
 * `expire-messages-all-subscriptions`
 * `peek-messages`
@@ -1814,6 +1815,21 @@ Options
 |---|---|---|
 |`-s`, `--subscription`|The subscription to clear||
 
+### `clear-backlog`
+
+Clear backlog (skip all the messages) for the subscription.
+
+Usage
+
+```bash
+$ pulsar-admin topics clear-backlog topic options
+```
+
+Options
+
+|Flag|Description|Default|
+|---|---|---|
+|`-s`, `--subscription`|The subscription to clear||
 
 ### `expire-messages`
 Expire messages that are older than the given expiry time (in seconds) for the subscription.

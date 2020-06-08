@@ -1,7 +1,7 @@
 ---
 id: functions-deploy
 title: Deploy Pulsar Functions
-sidebar_label: How-to: Deploy
+sidebar_label: "How-to: Deploy"
 ---
 
 ## Requirements

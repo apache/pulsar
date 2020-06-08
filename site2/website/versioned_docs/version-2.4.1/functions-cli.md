@@ -1,7 +1,7 @@
 ---
 id: version-2.4.1-functions-cli
 title: Pulsar Functions command line tool
-sidebar_label: Reference: CLI
+sidebar_label: "Reference: CLI"
 original_id: functions-cli
 ---
 
@@ -21,7 +21,7 @@ client-auth-plugin | Client authentication plugin using which function-process c
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -67,7 +67,7 @@ classname | The class name of a Pulsar Function. |  |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
@@ -118,7 +118,7 @@ classname | The class name of a Pulsar Function. | |
 CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
 custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
 custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. | |
+dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
 disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
 fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
 function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |

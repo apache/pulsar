@@ -49,7 +49,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // Timestamp at which the timeout is currently set
     private long currentTimeoutTarget;
 
-    private final long tickTimeMillis;
+    private long tickTimeMillis;
 
     private final Clock clock;
 
@@ -71,8 +71,12 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
                     deliveryAt - now);
         }
-        if (deliveryAt < now) {
-            // It's already about time to deliver this message
+        if (deliveryAt < (now + tickTimeMillis)) {
+            // It's already about time to deliver this message. We add the buffer of
+            // `tickTimeMillis` because messages can be extracted from the tracker
+            // slightly before the expiration time. We don't want the messages to
+            // go back into the delay tracker (for a brief amount of time) when we're
+            // trying to dispatch to the consumer.
             return false;
         }
 
@@ -117,10 +121,17 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Get scheduled messags - found {}", dispatcher.getName(), positions.size());
+            log.debug("[{}] Get scheduled messages - found {}", dispatcher.getName(), positions.size());
         }
         updateTimer();
         return positions;
+    }
+
+    @Override
+    public void resetTickTime(long tickTime) {
+        if (this.tickTimeMillis != tickTime){
+            this.tickTimeMillis = tickTime;
+        }
     }
 
     @Override
@@ -170,7 +181,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     @Override
     public void run(Timeout timeout) throws Exception {
         if (log.isDebugEnabled()) {
-            log.info("[{}] Timer triggered", dispatcher.getName());
+            log.debug("[{}] Timer triggered", dispatcher.getName());
         }
         if (timeout.isCancelled()) {
             return;

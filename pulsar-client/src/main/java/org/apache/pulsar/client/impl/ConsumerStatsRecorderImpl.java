@@ -49,11 +49,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     private final LongAdder numMsgsReceived;
     private final LongAdder numBytesReceived;
     private final LongAdder numReceiveFailed;
+    private final LongAdder numBatchReceiveFailed;
     private final LongAdder numAcksSent;
     private final LongAdder numAcksFailed;
     private final LongAdder totalMsgsReceived;
     private final LongAdder totalBytesReceived;
     private final LongAdder totalReceiveFailed;
+    private final LongAdder totalBatchReceiveFailed;
     private final LongAdder totalAcksSent;
     private final LongAdder totalAcksFailed;
 
@@ -66,11 +68,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         numMsgsReceived = new LongAdder();
         numBytesReceived = new LongAdder();
         numReceiveFailed = new LongAdder();
+        numBatchReceiveFailed = new LongAdder();
         numAcksSent = new LongAdder();
         numAcksFailed = new LongAdder();
         totalMsgsReceived = new LongAdder();
         totalBytesReceived = new LongAdder();
         totalReceiveFailed = new LongAdder();
+        totalBatchReceiveFailed = new LongAdder();
         totalAcksSent = new LongAdder();
         totalAcksFailed = new LongAdder();
     }
@@ -83,11 +87,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         numMsgsReceived = new LongAdder();
         numBytesReceived = new LongAdder();
         numReceiveFailed = new LongAdder();
+        numBatchReceiveFailed = new LongAdder();
         numAcksSent = new LongAdder();
         numAcksFailed = new LongAdder();
         totalMsgsReceived = new LongAdder();
         totalBytesReceived = new LongAdder();
         totalReceiveFailed = new LongAdder();
+        totalBatchReceiveFailed = new LongAdder();
         totalAcksSent = new LongAdder();
         totalAcksFailed = new LongAdder();
         init(conf);
@@ -99,10 +105,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
 
         try {
-            log.info("Starting Pulsar consumer perf with config: {}", w.writeValueAsString(conf));
+            log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
-            log.error("Failed to dump config info: {}", e);
+            log.error("Failed to dump config info", e);
         }
 
         stat = (timeout) -> {
@@ -116,12 +122,14 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 long currentNumMsgsReceived = numMsgsReceived.sumThenReset();
                 long currentNumBytesReceived = numBytesReceived.sumThenReset();
                 long currentNumReceiveFailed = numReceiveFailed.sumThenReset();
+                long currentNumBatchReceiveFailed = numBatchReceiveFailed.sumThenReset();
                 long currentNumAcksSent = numAcksSent.sumThenReset();
                 long currentNumAcksFailed = numAcksFailed.sumThenReset();
 
                 totalMsgsReceived.add(currentNumMsgsReceived);
                 totalBytesReceived.add(currentNumBytesReceived);
                 totalReceiveFailed.add(currentNumReceiveFailed);
+                totalBatchReceiveFailed.add(currentNumBatchReceiveFailed);
                 totalAcksSent.add(currentNumAcksSent);
                 totalAcksFailed.add(currentNumAcksFailed);
 
@@ -133,12 +141,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                     log.info(
                             "[{}] [{}] [{}] Prefetched messages: {} --- "
                                     + "Consume throughput received: {} msgs/s --- {} Mbit/s --- "
-                                    + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- " + "Failed acks: {}",
+                                    + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- batch messages: {} ---"
+                                    + "Failed acks: {}",
                             consumer.getTopic(), consumer.getSubscription(), consumer.consumerName,
                             consumer.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
                             THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024),
                             THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
-                            currentNumAcksFailed);
+                            currentNumBatchReceiveFailed, currentNumAcksFailed);
                 }
             } catch (Exception e) {
                 log.error("[{}] [{}] [{}]: {}", consumer.getTopic(), consumer.subscription, consumer.consumerName,
@@ -177,6 +186,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
+    public void incrementNumBatchReceiveFailed() {
+        numBatchReceiveFailed.increment();
+    }
+
+    @Override
     public Optional<Timeout> getStatTimeout() {
         return Optional.ofNullable(statTimeout);
     }
@@ -186,11 +200,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         numMsgsReceived.reset();
         numBytesReceived.reset();
         numReceiveFailed.reset();
+        numBatchReceiveFailed.reset();
         numAcksSent.reset();
         numAcksFailed.reset();
         totalMsgsReceived.reset();
         totalBytesReceived.reset();
         totalReceiveFailed.reset();
+        totalBatchReceiveFailed.reset();
         totalAcksSent.reset();
         totalAcksFailed.reset();
     }
@@ -203,11 +219,13 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         numMsgsReceived.add(stats.getNumMsgsReceived());
         numBytesReceived.add(stats.getNumBytesReceived());
         numReceiveFailed.add(stats.getNumReceiveFailed());
+        numBatchReceiveFailed.add(stats.getNumBatchReceiveFailed());
         numAcksSent.add(stats.getNumAcksSent());
         numAcksFailed.add(stats.getNumAcksFailed());
         totalMsgsReceived.add(stats.getTotalMsgsReceived());
         totalBytesReceived.add(stats.getTotalBytesReceived());
         totalReceiveFailed.add(stats.getTotalReceivedFailed());
+        totalBatchReceiveFailed.add(stats.getTotaBatchReceivedFailed());
         totalAcksSent.add(stats.getTotalAcksSent());
         totalAcksFailed.add(stats.getTotalAcksFailed());
     }
@@ -232,6 +250,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         return numReceiveFailed.longValue();
     }
 
+    @Override
+    public long getNumBatchReceiveFailed() {
+        return numBatchReceiveFailed.longValue();
+    }
+
     public long getTotalMsgsReceived() {
         return totalMsgsReceived.longValue();
     }
@@ -242,6 +265,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     public long getTotalReceivedFailed() {
         return totalReceiveFailed.longValue();
+    }
+
+    @Override
+    public long getTotaBatchReceivedFailed() {
+        return totalBatchReceiveFailed.longValue();
     }
 
     public long getTotalAcksSent() {

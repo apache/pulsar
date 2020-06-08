@@ -17,8 +17,8 @@
 # under the License.
 #
 
-{{- if .Values.extra.monitoring }}
-{{- if .Values.persistence }}
+{{- if or .Values.monitoring.prometheus .Values.extra.monitoring }}
+{{- if and (and .Values.persistence .Values.volumes.persistence) .Values.prometheus.volumes.persistence }}
 {{- if .Values.prometheus.volumes.data.storageClass }}
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -26,12 +26,8 @@ metadata:
   name: "{{ template "pulsar.fullname" . }}-{{ .Values.prometheus.component }}-{{ .Values.prometheus.volumes.data.name }}"
   namespace: {{ .Values.namespace }}
   labels:
-    app: {{ template "pulsar.name" . }}
-    chart: {{ template "pulsar.chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    {{- include "pulsar.standardLabels" . | nindent 4 }}
     component: {{ .Values.prometheus.component }}
-    cluster: {{ template "pulsar.fullname" . }}
 provisioner: {{ .Values.prometheus.volumes.data.storageClass.provisioner }}
 parameters:
   type: {{ .Values.prometheus.volumes.data.storageClass.type }}

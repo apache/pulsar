@@ -107,9 +107,18 @@ public interface Producer<T> extends Closeable {
     TypedMessageBuilder<T> newMessage();
 
     /**
+     * Create a new message builder with schema, not required same parameterized type with the producer.
+     *
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     * @see #newMessage()
+     */
+    <V> TypedMessageBuilder<V> newMessage(Schema<V> schema);
+
+    /**
      * Get the last sequence id that was published by this producer.
      *
-     * <p>This represent either the automatically assigned or custom sequence id (set on the {@link MessageBuilder})
+     * <p>This represent either the automatically assigned
+     * or custom sequence id (set on the {@link TypedMessageBuilder})
      * that was published and acknowledged by the broker.
      *
      * <p>After recreating a producer with the same producer name, this will return the last message that was

@@ -83,7 +83,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
         this.txnCursor = new TransactionCursorImpl();
-        this.retentionCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        this.retentionCursor = ledger.newNonDurableCursor(
+            PositionImpl.earliest, "txn-buffer-retention");
     }
 
     @Override

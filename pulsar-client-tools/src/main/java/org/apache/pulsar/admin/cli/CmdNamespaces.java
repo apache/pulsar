@@ -22,6 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -29,23 +30,30 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations about namespaces")
@@ -292,6 +300,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription expiration time for a namespace")
+    private class SetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--time" }, description = "Subscription expiration time in minutes", required = true)
+        private int expirationTime;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionExpirationTime(namespace, expirationTime);
+        }
+    }
+
     @Parameters(commandDescription = "Set Anti-affinity group name for a namespace")
     private class SetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -370,6 +393,87 @@ public class CmdNamespaces extends CmdBase {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
             admin.namespaces().setDeduplicationStatus(namespace, enable);
+        }
+    }
+
+    @Parameters(commandDescription = "Enable or disable autoTopicCreation for a namespace, overriding broker settings")
+    private class SetAutoTopicCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoTopicCreation on namespace")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable allowAutoTopicCreation on namespace")
+        private boolean disable = false;
+
+        @Parameter(names = { "--type", "-t" }, description = "Type of topic to be auto-created. " +
+                "Possible values: (partitioned, non-partitioned). Default value: non-partitioned")
+        private String type = "non-partitioned";
+
+        @Parameter(names = { "--num-partitions", "-n" }, description = "Default number of partitions of topic to be auto-created," +
+                " applicable to partitioned topics only", required = false)
+        private Integer defaultNumPartitions = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            type = type.toLowerCase().trim();
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            if (enable) {
+                if (!TopicType.isValidTopicType(type)) {
+                    throw new ParameterException("Must specify type of topic to be created. " +
+                            "Possible values: (partitioned, non-partitioned)");
+                }
+
+                if (TopicType.PARTITIONED.toString().equals(type) && !(defaultNumPartitions > 0)) {
+                    throw new ParameterException("Must specify num-partitions > 0 for partitioned topic type.");
+                }
+            }
+            admin.namespaces().setAutoTopicCreation(namespace, new AutoTopicCreationOverride(enable, type, defaultNumPartitions));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of autoTopicCreation for a namespace")
+    private class RemoveAutoTopicCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            admin.namespaces().removeAutoTopicCreation(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Enable autoSubscriptionCreation for a namespace, overriding broker settings")
+    private class SetAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable allowAutoSubscriptionCreation on namespace")
+        private boolean enable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setAutoSubscriptionCreation(namespace, new AutoSubscriptionCreationOverride(enable));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove override of autoSubscriptionCreation for a namespace")
+    private class RemoveAutoSubscriptionCreation extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeAutoSubscriptionCreation(namespace);
         }
     }
 
@@ -479,6 +583,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get subscription expiration time for a namespace")
+    private class GetSubscriptionExpirationTime extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getSubscriptionExpirationTime(namespace));
+        }
+    }
+
     @Parameters(commandDescription = "Unload a namespace from the current serving broker")
     private class Unload extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -510,10 +626,15 @@ public class CmdNamespaces extends CmdBase {
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
 
+        @Parameter(names = { "--split-algorithm-name", "-san" }, description = "Algorithm name for split namespace bundle.\n" +
+            " Valid options are: [range_equally_divide, topic_count_equally_divide].\n" +
+            " Use broker side config if absent", required = false)
+        private String splitAlgorithmName;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload);
+            admin.namespaces().splitNamespaceBundle(namespace, bundle, unload, splitAlgorithmName);
         }
     }
 
@@ -534,11 +655,15 @@ public class CmdNamespaces extends CmdBase {
                 "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+        
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setDispatchRate(namespace,
-                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -606,11 +731,15 @@ public class CmdNamespaces extends CmdBase {
             "-dt" }, description = "dispatch-rate-period in second type (default 1 second will be overwrite if not passed)\n", required = false)
         private int dispatchRatePeriodSec = 1;
 
+        @Parameter(names = { "--relative-to-publish-rate",
+                "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
+        private boolean relativeToPublishRate = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().setSubscriptionDispatchRate(namespace,
-                new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec));
+                    new DispatchRate(msgDispatchRate, byteDispatchRate, dispatchRatePeriodSec, relativeToPublishRate));
         }
     }
 
@@ -623,6 +752,39 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getSubscriptionDispatchRate(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set publish-rate for all topics of the namespace")
+    private class SetPublishRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+         @Parameter(names = { "--msg-publish-rate",
+            "-m" }, description = "message-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int msgPublishRate = -1;
+
+         @Parameter(names = { "--byte-publish-rate",
+            "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private long bytePublishRate = -1;
+
+         @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setPublishRate(namespace,
+                new PublishRate(msgPublishRate, bytePublishRate));
+        }
+    }
+
+     @Parameters(commandDescription = "Get configured message-publish-rate for all topics of the namespace (Disabled if value < 0)")
+    private class GetPublishRate extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+         @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getPublishRate(namespace));
         }
     }
 
@@ -840,6 +1002,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the delayed delivery policy for a namespace")
+    private class GetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getDelayedDelivery(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the delayed delivery policy on a namespace")
+    private class SetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable delayed delivery messages")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable delayed delivery messages")
+        private boolean disable = false;
+
+        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on delayed delivery messages, " +
+                "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
+        private String delayedDeliveryTimeStr = "1s";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            long delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+
+            admin.namespaces().setDelayedDeliveryMessages(namespace, new DelayedDeliveryPolicies(delayedDeliveryTimeInMills, enable));
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription auth mode on a namespace")
     private class SetSubscriptionAuthMode extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -937,6 +1139,60 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get maxUnackedMessagesPerConsumer for a namespace")
+    private class GetMaxUnackedMessagesPerConsumer extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set maxUnackedMessagesPerConsumer for a namespace")
+    private class SetMaxUnackedMessagesPerConsumer extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-unacked-messages-per-topic", "-c" }, description = "maxUnackedMessagesPerConsumer for a namespace", required = true)
+        private int maxUnackedMessagesPerConsumer;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, maxUnackedMessagesPerConsumer);
+        }
+    }
+
+    @Parameters(commandDescription = "Get maxUnackedMessagesPerSubscription for a namespace")
+    private class GetMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set maxUnackedMessagesPerSubscription for a namespace")
+    private class SetMaxUnackedMessagesPerSubscription extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-unacked-messages-per-subscription", "-c" }, description = "maxUnackedMessagesPerSubscription for a namespace", required = true)
+        private int maxUnackedMessagesPerSubscription;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, maxUnackedMessagesPerSubscription);
+        }
+    }
+
     @Parameters(commandDescription = "Get compactionThreshold for a namespace")
     private class GetCompactionThreshold extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
@@ -987,6 +1243,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--size", "-s" },
                    description = "Maximum number of bytes stored in the pulsar cluster for a topic before data will"
                                  + " start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100)."
+                                 + " -1 falls back to the cluster's namespace default."
                                  + " Negative values disable automatic offload."
                                  + " 0 triggers offloading as soon as possible.",
                    required = true)
@@ -1047,7 +1304,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Get the schema auto-update strategy for a namespace", hidden = true)
     private class GetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1060,7 +1317,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace")
+    @Parameters(commandDescription = "Set the schema auto-update strategy for a namespace", hidden = true)
     private class SetSchemaAutoUpdateStrategy extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
@@ -1093,6 +1350,77 @@ public class CmdNamespaces extends CmdBase {
                 throw new PulsarAdminException("Either --compatibility or --disabled must be specified");
             }
             admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace, strategy);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the schema compatibility strategy for a namespace")
+    private class GetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            System.out.println(admin.namespaces().getSchemaCompatibilityStrategy(namespace)
+                    .toString().toUpperCase());
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema compatibility strategy for a namespace")
+    private class SetSchemaCompatibilityStrategy extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--compatibility", "-c" },
+                description = "Compatibility level required for new schemas created via a Producer. "
+                        + "Possible values (FULL, BACKWARD, FORWARD, " +
+                        "UNDEFINED, BACKWARD_TRANSITIVE, " +
+                        "FORWARD_TRANSITIVE, FULL_TRANSITIVE, " +
+                        "ALWAYS_INCOMPATIBLE," +
+                        "ALWAYS_COMPATIBLE).")
+        private String strategyParam = null;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            String strategyStr = strategyParam != null ? strategyParam.toUpperCase() : "";
+            admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.valueOf(strategyStr));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the namespace whether allow auto update schema")
+    private class GetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            System.out.println(admin.namespaces().getIsAllowAutoUpdateSchema(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the namespace whether allow auto update schema")
+    private class SetIsAllowAutoUpdateSchema extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable schema validation enforced")
+        private boolean disable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            admin.namespaces().setIsAllowAutoUpdateSchema(namespace, enable);
         }
     }
 
@@ -1131,6 +1459,160 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set the offload policies for a namespace")
+    private class SetOffloadPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(
+                names = {"--driver", "-d"},
+                description = "Driver to use to offload old data to long term storage, " +
+                        "(Possible values: S3, aws-s3, google-cloud-storage)",
+                required = true)
+        private String driver;
+
+        @Parameter(
+                names = {"--region", "-r"},
+                description = "The long term storage region, " +
+                        "default is s3ManagedLedgerOffloadRegion or gcsManagedLedgerOffloadRegion in broker.conf",
+                required = false)
+        private String region;
+
+        @Parameter(
+                names = {"--bucket", "-b"},
+                description = "Bucket to place offloaded ledger into",
+                required = true)
+        private String bucket;
+
+        @Parameter(
+                names = {"--endpoint", "-e"},
+                description = "Alternative endpoint to connect to, " +
+                        "s3 default is s3ManagedLedgerOffloadServiceEndpoint in broker.conf",
+                required = false)
+        private String endpoint;
+
+        @Parameter(
+                names = {"--maxBlockSize", "-mbs"},
+                description = "Max block size (eg: 32M, 64M), default is 64MB",
+                required = false)
+        private String maxBlockSizeStr;
+
+        @Parameter(
+                names = {"--readBufferSize", "-rbs"},
+                description = "Read buffer size (eg: 1M, 5M), default is 1MB",
+                required = false)
+        private String readBufferSizeStr;
+
+        @Parameter(
+                names = {"--offloadAfterElapsed", "-oae"},
+                description = "Offload after elapsed in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).",
+                required = false)
+        private String offloadAfterElapsedStr;
+
+        @Parameter(
+                names = {"--offloadAfterThreshold", "-oat"},
+                description = "Offload after threshold size (eg: 1M, 5M)",
+                required = false)
+        private String offloadAfterThresholdStr;
+
+        private final String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage"};
+
+        public boolean driverSupported(String driver) {
+            return Arrays.stream(DRIVER_NAMES).anyMatch(d -> d.equalsIgnoreCase(driver));
+        }
+
+        public boolean isS3Driver(String driver) {
+            if (StringUtils.isEmpty(driver)) {
+                return false;
+            }
+            return driver.equalsIgnoreCase(DRIVER_NAMES[0]) || driver.equalsIgnoreCase(DRIVER_NAMES[1]);
+        }
+
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " is not be negative or 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
+            }
+            return true;
+        }
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+
+            if (!driverSupported(driver)) {
+                throw new ParameterException(
+                        "The driver " + driver + " is not supported, " +
+                                "(Possible values: S3, aws-s3, google-cloud-storage).");
+            }
+
+            if (isS3Driver(driver) && Strings.isNullOrEmpty(region) && Strings.isNullOrEmpty(endpoint)) {
+                throw new ParameterException(
+                        "Either s3ManagedLedgerOffloadRegion or s3ManagedLedgerOffloadServiceEndpoint must be set"
+                                + " if s3 offload enabled");
+            }
+
+            int maxBlockSizeInBytes = OffloadPolicies.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(maxBlockSizeStr)) {
+                long maxBlockSize = validateSizeString(maxBlockSizeStr);
+                if (positiveCheck("MaxBlockSize", maxBlockSize)
+                        && maxValueCheck("MaxBlockSize", maxBlockSize, Integer.MAX_VALUE)) {
+                    maxBlockSizeInBytes = new Long(maxBlockSize).intValue();
+                }
+            }
+
+            int readBufferSizeInBytes = OffloadPolicies.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+            if (StringUtils.isNotEmpty(readBufferSizeStr) ) {
+                long readBufferSize = validateSizeString(readBufferSizeStr);
+                if (positiveCheck("ReadBufferSize", readBufferSize)
+                        && maxValueCheck("ReadBufferSize", readBufferSize, Integer.MAX_VALUE)) {
+                    readBufferSizeInBytes = new Long(readBufferSize).intValue();
+                }
+            }
+
+            Long offloadAfterElapsedInMillis = OffloadPolicies.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+            if (StringUtils.isNotEmpty(offloadAfterElapsedStr)) {
+                Long offloadAfterElapsed = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(offloadAfterElapsedStr));
+                if (positiveCheck("OffloadAfterElapsed", offloadAfterElapsed)
+                        && maxValueCheck("OffloadAfterElapsed", offloadAfterElapsed, Long.MAX_VALUE)) {
+                    offloadAfterElapsedInMillis = new Long(offloadAfterElapsed);
+                }
+            }
+
+            long offloadAfterThresholdInBytes = OffloadPolicies.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotEmpty(offloadAfterThresholdStr)) {
+                long offloadAfterThreshold = validateSizeString(offloadAfterThresholdStr);
+                if (positiveCheck("OffloadAfterThreshold", offloadAfterThreshold)
+                        && maxValueCheck("OffloadAfterThreshold", offloadAfterThreshold, Long.MAX_VALUE)) {
+                    offloadAfterThresholdInBytes = new Long(offloadAfterThreshold);
+                }
+            }
+
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint,
+                    maxBlockSizeInBytes, readBufferSizeInBytes, offloadAfterThresholdInBytes,
+                    offloadAfterElapsedInMillis);
+            admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the offload policies for a namespace")
+    private class GetOffloadPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getOffloadPolicies(namespace));
+        }
+    }
+
     public CmdNamespaces(PulsarAdmin admin) {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
@@ -1162,12 +1644,21 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
 
+        jcommander.addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
+        jcommander.addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
+
         jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
         jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());
         jcommander.addCommand("get-anti-affinity-namespaces", new GetAntiAffinityNamespaces());
         jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
+
+        jcommander.addCommand("set-auto-topic-creation", new SetAutoTopicCreation());
+        jcommander.addCommand("remove-auto-topic-creation", new RemoveAutoTopicCreation());
+
+        jcommander.addCommand("set-auto-subscription-creation", new SetAutoSubscriptionCreation());
+        jcommander.addCommand("remove-auto-subscription-creation", new RemoveAutoSubscriptionCreation());
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
@@ -1188,6 +1679,9 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
+        
+        jcommander.addCommand("set-publish-rate", new SetPublishRate());
+        jcommander.addCommand("get-publish-rate", new GetPublishRate());
 
         jcommander.addCommand("set-replicator-dispatch-rate", new SetReplicatorDispatchRate());
         jcommander.addCommand("get-replicator-dispatch-rate", new GetReplicatorDispatchRate());
@@ -1199,12 +1693,19 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
         jcommander.addCommand("set-subscription-auth-mode", new SetSubscriptionAuthMode());
 
+        jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
+        jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
         jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducersPerTopic());
         jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumersPerTopic());
         jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
         jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
         jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
+        jcommander.addCommand("get-max-unacked-messages-per-subscription", new GetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("set-max-unacked-messages-per-subscription", new SetMaxUnackedMessagesPerSubscription());
+        jcommander.addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
+        jcommander.addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
 
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
@@ -1219,7 +1720,16 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-schema-autoupdate-strategy", new GetSchemaAutoUpdateStrategy());
         jcommander.addCommand("set-schema-autoupdate-strategy", new SetSchemaAutoUpdateStrategy());
 
+        jcommander.addCommand("get-schema-compatibility-strategy", new GetSchemaCompatibilityStrategy());
+        jcommander.addCommand("set-schema-compatibility-strategy", new SetSchemaCompatibilityStrategy());
+
+        jcommander.addCommand("get-is-allow-auto-update-schema", new GetIsAllowAutoUpdateSchema());
+        jcommander.addCommand("set-is-allow-auto-update-schema", new SetIsAllowAutoUpdateSchema());
+
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
+
+        jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
+        jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
     }
 }

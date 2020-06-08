@@ -18,7 +18,7 @@
  */
 package org.apache.spark.streaming.receiver.example;
 
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -74,7 +74,7 @@ public class SparkStreamingPulsarReceiverExample {
 
     JavaReceiverInputDStream<byte[]> lineDStream = jsc.receiverStream(pulsarReceiver);
     JavaPairDStream<String, Integer> result = lineDStream.flatMap(x -> {
-        String line = new String(x, Charset.forName("UTF-8"));
+        String line = new String(x, StandardCharsets.UTF_8);
         List<String> list = Arrays.asList(line.split(" "));
         return list.iterator();
       })

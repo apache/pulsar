@@ -41,11 +41,11 @@ class NegativeAcksTracker {
 
     void close();
 
+    void setEnabledForTesting(bool enabled);
+
    private:
     void scheduleTimer();
     void handleTimer(const boost::system::error_code &ec);
-
-    static const std::chrono::milliseconds MIN_NACK_DELAY_NANOS;
 
     ConsumerImpl &consumer_;
     std::mutex mutex_;
@@ -57,6 +57,7 @@ class NegativeAcksTracker {
 
     ExecutorServicePtr executor_;
     DeadlineTimerPtr timer_;
+    bool enabledForTesting_;  // to be able to test deterministically
 };
 
 }  // namespace pulsar

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link ReaderBuilder} is used to configure and create instances of {@link Reader}.
@@ -123,6 +124,18 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> startMessageId(MessageId startMessageId);
 
     /**
+     * The initial reader positioning can be set at specific timestamp by providing total rollback duration. so, broker
+     * can find a latest message that was published before given duration. <br/>
+     * eg: rollbackDuration in minute = 5 suggests broker to find message which was published 5 mins back and set the
+     * inital position on that messageId.
+     *
+     * @param rollbackDuration
+     *            duration which position should be rolled back.
+     * @return
+     */
+    ReaderBuilder<T> startMessageFromRollbackDuration(long rollbackDuration, TimeUnit timeunit);
+
+    /**
      * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
      *
      * <p>This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
@@ -210,4 +223,16 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> readCompacted(boolean readCompacted);
+
+    /**
+     * Set key hash range of the reader, broker will only dispatch messages which hash of the message key contains by
+     * the specified key hash range. Multiple key hash ranges can be specified on a reader.
+     *
+     * <p>Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
+     *
+     * @param ranges
+     *            key hash ranges for a reader
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> keyHashRange(Range... ranges);
 }

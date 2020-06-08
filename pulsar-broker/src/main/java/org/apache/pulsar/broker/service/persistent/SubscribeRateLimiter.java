@@ -23,8 +23,6 @@ import com.google.common.base.MoreObjects;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.RateLimiter;
@@ -37,10 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.web.PulsarWebResource.path;
 
 public class SubscribeRateLimiter {
 
@@ -64,7 +58,7 @@ public class SubscribeRateLimiter {
         }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
             resetTask = createTask();
-            log.info("[{}] [{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
         }
     }
 
@@ -121,7 +115,6 @@ public class SubscribeRateLimiter {
      * @param subscribeRate
      */
     private synchronized void updateSubscribeRate(ConsumerIdentifier consumerIdentifier, SubscribeRate subscribeRate) {
-
         long ratePerConsumer = subscribeRate.subscribeThrottlingRatePerConsumer;
         long ratePeriod = subscribeRate.ratePeriodInSecond;
 
@@ -129,9 +122,10 @@ public class SubscribeRateLimiter {
         if (ratePerConsumer > 0) {
             if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
                 this.subscribeRateLimiter.put(consumerIdentifier, new RateLimiter(brokerService.pulsar().getExecutor(), ratePerConsumer,
-                        ratePeriod, TimeUnit.SECONDS));
+                        ratePeriod, TimeUnit.SECONDS, null));
             } else {
-                this.subscribeRateLimiter.get(consumerIdentifier).setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS);
+                this.subscribeRateLimiter.get(consumerIdentifier).setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS,
+                        null);
             }
         } else {
             // subscribe-rate should be disable and close
@@ -163,7 +157,7 @@ public class SubscribeRateLimiter {
             }
             if (isSubscribeRateEnabled(this.subscribeRate)) {
                 this.resetTask = createTask();
-                log.info("[{}] [{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+                log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
             }
         }
     }

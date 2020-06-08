@@ -34,6 +34,7 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.formats.avro.AvroRowSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarKeyExtractor;
+import org.apache.flink.streaming.connectors.pulsar.partitioner.PulsarPropertiesExtractor;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
@@ -53,6 +54,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
     protected String[] fieldNames;
     protected TypeInformation[] fieldTypes;
     protected PulsarKeyExtractor<Row> keyExtractor;
+    protected PulsarPropertiesExtractor<Row> propertiesExtractor;
     private Class<? extends SpecificRecord> recordClazz;
 
     /**
@@ -106,7 +108,8 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
                 clientConfigurationData,
                 producerConfigurationData,
                 serializationSchema,
-                keyExtractor);
+                keyExtractor,
+                propertiesExtractor);
     }
 
     @Override
@@ -151,6 +154,7 @@ public class PulsarAvroTableSink implements AppendStreamTableSink<Row> {
                 fieldNames,
                 fieldTypes,
                 recordClazz);
+        sink.propertiesExtractor = PulsarPropertiesExtractor.EMPTY;
 
         return sink;
     }

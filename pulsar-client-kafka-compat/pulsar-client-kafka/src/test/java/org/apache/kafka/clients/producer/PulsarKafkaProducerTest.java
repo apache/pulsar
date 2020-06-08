@@ -21,7 +21,6 @@ package org.apache.kafka.clients.producer;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.anyVararg;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -117,11 +116,13 @@ public class PulsarKafkaProducerTest {
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, Arrays.asList("pulsar://localhost:6650"));
         properties.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, "1000000");
         properties.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, "1000000");
+        properties.put(PulsarProducerKafkaConfig.BLOCK_IF_PRODUCER_QUEUE_FULL, Boolean.FALSE.toString());
 
         new PulsarKafkaProducer<>(properties);
 
         verify(mockClientBuilder, times(1)).keepAliveInterval(1000, TimeUnit.SECONDS);
         verify(mockProducerBuilder, times(1)).sendTimeout(1000000, TimeUnit.MILLISECONDS);
+        verify(mockProducerBuilder, times(1)).blockIfQueueFull(false);
     }
 
     @Test
@@ -143,7 +144,8 @@ public class PulsarKafkaProducerTest {
         doReturn(mockPartitionFuture).when(mockClient).getPartitionsForTopic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).topic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).clone();
-        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(anyVararg());
+        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) any());
         doReturn(mockProducer).when(mockProducerBuilder).create();
         doReturn(mockTypedMessageBuilder).when(mockProducer).newMessage();
         doReturn(mockSendAsyncFuture).when(mockTypedMessageBuilder).sendAsync();
@@ -169,7 +171,8 @@ public class PulsarKafkaProducerTest {
         pulsarKafkaProducer.send(new ProducerRecord<>("topic", 1,"key", "value"));
 
         // Verify
-        verify(mockProducerBuilder, times(1)).intercept(anyVararg());
+        verify(mockProducerBuilder, times(1)).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor)any());
     }
 
     @Test
@@ -191,7 +194,8 @@ public class PulsarKafkaProducerTest {
         doReturn(mockPartitionFuture).when(mockClient).getPartitionsForTopic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).topic(anyString());
         doReturn(mockProducerBuilder).when(mockProducerBuilder).clone();
-        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(anyVararg());
+        doReturn(mockProducerBuilder).when(mockProducerBuilder).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) any());
         doReturn(mockProducer).when(mockProducerBuilder).create();
         doReturn(mockTypedMessageBuilder).when(mockProducer).newMessage();
         doReturn(mockSendAsyncFuture).when(mockTypedMessageBuilder).sendAsync();
@@ -228,7 +232,8 @@ public class PulsarKafkaProducerTest {
 
         // Verify
         verify(mockTypedMessageBuilder, times(1)).sendAsync();
-        verify(mockProducerBuilder, times(1)).intercept(anyVararg());
+        verify(mockProducerBuilder, times(1)).intercept(
+                (org.apache.pulsar.client.api.ProducerInterceptor) any());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Invalid value 2147483648000 for 'connections.max.idle.ms'. Please use a value smaller than 2147483647000 milliseconds.")

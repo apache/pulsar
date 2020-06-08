@@ -64,7 +64,7 @@ Here is an example of using the Kafka source connecter with the configuration fi
 1. Download a Kafka client and a Kafka connector.
 
     ```bash
-    $ wget http://central.maven.org/maven2/org/apache/kafka/kafka-clients/0.10.2.1/kafka-clients-0.10.2.1.jar
+    $ wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/0.10.2.1/kafka-clients-0.10.2.1.jar
 
     $ wget https://archive.apache.org/dist/pulsar/pulsar-2.4.0/connectors/pulsar-io-kafka-2.4.0.nar
     ```

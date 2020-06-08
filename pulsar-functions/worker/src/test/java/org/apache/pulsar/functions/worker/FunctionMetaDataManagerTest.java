@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -47,6 +48,7 @@ public class FunctionMetaDataManagerTest {
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
+        when(builder.producerName(anyString())).thenReturn(builder);
 
         when(builder.create()).thenReturn(mock(Producer.class));
 
@@ -182,10 +184,10 @@ public class FunctionMetaDataManagerTest {
                 Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
         functionMetaDataMap1.put("func-1", f1);
 
-        Assert.assertTrue(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.STOPPED));
-        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 0, Function.FunctionState.RUNNING));
-        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.STOPPED));
-        Assert.assertFalse(functionMetaDataManager.canChangeState(f1, 2, Function.FunctionState.RUNNING));
+        Assert.assertTrue(FunctionMetaDataUtils.canChangeState(f1, 0, Function.FunctionState.STOPPED));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(f1, 0, Function.FunctionState.RUNNING));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(f1, 2, Function.FunctionState.STOPPED));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(f1, 2, Function.FunctionState.RUNNING));
 
         functionMetaDataManager.functionMetaDataMap.put("tenant-1", new HashMap<>());
         functionMetaDataManager.functionMetaDataMap.get("tenant-1").put("namespace-1", functionMetaDataMap1);

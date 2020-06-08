@@ -20,17 +20,20 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.naming.AuthenticationException;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -50,15 +53,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
-    private int webServicePort;
-    private int servicePort;
-    
+
 	public static class BasicAuthenticationData implements AuthenticationDataProvider {
 		private String authParam;
 
@@ -159,8 +156,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 	@BeforeMethod
 	@Override
 	protected void setup() throws Exception {
-		webServicePort = PortManager.nextFreePort();
-		servicePort = PortManager.nextFreePort();
 		conf.setAuthenticationEnabled(true);
 		conf.setAuthorizationEnabled(true);
 		conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
@@ -199,7 +194,6 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
 		// Step 1: Create Admin Client
 		updateAdminClient();
-		final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
 		// create a client which connects to proxy and pass authData
 		String namespaceName = "my-property/my-ns";
 		String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -217,9 +211,9 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		// Step 2: Try to use proxy Client as a normal Client - expect exception
 		ProxyConfiguration proxyConfig = new ProxyConfiguration();
 		proxyConfig.setAuthenticationEnabled(true);
-		proxyConfig.setServicePort(Optional.ofNullable(servicePort));
-		proxyConfig.setWebServicePort(Optional.ofNullable(webServicePort));
-		proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
+		proxyConfig.setServicePort(Optional.of(0));
+		proxyConfig.setWebServicePort(Optional.of(0));
+		proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
 
 		proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
 		proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
@@ -233,6 +227,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
 
 		proxyService.start();
+		final String proxyServiceUrl = proxyService.getServiceUrl();
 
 		// Step 3: Pass correct client params
 		PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams, 1);

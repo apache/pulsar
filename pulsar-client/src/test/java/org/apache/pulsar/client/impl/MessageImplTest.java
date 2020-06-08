@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
@@ -55,6 +56,21 @@ public class MessageImplTest {
         MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
 
         assertEquals(-1, msg.getSequenceId());
+    }
+
+    @Test
+    public void testSetDuplicatePropertiesKey() {
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
+        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
+                .setKey("key1").setValue("value1").build());
+        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
+                .setKey("key1").setValue("value2").build());
+        builder.addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
+                .setKey("key3").setValue("value3").build());
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload, Schema.BYTES);
+        assertEquals("value2", msg.getProperty("key1"));
+        assertEquals("value3", msg.getProperty("key3"));
     }
 
     @Test
@@ -397,5 +413,19 @@ public class MessageImplTest {
         Assert.assertEquals(
                 KeyValueEncodingType.valueOf(keyValueSchema.getSchemaInfo().getProperties().get("kv.encoding.type")),
                 KeyValueEncodingType.SEPARATED);
+    }
+
+    @Test
+    public void testTypedSchemaGetNullValue() {
+        byte[] encodeBytes = new byte[0];
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+                .setProducerName("valueNotSet");
+        ByteString byteString = ByteString.copyFrom(new byte[0]);
+        builder.setSchemaVersion(byteString);
+        builder.setPartitionKey(Base64.getEncoder().encodeToString(encodeBytes));
+        builder.setPartitionKeyB64Encoded(true);
+        builder.setNullValue(true);
+        MessageImpl<Boolean> msg = MessageImpl.create(builder, ByteBuffer.wrap(encodeBytes), BooleanSchema.of());
+        assertNull(msg.getValue());
     }
 }

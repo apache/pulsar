@@ -237,7 +237,7 @@ public abstract class AbstractHdfsConnector {
             if (clazz == null) {
                 try {
                     clazz = Class.forName(name, true, classLoader);
-                } catch (ClassNotFoundException e) {
+                } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     return null;
                 }
                 // two putters can race here, but they'll put the same class

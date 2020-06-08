@@ -1,7 +1,7 @@
 ---
 id: version-2.4.0-functions-runtime
 title: Configure Functions runtime
-sidebar_label: Admin: Configure Functions runtime
+sidebar_label: "Admin: Configure Functions runtime"
 original_id: functions-runtime
 ---
 This guide is used for administrator. 

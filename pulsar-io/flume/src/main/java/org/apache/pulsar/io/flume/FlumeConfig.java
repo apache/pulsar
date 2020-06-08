@@ -20,7 +20,7 @@ package org.apache.pulsar.io.flume;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import lombok.*;
+import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -32,10 +32,6 @@ import java.util.Map;
  *  Flume general config.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class FlumeConfig {
 

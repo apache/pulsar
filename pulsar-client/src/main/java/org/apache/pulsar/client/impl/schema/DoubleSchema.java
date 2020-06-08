@@ -28,15 +28,20 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class DoubleSchema extends AbstractSchema<Double> {
 
+    private static final DoubleSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("Double")
+            .setType(SchemaType.DOUBLE)
+            .setSchema(new byte[0]);
+        INSTANCE = new DoubleSchema();
+    }
+
     public static DoubleSchema of() {
         return INSTANCE;
     }
-
-    private static final DoubleSchema INSTANCE = new DoubleSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("Double")
-        .setType(SchemaType.DOUBLE)
-        .setSchema(new byte[0]);
 
     @Override
     public void validate(byte[] message) {

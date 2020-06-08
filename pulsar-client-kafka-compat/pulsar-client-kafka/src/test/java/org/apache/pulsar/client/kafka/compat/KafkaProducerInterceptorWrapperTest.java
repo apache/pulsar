@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.kafka.compat;
 
+import java.util.stream.Collectors;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -37,6 +38,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.pulsar.client.api.ProducerInterceptor;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
 import org.apache.pulsar.client.impl.ProducerInterceptors;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.schema.BytesSchema;
@@ -101,9 +103,11 @@ public class KafkaProducerInterceptorWrapperTest {
 
         Schema<String> pulsarKeySerializeSchema = new PulsarKafkaSchema<>(new StringSerializer());
         Schema<byte[]> pulsarValueSerializeSchema = new PulsarKafkaSchema<>(new ByteArraySerializer());
-        ProducerInterceptors producerInterceptors = new ProducerInterceptors(Arrays.asList(new ProducerInterceptor[]{
-                new KafkaProducerInterceptorWrapper(mockInterceptor1, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic),
-                new KafkaProducerInterceptorWrapper(mockInterceptor2, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic)}));
+        ProducerInterceptors producerInterceptors = new ProducerInterceptors(
+                Arrays.stream(new ProducerInterceptor[]{
+                        new KafkaProducerInterceptorWrapper(mockInterceptor1, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic),
+                        new KafkaProducerInterceptorWrapper(mockInterceptor2, pulsarKeySerializeSchema, pulsarValueSerializeSchema, topic)}).map(
+                        ProducerInterceptorWrapper::new).collect(Collectors.toList()));
 
         TypedMessageBuilderImpl typedMessageBuilder = new TypedMessageBuilderImpl(null, new BytesSchema());
         typedMessageBuilder.key("original key");

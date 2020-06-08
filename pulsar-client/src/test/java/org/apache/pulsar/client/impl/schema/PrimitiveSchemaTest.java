@@ -91,12 +91,16 @@ public class PrimitiveSchemaTest {
         for (Schema<?> schema : testData.keySet()) {
             byte[] bytes = null;
             ByteBuf byteBuf =  null;
-            assertNull(schema.encode(null),
-                "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
-            assertNull(schema.decode(bytes),
-                "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
-            assertNull(((AbstractSchema)schema).decode(byteBuf),
+            try {
+                assertNull(schema.encode(null),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " serialization");
+                assertNull(schema.decode(bytes),
                     "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+                assertNull(((AbstractSchema) schema).decode(byteBuf),
+                    "Should support null in " + schema.getSchemaInfo().getName() + " deserialization");
+            } catch (NullPointerException npe) {
+                throw new NullPointerException("NPE when using schema " + schema + " : " + npe.getMessage());
+            }
         }
     }
 
@@ -106,10 +110,15 @@ public class PrimitiveSchemaTest {
             log.info("Test schema {}", test.getKey());
             for (Object value : test.getValue()) {
                 log.info("Encode : {}", value);
-                assertEquals(value,
-                    test.getKey().decode(test.getKey().encode(value)),
-                    "Should get the original " + test.getKey().getSchemaInfo().getName() +
-                        " after serialization and deserialization");
+                try {
+                    assertEquals(value,
+                        test.getKey().decode(test.getKey().encode(value)),
+                        "Should get the original " + test.getKey().getSchemaInfo().getName() +
+                            " after serialization and deserialization");
+                } catch (NullPointerException npe) {
+                    throw new NullPointerException("NPE when using schema " + test.getKey()
+                        + " : " + npe.getMessage());
+                }
             }
         }
     }

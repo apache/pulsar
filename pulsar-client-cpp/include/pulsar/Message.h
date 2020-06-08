@@ -141,6 +141,11 @@ class PULSAR_PUBLIC Message {
      */
     const std::string& getTopicName() const;
 
+    /**
+     * Get the redelivery count for this message
+     */
+    const int getRedeliveryCount() const;
+
     bool operator==(const Message& msg) const;
 
    private:

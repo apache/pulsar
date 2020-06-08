@@ -20,17 +20,12 @@ package org.apache.pulsar.tests.integration.io;
 
 import java.io.Closeable;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.impl.schema.ByteSchema;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.testng.Assert;
 
 /**
  * A tester for testing Debezium MySQL source.
@@ -53,7 +48,7 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     private final PulsarCluster pulsarCluster;
 
-    public DebeziumMySqlSourceTester(PulsarCluster cluster) {
+    public DebeziumMySqlSourceTester(PulsarCluster cluster, String converterClassName) {
         super(NAME);
         this.pulsarCluster = cluster;
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
@@ -66,6 +61,10 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("database.server.name", "dbserver1");
         sourceConfig.put("database.whitelist", "inventory");
         sourceConfig.put("pulsar.service.url", pulsarServiceUrl);
+        sourceConfig.put("key.converter", converterClassName);
+        sourceConfig.put("value.converter", converterClassName);
+        sourceConfig.put("topic.namespace", "debezium/mysql-" +
+                (converterClassName.endsWith("AvroConverter") ? "avro" : "json"));
     }
 
     @Override
@@ -81,27 +80,45 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
     }
 
     @Override
+    public void prepareInsertEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"INSERT INTO inventory.products(name, description, weight) " +
+                        "values('test-debezium', 'This is description', 2.0)\"");
+    }
+
+    @Override
+    public void prepareUpdateEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"UPDATE inventory.products set description='update description', weight=10 " +
+                        "WHERE name='test-debezium'\"");
+    }
+
+    @Override
+    public void prepareDeleteEvent() throws Exception {
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium " +
+                        "-e \"DELETE FROM inventory.products WHERE name='test-debezium'\"");
+        this.debeziumMySqlContainer.execCmd(
+                "/bin/bash", "-c",
+                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+    }
+
+
+    @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception {
         log.info("debezium mysql server already contains preconfigured data.");
         return null;
-    }
-
-    public void validateSourceResult(Consumer<KeyValue<byte[], byte[]>> consumer, int number) throws Exception {
-        int recordsNumber = 0;
-        Message<KeyValue<byte[], byte[]>> msg = consumer.receive(2, TimeUnit.SECONDS);
-        while(msg != null) {
-            recordsNumber ++;
-            final String key = new String(msg.getValue().getKey());
-            final String value = new String(msg.getValue().getValue());
-            log.info("Received message: key = {}, value = {}.", key, value);
-            Assert.assertTrue(key.contains("dbserver1.inventory.products.Key"));
-            Assert.assertTrue(value.contains("dbserver1.inventory.products.Value"));
-            consumer.acknowledge(msg);
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-        }
-
-        Assert.assertEquals(recordsNumber, number);
-        log.info("Stop debezium mysql server container. topic: {} has {} records.", consumer.getTopic(), recordsNumber);
     }
 
     @Override

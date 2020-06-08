@@ -36,10 +36,22 @@ import java.nio.charset.StandardCharsets;
  */
 public class StringSchema extends AbstractSchema<String> {
 
-    static final String CHARSET_KEY = "__charset";
+    static final String CHARSET_KEY;
 
-    public static StringSchema utf8() {
-        return UTF8;
+    private static final SchemaInfo DEFAULT_SCHEMA_INFO;
+    private static final Charset DEFAULT_CHARSET;
+    private static final StringSchema UTF8;
+
+    static {
+        // Ensure the ordering of the static initialization
+        CHARSET_KEY = "__charset";
+        DEFAULT_CHARSET = StandardCharsets.UTF_8;
+        DEFAULT_SCHEMA_INFO = new SchemaInfo()
+                .setName("String")
+                .setType(SchemaType.STRING)
+                .setSchema(new byte[0]);
+
+        UTF8 = new StringSchema(StandardCharsets.UTF_8);
     }
 
     private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
@@ -59,14 +71,10 @@ public class StringSchema extends AbstractSchema<String> {
         }
     }
 
-    private static final SchemaInfo DEFAULT_SCHEMA_INFO = new SchemaInfo()
-        .setName("String")
-        .setType(SchemaType.STRING)
-        .setSchema(new byte[0]);
-    private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
+    public static StringSchema utf8() {
+        return UTF8;
+    }
 
-    // make sure other static fields are initialized before this field
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);
     private final Charset charset;
     private final SchemaInfo schemaInfo;
 
@@ -80,10 +88,10 @@ public class StringSchema extends AbstractSchema<String> {
         Map<String, String> properties = new HashMap<>();
         properties.put(CHARSET_KEY, charset.name());
         this.schemaInfo = new SchemaInfo()
-            .setName(DEFAULT_SCHEMA_INFO.getName())
-            .setType(SchemaType.STRING)
-            .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
-            .setProperties(properties);
+                .setName(DEFAULT_SCHEMA_INFO.getName())
+                .setType(SchemaType.STRING)
+                .setSchema(DEFAULT_SCHEMA_INFO.getSchema())
+                .setProperties(properties);
     }
 
     public byte[] encode(String message) {

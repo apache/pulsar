@@ -53,7 +53,9 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -73,7 +75,6 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.functions.worker.rest.RestException;
 import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -88,7 +89,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link SourcesApiV3Resource}.
  */
-@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
+@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, ClassLoaderUtils.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 public class SourceApiV3ResourceTest {
 
@@ -831,13 +832,15 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
+        mockStatic(ClassLoaderUtils.class);
+
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -901,13 +904,15 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
+        mockStatic(ClassLoaderUtils.class);
+
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any(File.class));
+        FunctionCommon.extractNarClassLoader(any(), any(File.class), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
@@ -995,13 +1000,15 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
+        mockStatic(ClassLoaderUtils.class);
+
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
         FunctionCommon.getSourceType(anyString(), any(NarClassLoader.class));
         PowerMockito.when(FunctionCommon.class, "extractFileFromPkgURL", any()).thenCallRealMethod();
 
         doReturn(mock(NarClassLoader.class)).when(FunctionCommon.class);
-        FunctionCommon.extractNarClassLoader(any(), any());
+        FunctionCommon.extractNarClassLoader(any(), any(), any());
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);

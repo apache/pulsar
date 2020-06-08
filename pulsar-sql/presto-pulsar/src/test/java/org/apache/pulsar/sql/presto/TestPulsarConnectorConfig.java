@@ -49,4 +49,23 @@ public class TestPulsarConnectorConfig {
         connectorConfig.setRewriteNamespaceDelimiter("--&");
         Assert.assertEquals("--&", (connectorConfig.getRewriteNamespaceDelimiter()));
     }
+
+    @Test
+    public void testDefaultBookkeeperConfig() {
+        int availableProcessors = Runtime.getRuntime().availableProcessors();
+        PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
+        Assert.assertEquals(0, connectorConfig.getBookkeeperThrottleValue());
+        Assert.assertEquals(2 * availableProcessors, connectorConfig.getBookkeeperNumIOThreads());
+        Assert.assertEquals(availableProcessors, connectorConfig.getBookkeeperNumWorkerThreads());
+    }
+
+    @Test
+    public void testDefaultManagedLedgerConfig() {
+        int availableProcessors = Runtime.getRuntime().availableProcessors();
+        PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
+        Assert.assertEquals(0L, connectorConfig.getManagedLedgerCacheSizeMB());
+        Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumWorkerThreads());
+        Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumSchedulerThreads());
+    }
+
 }

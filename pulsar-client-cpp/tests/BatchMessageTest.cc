@@ -25,6 +25,7 @@
 
 #include <lib/Commands.h>
 #include <lib/Future.h>
+#include <lib/Latch.h>
 #include <lib/LogUtils.h>
 #include <lib/TopicName.h>
 #include <lib/Utils.h>
@@ -54,10 +55,9 @@ static void messageListenerFunction(Consumer consumer, const Message& msg) {
     consumer.acknowledge(msg);
 }
 
-static void sendCallBack(Result r, const Message& msg) {
+static void sendCallBack(Result r, const MessageId& msgId) {
     ASSERT_EQ(r, ResultOk);
     globalTestBatchMessagesCounter++;
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
 
 static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expect_result); }
@@ -65,8 +65,7 @@ static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expe
 static int globalPublishCountSuccess = 0;
 static int globalPublishCountQueueFull = 0;
 
-static void sendCallBackExpectingErrors(Result r, const Message& msg) {
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString() << ", Result = " << r);
+static void sendCallBackExpectingErrors(Result r, const MessageId& msgId) {
     if (r == ResultProducerQueueIsFull) {
         globalPublishCountQueueFull++;
     } else if (r == ResultOk) {
@@ -143,10 +142,10 @@ TEST(BatchMessageTest, testProducerTimeout) {
         /* Start the timer */
         start = time(NULL);
         LOG_DEBUG("start = " << start);
-        Promise<Result, Message> promise;
-        producer.sendAsync(msg, WaitForCallbackValue<Message>(promise));
-        Message m;
-        promise.getFuture().get(m);
+        Promise<Result, MessageId> promise;
+        producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+        MessageId mi;
+        promise.getFuture().get(mi);
         /* End the timer */
         end = time(NULL);
         LOG_DEBUG("end = " << end);
@@ -920,6 +919,10 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
+
+    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, Partitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
 }
 
 TEST(BatchMessageTest, producerFailureResult) {
@@ -984,4 +987,56 @@ TEST(BatchMessageTest, testPraseMessageBatchEntry) {
         ASSERT_EQ(message.getDataAsString(), expected.content);
         ASSERT_EQ(message.getProperty(expected.propKey), expected.propValue);
     }
+}
+
+TEST(BatchMessageTest, testSendCallback) {
+    const std::string topicName = "persistent://public/default/BasicMessageTest-testSendCallback";
+
+    Client client(lookupUrl);
+
+    constexpr int numMessagesOfBatch = 3;
+
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(true);
+    producerConfig.setBatchingMaxMessages(numMessagesOfBatch);
+    producerConfig.setBatchingMaxPublishDelayMs(1000);  // 1 s, it's long enough for 3 messages batched
+    producerConfig.setMaxPendingMessages(2);            // only 1 spot is actually used
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfig, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, "SubscriptionName", consumer));
+
+    Latch latch(numMessagesOfBatch);
+    std::set<MessageId> sentIdSet;
+    for (int i = 0; i < numMessagesOfBatch; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId& id) {
+            ASSERT_EQ(ResultOk, result);
+            ASSERT_EQ(i, id.batchIndex());
+            sentIdSet.emplace(id);
+            LOG_INFO("id of batch " << i << ": " << id);
+            latch.countdown();
+        });
+    }
+
+    std::set<MessageId> receivedIdSet;
+    for (int i = 0; i < numMessagesOfBatch; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
+
+    consumer.close();
+    producer.close();
+    client.close();
 }

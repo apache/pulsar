@@ -67,7 +67,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-
+/**
+ * Broker admin base.
+ */
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;
@@ -81,6 +83,7 @@ public class BrokersBase extends AdminResource {
         responseContainer = "Set")
     @ApiResponses(
         value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve this cluster"),
             @ApiResponse(code = 401, message = "Authentication required"),
             @ApiResponse(code = 403, message = "This operation requires super-user access"),
             @ApiResponse(code = 404, message = "Cluster does not exist: cluster={clustername}") })
@@ -92,7 +95,7 @@ public class BrokersBase extends AdminResource {
             // Add Native brokers
             return pulsar().getLocalZkCache().getChildren(LoadManager.LOADBALANCE_BROKERS_ROOT);
         } catch (Exception e) {
-            LOG.error(String.format("[%s] Failed to get active broker list: cluster=%s", clientAppId(), cluster), e);
+            LOG.error("[{}] Failed to get active broker list: cluster={}", clientAppId(), cluster, e);
             throw new RestException(e);
         }
     }
@@ -101,9 +104,10 @@ public class BrokersBase extends AdminResource {
     @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
     @ApiOperation(value = "Get the list of namespaces served by the specific broker", response = NamespaceOwnershipStatus.class, responseContainer = "Map")
     @ApiResponses(value = {
+        @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaes(@PathParam("clusterName") String cluster,
+    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
             @PathParam("broker-webserviceurl") String broker) throws Exception {
         validateSuperUserAccess();
         validateClusterOwnership(cluster);
@@ -237,12 +241,7 @@ public class BrokersBase extends AdminResource {
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     public InternalConfigurationData getInternalConfigurationData() {
-        ClientConfiguration conf = new ClientConfiguration();
-        return new InternalConfigurationData(
-            pulsar().getConfiguration().getZookeeperServers(),
-            pulsar().getConfiguration().getConfigurationStoreServers(),
-            conf.getZkLedgersRootPath(),
-            pulsar().getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+        return pulsar().getInternalConfigurationData();
     }
 
     @GET
@@ -358,7 +357,7 @@ public class BrokersBase extends AdminResource {
                 LOG.info("[{}] Deleted Service configuration {}", clientAppId(), configName);
             } else {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Can't update non-dynamic configuration {}/{}", clientAppId(), configName);
+                    LOG.debug("[{}] Can't update non-dynamic configuration {}", clientAppId(), configName);
                 }
                 throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
             }

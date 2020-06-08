@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -110,7 +111,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
 
         try {
             result.get();
@@ -190,7 +191,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNotNull(list);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
         try {
             result.get();
         } catch (Exception e) {
@@ -277,7 +278,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 result.completeExceptionally(new RuntimeException("first time failed"));
                 return result;
             }
-        }).when(spyTopic).close();
+        }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
         try {
             pulsar.getNamespaceService().unloadNamespaceBundle(bundle);
@@ -316,7 +317,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             public CompletableFuture<Void> answer(InvocationOnMock invocation) throws Throwable {
                 return new CompletableFuture<Void>();
             }
-        }).when(spyTopic).close();
+        }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
@@ -359,8 +360,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 CreateMode.EPHEMERAL);
         LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
 
-        // update to new load mananger
-        pulsar.getLoadManager().set(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
+        // update to new load manager
+        LoadManager oldLoadManager = pulsar.getLoadManager()
+                .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
+        oldLoadManager.stop();
         LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2).get();
         Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
         Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
@@ -381,7 +384,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
-        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
 
         try {
             result.get();
@@ -446,7 +449,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
         NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
-        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false);
+        CompletableFuture<Void> result1 = namespaceService.splitAndOwnBundle(originalBundle, false, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
         try {
             result1.get();
         } catch (Exception e) {
@@ -465,7 +468,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         });
 
-        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true);
+        CompletableFuture<Void> result2 = namespaceService.splitAndOwnBundle(splittedBundle, true, NamespaceBundleSplitAlgorithm.rangeEquallyDivide);
         try {
             result2.get();
         } catch (Exception e) {
@@ -481,7 +484,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, 2);
+        return utilityFactory.splitBundles(targetBundle, 2, null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);
