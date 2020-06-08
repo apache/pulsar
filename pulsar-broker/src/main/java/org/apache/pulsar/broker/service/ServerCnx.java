@@ -1735,7 +1735,9 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void onCommand(PulsarApi.BaseCommand command) throws Exception {
-        getBrokerService().getInterceptor().onPulsarCommand(command, this);
+        if (getBrokerService().getInterceptor() != null) {
+            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+        }
     }
 
     public void closeProducer(Producer producer) {
