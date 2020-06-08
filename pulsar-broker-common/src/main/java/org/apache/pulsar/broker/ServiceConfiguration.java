@@ -91,8 +91,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_TRANSACTION = "Transaction";
-    @Category
-    private static final String CATEGORY_INTERCEPTORS = "Interceptors";
 
     /***** --- pulsar configuration --- ****/
     @FieldContext(
@@ -1801,20 +1799,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
     private Set<String> brokerClientTlsProtocols = Sets.newTreeSet();
-
-    /**** --- Interceptor variables --- ****/
-
-    @FieldContext(
-        category = CATEGORY_INTERCEPTORS,
-        doc = "The directory to locate interceptors"
-    )
-    private String interceptorDirectory = "./interceptors";
-
-    @FieldContext(
-        category = CATEGORY_INTERCEPTORS,
-        doc = "List of interceptors to load, which is a list of interceptor names"
-    )
-    private Set<String> interceptors = Sets.newTreeSet();
 
     /**
      * @deprecated See {@link #getConfigurationStoreServers}
