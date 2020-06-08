@@ -254,7 +254,6 @@ public class PulsarService implements AutoCloseable {
     @Override
     public void close() throws PulsarServerException {
         mutex.lock();
-
         try {
             if (state == State.Closed) {
                 return;
@@ -264,6 +263,10 @@ public class PulsarService implements AutoCloseable {
             if (this.webService != null) {
                 this.webService.close();
                 this.webService = null;
+            }
+
+            if (this.webSocketService != null) {
+                this.webSocketService.close();
             }
 
             if (this.brokerService != null) {
@@ -658,6 +661,7 @@ public class PulsarService implements AutoCloseable {
         try {
             while (state != State.Closed) {
                 isClosedCondition.await();
+
             }
         } finally {
             mutex.unlock();
@@ -1267,7 +1271,7 @@ public class PulsarService implements AutoCloseable {
             }
             LOG.info("Function worker service setup completed");
             // TODO figure out how to handle errors from function worker service
-            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, new ErrorNotifier());
+            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
     }

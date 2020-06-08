@@ -636,6 +636,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         messageExpiryMonitor.shutdown();
         compactionMonitor.shutdown();
         ledgerFullMonitor.shutdown();
+        messagePublishBufferMonitor.shutdown();
+        consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();

@@ -66,7 +66,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                         isRunning = false;
                         errorNotifier.triggerError(th);
                     } else {
-                        if (!(th instanceof InterruptedException)) {
+                        if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
                             log.warn("Encountered error when assignment tailer is not running", th);
                         }
                     }

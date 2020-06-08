@@ -564,7 +564,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(pulsarClient).when(workerService).getClient();
         doReturn(mock(PulsarAdmin.class)).when(workerService).getFunctionAdmin();
 
-        ErrorNotifier errorNotifier = spy(new ErrorNotifier());
+        ErrorNotifier errorNotifier = spy(ErrorNotifier.getDefaultImpl());
 
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(

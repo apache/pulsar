@@ -18,39 +18,24 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
+
 import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicReference;
 
-public class ErrorNotifier implements Serializable, AutoCloseable {
+public interface ErrorNotifier extends Serializable, AutoCloseable {
+  
+  void triggerError(Throwable th);
 
-  private static final long serialVersionUID = 1L;
+  void waitForError() throws Exception;
 
-  private final AtomicReference<Throwable> error = new AtomicReference<>();
-
-  private volatile boolean isRunning;
-
-  public ErrorNotifier() {
-    isRunning = true;
+  void close();
+  
+  static ErrorNotifier getDefaultImpl() {
+    return new ErrorNotifierImpl();
   }
 
-  public synchronized void triggerError(Throwable th) {
-    error.set(th);
-    this.notify();
+  static ErrorNotifier getShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
+    return new ErrorNotifierShutdownServiceImpl(shutdownService);
   }
-
-  public synchronized void waitForError() throws Exception {
-    while (isRunning && error.get() == null) {
-      this.wait();
-    }
-
-    if (isRunning) {
-      throw new Exception(error.get());
-    }
-  }
-
-  @Override
-  public synchronized void close() {
-    isRunning = false;
-    this.notify();
-  }
+  
 }
