@@ -15,7 +15,9 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Pulsar Functions](#pulsar functions)
 * [Proxy](#proxy)
+* [Pulsar SQL Worker](#Pulsar SQL Worker)
 
 ## Overview
 
@@ -322,6 +324,27 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
 
+# Pulsar Functions
+
+All the Pulsar Functions metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
+| pulsar_function_received_total | Counter | Total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+
 # Proxy
 
 All the proxy metrics are labelled with the following labels:
@@ -336,6 +359,34 @@ All the proxy metrics are labelled with the following labels:
 | pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
 | pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
 | pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
+
+# Pulsar SQL Worker
+
+| Name | Type | Description |
+|---|---|---|
+| split_bytes_read | Counter | Number of bytes read from BookKeeper. |
+| split_num_messages_deserialized | Counter | Number of messages deserialized. |
+| split_num_record_deserialized | Counter | Number of records deserialized. |
+| split_bytes_read_per_query | Summary | Total number of bytes read per query. |
+| split_entry_deserialize_time | Summary | Time spent on derserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent on derserializing entries per query. |
+| split_entry_queue_dequeue_wait_time | Summary | Time spend on waiting to get entry from entry queue because it is empty. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent on waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent on waiting to dequeue from message queue because is is empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent on waiting for message queue enqueue because the message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent on waiting for message queue enqueue because the message queue is full per query. |
+| split_num_entries_per_batch | Summary | Number of entries per batch. |
+| split_num_entries_per_query | Summary | Number of entries per query. |
+| split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
+| split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
+| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_latency_per_batch | Summary | Latency of reads per batch. |
+| split_read_latency_per_query | Summary | Total read latency per query. |
+| split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
+| split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
+| split_total_execution_time | Summary | Total execution time . |
+
 
 ## Monitor
 

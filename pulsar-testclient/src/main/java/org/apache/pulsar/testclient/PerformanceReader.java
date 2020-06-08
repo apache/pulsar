@@ -106,6 +106,10 @@ public class PerformanceReader {
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
+
+        @Parameter(names = { "-time",
+                "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
+        public long testTime = 0;
     }
 
     public static void main(String[] args) throws Exception {
@@ -174,8 +178,15 @@ public class PerformanceReader {
         final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-
+        long startTime = System.nanoTime();
+        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         ReaderListener<byte[]> listener = (reader, msg) -> {
+            if (arguments.testTime > 0) {
+                if (System.nanoTime() > testEndTime) {
+                    log.info("------------------- DONE -----------------------");
+                    System.exit(0);
+                }
+            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 

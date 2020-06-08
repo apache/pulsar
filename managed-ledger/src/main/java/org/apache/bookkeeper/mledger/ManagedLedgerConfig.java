@@ -42,6 +42,8 @@ public class ManagedLedgerConfig {
 
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
+    private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
@@ -68,6 +70,7 @@ public class ManagedLedgerConfig {
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
 
     public boolean isCreateIfMissing() {
@@ -431,6 +434,13 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * @return max batch deleted index that will be persisted and recoverd.
+     */
+    public int getMaxBatchDeletedIndexToPersist() {
+        return maxBatchDeletedIndexToPersist;
+    }
+
+    /**
      * @param maxUnackedRangesToPersist
      *            max unacked message ranges that will be persisted and receverd.
      */
@@ -584,5 +594,21 @@ public class ManagedLedgerConfig {
     public void setBookKeeperEnsemblePlacementPolicyProperties(
             Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    public boolean isDeletionAtBatchIndexLevelEnabled() {
+        return deletionAtBatchIndexLevelEnabled;
+    }
+
+    public void setDeletionAtBatchIndexLevelEnabled(boolean deletionAtBatchIndexLevelEnabled) {
+        this.deletionAtBatchIndexLevelEnabled = deletionAtBatchIndexLevelEnabled;
+    }
+
+    public int getNewEntriesCheckDelayInMillis() {
+        return newEntriesCheckDelayInMillis;
+    }
+
+    public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
+        this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 }

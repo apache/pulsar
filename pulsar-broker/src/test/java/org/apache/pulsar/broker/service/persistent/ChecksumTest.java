@@ -41,7 +41,6 @@ import io.netty.buffer.ByteBuf;
 
 /**
  */
-@Test
 public class ChecksumTest extends BrokerTestBase {
     @BeforeClass
     @Override

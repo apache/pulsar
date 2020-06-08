@@ -53,7 +53,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           sudo swapoff -a
-          sudo rm -f /swapfile
+          sudo rm -rf /swapfile /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt clean
           docker rmi $(docker images -q) -f
           df -h

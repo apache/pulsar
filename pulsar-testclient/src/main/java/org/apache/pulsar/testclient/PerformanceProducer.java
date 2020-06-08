@@ -122,6 +122,10 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "-ch",
+                "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+        private boolean chunkingAllowed = false;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -449,7 +453,12 @@ public class PerformanceProducer {
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {
-                    futures.add(producerBuilder.clone().topic(topic).createAsync());
+                    ProducerBuilder<byte[]> prodBuilder = producerBuilder.clone().topic(topic);
+                    if (arguments.chunkingAllowed) {
+                        prodBuilder.enableChunking(true);
+                        prodBuilder.enableBatching(false);
+                    }
+                    futures.add(prodBuilder.createAsync());
                 }
             }
 

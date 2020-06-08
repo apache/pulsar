@@ -47,7 +47,7 @@ import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
-import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
+import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
 
 @Slf4j
 public class FunctionConfigUtils {
