@@ -1584,8 +1584,8 @@ TEST(BasicEndToEndTest, testSeekOnPartitionedTopic) {
     Client client(lookupUrl);
     std::string topicName = "persistent://public/default/testSeekOnPartitionedTopic";
 
-    std::string url = adminUrl +
-        "admin/v2/persistent/public/default/testSeekOnPartitionedTopic" + "/partitions";
+    std::string url =
+        adminUrl + "admin/v2/persistent/public/default/testSeekOnPartitionedTopic" + "/partitions";
     int res = makePutRequest(url, "3");
     LOG_INFO("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
