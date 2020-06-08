@@ -546,7 +546,16 @@ void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 }
 
 void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
-    callback(ResultOperationNotSupported);
+    Lock stateLock(mutex_);
+    if (state_ != Ready) {
+        stateLock.unlock();
+        callback(ResultAlreadyClosed);
+        return;
+    }
+    stateLock.unlock();
+    for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
+        (*i)->seekAsync(timestamp, callback);
+    }
 }
 
 void PartitionedConsumerImpl::runPartitionUpdateTask() {
