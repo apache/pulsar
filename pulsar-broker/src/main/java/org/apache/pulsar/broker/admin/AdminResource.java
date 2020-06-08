@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -364,7 +365,7 @@ public abstract class AdminResource extends PulsarWebResource {
             if (partitionedTopicMetadata.partitions < 1) {
                 throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
             }
-        } catch (Exception e) {
+        } catch ( InterruptedException  | ExecutionException e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
     }
