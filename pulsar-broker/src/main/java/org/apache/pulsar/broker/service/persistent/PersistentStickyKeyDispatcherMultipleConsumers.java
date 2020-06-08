@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import com.google.common.base.Preconditions;
+
 import io.netty.util.concurrent.FastThreadLocal;
 
 import java.util.ArrayList;
@@ -32,19 +34,25 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
+import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers {
 
+    private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
 
     private boolean isDispatcherStuckOnReplays = false;
@@ -54,12 +62,32 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      * This means that, in order to preserve ordering, new consumers can only receive old
      * messages, until the mark-delete position will move past this point.
      */
-    private final Map<Consumer, PositionImpl> recentlyJoinedConsumers = new HashMap<>();
+    private final Map<Consumer, PositionImpl> recentlyJoinedConsumers;
 
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-           Subscription subscription, StickyKeyConsumerSelector selector) {
+            Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription);
-        this.selector = selector;
+
+        this.allowOutOfOrderDelivery = ksm.getAllowOutOfOrderDelivery();
+        this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? Collections.emptyMap() : new HashMap<>();
+
+        switch (ksm.getKeySharedMode()) {
+        case AUTO_SPLIT:
+            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
+                selector = new ConsistentHashingStickyKeyConsumerSelector(
+                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
+            } else {
+                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
+            }
+            break;
+
+        case STICKY:
+            this.selector = new HashRangeExclusiveStickyKeyConsumerSelector();
+            break;
+
+        default:
+            throw new IllegalArgumentException("Invalid key-shared mode: " + ksm.getKeySharedMode());
+        }
     }
 
     @Override
@@ -69,7 +97,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
         // If this was the 1st consumer, or if all the messages are already acked, then we
         // don't need to do anything special
-        if (consumerList.size() > 1 && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+        if (allowOutOfOrderDelivery == false
+                && consumerList.size() > 1
+                && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
             recentlyJoinedConsumers.put(consumer, (PositionImpl) cursor.getReadPosition());
         }
     }

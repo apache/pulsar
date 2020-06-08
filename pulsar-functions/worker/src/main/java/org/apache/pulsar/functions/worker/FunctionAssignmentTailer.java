@@ -39,7 +39,11 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     private final Thread tailerThread;
     
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, ReaderBuilder readerBuilder, WorkerConfig workerConfig) throws PulsarClientException {
+    public FunctionAssignmentTailer(
+            FunctionRuntimeManager functionRuntimeManager,
+            ReaderBuilder readerBuilder,
+            WorkerConfig workerConfig,
+            ErrorNotifier errorNotifier) throws PulsarClientException {
         this.functionRuntimeManager = functionRuntimeManager;
         
         this.reader = readerBuilder
@@ -49,21 +53,21 @@ public class FunctionAssignmentTailer implements AutoCloseable {
           .readCompacted(true)
           .startMessageId(MessageId.earliest)
           .create();
-
+        
         this.tailerThread = new Thread(() -> {
             while(isRunning) {
                 try {
                     Message<byte[]> msg = reader.readNext();
                     processAssignment(msg);
-                } catch (Exception e) {
+                } catch (Throwable th) {
                     if (isRunning) {
-                        log.error("Encountered error in assignment tailer", e);
-
+                        log.error("Encountered error in assignment tailer", th);
                         // trigger fatal error
-                        // TODO add mechanism to notify main thread
+                        isRunning = false;
+                        errorNotifier.triggerError(th);
                     } else {
-                        if (!(e instanceof InterruptedException)) {
-                            log.warn("Encountered error when assignment tailer is not running", e);
+                        if (!(th instanceof InterruptedException)) {
+                            log.warn("Encountered error when assignment tailer is not running", th);
                         }
                     }
 

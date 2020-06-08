@@ -226,7 +226,7 @@ public class TopicLookupBase extends PulsarWebResource {
                             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
                             // request should be redirect to the peer-cluster
                             if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
-                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())) {
+                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
                                 validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
                                         "Redirected cluster's brokerService url is not configured", requestId));
                                 return;

@@ -10252,6 +10252,10 @@ public final class PulsarApi {
         getHashRangesList();
     org.apache.pulsar.common.api.proto.PulsarApi.IntRange getHashRanges(int index);
     int getHashRangesCount();
+    
+    // optional bool allowOutOfOrderDelivery = 4 [default = false];
+    boolean hasAllowOutOfOrderDelivery();
+    boolean getAllowOutOfOrderDelivery();
   }
   public static final class KeySharedMeta extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -10319,9 +10323,20 @@ public final class PulsarApi {
       return hashRanges_.get(index);
     }
     
+    // optional bool allowOutOfOrderDelivery = 4 [default = false];
+    public static final int ALLOWOUTOFORDERDELIVERY_FIELD_NUMBER = 4;
+    private boolean allowOutOfOrderDelivery_;
+    public boolean hasAllowOutOfOrderDelivery() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public boolean getAllowOutOfOrderDelivery() {
+      return allowOutOfOrderDelivery_;
+    }
+    
     private void initFields() {
       keySharedMode_ = org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode.AUTO_SPLIT;
       hashRanges_ = java.util.Collections.emptyList();
+      allowOutOfOrderDelivery_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -10356,6 +10371,9 @@ public final class PulsarApi {
       for (int i = 0; i < hashRanges_.size(); i++) {
         output.writeMessage(3, hashRanges_.get(i));
       }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBool(4, allowOutOfOrderDelivery_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -10371,6 +10389,10 @@ public final class PulsarApi {
       for (int i = 0; i < hashRanges_.size(); i++) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
           .computeMessageSize(3, hashRanges_.get(i));
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeBoolSize(4, allowOutOfOrderDelivery_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -10489,6 +10511,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         hashRanges_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000002);
+        allowOutOfOrderDelivery_ = false;
+        bitField0_ = (bitField0_ & ~0x00000004);
         return this;
       }
       
@@ -10531,6 +10555,10 @@ public final class PulsarApi {
           bitField0_ = (bitField0_ & ~0x00000002);
         }
         result.hashRanges_ = hashRanges_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.allowOutOfOrderDelivery_ = allowOutOfOrderDelivery_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -10549,6 +10577,9 @@ public final class PulsarApi {
             hashRanges_.addAll(other.hashRanges_);
           }
           
+        }
+        if (other.hasAllowOutOfOrderDelivery()) {
+          setAllowOutOfOrderDelivery(other.getAllowOutOfOrderDelivery());
         }
         return this;
       }
@@ -10602,6 +10633,11 @@ public final class PulsarApi {
               org.apache.pulsar.common.api.proto.PulsarApi.IntRange.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.IntRange.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addHashRanges(subBuilder.buildPartial());
+              break;
+            }
+            case 32: {
+              bitField0_ |= 0x00000004;
+              allowOutOfOrderDelivery_ = input.readBool();
               break;
             }
           }
@@ -10719,6 +10755,27 @@ public final class PulsarApi {
       public Builder removeHashRanges(int index) {
         ensureHashRangesIsMutable();
         hashRanges_.remove(index);
+        
+        return this;
+      }
+      
+      // optional bool allowOutOfOrderDelivery = 4 [default = false];
+      private boolean allowOutOfOrderDelivery_ ;
+      public boolean hasAllowOutOfOrderDelivery() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public boolean getAllowOutOfOrderDelivery() {
+        return allowOutOfOrderDelivery_;
+      }
+      public Builder setAllowOutOfOrderDelivery(boolean value) {
+        bitField0_ |= 0x00000004;
+        allowOutOfOrderDelivery_ = value;
+        
+        return this;
+      }
+      public Builder clearAllowOutOfOrderDelivery() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        allowOutOfOrderDelivery_ = false;
         
         return this;
       }

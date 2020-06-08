@@ -129,10 +129,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private final FunctionMetaDataManager functionMetaDataManager;
 
-
+    private final ErrorNotifier errorNotifier;
+    
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
-                                  FunctionMetaDataManager functionMetaDataManager) throws Exception {
+                                  FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
         this.workerConfig = workerConfig;
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
@@ -200,6 +201,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.membershipManager = membershipManager;
         this.functionMetaDataManager = functionMetaDataManager;
+        this.errorNotifier = errorNotifier;
     }
 
     /**
@@ -210,7 +212,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void initialize() {
         log.info("/** Initializing Runtime Manager **/");
         try {
-            this.functionAssignmentTailer = new FunctionAssignmentTailer(this, this.getWorkerService().getClient().newReader(), workerConfig);
+            this.functionAssignmentTailer = new FunctionAssignmentTailer(
+                    this,
+                    this.getWorkerService().getClient().newReader(),
+                    this.workerConfig,
+                    this.errorNotifier);
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages
