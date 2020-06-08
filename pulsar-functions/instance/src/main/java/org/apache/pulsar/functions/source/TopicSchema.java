@@ -157,7 +157,9 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return buildAvroSchema(clazz, conf);
+            return AvroSchema.of(SchemaDefinition.<T>builder()
+                    .withProperties(new HashMap<>(conf.getSchemaProperties()))
+                    .withPojo(clazz).build());
 
         case JSON:
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
@@ -171,20 +173,6 @@ public class TopicSchema {
         default:
             throw new RuntimeException("Unsupported schema type" + type);
         }
-    }
-
-    private static <T> AvroSchema<T> buildAvroSchema(Class<T> clazz, ConsumerConfig conf) {
-        String jsr310ConversionEnabled = null;
-        String alwaysAllowNull = null;
-        if (conf.getSchemaProperties() != null) {
-            jsr310ConversionEnabled = conf.getSchemaProperties().get(JSR_310_CONVERSION_ENABLED);
-            alwaysAllowNull = conf.getSchemaProperties().get(ALWAYS_ALLOW_NULL);
-        }
-        //"jsr310ConversionEnabled" default value is false; "alwaysAllowNull" default value is true
-        return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz)
-                .withJSR310ConversionEnabled(!StringUtils.isEmpty(jsr310ConversionEnabled) && Boolean.parseBoolean(jsr310ConversionEnabled))
-                .withAlwaysAllowNull(StringUtils.isEmpty(alwaysAllowNull) || Boolean.parseBoolean(alwaysAllowNull))
-                .build());
     }
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {

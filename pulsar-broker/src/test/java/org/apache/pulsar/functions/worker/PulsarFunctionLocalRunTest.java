@@ -568,8 +568,6 @@ public class PulsarFunctionLocalRunTest {
 
         // validate pulsar-sink consumer has consumed all messages
         assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages, 0);
-        producer.close();
-        consumer.close();
         localRunner.stop();
 
         retryStrategically((test) -> {
@@ -583,7 +581,7 @@ public class PulsarFunctionLocalRunTest {
         }, 20, 150);
 
         //change the schema ,the function should not run, resulting in no messages to consume
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"false\"}}");
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"false\",\"alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
@@ -595,11 +593,8 @@ public class PulsarFunctionLocalRunTest {
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
-        producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
-        consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
-
         producer.newMessage().property(propertyKey, propertyValue).value(new AvroTestObject()).send();
-        Message<GenericRecord> msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
         assertEquals(msg, null);
 
         producer.close();
