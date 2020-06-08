@@ -1639,6 +1639,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function stats
         getFunctionStats(functionName, numMessages);
 
+        // update parallelism
+        updateFunctionParallelism(functionName, 2);
+
+        //get function status
+        getFunctionStatus(functionName, numMessages, true, 2);
+
         // delete function
         deleteFunction(functionName);
 
@@ -1754,6 +1760,22 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
+
+    private static void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        generator.setParallelism(parallelism);
+        String command = generator.generateUpdateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("\"Updated successfully\""));
     }
 
     private static <T> void submitFunction(Runtime runtime,
@@ -1948,6 +1970,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
+        getFunctionStatus(functionName, numMessages, checkRestarts, 1);
+    }
+
+    private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
+        throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -1959,9 +1986,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
 
-        assertEquals(functionStatus.getNumInstances(), 1);
-        assertEquals(functionStatus.getNumRunning(), 1);
-        assertEquals(functionStatus.getInstances().size(), 1);
+        assertEquals(functionStatus.getNumInstances(), parallelism);
+        assertEquals(functionStatus.getNumRunning(), parallelism);
+        assertEquals(functionStatus.getInstances().size(), parallelism);
         assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
         assertTrue(functionStatus.getInstances().get(0).getStatus().getAverageLatency() > 0.0);
         assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
