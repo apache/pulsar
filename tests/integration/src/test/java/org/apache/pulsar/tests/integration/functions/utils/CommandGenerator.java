@@ -230,7 +230,9 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        commandBuilder.append(" --className " + functionClassName);
+        if (functionClassName != null) {
+            commandBuilder.append(" --className " + functionClassName);
+        }
         if (sourceTopic != null) {
             commandBuilder.append(" --inputs " + sourceTopic);
         }
