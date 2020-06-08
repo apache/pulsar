@@ -253,7 +253,6 @@ public class PersistentTopics extends PersistentTopicsBase {
      *
      * @param tenant
      * @param namespace
-     * @param namespace
      * @param encodedTopic
      * @param numPartitions
      */
