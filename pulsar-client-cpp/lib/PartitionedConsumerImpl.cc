@@ -544,6 +544,7 @@ void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
 void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
     Lock stateLock(mutex_);
     if (state_ != Ready) {
+        stateLock.unlock();
         callback(ResultAlreadyClosed);
         return;
     }
@@ -556,6 +557,7 @@ void PartitionedConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     Lock stateLock(mutex_);
     if (state_ != Ready) {
+        stateLock.unlock();
         callback(ResultAlreadyClosed);
         return;
     }
