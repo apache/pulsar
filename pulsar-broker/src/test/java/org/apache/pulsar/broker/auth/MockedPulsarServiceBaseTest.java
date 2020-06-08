@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.auth;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -44,6 +45,7 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
@@ -106,6 +108,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setBookkeeperClientExposeStatsToPrometheus(true);
     }
 
     protected final void internalSetup() throws Exception {
@@ -334,6 +337,14 @@ public abstract class MockedPulsarServiceBaseTest {
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                 Map<String, Object> properties) {
+            // Always return the same instance (so that we don't loose the mock BK content on broker restart
+            return mockBookKeeper;
+        }
+
+        @Override
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                 Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }
