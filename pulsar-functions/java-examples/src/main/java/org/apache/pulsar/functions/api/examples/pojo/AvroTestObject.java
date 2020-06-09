@@ -28,5 +28,6 @@ import lombok.Data;
 public class AvroTestObject {
 
     private int baseValue;
+    private String objectValue;
 
 }

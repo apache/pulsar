@@ -64,6 +64,8 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -890,6 +892,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @return true if at least a cursor exists
      */
     public boolean hasActiveCursors() {
+        // Use hasCursors instead of isEmpty because isEmpty does not take into account non-durable cursors
         return !activeCursors.isEmpty();
     }
 
@@ -1385,6 +1388,38 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
             mbean.startDataLedgerCreateOp();
             asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+        }
+    }
+
+    synchronized void createLedgerAfterClosed() {
+        STATE_UPDATER.set(this, State.CreatingLedger);
+        this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
+        mbean.startDataLedgerCreateOp();
+        asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap());
+    }
+
+    @Override
+    public void rollCurrentLedgerIfFull() {
+        log.info("[{}] Start checking if current ledger is full", name);
+        if (currentLedgerEntries > 0 && currentLedgerIsFull()) {
+            STATE_UPDATER.set(this, State.ClosingLedger);
+            currentLedger.asyncClose(new AsyncCallback.CloseCallback() {
+                @Override
+                public void closeComplete(int rc, LedgerHandle lh, Object o) {
+                    checkArgument(currentLedger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s",
+                            currentLedger.getId(),
+                            lh.getId());
+
+                    if (rc == BKException.Code.OK) {
+                        log.debug("Successfuly closed ledger {}", lh.getId());
+                    } else {
+                        log.warn("Error when closing ledger {}. Status={}", lh.getId(), BKException.getMessage(rc));
+                    }
+
+                    ledgerClosed(lh);
+                    createLedgerAfterClosed();
+                }
+            }, System.nanoTime());
         }
     }
 
@@ -1962,7 +1997,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             long slowestReaderLedgerId = -1;
-            if (cursors.isEmpty()) {
+            if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
                 // include lastLedger in the trimming.
@@ -2875,7 +2910,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         synchronized (activeCursors) {
             if (activeCursors.get(cursor.getName()) != null) {
                 activeCursors.removeCursor(cursor.getName());
-                if (activeCursors.isEmpty()) {
+                if (!activeCursors.hasDurableCursors()) {
                     // cleanup cache if there is no active subscription
                     entryCache.clear();
                 } else {

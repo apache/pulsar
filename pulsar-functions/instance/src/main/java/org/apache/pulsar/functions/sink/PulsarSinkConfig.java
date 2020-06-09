@@ -23,6 +23,8 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.common.functions.FunctionConfig;
 
+import java.util.Map;
+
 @Getter
 @Setter
 @ToString
@@ -31,6 +33,7 @@ public class PulsarSinkConfig {
     private String topic;
     private String serdeClassName;
     private String schemaType;
+    private Map<String, String> schemaProperties;
     private String typeClassName;
     private boolean forwardSourceMessageProperty;
 }

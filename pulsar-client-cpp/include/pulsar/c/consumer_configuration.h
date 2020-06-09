@@ -195,6 +195,46 @@ PULSAR_PUBLIC void pulsar_configure_set_negative_ack_redelivery_delay_ms(
 PULSAR_PUBLIC long pulsar_configure_get_negative_ack_redelivery_delay_ms(
     pulsar_consumer_configuration_t *consumer_configuration);
 
+/**
+ * Set time window in milliseconds for grouping message ACK requests. An ACK request is not sent
+ * to broker until the time window reaches its end, or the number of grouped messages reaches
+ * limit. Default is 100 milliseconds. If it's set to a non-positive value, ACK requests will be
+ * directly sent to broker without grouping.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @param ackGroupMillis time of ACK grouping window in milliseconds.
+ */
+PULSAR_PUBLIC void pulsar_configure_set_ack_grouping_time_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long ackGroupingMillis);
+
+/**
+ * Get grouping time window in milliseconds.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @return grouping time window in milliseconds.
+ */
+PULSAR_PUBLIC long pulsar_configure_get_ack_grouping_time_ms(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
+/**
+ * Set max number of grouped messages within one grouping time window. If it's set to a
+ * non-positive value, number of grouped messages is not limited. Default is 1000.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @param maxGroupingSize max number of grouped messages with in one grouping time window.
+ */
+PULSAR_PUBLIC void pulsar_configure_set_ack_grouping_max_size(
+    pulsar_consumer_configuration_t *consumer_configuration, long maxGroupingSize);
+
+/**
+ * Get max number of grouped messages within one grouping time window.
+ *
+ * @param consumer_configuration the consumer conf object
+ * @return max number of grouped messages within one grouping time window.
+ */
+PULSAR_PUBLIC long pulsar_configure_get_ack_grouping_max_size(
+    pulsar_consumer_configuration_t *consumer_configuration);
+
 PULSAR_PUBLIC int pulsar_consumer_is_encryption_enabled(
     pulsar_consumer_configuration_t *consumer_configuration);
 

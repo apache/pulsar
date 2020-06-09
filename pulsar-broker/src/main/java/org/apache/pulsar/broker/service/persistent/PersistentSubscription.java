@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -31,8 +34,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -48,7 +49,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -56,10 +56,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelector;
-import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -219,28 +215,10 @@ public class PersistentSubscription implements Subscription {
             case Key_Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared) {
                     previousDispatcher = dispatcher;
-                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta() : KeySharedMeta.getDefaultInstance();
-
-                    switch (ksm.getKeySharedMode()) {
-                        case STICKY:
-                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                    new HashRangeExclusiveStickyKeyConsumerSelector());
-                            break;
-
-                        case AUTO_SPLIT:
-                        default:
-                            StickyKeyConsumerSelector selector;
-                            ServiceConfiguration conf = topic.getBrokerService().getPulsar().getConfiguration();
-                            if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
-                                selector = new ConsistentHashingStickyKeyConsumerSelector(
-                                        conf.getSubscriptionKeySharedConsistentHashingReplicaPoints());
-                            } else {
-                                selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
-                            }
-
-                            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this, selector);
-                            break;
-                    }
+                    KeySharedMeta ksm = consumer.getKeySharedMeta() != null ? consumer.getKeySharedMeta()
+                            : KeySharedMeta.getDefaultInstance();
+                    dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                            topic.getBrokerService().getPulsar().getConfiguration(), ksm);
                 }
                 break;
             default:
@@ -403,6 +381,9 @@ public class PersistentSubscription implements Subscription {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
+
+        // Signal the dispatchers to give chance to take extra actions
+        dispatcher.acknowledgementWasProcessed();
     }
 
     /**

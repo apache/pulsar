@@ -53,13 +53,13 @@ public class FunctionMetaDataTopicTailer
 
     @Override
     public void close() {
-        log.info("Stopping function state consumer");
+        log.info("Stopping function metadata tailer");
         try {
             reader.close();
         } catch (IOException e) {
-            log.error("Failed to stop function state consumer", e);
+            log.error("Failed to stop function metadata tailer", e);
         }
-        log.info("Stopped function state consumer");
+        log.info("Stopped function function metadata tailer");
     }
 
     public void processRequest(Message<byte[]> msg) {

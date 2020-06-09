@@ -48,6 +48,7 @@ public class FunctionMetaDataManagerTest {
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
+        when(builder.producerName(anyString())).thenReturn(builder);
 
         when(builder.create()).thenReturn(mock(Producer.class));
 
