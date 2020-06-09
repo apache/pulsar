@@ -62,7 +62,7 @@ public class FunctionMetaDataTopicTailerTest {
         when(readerBuilder.readerName(anyString())).thenReturn(readerBuilder);
         when(readerBuilder.create()).thenReturn(reader);
         this.fsm = mock(FunctionMetaDataManager.class);
-        this.fsc = new FunctionMetaDataTopicTailer(fsm, readerBuilder, new WorkerConfig(), new ErrorNotifier() );
+        this.fsc = new FunctionMetaDataTopicTailer(fsm, readerBuilder, new WorkerConfig(), ErrorNotifier.getDefaultImpl() );
     }
 
     @AfterMethod
