@@ -35,9 +35,7 @@ import java.util.Map;
 public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T> {
 
     public static final String ALWAYS_ALLOW_NULL = "__alwaysAllowNull";
-    public static final String ALWAYS_ALLOW_NULL_NO_UNDERLINED = "alwaysAllowNull";
     public static final String JSR310_CONVERSION_ENABLED = "__jsr310ConversionEnabled";
-    public static final String JSR310_CONVERSION_ENABLED_NO_UNDERLINED = "jsr310ConversionEnabled";
 
     /**
      * the schema definition class
@@ -119,12 +117,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public SchemaDefinitionBuilder<T> withProperties(Map<String,String> properties) {
         this.properties = properties;
-        if (properties.containsKey(ALWAYS_ALLOW_NULL_NO_UNDERLINED)) {
-            properties.put(ALWAYS_ALLOW_NULL, properties.remove(ALWAYS_ALLOW_NULL_NO_UNDERLINED));
+        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
             alwaysAllowNull = Boolean.parseBoolean(properties.get(ALWAYS_ALLOW_NULL));
         }
-        if (properties.containsKey(JSR310_CONVERSION_ENABLED_NO_UNDERLINED)) {
-            properties.put(JSR310_CONVERSION_ENABLED, properties.remove(JSR310_CONVERSION_ENABLED_NO_UNDERLINED));
+        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
             jsr310ConversionEnabled = Boolean.parseBoolean(properties.get(JSR310_CONVERSION_ENABLED));
         }
         return this;
