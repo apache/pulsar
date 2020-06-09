@@ -513,9 +513,9 @@ public class PulsarFunctionLocalRunTest {
                 sourceTopic, sinkTopic, subscriptionName);
         //set jsr310ConversionEnabled、alwaysAllowNull
         Map<String,String> schemaInput = new HashMap<>();
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"true\"}}");
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
         Map<String, String> schemaOutput = new HashMap<>();
-        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"true\",\"alwaysAllowNull\":\"true\"}}");
+        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
 
         functionConfig.setCustomSchemaInputs(schemaInput);
         functionConfig.setCustomSchemaOutputs(schemaOutput);
@@ -579,7 +579,7 @@ public class PulsarFunctionLocalRunTest {
         }, 20, 150);
 
         //change the schema ,the function should not run, resulting in no messages to consume
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"jsr310ConversionEnabled\":\"false\",\"alwaysAllowNull\":\"false\"}}");
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
