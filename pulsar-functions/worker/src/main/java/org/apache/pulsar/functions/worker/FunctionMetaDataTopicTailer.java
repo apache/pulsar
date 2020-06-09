@@ -100,20 +100,11 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function metadata tailer");
     }
 
-    public void processRequest(Message<byte[]> msg) {
-        ServiceRequest serviceRequest;
-
-        try {
-            serviceRequest = ServiceRequest.parseFrom(msg.getData());
-        } catch (IOException e) {
-            log.error("Received bad service request at message {}", msg.getMessageId(), e);
-            errorNotifier.triggerError(e);
-            return;
-        }
+    public void processRequest(Message<byte[]> msg) throws IOException {
+        ServiceRequest serviceRequest = ServiceRequest.parseFrom(msg.getData());
         if (log.isDebugEnabled()) {
             log.debug("Received Service Request: {}", serviceRequest);
         }
-
         this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
     }
 }
