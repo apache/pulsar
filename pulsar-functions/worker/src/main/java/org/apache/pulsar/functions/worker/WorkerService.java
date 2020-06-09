@@ -169,7 +169,7 @@ public class WorkerService {
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
-                    this.workerConfig, this.schedulerManager, this.client);
+                    this.workerConfig, this.schedulerManager, this.client, errorNotifier);
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
             this.functionsManager = new FunctionsManager(workerConfig);
