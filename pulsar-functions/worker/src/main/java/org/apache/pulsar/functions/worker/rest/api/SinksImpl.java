@@ -225,10 +225,10 @@ public class SinksImpl extends ComponentImpl {
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
             updateRequest(functionMetaDataBuilder.build());
         } finally {
-
-            if (!(sinkPkgUrl != null && sinkPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if (sinkPkgUrl == null || !sinkPkgUrl.startsWith(Utils.FILE)) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
@@ -419,9 +419,10 @@ public class SinksImpl extends ComponentImpl {
 
             updateRequest(functionMetaDataBuilder.build());
         } finally {
-            if (!(sinkPkgUrl != null && sinkPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if ((sinkPkgUrl != null && !sinkPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
