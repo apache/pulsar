@@ -35,6 +35,12 @@ The reader interface is helpful for use cases like using Pulsar to provide [effe
 
 Internally, the reader interface is implemented as a consumer using an exclusive, non-durable subscription to the topic with a randomly-allocated name.
 
+[ **IMPORTANT** ]
+
+Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is ***strongly*** advised that [data retention](cookbooks-retention-expiry.md) be configured.   If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted .  This will cause readers to essentially skip messages.  Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.
+
+Please also note that a reader can have a "backlog", but the metric is just to allow users to know how behind the reader is and is not considered for any backlog quota calculations. 
+
 ![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
 
 > ### Non-partitioned topics only

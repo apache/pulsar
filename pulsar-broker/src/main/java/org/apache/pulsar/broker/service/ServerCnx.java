@@ -1733,6 +1733,13 @@ public class ServerCnx extends PulsarHandler {
         return ctx;
     }
 
+    @Override
+    protected void onCommand(PulsarApi.BaseCommand command) throws Exception {
+        if (getBrokerService().getInterceptor() != null) {
+            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+        }
+    }
+
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         if (log.isDebugEnabled()) {
@@ -1974,5 +1981,25 @@ public class ServerCnx extends PulsarHandler {
 
     public boolean isPreciseDispatcherFlowControl() {
         return preciseDispatcherFlowControl;
+    }
+
+    public AuthenticationState getAuthState() {
+        return authState;
+    }
+
+    public AuthenticationDataSource getAuthenticationData() {
+        return authenticationData;
+    }
+
+    public AuthenticationProvider getAuthenticationProvider() {
+        return authenticationProvider;
+    }
+
+    public String getAuthRole() {
+        return authRole;
+    }
+
+    public String getAuthMethod() {
+        return authMethod;
     }
 }

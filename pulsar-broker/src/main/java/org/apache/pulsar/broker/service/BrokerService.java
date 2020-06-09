@@ -97,6 +97,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -239,6 +240,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long maxMessagePublishBufferBytes;
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
+    private BrokerInterceptor interceptor;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -629,6 +631,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
+        if (interceptor != null) {
+            interceptor.close();
+            interceptor = null;
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
@@ -636,6 +643,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         messageExpiryMonitor.shutdown();
         compactionMonitor.shutdown();
         ledgerFullMonitor.shutdown();
+        messagePublishBufferMonitor.shutdown();
+        consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();
@@ -902,9 +911,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                 boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
                 String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication( //
-                                conf.getBrokerClientAuthenticationPlugin(), //
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl)
+                        .authentication(
+                                conf.getBrokerClientAuthenticationPlugin(),
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
@@ -1942,7 +1951,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName topicName) {
         if(pulsar.getNamespaceService() == null){
-            return FutureUtil.failedFuture(new NullPointerException("namespaceService is null"));
+            return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
         return pulsar.getNamespaceService().checkTopicExists(topicName)
                 .thenCompose(topicExists -> {
@@ -2282,5 +2291,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
+    }
+
+    public void setInterceptor(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 }

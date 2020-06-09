@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.Record;
@@ -339,13 +340,16 @@ public class PulsarSink<T> implements Sink<T> {
             // return type is 'void', so there's no schema to check
             return null;
         }
-
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
+            consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSchemaType(), false);
+                    consumerConfig, false);
         } else {
+            consumerConfig.setSchemaType(pulsarSinkConfig.getSerdeClassName());
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader);
+                    consumerConfig, false, functionClassLoader);
         }
     }
 }

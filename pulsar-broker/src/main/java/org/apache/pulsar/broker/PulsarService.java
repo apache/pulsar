@@ -77,6 +77,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -202,6 +204,7 @@ public class PulsarService implements AutoCloseable {
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
+    private BrokerInterceptor brokerInterceptor;
 
     public enum State {
         Init, Started, Closed
@@ -264,6 +267,10 @@ public class PulsarService implements AutoCloseable {
             if (this.webService != null) {
                 this.webService.close();
                 this.webService = null;
+            }
+
+            if (this.webSocketService != null) {
+                this.webSocketService.close();
             }
 
             if (this.brokerService != null) {
@@ -450,7 +457,9 @@ public class PulsarService implements AutoCloseable {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
-
+            this.brokerInterceptor = BrokerInterceptors.load(config);
+            brokerService.setInterceptor(getBrokerInterceptor());
+            this.brokerInterceptor.initialize(config);
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -1267,7 +1276,7 @@ public class PulsarService implements AutoCloseable {
             }
             LOG.info("Function worker service setup completed");
             // TODO figure out how to handle errors from function worker service
-            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, new ErrorNotifier());
+            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
     }

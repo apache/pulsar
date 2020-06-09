@@ -68,6 +68,7 @@ public class FunctionConfig {
     private Map<String, String> customSerdeInputs;
     private String topicsPattern;
     private Map<String, String> customSchemaInputs;
+    private Map<String, String> customSchemaOutputs;
 
     /**
      * A generalized way of specifying inputs.

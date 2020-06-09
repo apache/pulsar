@@ -228,7 +228,7 @@ The Apache Software License, Version 2.0
     - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.19.jar
     - commons-lang3-3.3.2.jar
-    - commons-lang3-3.4.jar
+    - commons-lang3-3.6.jar
  * Netty
     - netty-3.10.6.Final.jar
     - netty-buffer-4.1.48.Final.jar
