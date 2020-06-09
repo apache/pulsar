@@ -54,6 +54,8 @@ public class SinkConfig {
 
     private Map<String, String> topicToSchemaType;
 
+    private Map<String, String> topicToSchemaProperties;
+
     private Map<String, ConsumerConfig> inputSpecs;
 
     private Integer maxMessageRetries;
