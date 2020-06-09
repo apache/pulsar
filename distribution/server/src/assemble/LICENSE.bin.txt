@@ -344,7 +344,7 @@ The Apache Software License, Version 2.0
     - commons-logging-commons-logging-1.1.1.jar
     - org.apache.commons-commons-collections4-4.1.jar
     - org.apache.commons-commons-compress-1.19.jar
-    - org.apache.commons-commons-lang3-3.4.jar
+    - org.apache.commons-commons-lang3-3.6.jar
  * Netty
     - io.netty-netty-buffer-4.1.48.Final.jar
     - io.netty-netty-codec-4.1.48.Final.jar
