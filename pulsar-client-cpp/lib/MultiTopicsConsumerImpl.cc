@@ -488,8 +488,8 @@ Result MultiTopicsConsumerImpl::receive(Message& msg) {
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
-    messages_.pop(msg);
     lock.unlock();
+    messages_.pop(msg);
 
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     return ResultOk;
@@ -508,8 +508,8 @@ Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
+    lock.unlock();
     if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
-        lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
