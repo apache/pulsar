@@ -35,7 +35,16 @@ public class LocalZooKeeperConnectionServiceTest {
         MockedZooKeeperClientFactoryImpl mockZkClientFactory = new MockedZooKeeperClientFactoryImpl();
         LocalZooKeeperConnectionService localZkConnectionService = new LocalZooKeeperConnectionService(
                 mockZkClientFactory, "dummy", 1000);
-        localZkConnectionService.start(null);
+        localZkConnectionService.start(new ZookeeperSessionExpiredHandler() {
+            @Override
+            public void onSessionExpired() {
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
+            }
+        });
 
         // Get ZooKeeper client
         MockZooKeeper zk = (MockZooKeeper) localZkConnectionService.getLocalZooKeeper();
@@ -91,7 +100,16 @@ public class LocalZooKeeperConnectionServiceTest {
         LocalZooKeeperConnectionService localZkConnectionService = new LocalZooKeeperConnectionService(
                 new ZookeeperClientFactoryImpl(), "dummy", 1000);
         try {
-            localZkConnectionService.start(null);
+            localZkConnectionService.start(new ZookeeperSessionExpiredHandler() {
+                @Override
+                public void onSessionExpired() {
+                }
+
+                @Override
+                public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
+                }
+            });
             fail("should fail");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Failed to establish session with local ZK"));

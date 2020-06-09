@@ -155,7 +155,8 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionsManager.class),
-                functionMetaDataManager));
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, pulsarClient, pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -228,7 +229,8 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionsManager.class),
-                functionMetaDataManager));
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
 
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
@@ -316,7 +318,8 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionsManager.class),
-                functionMetaDataManager));
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -396,7 +399,8 @@ public class MembershipManagerTest {
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
                 mock(FunctionsManager.class),
-                functionMetaDataManager));
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -440,5 +444,4 @@ public class MembershipManagerTest {
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
-
 }

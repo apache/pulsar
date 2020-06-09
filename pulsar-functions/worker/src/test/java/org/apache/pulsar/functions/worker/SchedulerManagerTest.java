@@ -110,6 +110,7 @@ public class SchedulerManagerTest {
 
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
+        when(builder.producerName(anyString())).thenReturn(builder);
         when(builder.enableBatching(anyBoolean())).thenReturn(builder);
         when(builder.blockIfQueueFull(anyBoolean())).thenReturn(builder);
         when(builder.compressionType(any(CompressionType.class))).thenReturn(builder);

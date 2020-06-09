@@ -18,56 +18,89 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.IOException;
-import java.util.function.Function;
-
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
 
 @Slf4j
-public class FunctionAssignmentTailer
-    implements java.util.function.Consumer<Message<byte[]>>, Function<Throwable, Void>, AutoCloseable {
+public class FunctionAssignmentTailer implements AutoCloseable {
 
     private final FunctionRuntimeManager functionRuntimeManager;
+    @Getter
     private final Reader<byte[]> reader;
-    private boolean closed = false;
+    private volatile boolean isRunning = false;
 
-    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager, Reader<byte[]> reader) {
+    private final Thread tailerThread;
+    
+    public FunctionAssignmentTailer(
+            FunctionRuntimeManager functionRuntimeManager,
+            ReaderBuilder readerBuilder,
+            WorkerConfig workerConfig,
+            ErrorNotifier errorNotifier) throws PulsarClientException {
         this.functionRuntimeManager = functionRuntimeManager;
-        this.reader = reader;
+        
+        this.reader = readerBuilder
+          .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-runtime-manager")
+          .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
+          .topic(workerConfig.getFunctionAssignmentTopic())
+          .readCompacted(true)
+          .startMessageId(MessageId.earliest)
+          .create();
+        
+        this.tailerThread = new Thread(() -> {
+            while(isRunning) {
+                try {
+                    Message<byte[]> msg = reader.readNext();
+                    processAssignment(msg);
+                } catch (Throwable th) {
+                    if (isRunning) {
+                        log.error("Encountered error in assignment tailer", th);
+                        // trigger fatal error
+                        isRunning = false;
+                        errorNotifier.triggerError(th);
+                    } else {
+                        if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
+                            log.warn("Encountered error when assignment tailer is not running", th);
+                        }
+                    }
+
+                }
+            }
+        });
+        this.tailerThread.setName("assignment-tailer-thread");
     }
 
     public void start() {
-        receiveOne();
-    }
-
-    private void receiveOne() {
-        reader.readNextAsync()
-                .thenAccept(this)
-                .exceptionally(this);
+        isRunning = true;
+        tailerThread.start();
     }
 
     @Override
     public void close() {
-        if (closed) {
-            return;
-        }
-        log.info("Stopping function state consumer");
+        log.info("Stopping function assignment tailer");
         try {
-            closed = true;
-            reader.close();
+            isRunning = false;
+            if (tailerThread != null && tailerThread.isAlive()) {
+                tailerThread.interrupt();
+            }
+            if (reader != null) {
+                reader.close();
+            }
         } catch (IOException e) {
-            log.error("Failed to stop function state consumer", e);
+            log.error("Failed to stop function assignment tailer", e);
         }
-        log.info("Stopped function state consumer");
+        log.info("Stopped function assignment tailer");
     }
 
     public void processAssignment(Message<byte[]> msg) {
+
         if(msg.getData()==null || (msg.getData().length==0)) {
             log.info("Received assignment delete: {}", msg.getKey());
             this.functionRuntimeManager.deleteAssignment(msg.getKey());
@@ -76,42 +109,11 @@ public class FunctionAssignmentTailer
             try {
                 assignment = Assignment.parseFrom(msg.getData());
             } catch (IOException e) {
-                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(),
-                        e);
-                // TODO: find a better way to handle bad request
+                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(), e);
                 throw new RuntimeException(e);
             }
             log.info("Received assignment update: {}", assignment);
             this.functionRuntimeManager.processAssignment(assignment);
-        }
-    }
-
-    @Override
-    public void accept(Message<byte[]> msg) {
-        processAssignment(msg);
-        // receive next request
-        receiveOne();
-    }
-
-    @Override
-    public Void apply(Throwable cause) {
-        Throwable realCause = FutureUtil.unwrapCompletionException(cause);
-        if (realCause instanceof AlreadyClosedException) {
-            // if reader is closed because tailer is closed, ignore the exception
-            if (closed) {
-                // ignore
-                return null;
-            } else {
-                log.error("Reader of assignment update topic is closed unexpectedly", cause);
-                throw new RuntimeException(
-                    "Reader of assignment update topic is closed unexpectedly",
-                    cause
-                );
-            }
-        } else {
-            log.error("Failed to retrieve messages from assignment update topic", cause);
-            // TODO: find a better way to handle consumer functions
-            throw new RuntimeException(cause);
         }
     }
 }

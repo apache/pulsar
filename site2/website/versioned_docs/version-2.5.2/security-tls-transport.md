@@ -41,7 +41,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
 
-2. Entering the follwing command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
+2. Entering the following command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
 
 ```bash
 mkdir my-ca
@@ -97,7 +97,7 @@ openssl pkcs8 -topk8 -inform PEM -outform PEM \
     -in broker.key.pem -out broker.key-pk8.pem -nocrypt
 ```
 
-2. Enter the follwing command to generate the certificate request.
+2. Enter the following command to generate the certificate request.
 
 ```bash
 openssl req -config openssl.cnf \
@@ -169,7 +169,7 @@ When you enable the TLS transport encryption, you need to configure the client t
 
 As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 
-#### Hostname verification
+### Hostname verification
 
 Hostname verification is a TLS security feature whereby a client can refuse to connect to a server if the "CommonName" does not match the hostname to which the hostname is connecting. By default, Pulsar clients disable hostname verification, as it requires that each broker has a DNS record and a unique cert.
 
@@ -181,7 +181,7 @@ The examples below show hostname verification being disabled for the Java client
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools#pulsar-admin), [`pulsar-perf`](reference-cli-tools#pulsar-perf), and [`pulsar-client`](reference-cli-tools#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-cli-tools.md#pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS transport with the CLI tools of Pulsar:
 
@@ -194,7 +194,7 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 tlsEnableHostnameVerification=false
 ```
 
-### Java client
+#### Java client
 
 ```java
 import org.apache.pulsar.client.api.PulsarClient;
@@ -208,30 +208,31 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
-### Python client
+#### Python client
 
 ```python
 from pulsar import Client
 
 client = Client("pulsar+ssl://broker.example.com:6651/",
+                tls_hostname_verification=True,
                 tls_trust_certs_file_path="/path/to/ca.cert.pem",
                 tls_allow_insecure_connection=False) // defaults to false from v2.2.0 onwards
 ```
 
-### C++ client
+#### C++ client
 
 ```c++
 #include <pulsar/Client.h>
 
-pulsar::ClientConfiguration config;
-config.setUseTls(true);
-config.setTlsTrustCertsFilePath("/path/to/ca.cert.pem");
-config.setTlsAllowInsecureConnection(false); // defaults to false from v2.2.0 onwards
-
-pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
+ClientConfiguration config = ClientConfiguration();
+config.setUseTls(true);  // shouldn't be needed soon
+config.setTlsTrustCertsFilePath(caPath);
+config.setTlsAllowInsecureConnection(false);
+config.setAuth(pulsar::AuthTls::create(clientPublicKeyPath, clientPrivateKeyPath));
+config.setValidateHostName(true);
 ```
 
-### Node.js client
+#### Node.js client
 
 ```JavaScript
 const Pulsar = require('pulsar-client');

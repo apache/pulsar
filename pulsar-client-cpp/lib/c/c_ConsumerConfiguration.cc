@@ -118,6 +118,24 @@ long pulsar_configure_get_negative_ack_redelivery_delay_ms(
     return consumer_configuration->consumerConfiguration.getNegativeAckRedeliveryDelayMs();
 }
 
+void pulsar_configure_set_ack_grouping_time_ms(pulsar_consumer_configuration_t *consumer_configuration,
+                                               long ackGroupingMillis) {
+    consumer_configuration->consumerConfiguration.setAckGroupingTimeMs(ackGroupingMillis);
+}
+
+long pulsar_configure_get_ack_grouping_time_ms(pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getAckGroupingTimeMs();
+}
+
+void pulsar_configure_set_ack_grouping_max_size(pulsar_consumer_configuration_t *consumer_configuration,
+                                                long maxGroupingSize) {
+    consumer_configuration->consumerConfiguration.setAckGroupingMaxSize(maxGroupingSize);
+}
+
+long pulsar_configure_get_ack_grouping_max_size(pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getAckGroupingMaxSize();
+}
+
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.isEncryptionEnabled();
 }

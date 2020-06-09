@@ -35,6 +35,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -44,6 +45,8 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 @Slf4j
 public class TopicSchema {
 
+    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
+    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
@@ -66,6 +69,10 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input));
     }
 
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input));
+    }
+
     public Schema<?> getSchema(String topic, Class<?> clazz, Optional<SchemaType> schemaType) {
         return cachedSchemas.computeIfAbsent(topic, key -> {
             // If schema type was not provided, try to get it from schema registry, or fallback to default types
@@ -80,6 +87,10 @@ public class TopicSchema {
 
     public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, classLoader));
+    }
+
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input, classLoader));
     }
 
 
@@ -130,6 +141,10 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type) {
+        return newSchemaInstance(clazz, type, new ConsumerConfig());
+    }
+
+    private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:
             return (Schema<T>) Schema.BYTES;
@@ -142,7 +157,9 @@ public class TopicSchema {
             return (Schema<T>) Schema.STRING;
 
         case AVRO:
-            return AvroSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
+            return AvroSchema.of(SchemaDefinition.<T>builder()
+                    .withProperties(new HashMap<>(conf.getSchemaProperties()))
+                    .withPojo(clazz).build());
 
         case JSON:
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
@@ -169,10 +186,15 @@ public class TopicSchema {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader) {
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader){
+        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, classLoader);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input, ClassLoader classLoader) {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
-
+        String schemaTypeOrClassName = conf.getSchemaType();
         if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
             return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz));
@@ -187,7 +209,7 @@ public class TopicSchema {
 
         if (schemaType != null) {
             // The parameter passed was indeed a valid builtin schema type
-            return newSchemaInstance(clazz, schemaType);
+            return newSchemaInstance(clazz, schemaType, conf);
         }
 
         // At this point, the string can represent either a schema or serde class name. Create an instance and
@@ -207,6 +229,11 @@ public class TopicSchema {
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
-        return newSchemaInstance(topic, clazz, schemaTypeOrClassName, input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, Thread.currentThread().getContextClassLoader());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
+        return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
     }
 }

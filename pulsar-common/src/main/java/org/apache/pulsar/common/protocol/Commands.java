@@ -106,6 +106,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -567,24 +569,21 @@ public class Commands {
         subscribeBuilder.setForceTopicCreation(createTopicIfDoesNotExist);
 
         if (keySharedPolicy != null) {
-            switch (keySharedPolicy.getKeySharedMode()) {
-                case AUTO_SPLIT:
-                    subscribeBuilder.setKeySharedMeta(PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.AUTO_SPLIT));
-                    break;
-                case STICKY:
-                    PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.STICKY);
-                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
-                            .getRanges();
-                    for (Range range : ranges) {
-                        builder.addHashRanges(PulsarApi.IntRange.newBuilder()
-                                .setStart(range.getStart())
-                                .setEnd(range.getEnd()));
-                    }
-                    subscribeBuilder.setKeySharedMeta(builder);
-                    break;
+            KeySharedMeta.Builder keySharedMetaBuilder = PulsarApi.KeySharedMeta.newBuilder();
+            keySharedMetaBuilder.setAllowOutOfOrderDelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
+            keySharedMetaBuilder.setKeySharedMode(convertKeySharedMode(keySharedPolicy.getKeySharedMode()));
+
+            if (keySharedPolicy instanceof KeySharedPolicy.KeySharedPolicySticky) {
+                List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
+                        .getRanges();
+                for (Range range : ranges) {
+                    keySharedMetaBuilder.addHashRanges(PulsarApi.IntRange.newBuilder()
+                            .setStart(range.getStart())
+                            .setEnd(range.getEnd()));
+                }
             }
+
+            subscribeBuilder.setKeySharedMeta(keySharedMetaBuilder.build());
         }
 
         if (startMessageId != null) {
@@ -609,6 +608,16 @@ public class Commands {
             schema.recycle();
         }
         return res;
+    }
+
+
+    private static KeySharedMode convertKeySharedMode(org.apache.pulsar.client.api.KeySharedMode mode) {
+        switch (mode) {
+        case AUTO_SPLIT: return KeySharedMode.AUTO_SPLIT;
+        case STICKY: return KeySharedMode.STICKY;
+        default:
+            throw new IllegalArgumentException("Unexpected key shared mode: " + mode);
+        }
     }
 
     public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
