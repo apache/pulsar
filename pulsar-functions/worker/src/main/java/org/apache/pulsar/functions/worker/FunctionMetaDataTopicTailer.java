@@ -49,6 +49,7 @@ public class FunctionMetaDataTopicTailer
                 .topic(workerConfig.getFunctionMetadataTopic())
                 .startMessageId(MessageId.earliest)
                 .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-manager")
                 .create();
         readerThread = new Thread(this);
         readerThread.setName("function-metadata-tailer-thread");
