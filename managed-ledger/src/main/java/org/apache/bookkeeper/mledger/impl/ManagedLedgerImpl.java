@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -31,12 +30,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,11 +41,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -67,7 +64,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -181,6 +177,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex trimmerMutex = new CallbackMutex();
 
     private final CallbackMutex offloadMutex = new CallbackMutex();
+    private final CallbackMutex propertiesMutex = new CallbackMutex();
     private final static CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.latest);
     private volatile LedgerHandle currentLedger;
@@ -3192,9 +3189,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void setProperties(Map<String, String> properties) throws InterruptedException {
+    public void setProperties(Map<String, String> properties, boolean isOverwrite) throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
-        this.asyncSetProperties(properties, new SetPropertiesCallback() {
+        this.asyncSetProperties(properties, isOverwrite, new SetPropertiesCallback() {
             @Override
             public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
                 latch.countDown();
@@ -3202,7 +3199,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}] Update manageLedger's info failed:{}", name, exception.getMessage());
+                log.error("[{}] Update managedLedger's info failed:{}", name, exception.getMessage());
                 latch.countDown();
             }
         }, null);
@@ -3211,14 +3208,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void asyncSetProperties(Map<String, String> properties, final SetPropertiesCallback callback, Object ctx) {
+    public void asyncSetProperties(Map<String, String> properties, boolean isOverwrite,
+                                   final SetPropertiesCallback callback,
+                                   Object ctx) {
+        propertiesMutex.lock();
         store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo result, Stat version) {
                 ledgersStat = version;
-                // Update manageLedger's  properties.
+                // Update managedLedger's  properties.
                 ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
-                info.clearProperties();
+                if (isOverwrite) {
+                    info.clearProperties();
+                }
                 for (Map.Entry<String, String> property : properties.entrySet()) {
                     info.addProperties(MLDataFormats.KeyValue.newBuilder().setKey(property.getKey()).setValue(property.getValue()));
                 }
@@ -3227,22 +3229,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     public void operationComplete(Void result, Stat version) {
                         ledgersStat = version;
                         propertiesMap.clear();
-                        propertiesMap.putAll(properties);
-                        callback.setPropertiesComplete(properties, ctx);
+                        for (int i = 0; i < info.getPropertiesCount(); i++) {
+                            MLDataFormats.KeyValue property = info.getProperties(i);
+                            propertiesMap.put(property.getKey(), property.getValue());
+                        }
+                        callback.setPropertiesComplete(propertiesMap, ctx);
+                        propertiesMutex.unlock();
                     }
 
                     @Override
                     public void operationFailed(MetaStoreException e) {
-                        log.error("[{}] Update manageLedger's info failed:{}", name, e.getMessage());
+                        log.error("[{}] Update managedLedger's info failed:{}", name, e.getMessage());
                         callback.setPropertiesFailed(e, ctx);
+                        propertiesMutex.unlock();
                     }
                 });
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Get manageLedger's info failed:{}", name, e.getMessage());
+                log.error("[{}] Get managedLedger's info failed:{}", name, e.getMessage());
                 callback.setPropertiesFailed(e, ctx);
+                propertiesMutex.unlock();
             }
         });
     }

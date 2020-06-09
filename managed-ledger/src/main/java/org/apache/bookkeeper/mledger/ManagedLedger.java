@@ -20,10 +20,8 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
-
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -454,17 +452,22 @@ public interface ManagedLedger {
      * Update managed-ledger's properties.
      *
      * @param properties key-values of properties
+     * @param isOverwrite set true to overwrite original value of managed-ledger's properties;
+     *                    set false to append the properties to managed-ledger's properties.
      */
-    void setProperties(Map<String, String> properties) throws InterruptedException;
+    void setProperties(Map<String, String> properties, boolean isOverwrite) throws InterruptedException;
 
     /**
      * Async update managed-ledger's properties.
      *
      * @param properties key-values of properties.
+     * @param isOverwrite set true to overwrite original value of managed-ledger's properties;
+     *                    set false to append the properties to managed-ledger's properties.
      * @param callback   a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx        a context object which will be passed to the callback on completion.
      */
-    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.SetPropertiesCallback callback,
+    void asyncSetProperties(Map<String, String> properties, boolean isOverwrite,
+                            final AsyncCallbacks.SetPropertiesCallback callback,
         Object ctx);
   
     /**
