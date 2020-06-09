@@ -636,6 +636,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         messageExpiryMonitor.shutdown();
         compactionMonitor.shutdown();
         ledgerFullMonitor.shutdown();
+        messagePublishBufferMonitor.shutdown();
+        consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();
@@ -902,9 +904,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                 boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
                 String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication( //
-                                conf.getBrokerClientAuthenticationPlugin(), //
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl)
+                        .authentication(
+                                conf.getBrokerClientAuthenticationPlugin(),
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
@@ -1942,7 +1944,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName topicName) {
         if(pulsar.getNamespaceService() == null){
-            return FutureUtil.failedFuture(new NullPointerException("namespaceService is null"));
+            return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
         return pulsar.getNamespaceService().checkTopicExists(topicName)
                 .thenCompose(topicExists -> {

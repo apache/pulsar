@@ -383,12 +383,12 @@ public class ManagedCursorContainerTest {
         container.removeCursor(cursor1.getName());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(4, 0));
 
-        assertFalse(container.isEmpty());
+        assertTrue(container.hasDurableCursors());
 
         container.removeCursor(cursor4.getName());
         assertNull(container.getSlowestReaderPosition());
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
 
         ManagedCursor cursor6 = new MockManagedCursor(container, "test6", new PositionImpl(6, 5));
         container.add(cursor6);
@@ -487,7 +487,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(7, 1));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 
     @Test
@@ -552,7 +552,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 
     @Test
@@ -617,6 +617,6 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 }
