@@ -97,12 +97,15 @@
 </ul>
 <p>使用 Pulsar 的 <strong>reader 介面接口</strong>, 應用程序可以手動管理 cursor。 在許多的使用情境，一個信息系統能否提供 topic 讀取倒帶 (rewind) 到指定的點位並且從那個位置開始重讀信息至為關鍵。 Reader 界面接口讓 Pulsar 客戶端在信息系統提供了一種底層抽象“手動管理點位”的實現。</p>
 <p>在 Pulsar 內部，reader 介面接口透過使用專有的、非持久的、具有隨機分配名稱 topic subscription 的 consumer 來實現。</p>
+<p>[ <strong>IMPORTANT</strong> ]</p>
+<p>Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is <strong><em>strongly</em></strong> advised that <a href="/docs/zh-TW/next/cookbooks-retention-expiry">data retention</a> be configured. If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted . This will cause readers to essentially skip messages. Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.</p>
+<p>Please also note that a reader can have a &quot;backlog&quot;, but the metric is just to allow users to know how behind the reader is and is not considered for any backlog quota calculations.</p>
 <p><img src="/docs/assets/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces"></p>
 <blockquote>
 <h3><a class="anchor" aria-hidden="true" id="只適用於-non-partitioned-topics"></a><a href="#只適用於-non-partitioned-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>只適用於 non-partitioned topics</h3>
 <p>目前 Pulsar 的 reader 接口介面無法在 <a href="/docs/zh-TW/next/concepts-messaging#partitioned-topics">partitioned topic</a> 上使用。</p>
 </blockquote>
-<p>下面是一個使用 Java 語言實現的從 topic 上最早可用信息的位置開始消費的範例 :</p>
+<p>Here's a Java example that begins reading from the earliest available message on a topic:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Message;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.MessageId;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Reader;
@@ -119,13 +122,13 @@ Reader&lt;<span class="hljs-keyword">byte</span>[]&gt; reader = pulsarClient.new
     <span class="hljs-comment">// Process the message</span>
 }
 </code></pre>
-<p>創建一個從最新可用信息處開始讀取信息的 reader:</p>
+<p>To create a reader that will read from the latest available message:</p>
 <pre><code class="hljs css language-java">Reader&lt;<span class="hljs-keyword">byte</span>[]&gt; reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.latest)
     .create();
 </code></pre>
-<p>創建一個從指定某一個信息 ID 的位置（非最早可用且非最新可用消息處）讀取信息的 reader:</p>
+<p>To create a reader that will read from some message between earliest and latest:</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">byte</span>[] msgIdBytes = <span class="hljs-comment">// Some byte array</span>
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader&lt;<span class="hljs-keyword">byte</span>[]&gt; reader = pulsarClient.newReader()

@@ -7,6 +7,7 @@ org.apache.pulsar.broker.admin.v2
 org.apache.pulsar.broker.admin.v3
 org.apache.pulsar.broker.cache
 org.apache.pulsar.broker.delayed
+org.apache.pulsar.broker.intercept
 org.apache.pulsar.broker.loadbalance
 org.apache.pulsar.broker.loadbalance.impl
 org.apache.pulsar.broker.lookup
