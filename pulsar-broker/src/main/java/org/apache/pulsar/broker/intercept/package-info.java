@@ -16,24 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.sink;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.common.functions.FunctionConfig;
-
-import java.util.Map;
-
-@Getter
-@Setter
-@ToString
-public class PulsarSinkConfig {
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private String topic;
-    private String serdeClassName;
-    private String schemaType;
-    private Map<String, String> schemaProperties;
-    private String typeClassName;
-    private boolean forwardSourceMessageProperty;
-}
+/**
+ * Pulsar broker interceptor.
+ */
+package org.apache.pulsar.broker.intercept;

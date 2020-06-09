@@ -16,36 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.broker.intercept;
 
-import java.util.HashMap;
-import java.util.Map;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 
+public class MockBrokerInterceptor implements BrokerInterceptor {
 
-/**
- * Configuration of a consumer.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ConsumerConfig {
-    private String schemaType;
-    private String serdeClassName;
-    private boolean isRegexPattern;
-    @Builder.Default
-    private Map<String, String> schemaProperties = new HashMap<>();
-    private Integer receiverQueueSize;
-
-    public ConsumerConfig(String schemaType) {
-        this.schemaType = schemaType;
+    @Override
+    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) {
+        // no-op
     }
 
+    @Override
+    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
+        // no-op
+    }
+
+    @Override
+    public void initialize(ServiceConfiguration conf) throws Exception {
+        // no-op
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
 }

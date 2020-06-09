@@ -2624,6 +2624,11 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             validateReadOperationOnTopic(authoritative);
             topic = getTopicReference(topicName);
+        } catch (WebApplicationException wae) {
+            log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
+                    clientAppId(), topicName, wae);
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to get last messageId {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
