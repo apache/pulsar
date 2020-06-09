@@ -62,7 +62,7 @@ public class Worker {
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.workerService = new WorkerService(workerConfig);
-        this.errorNotifier = new ErrorNotifier();
+        this.errorNotifier = ErrorNotifier.getDefaultImpl();
     }
 
     protected void start() throws Exception {

@@ -16,26 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.worker;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
 
-import java.io.Serializable;
+@Slf4j
+public class ErrorNotifierShutdownServiceImpl implements ErrorNotifier {
+    private static final long serialVersionUID = 1L;
+    private final ZooKeeperSessionWatcher.ShutdownService shutdownService;
 
-public interface ErrorNotifier extends Serializable, AutoCloseable {
-  
-  void triggerError(Throwable th);
+    public ErrorNotifierShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
+        this.shutdownService = shutdownService;
+    }
 
-  void waitForError() throws Exception;
+    @Override
+    public void triggerError(Throwable th) {
+        log.error("Encountered fatal error. Shutting down.", th);
+        shutdownService.shutdown(-1);
+    }
 
-  void close();
-  
-  static ErrorNotifier getDefaultImpl() {
-    return new ErrorNotifierImpl();
-  }
+    @Override
+    public void waitForError() throws Exception {
+        throw new IllegalArgumentException("Invalid operation for implementation");
+    }
 
-  static ErrorNotifier getShutdownServiceImpl(ZooKeeperSessionWatcher.ShutdownService shutdownService) {
-    return new ErrorNotifierShutdownServiceImpl(shutdownService);
-  }
-  
+    @Override
+    public void close() {
+        //no-op
+    }
 }
