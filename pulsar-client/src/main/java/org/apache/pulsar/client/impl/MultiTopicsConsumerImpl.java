@@ -394,6 +394,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 pendingBatchReceives.add(OpBatchReceive.of(result));
             }
+            resumeReceivingFromPausedConsumersIfNeeded();
         } finally {
             lock.writeLock().unlock();
         }
