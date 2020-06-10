@@ -110,6 +110,10 @@ public class PulsarClusterMetadataSetup {
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
+        @Parameter(names = {
+            "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
+        private String bkMetadataServiceUri;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
     }
@@ -150,7 +154,7 @@ public class PulsarClusterMetadataSetup {
         }
 
         if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) supercedes the deprecated (--global-zookeeper) argument");
+            System.err.println("Configuration store argument (--configuration-store) supersedes the deprecated (--global-zookeeper) argument");
             jcommander.usage();
             System.exit(1);
         }
@@ -172,16 +176,19 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        bkConf.setZkServers(arguments.zookeeper);
-        bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
-            throw new IOException("Failed to initialize BookKeeper metadata");
+        if (arguments.bkMetadataServiceUri == null) {
+            bkConf.setZkServers(arguments.zookeeper);
+            bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
+            if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
+                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+                throw new IOException("Failed to initialize BookKeeper metadata");
+            }
         }
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            ServiceURI bkMetadataServiceUri = ServiceURI.create(bkConf.getMetadataServiceUri());
+            String uriStr = arguments.bkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.bkMetadataServiceUri;
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }
