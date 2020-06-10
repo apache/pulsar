@@ -802,7 +802,7 @@ public class PulsarClientException extends IOException {
             return new CryptoException(msg);
         } else if (t instanceof ConsumerAssignException) {
             return new ConsumerAssignException(msg);
-        } if (t instanceof PulsarClientException) {
+        } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
             return t;
