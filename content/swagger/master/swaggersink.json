@@ -815,6 +815,12 @@
         "serdeClassName" : {
           "type" : "string"
         },
+        "schemaProperties" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
         "receiverQueueSize" : {
           "type" : "integer",
           "format" : "int32"
@@ -891,6 +897,12 @@
           "type" : "string"
         },
         "topicToSchemaType" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "topicToSchemaProperties" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"

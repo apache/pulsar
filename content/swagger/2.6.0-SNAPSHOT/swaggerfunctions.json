@@ -936,6 +936,12 @@
         "serdeClassName" : {
           "type" : "string"
         },
+        "schemaProperties" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
         "receiverQueueSize" : {
           "type" : "integer",
           "format" : "int32"
@@ -1042,6 +1048,12 @@
           "type" : "string"
         },
         "customSchemaInputs" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "customSchemaOutputs" : {
           "type" : "object",
           "additionalProperties" : {
             "type" : "string"
@@ -1373,6 +1385,9 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "replicated" : {
+          "type" : "boolean"
+        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1383,13 +1398,6 @@
         },
         "topicName" : {
           "type" : "string"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "replicated" : {
-          "type" : "boolean"
         },
         "replicatedFrom" : {
           "type" : "string"
@@ -1420,6 +1428,10 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "keyBytes" : {
           "type" : "array",
