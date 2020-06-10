@@ -9,9 +9,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggerfunctions"
             ]
         }
     ],
@@ -25,9 +25,9 @@
         {
             "version": "v3",
             "fileName": [
+                "swaggerfunctions",
                 "swaggersink",
-                "swaggersource",
-                "swaggerfunctions"
+                "swaggersource"
             ]
         }
     ],
@@ -89,8 +89,8 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
+                "swaggerfunctions",
                 "swaggersource"
             ]
         }

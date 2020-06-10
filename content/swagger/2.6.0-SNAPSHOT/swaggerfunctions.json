@@ -1385,9 +1385,6 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "replicated" : {
-          "type" : "boolean"
-        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
@@ -1399,10 +1396,17 @@
         "topicName" : {
           "type" : "string"
         },
-        "replicatedFrom" : {
-          "type" : "string"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
           "type" : "string"
         },
         "redeliveryCount" : {
@@ -1428,10 +1432,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "keyBytes" : {
           "type" : "array",
