@@ -14,6 +14,10 @@ Producers and consumers need some kind of mechanism for coordinating types at th
 
 Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
 
+#### Note
+>
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-cgo.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
+
 ### Client-side approach
 
 Producers and consumers are responsible for not only serializing and deserializing messages (which consist of raw bytes) but also "knowing" which types are being transmitted via which topics. 
