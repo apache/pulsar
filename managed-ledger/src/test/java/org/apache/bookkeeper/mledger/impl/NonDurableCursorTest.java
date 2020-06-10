@@ -689,7 +689,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor nonDurableCursor = ledger.newNonDurableCursor(PositionImpl.earliest);
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
-        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 0);
 
         List<Position> positions = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
@@ -697,11 +697,11 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         }
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 10);
-        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(), 10);
+        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 10);
 
         c1.markDelete(positions.get(4));
         assertEquals(c1.getNumberOfEntries(), 5);
-        assertEquals(c1.getNumberOfEntriesInBacklog(), 5);
+        assertEquals(c1.getNumberOfEntriesInBacklog(true), 5);
 
         // Since the durable cursor has moved, the data will be trimmed
         CompletableFuture<Void> promise = new CompletableFuture<>();
@@ -709,7 +709,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         promise.join();
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 6);
-        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(), 6);
+        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 6);
 
         c1.close();
         ledger.deleteCursor(c1.getName());
@@ -718,7 +718,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         promise.join();
 
         assertEquals(nonDurableCursor.getNumberOfEntries(), 1);
-        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(), 1);
+        assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 1);
 
         ledger.close();
     }
