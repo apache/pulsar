@@ -17,6 +17,7 @@
  * under the License.
  */
 #include "PartitionedConsumerImpl.h"
+#include "MultiResultCallback.h"
 
 DECLARE_LOG_OBJECT()
 
@@ -552,9 +553,14 @@ void PartitionedConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callb
         callback(ResultAlreadyClosed);
         return;
     }
+
+    // consumers_ could only be modified when state_ is Ready, so we needn't lock consumersMutex_ here
+    ConsumerList consumerList = consumers_;
     stateLock.unlock();
-    for (ConsumerList::const_iterator i = consumers_.begin(); i != consumers_.end(); i++) {
-        (*i)->seekAsync(timestamp, callback);
+
+    MultiResultCallback multiResultCallback(callback, consumers_.size());
+    for (ConsumerList::const_iterator i = consumerList.begin(); i != consumerList.end(); i++) {
+        (*i)->seekAsync(timestamp, multiResultCallback);
     }
 }
 
