@@ -28,14 +28,20 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class FunctionAssignmentTailer implements AutoCloseable {
 
     private final FunctionRuntimeManager functionRuntimeManager;
+    private final ReaderBuilder readerBuilder;
+    private final WorkerConfig workerConfig;
     @Getter
-    private final Reader<byte[]> reader;
+    private Reader<byte[]> reader;
     private volatile boolean isRunning = false;
+    private volatile boolean exitOnEndOfTopic = false;
+    private CompletableFuture<Void> hasExited;
 
     private final Thread tailerThread;
     
@@ -45,20 +51,22 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             WorkerConfig workerConfig,
             ErrorNotifier errorNotifier) throws PulsarClientException {
         this.functionRuntimeManager = functionRuntimeManager;
-        
-        this.reader = readerBuilder
-          .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-runtime-manager")
-          .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
-          .topic(workerConfig.getFunctionAssignmentTopic())
-          .readCompacted(true)
-          .startMessageId(MessageId.earliest)
-          .create();
+        this.hasExited = new CompletableFuture<>();
+        this.readerBuilder = readerBuilder;
+        this.workerConfig = workerConfig;
+        this.reader = createReader();
         
         this.tailerThread = new Thread(() -> {
             while(isRunning) {
                 try {
-                    Message<byte[]> msg = reader.readNext();
-                    processAssignment(msg);
+                    Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                            break;
+                        } 
+                    } else {
+                        processAssignment(msg);
+                    }
                 } catch (Throwable th) {
                     if (isRunning) {
                         log.error("Encountered error in assignment tailer", th);
@@ -70,33 +78,64 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                             log.warn("Encountered error when assignment tailer is not running", th);
                         }
                     }
-
                 }
             }
+            log.info("tailer thread exiting...");
+            hasExited.complete(null);
         });
         this.tailerThread.setName("assignment-tailer-thread");
     }
 
-    public void start() {
-        isRunning = true;
-        tailerThread.start();
+    public CompletableFuture<Void> triggerReadToTheEndAndExit() {
+        exitOnEndOfTopic = true;
+        return this.hasExited;
     }
 
+    public synchronized void start() throws PulsarClientException {
+        if (!isRunning) {
+            isRunning = true;
+            if (reader == null) {
+                reader = createReader();
+            }
+            tailerThread.start();
+        }
+    }
+    
+
     @Override
-    public void close() {
-        log.info("Stopping function assignment tailer");
+    public synchronized void close() {
+        log.info("Closing function assignment tailer");
         try {
             isRunning = false;
-            if (tailerThread != null && tailerThread.isAlive()) {
-                tailerThread.interrupt();
-            }
+
+            if (tailerThread != null) {
+                while (true) {
+                    tailerThread.interrupt();
+
+                    try {
+                        tailerThread.join(5000, 0);
+                    } catch (InterruptedException e) {
+                        log.warn("Waiting for assignment tailer thread to stop is interrupted", e);
+                    }
+
+                    if (tailerThread.isAlive()) {
+                        log.warn("Assignment tailer thread is still alive.  Will attempt to interrupt again.");
+                    } else {
+                        break;
+                    }
+                }
+            }            
             if (reader != null) {
                 reader.close();
+                reader = null;
             }
+
+            hasExited = new CompletableFuture<>();
+            exitOnEndOfTopic = false;
+            
         } catch (IOException e) {
             log.error("Failed to stop function assignment tailer", e);
         }
-        log.info("Stopped function assignment tailer");
     }
 
     public void processAssignment(Message<byte[]> msg) {
@@ -115,5 +154,15 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             log.info("Received assignment update: {}", assignment);
             this.functionRuntimeManager.processAssignment(assignment);
         }
+    }
+    
+    private Reader<byte[]> createReader() throws PulsarClientException {
+        return readerBuilder
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-runtime-manager")
+                .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
+                .topic(workerConfig.getFunctionAssignmentTopic())
+                .readCompacted(true)
+                .startMessageId(MessageId.earliest)
+                .create();
     }
 }

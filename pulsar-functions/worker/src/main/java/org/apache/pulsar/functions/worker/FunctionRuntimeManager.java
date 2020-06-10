@@ -27,6 +27,7 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
@@ -109,6 +110,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     final WorkerConfig workerConfig;
 
+    @Getter
     private FunctionAssignmentTailer functionAssignmentTailer;
 
     @Setter
@@ -210,7 +212,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * 2. After current assignments are read, assignments belonging to this worker will be processed
      */
     public void initialize() {
-        log.info("/** Initializing Runtime Manager **/");
         try {
             this.functionAssignmentTailer = new FunctionAssignmentTailer(
                     this,
@@ -243,8 +244,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     /**
      * Starts the function runtime manager
      */
-    public void start() {
-        log.info("/** Starting Function Runtime Manager **/");
+    public void start() throws PulsarClientException {
         this.functionAssignmentTailer.start();
     }
 

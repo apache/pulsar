@@ -99,7 +99,7 @@ public class MembershipManagerTest {
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
-        MembershipManager membershipManager = spy(new MembershipManager(workerService, mockClient, mockAdmin));
+        LeaderService membershipManager = spy(new LeaderService(workerService, mockClient, mock(FunctionAssignmentTailer.class), ErrorNotifier.getDefaultImpl()));
         assertFalse(membershipManager.isLeader());
         verify(mockClient, times(1))
             .newConsumer();

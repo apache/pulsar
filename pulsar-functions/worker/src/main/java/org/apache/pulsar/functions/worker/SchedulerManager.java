@@ -18,19 +18,31 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -59,9 +71,14 @@ import lombok.extern.slf4j.Slf4j;
 public class SchedulerManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
+    private final ErrorNotifier errorNotifier;
+    private final ThreadPoolExecutor executorService;
 
     @Setter
     private FunctionMetaDataManager functionMetaDataManager;
+
+    @Setter
+    private LeaderService leaderService;
 
     @Setter
     private MembershipManager membershipManager;
@@ -73,25 +90,36 @@ public class SchedulerManager implements AutoCloseable {
 
     private final Producer<byte[]> producer;
 
-    private final ScheduledExecutorService executorService;
+
+    private final ScheduledExecutorService scheduledExecutorService;
     
     private final PulsarAdmin admin;
+
+    @Getter
+    private Lock schedulerLock = new ReentrantLock(true);
     
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
     public static final String HEARTBEAT_TENANT = "pulsar-function";
     public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
-    public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient, PulsarAdmin admin, ScheduledExecutorService executor) {
+    public SchedulerManager(WorkerConfig workerConfig,
+                            PulsarClient pulsarClient,
+                            PulsarAdmin admin,
+                            ErrorNotifier errorNotifier) {
         this.workerConfig = workerConfig;
         this.admin = admin;
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
         this.producer = createProducer(pulsarClient, workerConfig);
-        this.executorService = executor;
+        this.executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(5));
+        this.executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
+        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
+        this.errorNotifier = errorNotifier;
         
-        scheduleCompaction(executor, workerConfig.getTopicCompactionFrequencySec());
+        scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
     }
 
     private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
@@ -137,25 +165,35 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public Future<?> schedule() {
-        return executorService.submit(() -> {
-            synchronized (SchedulerManager.this) {
-                boolean isLeader = membershipManager.isLeader();
-                if (isLeader) {
-                    try {
-                        invokeScheduler();
-                    } catch (Exception e) {
-                        log.warn("Failed to invoke scheduler", e);
-                        throw e;
+        try {
+            return executorService.submit(() -> {
+                try {
+                    schedulerLock.lock();
+
+                    boolean isLeader = leaderService.isLeader();
+                    if (isLeader) {
+                        try {
+                            invokeScheduler();
+                        } catch (Throwable th) {
+                            log.error("Encountered error when invoking scheduler", th);
+                            errorNotifier.triggerError(th);
+                        }
                     }
+                } finally {
+                    schedulerLock.unlock();
                 }
-            }
-        });
+            });
+        } catch (RejectedExecutionException e) {
+            // task queue is full so just ignore
+            log.debug("Rejected task to invoke scheduler since task queue is already full");
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
         if (executor != null) {
             executor.scheduleWithFixedDelay(() -> {
-                if (membershipManager.isLeader() && isCompactionNeeded.get()) {
+                if (leaderService.isLeader() && isCompactionNeeded.get()) {
                     compactAssignmentTopic();
                     isCompactionNeeded.set(false);
                 }
@@ -166,18 +204,19 @@ public class SchedulerManager implements AutoCloseable {
     @VisibleForTesting
     public void invokeScheduler() {
         
-        Set<String> currentMembership = this.membershipManager.getCurrentMembership()
+        Set<String> currentMembership = membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
 
-        List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
+        List<FunctionMetaData> allFunctions = functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions, functionRuntimeManager.getRuntimeFactory().externallyManaged());
-        Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
+        Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager
                 .getCurrentAssignments();
 
         //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
+            String workerId = workerIdToAssignmentEntry.getKey();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
 
             // remove instances that don't exist anymore
@@ -185,7 +224,12 @@ public class SchedulerManager implements AutoCloseable {
                 String fullyQualifiedInstanceId = entry.getKey();
                 boolean deleted = !allInstances.containsKey(fullyQualifiedInstanceId);
                 if (deleted) {
-                    publishNewAssignment(entry.getValue().toBuilder().build(), true);
+                    Assignment assignment = entry.getValue();
+                    publishNewAssignment(assignment.toBuilder().build(), true);
+                    
+                    // Directly update in memory assignment cache since I am leader
+                    log.info("Deleting assignment: {}", assignment);
+                    functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
                 }
                 return deleted;
             });
@@ -198,11 +242,16 @@ public class SchedulerManager implements AutoCloseable {
 
                 if (!assignment.getInstance().equals(instance)) {
                     functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
-                    publishNewAssignment(assignment.toBuilder().setInstance(instance).build().toBuilder().build(), false);
+                    Assignment newAssignment = assignment.toBuilder().setInstance(instance).build().toBuilder().build();
+                    publishNewAssignment(newAssignment, false);
+
+                    // Directly update in memory assignment cache since I am leader
+                    log.info("Updating assignment: {}", assignment);
+                    functionRuntimeManager.processAssignment(newAssignment);
                 }
-            }
-            if (functionMap.isEmpty()) {
-                it.remove();
+                if (functionMap.isEmpty()) {
+                    it.remove();
+                }
             }
         }
 
@@ -222,10 +271,10 @@ public class SchedulerManager implements AutoCloseable {
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
                 .collect(Collectors.toList());
 
-        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances = this.getUnassignedFunctionInstances(workerIdToAssignments,
-                allInstances);
+        Pair<List<Function.Instance>, List<Assignment>> unassignedInstances 
+                = getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
 
-        List<Assignment> assignments = this.scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
+        List<Assignment> assignments = scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
         assignments.addAll(unassignedInstances.getRight());
 
         if (log.isDebugEnabled()) {
@@ -236,6 +285,10 @@ public class SchedulerManager implements AutoCloseable {
 
         for(Assignment assignment : assignments) {
             publishNewAssignment(assignment, false);
+
+            // Directly update in memory assignment cache since I am leader
+            log.info("Adding assignment: {}", assignment);
+            functionRuntimeManager.processAssignment(assignment);
         }
         
     }
@@ -246,7 +299,7 @@ public class SchedulerManager implements AutoCloseable {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
             } catch (PulsarAdminException e) {
                 log.error("Failed to trigger compaction", e);
-                executorService.schedule(() -> compactAssignmentTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
+                scheduledExecutorService.schedule(() -> compactAssignmentTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
                         TimeUnit.SECONDS);
             }
         }
@@ -258,7 +311,7 @@ public class SchedulerManager implements AutoCloseable {
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
             producer.newMessage().key(fullyQualifiedInstanceId)
-                    .value(deleted ? "".getBytes() : assignment.toByteArray()).sendAsync().get();
+                    .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
         } catch (Exception e) {
             log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
             throw new RuntimeException(e);
@@ -324,6 +377,10 @@ public class SchedulerManager implements AutoCloseable {
 
     @Override
     public void close() {
+        scheduledExecutorService.shutdown();
+
+        executorService.shutdown();
+
         try {
             this.producer.close();
         } catch (PulsarClientException e) {
