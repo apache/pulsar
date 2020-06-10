@@ -30,6 +30,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.11, 1.12, 1.13, 1.14]
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -43,11 +46,11 @@ jobs:
         with:
           args: site2 .github deployment .asf.yaml .ci ct.yaml
 
-      - name: Set up Go 1.12
+      - name: Set up Go
         uses: actions/setup-go@v1
         if: steps.docs.outputs.changed_only == 'no'
         with:
-          go-version: 1.12
+          go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool

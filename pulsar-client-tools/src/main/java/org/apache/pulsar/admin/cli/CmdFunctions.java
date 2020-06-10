@@ -232,8 +232,10 @@ public class CmdFunctions extends CmdBase {
         protected String DEPRECATED_customSerdeInputString;
         @Parameter(names = "--custom-serde-inputs", description = "The map of input topics to SerDe class names (as a JSON string)")
         protected String customSerdeInputString;
-        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema class names (as a JSON string)")
+        @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema properties (as a JSON string)")
         protected String customSchemaInputString;
+        @Parameter(names = "--custom-schema-outputs", description = "The map of input topics to Schema properties (as a JSON string)")
+        protected String customSchemaOutputString;
         @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
         protected String inputSpecs;
         // for backwards compatibility purposes
@@ -370,6 +372,11 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>() {}.getType();
                 Map<String, String> customschemaInputMap = new Gson().fromJson(customSchemaInputString, type);
                 functionConfig.setCustomSchemaInputs(customschemaInputMap);
+            }
+            if (null != customSchemaOutputString) {
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                Map<String, String> customSchemaOutputMap = new Gson().fromJson(customSchemaOutputString, type);
+                functionConfig.setCustomSchemaOutputs(customSchemaOutputMap);
             }
             if (null != inputSpecs) {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();

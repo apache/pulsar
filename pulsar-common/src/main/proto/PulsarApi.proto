@@ -290,6 +290,7 @@ enum KeySharedMode {
 message KeySharedMeta {
     required KeySharedMode keySharedMode = 1;
     repeated IntRange hashRanges = 3;
+    optional bool allowOutOfOrderDelivery = 4 [default = false];
 }
 
 message CommandSubscribe {

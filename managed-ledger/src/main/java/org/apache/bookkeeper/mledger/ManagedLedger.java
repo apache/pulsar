@@ -151,7 +151,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
+     *            the cursor will be set at latest position or not when first created
      *            default is <b>true</b>
      * @return the ManagedCursor
      * @throws ManagedLedgerException
@@ -166,7 +166,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
+     *            the cursor will be set at latest position or not when first created
      *            default is <b>true</b>
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
@@ -472,4 +472,9 @@ public interface ManagedLedger {
      * @param promise
      */
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
+
+    /**
+     * Roll current ledger if it is full
+     */
+    void rollCurrentLedgerIfFull();
 }

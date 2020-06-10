@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -353,6 +354,19 @@ public abstract class AdminResource extends PulsarWebResource {
         // second, "-partition-" is not allowed
         if (encodedTopic.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             throw new RestException(Status.PRECONDITION_FAILED, "Partitioned Topic Name should not contain '-partition-'");
+        }
+    }
+
+    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
+        String completeTopicName = tenant + "/" + namespace + "/" +  Codec.decode(encodedTopic);
+        try {
+            PartitionedTopicMetadata partitionedTopicMetadata =
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(completeTopicName)).get();
+            if (partitionedTopicMetadata.partitions < 1) {
+                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
+            }
+        } catch ( InterruptedException  | ExecutionException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
         }
     }
 

@@ -85,7 +85,8 @@ public class WorkerService {
 
     public void start(URI dlogUri,
                       AuthenticationService authenticationService,
-                      AuthorizationService authorizationService) throws InterruptedException {
+                      AuthorizationService authorizationService,
+                      ErrorNotifier errorNotifier) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
 
         try {
@@ -168,7 +169,7 @@ public class WorkerService {
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
-                    this.workerConfig, this.schedulerManager, this.client);
+                    this.workerConfig, this.schedulerManager, this.client, errorNotifier);
 
             this.connectorsManager = new ConnectorsManager(workerConfig);
             this.functionsManager = new FunctionsManager(workerConfig);
@@ -182,7 +183,14 @@ public class WorkerService {
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
-                this.workerConfig, this, this.dlogNamespace, this.membershipManager, connectorsManager, functionsManager, functionMetaDataManager);
+                    this.workerConfig,
+                    this,
+                    this.dlogNamespace,
+                    this.membershipManager,
+                    connectorsManager,
+                    functionsManager,
+                    functionMetaDataManager,
+                    errorNotifier);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
