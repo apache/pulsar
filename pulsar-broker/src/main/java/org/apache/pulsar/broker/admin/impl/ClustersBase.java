@@ -79,10 +79,12 @@ public class ClustersBase extends AdminResource {
             response = String.class,
             responseContainer = "Set")
     @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "You don;t have admin permission to list clusters."),
             @ApiResponse(code = 200, message = "Return a list of clusters."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
     public Set<String> getClusters() throws Exception {
+        validateSuperUserAccess();
         try {
             // Remove "global" cluster from returned list
             Set<String> clusters = clustersListCache().get().stream()
