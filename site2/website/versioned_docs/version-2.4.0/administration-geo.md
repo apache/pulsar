@@ -127,6 +127,12 @@ You can explicitly disable topic garbage collection by setting `brokerDeleteInac
 
 To delete a geo-replication topic, close all producers and consumers on the topic, and delete all of its local subscriptions in every replication cluster. When Pulsar determines that no valid subscription for the topic remains across the system, it will garbage collect the topic.
 
+## Replicated subscriptions
+
+Pulsar supports replicated subscriptions, so you can keep subscription state in sync, within a sub-second timeframe, in the context of a topic that is being asynchronously replicated across multiple geographical regions.
+
+In case of failover, a consumer can restart consuming from the failure point in a different cluster. 
+
 ### Enabling replicated subscription
 
 Replicated subscription is disabled by default. You can enable replicated subscription when creating a consumer. 
