@@ -107,6 +107,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>dashboard</module>
     <module>pulsar-broker-auth-sasl</module>
     <module>pulsar-client-auth-sasl</module>
+    <module>protobuf-shaded</module>
 
     <!-- transaction related modules -->
     <module>pulsar-transaction</module>
