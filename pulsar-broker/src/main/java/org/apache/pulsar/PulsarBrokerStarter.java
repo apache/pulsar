@@ -347,8 +347,8 @@ public class PulsarBrokerStarter {
 
         try {
             starter.start();
-        } catch (Exception e) {
-            log.error("Failed to start pulsar service.", e);
+        } catch (Throwable t) {
+            log.error("Failed to start pulsar service.", t);
             Runtime.getRuntime().halt(1);
         } finally {
             starter.join();
