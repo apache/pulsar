@@ -657,6 +657,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testHashRangeConflict() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
         final String topic = "testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
