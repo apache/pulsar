@@ -80,14 +80,20 @@
 <p>对于像 Pulsar 这样围绕消息总线搭建的应用程序来说，类型安全非常重要。</p>
 <p>Producer 和 consumer 需要某种机制，以在主题级别上协调类型，从而避免出现各种潜在问题。 例如，序列化和反序列化问题。</p>
 <p>应用程序通常采用以下方法来保证消息传递中的类型安全。 这两种方法都可以在 Pulsar 中使用，可以基于单个 topic 自由选择其中一种，也可以同时使用。</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+</blockquote>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-CN/next/client-libraries-java">Java client</a>, <a href="/docs/zh-CN/next/client-libraries-cgo">CGo client</a>, <a href="/docs/zh-CN/next/client-libraries-python">Python client</a>, and <a href="/docs/zh-CN/next/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="客户端方法"></a><a href="#客户端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端方法</h3>
 <p>Producer 和 consumer 不仅负责序列化和反序列化消息（由原始字节组成），还负责“确认”topic 正在传输的类型。</p>
 <p>如果 producer 正在发送关于<code>topic-1</code>的温度传感器数据，则该 topic 的 consumer 在尝试解析数据为湿度传感器读数时会遇到问题。</p>
 <p>Producer 和 consumer 可以发送并接收包含原始字节数组的消息，并在“带外”基础上将所有类型的安全强制措施留给应用程序。</p>
 <h3><a class="anchor" aria-hidden="true" id="服务器端方法"></a><a href="#服务器端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服务器端方法</h3>
 <p>Producer 和 consumer 通知系统可以通过该 topic 传输哪些类型的数据。</p>
-<p>通过这种方法，消息系统强制执行类型安全，并确保 producer 和 consumer 保持同步。</p>
-<p>Pulsar 具有内置的 <strong>schema registry</strong>，客户可以上传单个 topic 的数据 schema。 这些 schema 决定 topic 可以识别哪些数据类型。</p>
+<p>通过这种方法，消息系统强制执行类型安全, 并确保生产者和消费者保持同步。</p>
+<p>Pulsar 具有内置的 <strong>schema registry</strong>，客户可以上传单个 topic 的数据 schema。 这些schema显示了，topic可以识别哪些数据类型为有效。</p>
 <h2><a class="anchor" aria-hidden="true" id="为什么使用-schema"></a><a href="#为什么使用-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>为什么使用 schema</h2>
 <p>启用 schema 后，Pulsar 会解析数据，即接收字节作为输入并发送字节作为输出。 虽然数据不仅是字节，但的确需要解析这些数据，解析时还可能发生解析异常，解析异常主要出现在以下几种情况中：</p>
 <ul>
@@ -96,7 +102,7 @@
 </ul>
 <p>有几种方法可以避免并解决这些异常，例如，在解析错误时捕获异常会造成代码难以维护；采用 schema 管理系统来进化 schema，而不破坏下游应用程序；最大程度执行所使用语言的类型安全，Pulsar Schema 能够解决上述问题。</p>
 <p>在创建并处理从简单类型（如：<code>string</code>）到更复杂的因应用程序而异的数据类型时，通过 Pulsar schema 可以使用特定语言的数据类型。</p>
-<p><strong>示例</strong></p>
+<p><strong>Example</strong></p>
 <p>可以使用 <em>User</em> 类来定义发送到 Pulsar topic 的消息。</p>
 <pre><code class="hljs">public class User {
     String name;
@@ -106,7 +112,7 @@
 <p>在使用 <em>User</em> 类创建 producer 时，可以不指定 schema，也可以指定一个 schema。</p>
 <h3><a class="anchor" aria-hidden="true" id="无-schema-的情况"></a><a href="#无-schema-的情况" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>无 Schema 的情况</h3>
 <p>在不指定 schema 的情况下创建 producer，则 producer 只能 produce <code>byte[]</code> 类型的消息。 如果有 POJO 类，则需要在发送消息前将 POJO 序列化为字节。</p>
-<p><strong>示例</strong></p>
+<p><strong>Example</strong></p>
 <pre><code class="hljs">Producer&lt;byte[]&gt; producer = client.newProducer()
         .topic(topic)
         .create();
@@ -116,7 +122,7 @@ producer.send(message);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="有-schema-的情况"></a><a href="#有-schema-的情况" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>有 Schema 的情况</h3>
 <p>如果通过指定 schema 来创建 producer，则可以直接将类发送到 topic，而无需考虑如何将 POJO 序列化为字节。</p>
-<p><strong>示例</strong></p>
+<p><strong>Example</strong></p>
 <p>以下示例使用 <em>JSONSchema</em> 创建了一个 producer，并直接将 <em>User</em> 类发送给 topic，但无需考虑如何将类序列化为字节。</p>
 <pre><code class="hljs">Producer&lt;User&gt; producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)

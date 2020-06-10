@@ -79,6 +79,10 @@
 <p>Type safety is extremely important in any application built around a message bus like Pulsar.</p>
 <p>Producer 和 consumer 需要某種機制在 topic 級別上協調資料/事件的類型，以避免出現各種潛在問題。 例如，序列化和反序列化問題。</p>
 <p>應用程序通常採用以下方法之一來保證信息傳遞中的類型安全。 Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-TW/2.5.1/client-libraries-java">Java client</a>, <a href="/docs/zh-TW/2.5.1/client-libraries-cgo">CGo client</a>, <a href="/docs/zh-TW/2.5.1/client-libraries-python">Python client</a>, and <a href="/docs/zh-TW/2.5.1/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="客户端方法"></a><a href="#客户端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端方法</h3>
 <p>Producer 和 consumer 要負責了解如何對 topic 裡的信息進行序列化與反序列，同時得知道這個 topic 裡的信息是那一種資料/事件類型。</p>
 <p>如果 producer 正在發送有關溫度傳感器數據到<code>topic-1</code>，如果訂閱該 topic 的 consumer 在嘗試將其解析為濕度傳感器讀數時會遇到麻煩。</p>

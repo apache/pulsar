@@ -82,10 +82,11 @@
 <p>这两种方法都被Pulsar支持，你可以在topic的基础上，自由选择采用哪一种，或者混用。</p>
 <ol>
 <li>&quot;客户端&quot; 方法中, 生产者和消费者可以发送和接收由原始字节数组组成的消息, 并保留所有的类型安全在应用中，以“带外”基础上强制执行。</li>
-<li>&quot;服务器端&quot; 方法中，Pulsar有一个内置的 <strong>schema registry</strong>，它使客户端能够根据每个topic载入数据schema。 这些schema显示了，topic可以识别哪些数据类型为有效。</li>
+<li>For the &quot;server-side&quot; approach, Pulsar has a built-in <strong>schema registry</strong> that enables clients to upload data schemas on a per-topic basis. 这些schema显示了，topic可以识别哪些数据类型为有效。</li>
 </ol>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
 <blockquote>
-<p>Pulsar的schema注册当前仅能在 <a href="/docs/zh-CN/2.4.0/client-libraries-java">Java 客户端</a>使用。</p>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-CN/2.4.0/client-libraries-java">Java client</a>, <a href="/docs/zh-CN/2.4.0/client-libraries-go">CGo client</a>, <a href="/docs/zh-CN/2.4.0/client-libraries-python">Python client</a>, and <a href="/docs/zh-CN/2.4.0/client-libraries-cpp">C++ client</a>.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="基础架构"></a><a href="#基础架构" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>基础架构</h2>
 <p>当你使用Schema创建带类型的producer时，schema将会被自动上传。 此外，可以通过Pulsar的 <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#tag/schemas">REST</a>
@@ -95,13 +96,13 @@
 <p>开箱即用，Pulsar使用 <a href="concepts-architecture-overview#persistent-storage">Apache BookKeeper</a> log存储系统来保存schema。 不过你也可以按照你的需要使用不同的后端。 客制化的schema存储逻辑文档即将推出。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="schema是如何工作的"></a><a href="#schema是如何工作的" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema是如何工作的</h2>
-<p>Pulsar schema应用于<em>主题层面</em>（schema无法应用于namespace和tenant层面），并且被强制执行，producer和consumer上传schema到Pulsar broker。</p>
+<p>Pulsar schemas are applied and enforced <em>at the topic level</em> (schemas cannot be applied at the namespace or tenant level). Producers and consumers upload schemas to Pulsar brokers.</p>
 <p>Pulsar schema是非常简单的数据结构，它的构成如下：</p>
 <ul>
-<li><strong>name</strong>。Pulsar中, schema的名称是schema应用于的topic。</li>
-<li>** payload **, 它是schema的二进制表示形式。</li>
-<li>Schema<a href="#supported-schema-formats"><strong>类型</strong></a></li>
-<li>用户定义的字符串/字符串映射map,** properties ** 。 Properties如何使用，完全由程序指定。 Properties可能是关联到schema的Git hash，例如<code>dev</code>或者<code>prod</code>等环境信息。</li>
+<li>A <strong>name</strong>. In Pulsar, a schema's name is the topic to which the schema is applied.</li>
+<li>A <strong>payload</strong>, which is a binary representation of the schema</li>
+<li>A schema <a href="#supported-schema-formats"><strong>type</strong></a></li>
+<li>User-defined <strong>properties</strong> as a string/string map. Properties如何使用，完全由程序指定。 Properties可能是关联到schema的Git hash，例如<code>dev</code>或者<code>prod</code>等环境信息。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="schema版本"></a><a href="#schema版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema版本</h2>
 <p>我们通过一个例子，来讲解schema版本如何工作。 假设使用以下代码创建Pulsar <a href="/docs/zh-CN/2.4.0/client-libraries-java">Java 客户端</a>，尝试连接到Pulsar，并开始发送消息:</p>
@@ -122,7 +123,7 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <tbody>
 <tr><td style="text-align:left">该Topic不存在schema</td><td style="text-align:left">使用给定的schema创建了producer。 Schema传输到broker并被存储 (因为没有现成的schema与 <code>SensorReading</code> schema &quot;兼容&quot;)。 任何使用同样schema/topic的consumer可以消费<code>sensor-data</code> topic中的消息。</td></tr>
 <tr><td style="text-align:left">Schema已经存在；producer使用已经被保存过的schema进行连接</td><td style="text-align:left">Schema被传输到Pulsar broker。 Broker确认此schema是兼容的。 Broker尝试在<a href="/docs/zh-CN/2.4.0/concepts-architecture-overview#persistent-storage">BookKeeper</a>存储schema，但是发现它已经存在了，所以用它来标记生产的消息。</td></tr>
-<tr><td style="text-align:left">Schema已经存在；producer使用兼容的新schema进行连接。</td><td style="text-align:left">Producer传输schema到broker。broker发现这个schema是兼容的，随后保存这个新schema作为当前版本（使用新的版本号）。</td></tr>
+<tr><td style="text-align:left">Schema已经存在；producer使用兼容的新schema进行连接。</td><td style="text-align:left">The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</td></tr>
 </tbody>
 </table>
 <blockquote>
@@ -131,7 +132,7 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <h2><a class="anchor" aria-hidden="true" id="支持的schema格式"></a><a href="#支持的schema格式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的schema格式</h2>
 <p>以下格式被Pulsar schema注册所支持：</p>
 <ul>
-<li>无。如果没有为topic指定schema，producer和consumer将会处理原始字节。</li>
+<li>None. If no schema is specified for a topic, producers and consumers will handle raw bytes.</li>
 <li><code>String</code> (用于 UTF-8-encoded 字符串)</li>
 <li><a href="https://www.json.org/">JSON</a></li>
 <li><a href="https://developers.google.com/protocol-buffers/">Protobuf</a></li>

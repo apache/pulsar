@@ -79,14 +79,20 @@
 <p>對於圍繞信息系統如 Pulsar 搭建的應用來說，資料/事件類型安全 (type safety) 非常的重要。</p>
 <p>Producer 和 consumer 需要某種機制在 topic 級別上協調資料/事件的類型，以避免出現各種潛在問題。 例如，序列化和反序列化問題。</p>
 <p>應用程序通常採用以下方法之一來保證信息傳遞中的類型安全。 這兩種方法都被 Pulsar 支持，你可以在 topic 層級的基礎上，自由選擇採用哪一種，或者混用。</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+</blockquote>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-TW/next/client-libraries-java">Java client</a>, <a href="/docs/zh-TW/next/client-libraries-cgo">CGo client</a>, <a href="/docs/zh-TW/next/client-libraries-python">Python client</a>, and <a href="/docs/zh-TW/next/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="客户端方法"></a><a href="#客户端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端方法</h3>
 <p>Producer 和 consumer 要負責了解如何對 topic 裡的信息進行序列化與反序列，同時得知道這個 topic 裡的信息是那一種資料/事件類型。</p>
 <p>如果 producer 正在發送有關溫度傳感器數據到<code>topic-1</code>，如果訂閱該 topic 的 consumer 在嘗試將其解析為濕度傳感器讀數時會遇到麻煩。</p>
 <p>Producer 和 consumer 可以發送和接收包含原始字節數組的信息，並透過其它外部的手法來進行資料/事件類型的安全性強制措施。</p>
 <h3><a class="anchor" aria-hidden="true" id="服務器端方法"></a><a href="#服務器端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>服務器端方法</h3>
 <p>Producer 和 consumer 通知信息系統該 topic 傳輸哪種資料/事件數據類型。</p>
-<p>通過這種方法，信息系統強制執行類型安全, 並確保 producer 和 consumer 對於資料/事件數據類型的感知保持同步。</p>
-<p>Pulsar 具有內建的 <strong>schema registry</strong> 服務，使客戶端可以遵循在 topic 層定義的資料/事件類型來發佈與消費。 這些 schema 的機制讓 Pular 可以辨識 topic 可以識別哪些數據類型對一個 topic 來說為有效的。</p>
+<p>With this approach, the messaging system enforces type safety and ensures that producers and consumers remain synced.</p>
+<p>Pulsar 具有內建的 <strong>schema registry</strong> 服務，使客戶端可以遵循在 topic 層定義的資料/事件類型來發佈與消費。 Those schemas dictate which data types are recognized as valid for that topic.</p>
 <h2><a class="anchor" aria-hidden="true" id="為什麼要使用-schema"></a><a href="#為什麼要使用-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>為什麼要使用 schema</h2>
 <p>啟用 schema 的功能後，Pulsar 會解析數據，它將 bytes 作為輸入並發送 bytes 作為輸出。 在對信息數據進行解析時可能會遇到解析異常，這種異常主要發生在以下幾種情況：</p>
 <ul>
@@ -95,7 +101,7 @@
 </ul>
 <p>有幾種方法可以預防和解決這些異常，例如，可以在解析錯誤時捕捉異常，但這會使得代碼難以維護；或者可以採用 schema 管理系統來執行 schema 演化，而且不破壞下游應用程序，並在不同程式語言的結構上以最大程度地強化類型安全。Pulsar 解決這個問題的方案就是 Pulsar schema。</p>
 <p>使用 Pulsar schema，你可以使用特定於語言的數據類型來構建和處理從 <code>string</code> 之類的簡單類型到更複雜的應用程序特定類型的信息。</p>
-<p><strong>範例</strong></p>
+<p><strong>Example</strong></p>
 <p>你可以使用 <em>User</em> 類別來定義發送到 Pulsar topic 的信息。</p>
 <pre><code class="hljs">public class User {
     String name;
@@ -105,7 +111,7 @@
 <p>當構建 producer 來使用 <em>User</em> 類別，可以指定 schema 或不指定。</p>
 <h3><a class="anchor" aria-hidden="true" id="不指定-schema-情況"></a><a href="#不指定-schema-情況" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>不指定 Schema 情況</h3>
 <p>在不指定 schema 的情況下，則 producer 只能產生 <code>byte[]</code>類型的信息。 如果你有 POJO 類別，則需要在發送信息之前將 POJO 序列化為 <code>byte[]</code>。</p>
-<p><strong>範例</strong></p>
+<p><strong>Example</strong></p>
 <pre><code class="hljs">Producer&lt;byte[]&gt; producer = client.newProducer()
         .topic(topic)
         .create();
@@ -116,7 +122,7 @@ producer.send(message);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="指定-schema-情況"></a><a href="#指定-schema-情況" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>指定 Schema 情況</h3>
 <p>如果你來構造生產者時指定 schema，則可以直接將類別實例發送進 topic，而不必擔心如何將 POJO 序列化為 <code>byte[]</code>。</p>
-<p><strong>範例</strong></p>
+<p><strong>Example</strong></p>
 <p>本範例在 producer 中指定使用 <em>JSONSchema</em>，你可以直接將 <em>User</em> 類別實例發送給 topic，而不必擔心如何將其序列化為 <code>byte[]</code>。</p>
 <pre><code class="hljs">Producer&lt;User&gt; producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)

@@ -79,6 +79,10 @@
 <p>对于围绕消息总线如pulsar搭建的应用来说，类型安全非常的重要。</p>
 <p>Producer 和 consumer 需要某种机制，以在主题级别上协调类型，从而避免出现各种潜在问题。 例如，序列化和反序列化问题。</p>
 <p>应用程序通常采用以下方法来保证消息传递中的类型安全。 这两种方法都被Pulsar支持，你可以在topic的基础上，自由选择采用哪一种，或者混用。</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>Currently, the Pulsar schema registry is only available for the <a href="/docs/zh-CN/2.5.1/client-libraries-java">Java client</a>, <a href="/docs/zh-CN/2.5.1/client-libraries-cgo">CGo client</a>, <a href="/docs/zh-CN/2.5.1/client-libraries-python">Python client</a>, and <a href="/docs/zh-CN/2.5.1/client-libraries-cpp">C++ client</a>.</p>
+</blockquote>
 <h3><a class="anchor" aria-hidden="true" id="客户端方法"></a><a href="#客户端方法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端方法</h3>
 <p>Producer 和 consumer 不仅负责序列化和反序列化消息（由原始字节组成），还负责“确认”topic 正在传输的类型。</p>
 <p>如果 producer 正在发送关于<code>topic-1</code>的温度传感器数据，则该 topic 的 consumer 在尝试解析数据为湿度传感器读数时会遇到问题。</p>
