@@ -109,7 +109,7 @@ public class BinaryProtoLookupService implements LookupService {
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(topicName.toString(), authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), listenerName, authoritative, requestId);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed
@@ -137,8 +137,15 @@ public class BinaryProtoLookupService implements LookupService {
                             findBroker(responseBrokerAddress, r.authoritative, topicName, redirectCount + 1)
                                 .thenAccept(addressFuture::complete).exceptionally((lookupException) -> {
                                 // lookup failed
-                                log.warn("[{}] lookup failed : {}", topicName.toString(), lookupException.getMessage(),
-                                    lookupException);
+                                if (redirectCount > 0) {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName.toString(),
+                                                redirectCount, lookupException.getMessage());
+                                    }
+                                } else {
+                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
+                                            lookupException.getMessage(), lookupException);
+                                }
                                 addressFuture.completeExceptionally(lookupException);
                                 return null;
                             });
