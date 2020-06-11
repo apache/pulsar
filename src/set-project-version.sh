@@ -28,10 +28,12 @@ fi
 NEW_VERSION=$1
 
 # Go to top level project directory
-pushd $(dirname "$0")/..
+SRC_DIR=$(dirname "$0")
+ROOT_DIR=`cd ${SRC_DIR}/..; pwd`
+pushd ${ROOT_DIR}
 
 # Get the current version
-OLD_VERSION=`mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec`
+OLD_VERSION=`python ${ROOT_DIR}/src/get-project-version.py`
 
 mvn versions:set -DnewVersion=$NEW_VERSION
 mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
