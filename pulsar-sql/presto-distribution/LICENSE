@@ -228,7 +228,6 @@ The Apache Software License, Version 2.0
     - commons-math3-3.6.1.jar
     - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.19.jar
-    - commons-lang3-3.3.2.jar
     - commons-lang3-3.6.jar
  * Netty
     - netty-3.10.6.Final.jar
@@ -236,8 +235,10 @@ The Apache Software License, Version 2.0
     - netty-codec-4.1.48.Final.jar
     - netty-codec-dns-4.1.48.Final.jar
     - netty-codec-http-4.1.48.Final.jar
+    - netty-codec-socks-4.1.48.Final.jar
     - netty-common-4.1.48.Final.jar
     - netty-handler-4.1.48.Final.jar
+    - netty-handler-proxy-4.1.48.Final.jar
     - netty-reactive-streams-2.0.4.jar
     - netty-resolver-4.1.48.Final.jar
     - netty-resolver-dns-4.1.48.Final.jar
@@ -245,6 +246,7 @@ The Apache Software License, Version 2.0
     - netty-transport-4.1.48.Final.jar
     - netty-transport-native-epoll-4.1.48.Final.jar
     - netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
+    - netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
     - netty-transport-native-unix-common-4.1.48.Final.jar
     - netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
  * Joda Time
@@ -257,7 +259,6 @@ The Apache Software License, Version 2.0
     - http2-http-client-transport-9.4.27.v20200227.jar
     - http2-server-9.4.27.v20200227.jar
     - jetty-alpn-client-9.4.27.v20200227.jar
-    - jetty-alpn-java-client-9.4.27.v20200227.jar
     - jetty-client-9.4.27.v20200227.jar
     - jetty-http-9.4.27.v20200227.jar
     - jetty-io-9.4.27.v20200227.jar
@@ -307,7 +308,6 @@ The Apache Software License, Version 2.0
     - slice-0.38.jar
     - stats-0.195.jar
     - trace-token-0.195.jar
-    - units-1.0.jar
     - units-1.6.jar
   * Error Prone Annotations
     - error_prone_annotations-2.1.3.jar
@@ -322,7 +322,6 @@ The Apache Software License, Version 2.0
   * JSON Web Token Support For The JVM
     - jjwt-0.9.0.jar
   * Jmxutils
-    - jmxutils-1.19.jar
     - jmxutils-1.21.jar
   * LevelDB
     - leveldb-0.10.jar
@@ -369,7 +368,6 @@ The Apache Software License, Version 2.0
   * Javax
     - javax.inject-1.jar
     - javax.inject-1.jar
-    - javax.inject-2.5.0-b42.jar
     - javax.servlet-api-3.1.0.jar
     - javax.servlet-api-4.0.1.jar
     - javax.ws.rs-api-2.1.jar
@@ -397,7 +395,6 @@ The Apache Software License, Version 2.0
   * SnakeYAML
     - snakeyaml-1.17.jar
   * Bean Validation API
-    - validation-api-1.1.0.Final.jar
     - validation-api-2.0.1.Final.jar
   * Objectsize
     - objectsize-0.0.12.jar
@@ -437,9 +434,6 @@ The Apache Software License, Version 2.0
     - commons-logging-1.1.1.jar
   * GSON
     - gson-2.8.2.jar
-  * Apache HttpComponents
-    - httpclient-4.5.5.jar
-    - httpcore-4.4.9.jar
   * Jackson
     - jackson-jaxrs-base-2.8.11.jar
     - jackson-jaxrs-json-provider-2.8.11.jar
@@ -447,7 +441,6 @@ The Apache Software License, Version 2.0
     - jackson-module-jsonSchema-2.8.11.jar
     - jackson-module-parameter-names-2.10.0.jar
   * Java Assist
-    - javassist-3.22.0-CR2.jar
     - javassist-3.25.0-GA.jar
   * Jetty
     - jetty-http-9.4.20.v20190813.jar
@@ -459,6 +452,8 @@ The Apache Software License, Version 2.0
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
+  * Java Object Layout: Core
+    - jol-core-0.2.jar
   * Yahoo Datasketches
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
@@ -527,18 +522,12 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Jersey
     - jaxrs-0.195.jar
     - jersey-client-2.26.jar
-    - jersey-client-2.27.jar
     - jersey-container-servlet-2.26.jar
     - jersey-container-servlet-core-2.26.jar
-    - jersey-entity-filtering-2.27.jar
     - jersey-hk2-2.26.jar
-    - jersey-hk2-2.27.jar
     - jersey-media-jaxb-2.26.jar
-    - jersey-media-json-jackson-2.27.jar
-    - jersey-media-multipart-2.27.jar
     - jersey-server-2.26.jar
     - jersey-common-2.26.jar
-    - jersey-common-2.27.jar
  * JAXB
     - jaxb-api-2.3.1.jar
     - jaxb-impl-2.2.6.jar
@@ -565,7 +554,6 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
    - HdrHistogram-2.1.9.jar
  * AOP Alliance
    - aopalliance-1.0.jar
-   - aopalliance-repackaged-2.5.0-b42.jar
  * Reactive Streams
     - reactive-streams-1.0.3.jar
 
