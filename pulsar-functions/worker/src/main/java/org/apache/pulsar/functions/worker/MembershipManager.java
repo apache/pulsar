@@ -60,6 +60,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdmin;
+    private WorkerService workerService;
     private final CompletableFuture<Void> firstConsumerEventFuture;
     private final AtomicBoolean isLeader = new AtomicBoolean();
 
@@ -76,6 +77,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             throws PulsarClientException {
         this.workerConfig = service.getWorkerConfig();
         this.pulsarAdmin = pulsarAdmin;
+        this.workerService = service;
         consumerName = String.format(
             "%s:%s:%d",
             workerConfig.getWorkerId(),
@@ -103,6 +105,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         firstConsumerEventFuture.complete(null);
         if (isLeader.compareAndSet(false, true)) {
             log.info("Worker {} became the leader.", consumerName);
+            workerService.getFunctionMetaDataManager().acquireLeadership();
         }
     }
 
@@ -111,6 +114,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         firstConsumerEventFuture.complete(null);
         if (isLeader.compareAndSet(true, false)) {
             log.info("Worker {} lost the leadership.", consumerName);
+            workerService.getFunctionMetaDataManager().giveupLeadership();
         }
     }
 

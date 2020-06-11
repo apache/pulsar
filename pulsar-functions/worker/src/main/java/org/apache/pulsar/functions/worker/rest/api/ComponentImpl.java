@@ -80,7 +80,6 @@ import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import java.io.File;
@@ -392,23 +391,16 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
-        CompletableFuture<RequestResult> completableFuture = functionMetaDataManager.deregisterFunction(tenant,
-                namespace, componentName);
-
-        RequestResult requestResult = null;
+        FunctionMetaData newVersionedMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, functionMetaData);
         try {
-            requestResult = completableFuture.get();
-            if (!requestResult.isSuccess()) {
-                throw new RestException(Status.BAD_REQUEST, requestResult.getMessage());
-            }
-        } catch (ExecutionException e) {
-            log.error("Execution Exception while deregistering {} @ /{}/{}/{}",
+            worker().getFunctionAdmin().functions().updateOnWorkerLeader(newVersionedMetaData.getFunctionDetails().getTenant(),
+                    newVersionedMetaData.getFunctionDetails().getNamespace(),
+                    newVersionedMetaData.getFunctionDetails().getName(),
+                    newVersionedMetaData.toByteArray(), true);
+        } catch (PulsarAdminException e) {
+            log.error("Error deleting {} @ /{}/{}/{}",
                     ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getCause().getMessage());
-        } catch (InterruptedException e) {
-            log.error("Interrupted Exception while deregistering {} @ /{}/{}/{}",
-                    ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(Status.REQUEST_TIMEOUT, e.getMessage());
+            throw new RestException(e.getStatusCode(), e.getMessage());
         }
 
         // clean up component files stored in BK
@@ -534,14 +526,13 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
         }
 
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, Integer.parseInt(instanceId), start);
         try {
-            functionMetaDataManager.changeFunctionInstanceStatus(tenant, namespace, componentName,
-                    Integer.parseInt(instanceId), start);
-        } catch (WebApplicationException we) {
-            throw we;
-        } catch (Exception e) {
+            worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant, namespace, componentName,
+                    newFunctionMetaData.toByteArray(), false);
+        } catch (PulsarAdminException e) {
             log.error("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, instanceId, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new RestException(e.getStatusCode(), e.getMessage());
         }
     }
 
@@ -662,13 +653,13 @@ public abstract class ComponentImpl {
             throw new RestException(Status.BAD_REQUEST, String.format("Operation not permitted"));
         }
 
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, -1, start);
         try {
-            functionMetaDataManager.changeFunctionInstanceStatus(tenant, namespace, componentName, -1, start);
-        } catch (WebApplicationException we) {
-            throw we;
-        } catch (Exception e) {
+            worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant, namespace, componentName,
+                    newFunctionMetaData.toByteArray(), false);
+        } catch (PulsarAdminException e) {
             log.error("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            throw new RestException(e.getStatusCode(), e.getMessage());
         }
     }
 
@@ -880,25 +871,16 @@ public abstract class ComponentImpl {
         return retVals;
     }
 
-    void updateRequest(final FunctionMetaData functionMetaData) {
-
-        // Submit to FMT
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-
-        CompletableFuture<RequestResult> completableFuture = functionMetaDataManager.updateFunction(functionMetaData);
-
-        RequestResult requestResult = null;
+    void updateRequest(FunctionMetaData existingFunctionMetaData, final FunctionMetaData functionMetaData) {
+        FunctionMetaData updatedVersionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetaData, functionMetaData);
         try {
-            requestResult = completableFuture.get();
-            if (!requestResult.isSuccess()) {
-                throw new RestException(Status.BAD_REQUEST, requestResult.getMessage());
-            }
-        } catch (ExecutionException e) {
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        } catch (InterruptedException e) {
-            throw new RestException(Status.REQUEST_TIMEOUT, e.getMessage());
+            worker().getFunctionAdmin().functions().updateOnWorkerLeader(updatedVersionMetaData.getFunctionDetails().getTenant(),
+                    updatedVersionMetaData.getFunctionDetails().getNamespace(),
+                    updatedVersionMetaData.getFunctionDetails().getName(),
+                    updatedVersionMetaData.toByteArray(), false);
+        } catch (PulsarAdminException e) {
+            throw new RestException(e.getStatusCode(), e.getMessage());
         }
-
     }
 
     public List<ConnectorDefinition> getListOfConnectors() {

@@ -39,6 +39,7 @@ public class FunctionMetaDataTopicTailer
     private final Thread readerThread;
     private volatile boolean running;
     private ErrorNotifier errorNotifier;
+    private volatile boolean stopOnNoMessageAvailable;
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
                                        ReaderBuilder readerBuilder, WorkerConfig workerConfig,
@@ -54,6 +55,7 @@ public class FunctionMetaDataTopicTailer
         readerThread = new Thread(this);
         readerThread.setName("function-metadata-tailer-thread");
         this.errorNotifier = errorNotifier;
+        stopOnNoMessageAvailable = false;
     }
 
     public void start() {
@@ -63,7 +65,17 @@ public class FunctionMetaDataTopicTailer
 
     @Override
     public void run() {
-        while(running) {
+        while (running) {
+            if (stopOnNoMessageAvailable) {
+                try {
+                    if (!reader.hasMessageAvailable()) {
+                        break;
+                    }
+                } catch (PulsarClientException e) {
+                    log.error("Received exception while testing hasMessageAvailable", e);
+                    errorNotifier.triggerError(e);
+                }
+            }
             try {
                 Message<byte[]> msg = reader.readNext();
                 processRequest(msg);
@@ -79,6 +91,20 @@ public class FunctionMetaDataTopicTailer
                     }
                     return;
                 }
+            }
+        }
+    }
+
+    public void stopWhenNoMoreMessages() {
+        stopOnNoMessageAvailable = true;
+        readerThread.interrupt();
+        // We need to wait here till the thread exits to make sure that the reader is up to date
+        while (true) {
+            try {
+                readerThread.join();
+                return;
+            } catch (InterruptedException e) {
+                continue;
             }
         }
     }

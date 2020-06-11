@@ -171,6 +171,9 @@ public class WorkerService {
             this.functionMetaDataManager = new FunctionMetaDataManager(
                     this.workerConfig, this.schedulerManager, this.client, errorNotifier);
 
+            // initialize function metadata manager
+            this.functionMetaDataManager.initialize();
+
             this.connectorsManager = new ConnectorsManager(workerConfig);
             this.functionsManager = new FunctionsManager(workerConfig);
 
@@ -196,9 +199,6 @@ public class WorkerService {
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
             this.schedulerManager.setFunctionRuntimeManager(this.functionRuntimeManager);
             this.schedulerManager.setMembershipManager(this.membershipManager);
-
-            // initialize function metadata manager
-            this.functionMetaDataManager.initialize();
 
             // initialize function runtime manager
             this.functionRuntimeManager.initialize();

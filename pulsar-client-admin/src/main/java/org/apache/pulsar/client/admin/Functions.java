@@ -893,4 +893,42 @@ public interface Functions {
      */
     CompletableFuture<Void> putFunctionStateAsync(
             String tenant, String namespace, String function, FunctionState state);
+
+    /**
+     * Sends update function request to worker leader. This is an internal only api
+     * <p/>
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param functionMetaData
+     *            byte repr of FunctionMetaData
+     **
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to get the configuration of the cluster
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateOnWorkerLeader(String tenant, String namespace, String function, byte[] functionMetaData,
+                              boolean delete)
+            throws PulsarAdminException;
+
+    /**
+     * Sends update function request to worker leader asynchronously. This is an internal only api
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param functionMetaData
+     *            byte repr of FunctionMetaData
+     */
+    CompletableFuture<Void> updateOnWorkerLeaderAsync(
+            String tenant, String namespace, String function, byte[] functionMetaData,
+            boolean delete);
 }
