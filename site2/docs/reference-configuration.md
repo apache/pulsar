@@ -13,12 +13,16 @@ sidebar_label: Pulsar configuration
 
 Pulsar configuration can be managed via a series of configuration files contained in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
-- [](#)
-- [](#-1)
-- [](#-2)
-  - [WebSocket](#websocket)
-  - [Pulsar proxy](#pulsar-proxy)
-  - [ZooKeeper](#zookeeper)
+- [BookKeeper](#bookkeeper)
+- [Broker](#broker)
+- [Client](#client)
+- [Service discovery](#service-discovery)
+- [Log4j](#log4j)
+- [Log4j shell](#log4j-shell)
+- [Standalone](#standalone)
+- [WebSocket](#websocket)
+- [Pulsar proxy](#pulsar-proxy)
+- [ZooKeeper](#zookeeper)
 
 ## BookKeeper
 
