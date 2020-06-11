@@ -96,8 +96,6 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
                 .consumerEventListener(this)
                 .property(WORKER_IDENTIFIER, consumerName)
                 .subscribe();
-        
-        isLeader.set(checkLeader(service, consumer.getConsumerName()));
     }
 
     @Override

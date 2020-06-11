@@ -80,7 +80,7 @@ public class FunctionMetaDataTopicTailer
                 Message<byte[]> msg = reader.readNext();
                 processRequest(msg);
             } catch (Throwable th) {
-                if (running) {
+                if (running && !stopOnNoMessageAvailable) {
                     log.error("Encountered error in metadata tailer", th);
                     // trigger fatal error
                     running = false;
@@ -89,7 +89,6 @@ public class FunctionMetaDataTopicTailer
                     if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
                         log.warn("Encountered error when metadata tailer is not running", th);
                     }
-                    return;
                 }
             }
         }

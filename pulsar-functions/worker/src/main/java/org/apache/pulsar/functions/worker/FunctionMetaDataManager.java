@@ -180,6 +180,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     // Note that this method cannot be syncrhonized because the tailer might still be processing messages
     public void acquireLeadership() {
+        log.info("FunctionMetaDataManager becoming leader by creating exclusive producer");
         FunctionMetaDataTopicTailer tailer = internalAcquireLeadership();
         // Now that we have created the exclusive producer, wait for reader to get over
         if (tailer != null) {
@@ -211,6 +212,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     public synchronized void giveupLeadership() {
+        log.info("FunctionMetaDataManager giving up leadership by closing exclusive producer");
         try {
             exclusiveLeaderProducer.close();
         } catch (PulsarClientException e) {
