@@ -85,9 +85,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx, Map<String, String> properties) throws Exception {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.onPulsarCommand(command, cnx);
+            value.onPulsarCommand(command, cnx, properties);
         }
     }
 

@@ -36,6 +36,7 @@ import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -79,6 +80,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -1736,7 +1738,7 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void onCommand(PulsarApi.BaseCommand command) throws Exception {
         if (getBrokerService().getInterceptor() != null) {
-            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+            getBrokerService().getInterceptor().onPulsarCommand(command, this, null);
         }
     }
 
@@ -1924,6 +1926,21 @@ public class ServerCnx extends PulsarHandler {
 
             return null;
         }
+    }
+
+    public ByteBufPair newMessageAndIntercept(long consumerId, MessageIdData messageId, int redeliveryCount,
+          ByteBuf metadataAndPayload, long[] ackSet, String topic) {
+        PulsarApi.BaseCommand command = Commands.newMessageCommand(consumerId, messageId, redeliveryCount, ackSet);
+        ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
+        try {
+            getBrokerService().getInterceptor().onPulsarCommand(command, this, Collections.singletonMap("topic", topic));
+        } catch (Exception e) {
+            log.error("Exception occur when intercept messages.", e);
+        } finally {
+            command.getMessage().recycle();
+            command.recycle();
+        }
+        return res;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ServerCnx.class);

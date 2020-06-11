@@ -31,6 +31,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * A broker interceptor with it's classloader.
@@ -44,8 +45,8 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     private final NarClassLoader classLoader;
 
     @Override
-    public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
-        this.interceptor.onPulsarCommand(command, cnx);
+    public void onPulsarCommand(BaseCommand command, ServerCnx cnx, Map<String, String> properties) throws Exception {
+        this.interceptor.onPulsarCommand(command, cnx, properties);
     }
 
     @Override

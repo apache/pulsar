@@ -25,11 +25,12 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import java.util.Map;
 
 public class MockBrokerInterceptor implements BrokerInterceptor {
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) {
+    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx, Map<String, String> properties) {
         // no-op
     }
 

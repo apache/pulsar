@@ -28,6 +28,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -42,7 +43,7 @@ public interface BrokerInterceptor extends AutoCloseable {
     /**
      * Called by the broker while new command incoming.
      */
-    void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception;
+    void onPulsarCommand(BaseCommand command, ServerCnx cnx, Map<String, String> properties) throws Exception;
 
     /**
      * Called by the web service while new request incoming.
@@ -64,7 +65,7 @@ public interface BrokerInterceptor extends AutoCloseable {
     class BrokerInterceptorDisabled implements BrokerInterceptor {
 
         @Override
-        public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws Exception {
+        public void onPulsarCommand(BaseCommand command, ServerCnx cnx, Map<String, String> properties) throws Exception {
             //No-op
         }
 

@@ -29,6 +29,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 public class CounterBrokerInterceptor implements BrokerInterceptor {
@@ -36,8 +38,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int count = 0;
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) {
-        log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
+    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx, Map<String, String> properties) {
+        log.info("[{}] On [{}] Pulsar command with properties {}", count, command.getType().name(), properties);
         count ++;
     }
 
