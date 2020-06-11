@@ -2139,7 +2139,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         long firstNonDeletedLedger = ledgers
-                .ceilingKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId() + 1);
+                .higherKey(ledgersToDelete.get(ledgersToDelete.size() - 1).getLedgerId());
         PositionImpl highestPositionToDelete = new PositionImpl(firstNonDeletedLedger, -1);
 
         cursors.forEach(cursor -> {
