@@ -205,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numCacheExecutorThreadPoolSize = 10;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
