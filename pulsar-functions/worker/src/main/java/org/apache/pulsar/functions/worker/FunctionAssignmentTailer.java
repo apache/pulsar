@@ -31,6 +31,14 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This class is responsible for reading assignments from the 'assignments' functions internal topic.
+ * Only functions worker leader writes to the topic while other workers read from the topic.
+ * When a worker become a leader, the worker will read to the end of the assignments topic and close its reader to the topic.
+ * Then the worker and new leader will be in charge of computing new assignments when necessary.
+ * The leader does not need to listen to the assignments topic because it can just update its in memory assignments map directly
+ * after it computes a new scheduling.  When a worker loses leadership, the worker is start reading from the assignments topic again.
+ */
 @Slf4j
 public class FunctionAssignmentTailer implements AutoCloseable {
 
