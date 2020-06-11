@@ -156,9 +156,12 @@ public class BrokersBase extends AdminResource {
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
     @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
+        validateSuperUserAccess();
+
         ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
                 .getDynamicConfigurationCache();
         Map<String, String> configurationMap = null;
@@ -178,7 +181,10 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/configuration")
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public List<String> getDynamicConfigurationName() {
+        validateSuperUserAccess();
         return BrokerService.getDynamicConfiguration();
     }
 
@@ -243,7 +249,9 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public InternalConfigurationData getInternalConfigurationData() {
+        validateSuperUserAccess();
         return pulsar().getInternalConfigurationData();
     }
 
