@@ -264,8 +264,18 @@ public class AuthorizationService {
      */
     public boolean canLookup(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
-        return canProduce(topicName, role, authenticationData)
-                || canConsume(topicName, role, authenticationData, null);
+        try {
+            return canLookupAsync(topicName, role, authenticationData)
+                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     /**
