@@ -391,9 +391,7 @@ Consumer allTopicsConsumer = consumerBuilder
         .subscribe();
 ```
 
-In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern,
-If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic pattern,
-You need to set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
+In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
 
 ```java
 Pattern pattern = Pattern.compile("public/default/.*");
