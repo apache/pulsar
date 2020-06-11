@@ -655,6 +655,70 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testHashRangeConflict() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        final String topic = "testHashRangeConflict-" + UUID.randomUUID().toString();
+        final String sub = "test";
+
+        Consumer<String> consumer1 = createFixedHashRangesConsumer(topic, sub, Range.of(0,99), Range.of(400, 65535));
+        Assert.assertTrue(consumer1.isConnected());
+
+        Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
+        Assert.assertTrue(consumer2.isConnected());
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(1,1));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        consumer1.close();
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(50,100));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(399,500));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        Consumer<String> consumer3 = createFixedHashRangesConsumer(topic, sub, Range.of(400,600));
+        Assert.assertTrue(consumer3.isConnected());
+
+        Consumer<String> consumer4 = createFixedHashRangesConsumer(topic, sub, Range.of(50,99));
+        Assert.assertTrue(consumer4.isConnected());
+
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+    }
+
+    private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {
+        return pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subscription)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges))
+                .subscribe();
+    }
+
     private Producer<Integer> createProducer(String topic, boolean enableBatch) throws PulsarClientException {
         Producer<Integer> producer = null;
         if (enableBatch) {
