@@ -72,7 +72,7 @@ public class TenantsBase extends AdminResource {
     public TenantInfo getTenantAdmin(
         @ApiParam(value = "The tenant name")
         @PathParam("tenant") String tenant) {
-        validateSuperUserAccess();
+        validateAdminAccessForTenant(tenant);
 
         try {
             return tenantsCache().get(path(POLICIES, tenant))
