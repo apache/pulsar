@@ -24,6 +24,7 @@ import static java.util.Objects.requireNonNull;
 
 import io.airlift.bootstrap.LifeCycleManager;
 import io.airlift.log.Logger;
+import io.prestosql.plugin.base.classloader.ClassLoaderSafeConnectorMetadata;
 import io.prestosql.spi.connector.Connector;
 import io.prestosql.spi.connector.ConnectorMetadata;
 import io.prestosql.spi.connector.ConnectorRecordSetProvider;
@@ -68,7 +69,7 @@ public class PulsarConnector implements Connector {
 
     @Override
     public ConnectorMetadata getMetadata(ConnectorTransactionHandle transactionHandle) {
-        return metadata;
+        return new ClassLoaderSafeConnectorMetadata(metadata, getClass().getClassLoader());
     }
 
     @Override
