@@ -40,6 +40,8 @@ import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.ws.rs.ClientErrorException;
+import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
 
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -560,7 +562,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            doThrow(new PulsarAdminException("source failed to register"))
+            doThrow(new PulsarAdminException(new ClientErrorException("source failed to register", Response.Status.BAD_REQUEST)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
@@ -571,7 +573,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -585,7 +587,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            doThrow(new PulsarAdminException("Function registration interrupted"))
+            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
@@ -859,7 +861,7 @@ public class SourceApiV3ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
-        if (expectedError == null) {
+        if (expectedError != null) {
             doThrow(new PulsarAdminException(expectedError))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
@@ -977,6 +979,7 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setClassName(className);
         sourceConfig.setParallelism(parallelism);
 
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
@@ -1020,7 +1023,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            doThrow(new PulsarAdminException("source failed to register"))
+            doThrow(new PulsarAdminException(new ClientErrorException("source failed to register", Response.Status.BAD_REQUEST)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
@@ -1031,7 +1034,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -1045,7 +1048,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            doThrow(new PulsarAdminException("Function registration interrupted"))
+            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
@@ -1150,7 +1153,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException("source failed to deregister registration interrupted"))
+            doThrow(new PulsarAdminException(new ClientErrorException("source failed to deregister", Response.Status.BAD_REQUEST)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
@@ -1168,7 +1171,7 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException("Function registration interrupted"))
+            doThrow(new PulsarAdminException(new ServerErrorException("Function deregistration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
                     .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
                     anyString(), any(byte[].class), Mockito.anyBoolean());
 
