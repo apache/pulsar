@@ -78,6 +78,7 @@ public class MembershipManagerTest {
 
         ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
+        FunctionMetaDataManager mockFunctionMetadataManager = mock(FunctionMetaDataManager.class);
 
         when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
@@ -87,6 +88,7 @@ public class MembershipManagerTest {
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
         WorkerService workerService = mock(WorkerService.class);
         doReturn(workerConfig).when(workerService).getWorkerConfig();
+        doReturn(mockFunctionMetadataManager).when(workerService).getFunctionMetaDataManager();
 
         AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
         when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenAnswer(invocationOnMock -> {
