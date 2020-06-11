@@ -404,9 +404,9 @@ pulsarClient.newConsumer()
         .subscribe();
 ```
 
-> Note:
+> #### Note
 > 
-> By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options are `PersistentOnly`, `NonPersistentOnly` and `AllTopics`
+> By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
 You can also subscribe to an explicit list of topics (across namespaces if you wish):
 
