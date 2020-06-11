@@ -180,7 +180,8 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
-|authenticationProviders| Autentication provider name list, which is comma separated list of class names  ||
+|authenticationProviders| Authentication provider name list, which is comma separated list of class names  ||
+| authenticationRefreshCheckSeconds | Interval of time for checking for expired authentication credentials | 60s |
 |authorizationEnabled|  Enforce authorization |false|
 |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics ||
 |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters  ||
@@ -283,7 +284,13 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |authParams|  The authentication parameters for the cluster, as a comma-separated string. ||
 |useTls|  Whether or not TLS authentication will be enforced in the cluster.  |false|
 |tlsAllowInsecureConnection|||
+| tlsAllowInsecureConnection | Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority. | false |
+| tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||
+| useKeyStoreTls | Enable TLS with KeyStore type configuration in the broker. | false |
+| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS <li>PKCS12 |JKS|
+| tlsTrustStore | TLS TrustStore path. | |
+| tlsTrustStorePassword | TLS TrustStore password. | |
 
 
 ## Service discovery
