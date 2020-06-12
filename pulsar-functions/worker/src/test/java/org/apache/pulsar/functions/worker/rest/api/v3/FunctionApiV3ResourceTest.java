@@ -46,8 +46,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 
@@ -78,6 +76,7 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -149,6 +148,7 @@ public class FunctionApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
+    private MembershipManager mockedMembershipManager;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -164,12 +164,14 @@ public class FunctionApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
+        this.mockedMembershipManager = mock(MembershipManager.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
+        when(mockedWorkerService.getMembershipManager()).thenReturn(mockedMembershipManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
@@ -180,6 +182,7 @@ public class FunctionApiV3ResourceTest {
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedMembershipManager.isLeader()).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
 
         // worker config
@@ -658,9 +661,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("function failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("function failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -683,9 +685,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultFunction();
         } catch (RestException re) {
@@ -955,9 +956,8 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
 
         if (expectedError != null) {
-            doThrow(new PulsarAdminException(expectedError))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException(expectedError))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
         }
 
         resource.updateFunction(
@@ -1086,9 +1086,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("function failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("function failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultFunction();
         } catch (RestException re) {
@@ -1110,9 +1109,8 @@ public class FunctionApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registeration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registeration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultFunction();
         } catch (RestException re) {
@@ -1211,9 +1209,8 @@ public class FunctionApiV3ResourceTest {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("function failed to deregister", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("function failed to deregister"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultFunction();
         } catch (RestException re) {
@@ -1227,9 +1224,8 @@ public class FunctionApiV3ResourceTest {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-            doThrow(new PulsarAdminException("Function deregisteration interrupted"))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function deregisteration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultFunction();
         }

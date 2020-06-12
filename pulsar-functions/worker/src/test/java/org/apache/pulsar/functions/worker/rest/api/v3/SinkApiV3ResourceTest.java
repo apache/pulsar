@@ -44,6 +44,7 @@ import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -59,8 +60,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileInputStream;
@@ -129,6 +128,7 @@ public class SinkApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
+    private MembershipManager mockedMembershipManager;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -144,10 +144,12 @@ public class SinkApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
+        this.mockedMembershipManager = mock(MembershipManager.class);
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
+        when(mockedWorkerService.getMembershipManager()).thenReturn(mockedMembershipManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
@@ -159,6 +161,7 @@ public class SinkApiV3ResourceTest {
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedMembershipManager.isLeader()).thenReturn(true);
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
@@ -593,9 +596,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("sink failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("sink failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSink();
         } catch (RestException re){
@@ -618,9 +620,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSink();
         } catch (RestException re){
@@ -842,9 +843,8 @@ public class SinkApiV3ResourceTest {
         }
 
         if (expectedError != null) {
-            doThrow(new PulsarAdminException(new ClientErrorException(expectedError, Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException(expectedError))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
         }
 
         resource.updateSink(
@@ -1007,9 +1007,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("sink failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("sink failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSink();
         } catch (RestException re) {
@@ -1031,9 +1030,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSink();
         } catch (RestException re) {
@@ -1136,9 +1134,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException(new ClientErrorException("sink failed to deregister", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("sink failed to deregister"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSink();
         } catch (RestException re) {
@@ -1154,9 +1151,8 @@ public class SinkApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(sink))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function deregistration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function deregistration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSink();
         } catch (RestException re) {

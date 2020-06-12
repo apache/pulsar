@@ -40,8 +40,6 @@ import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
 import javax.ws.rs.core.Response;
 
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -72,6 +70,7 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -126,6 +125,7 @@ public class SourceApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
+    private MembershipManager mockedMemberShipManager;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -141,10 +141,12 @@ public class SourceApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
+        this.mockedMemberShipManager = mock(MembershipManager.class);
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
+        when(mockedWorkerService.getMembershipManager()).thenReturn(mockedMemberShipManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
@@ -156,6 +158,7 @@ public class SourceApiV3ResourceTest {
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedMemberShipManager.isLeader()).thenReturn(true);
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
@@ -562,9 +565,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("source failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("source failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSource();
         } catch (RestException re){
@@ -587,9 +589,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSource();
         } catch (RestException re){
@@ -862,9 +863,8 @@ public class SourceApiV3ResourceTest {
         }
 
         if (expectedError != null) {
-            doThrow(new PulsarAdminException(expectedError))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException(expectedError))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
         }
 
         resource.updateSource(
@@ -1023,9 +1023,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ClientErrorException("source failed to register", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("source failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSource();
         } catch (RestException re){
@@ -1048,9 +1047,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function registration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSource();
         } catch (RestException re){
@@ -1153,9 +1151,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException(new ClientErrorException("source failed to deregister", Response.Status.BAD_REQUEST)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalArgumentException("source failed to deregister"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSource();
         } catch (RestException re){
@@ -1171,9 +1168,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            doThrow(new PulsarAdminException(new ServerErrorException("Function deregistration interrupted", Response.Status.INTERNAL_SERVER_ERROR)))
-                    .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                    anyString(), any(byte[].class), Mockito.anyBoolean());
+            doThrow(new IllegalStateException("Function deregistration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSource();
         } catch (RestException re){
