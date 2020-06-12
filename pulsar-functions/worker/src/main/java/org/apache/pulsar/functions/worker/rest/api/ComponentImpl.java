@@ -392,16 +392,12 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newVersionedMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, functionMetaData);
-        try {
-            worker().getFunctionAdmin().functions().updateOnWorkerLeader(newVersionedMetaData.getFunctionDetails().getTenant(),
-                    newVersionedMetaData.getFunctionDetails().getNamespace(),
-                    newVersionedMetaData.getFunctionDetails().getName(),
-                    newVersionedMetaData.toByteArray(), true);
-        } catch (PulsarAdminException e) {
-            log.error("Error deleting {} @ /{}/{}/{}",
-                    ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(e.getStatusCode(), e.getMessage());
-        }
+        processFunctionUpdate(newVersionedMetaData.getFunctionDetails().getTenant(),
+                newVersionedMetaData.getFunctionDetails().getNamespace(),
+                newVersionedMetaData.getFunctionDetails().getName(),
+                newVersionedMetaData, true,
+                String.format("Error deleting {} @ /{}/{}/{}",
+                        ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
 
         // clean up component files stored in BK
         if (!functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.HTTP) && !functionMetaData.getPackageLocation().getPackagePath().startsWith(Utils.FILE)) {
@@ -527,13 +523,9 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, Integer.parseInt(instanceId), start);
-        try {
-            worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant, namespace, componentName,
-                    newFunctionMetaData.toByteArray(), false);
-        } catch (PulsarAdminException e) {
-            log.error("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, instanceId, e);
-            throw new RestException(e.getStatusCode(), e.getMessage());
-        }
+        processFunctionUpdate(tenant, namespace, componentName, newFunctionMetaData, false,
+                String.format("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType),
+                        tenant, namespace, componentName, instanceId));
     }
 
     public void restartFunctionInstance(final String tenant,
@@ -654,13 +646,8 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, -1, start);
-        try {
-            worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant, namespace, componentName,
-                    newFunctionMetaData.toByteArray(), false);
-        } catch (PulsarAdminException e) {
-            log.error("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName, e);
-            throw new RestException(e.getStatusCode(), e.getMessage());
-        }
+        processFunctionUpdate(tenant, namespace, componentName, newFunctionMetaData, false,
+                String.format("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
     }
 
     public void restartFunctionInstances(final String tenant,
@@ -873,14 +860,10 @@ public abstract class ComponentImpl {
 
     void updateRequest(FunctionMetaData existingFunctionMetaData, final FunctionMetaData functionMetaData) {
         FunctionMetaData updatedVersionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetaData, functionMetaData);
-        try {
-            worker().getFunctionAdmin().functions().updateOnWorkerLeader(updatedVersionMetaData.getFunctionDetails().getTenant(),
-                    updatedVersionMetaData.getFunctionDetails().getNamespace(),
-                    updatedVersionMetaData.getFunctionDetails().getName(),
-                    updatedVersionMetaData.toByteArray(), false);
-        } catch (PulsarAdminException e) {
-            throw new RestException(e.getStatusCode(), e.getMessage());
-        }
+        processFunctionUpdate(updatedVersionMetaData.getFunctionDetails().getTenant(),
+                updatedVersionMetaData.getFunctionDetails().getNamespace(),
+                updatedVersionMetaData.getFunctionDetails().getName(),
+                updatedVersionMetaData, false, "Update Failed");
     }
 
     public List<ConnectorDefinition> getListOfConnectors() {
@@ -1543,6 +1526,23 @@ public abstract class ComponentImpl {
         } catch (Exception e) {
             log.warn("Admin-client with Role - {} failed to get function permissions for namespace - {}. {}", role, namespaceName,
                     e.getMessage(), e);
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    private void processFunctionUpdate(final String tenant, final String namespace, final String functionName,
+                                  final FunctionMetaData functionMetadata, boolean delete, String errorMsg) {
+        try {
+            if (worker().getMembershipManager().isLeader()) {
+                worker().getFunctionMetaDataManager().updateFunctionOnLeader(functionMetadata, delete);
+            } else {
+                worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant,
+                        namespace, functionName, functionMetadata.toByteArray(), delete);
+            }
+        } catch (PulsarAdminException e) {
+            log.error(errorMsg, e);
+            throw new RestException(e.getStatusCode(), e.getMessage());
+        } catch (IllegalStateException e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }

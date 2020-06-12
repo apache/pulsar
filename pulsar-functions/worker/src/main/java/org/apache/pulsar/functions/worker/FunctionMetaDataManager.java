@@ -188,6 +188,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             tailer.close();
         }
         this.schedulerManager.schedule();
+        log.info("FunctionMetaDataManager done becoming leader by doing its first schedule");
     }
 
     private synchronized FunctionMetaDataTopicTailer internalAcquireLeadership() {
