@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
@@ -385,6 +383,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
+        checkNotNull(role, "Role should not be null");
+        checkNotNull(actions, "Actions should not be null");
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -416,6 +416,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
+        checkNotNull(subscription, "Subscription should not be null");
+        checkNotNull(roles, "Roles should not be null");
 
         try {
             AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
@@ -447,6 +449,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalRevokePermissionsOnNamespace(String role) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         validatePoliciesReadOnlyAccess();
+        checkNotNull(role, "Role should not be null");
 
         try {
             Stat nodeStat = new Stat();
@@ -477,6 +480,8 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalRevokePermissionsOnSubscription(String subscriptionName, String role) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         validatePoliciesReadOnlyAccess();
+        checkNotNull(subscriptionName, "SubscriptionName should not be null");
+        checkNotNull(role, "Role should not be null");
 
         AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
         if (null != authService) {
@@ -502,6 +507,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalSetNamespaceReplicationClusters(List<String> clusterIds) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
+        checkNotNull(clusterIds, "ClusterIds should not be null");
 
         Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
         if (!namespaceName.isGlobal()) {
@@ -1026,6 +1032,7 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
         validateSuperUserAccess();
+        checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -1079,6 +1086,7 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
+        checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
 
         Policies policies = getNamespacePolicies(namespaceName);
@@ -1591,6 +1599,7 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected void internalClearNamespaceBundleBacklog(String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        checkNotNull(bundleRange, "BundleRange should not be null");
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1612,6 +1621,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
             boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        checkNotNull(subscription, "Subscription should not be null");
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1655,6 +1665,8 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalClearNamespaceBundleBacklogForSubscription(String subscription, String bundleRange,
             boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
+        checkNotNull(subscription, "Subscription should not be null");
+        checkNotNull(bundleRange, "BundleRange should not be null");
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1676,6 +1688,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected void internalUnsubscribeNamespace(AsyncResponse asyncResponse, String subscription,
             boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
+        checkNotNull(subscription, "Subscription should not be null");
 
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
         try {
@@ -1718,6 +1731,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected void internalUnsubscribeNamespaceBundle(String subscription, String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
+        checkNotNull(subscription, "Subscription should not be null");
+        checkNotNull(bundleRange, "BundleRange should not be null");
 
         Policies policies = getNamespacePolicies(namespaceName);
 
@@ -1880,6 +1895,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
+        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
         validatePoliciesReadOnlyAccess();
 
         log.info("[{}] Setting anti-affinity group {} for {}", clientAppId(), antiAffinityGroup, namespaceName);
@@ -1957,6 +1973,9 @@ public abstract class NamespacesBase extends AdminResource {
     protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
             String tenant) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
+        checkNotNull(cluster, "Cluster should not be null");
+        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
+        checkNotNull(tenant, "Tenant should not be null");
 
         log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup, cluster);
 
@@ -1987,24 +2006,21 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private void validatePersistencePolicies(PersistencePolicies persistence) {
-        try {
-            checkNotNull(persistence);
-            final ServiceConfiguration config = pulsar().getConfiguration();
-            checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
-                    "Bookkeeper-Ensemble must be <= %s", config.getManagedLedgerMaxEnsembleSize());
-            checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
-                    "Bookkeeper-WriteQuorum must be <= %s", config.getManagedLedgerMaxWriteQuorum());
-            checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
-                    "Bookkeeper-AckQuorum must be <= %s", config.getManagedLedgerMaxAckQuorum());
-            checkArgument(
-                    (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
-                            && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
-                    "Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)",
-                    persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
-                    persistence.getBookkeeperAckQuorum());
-        } catch (NullPointerException | IllegalArgumentException e) {
-            throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
-        }
+        checkNotNull(persistence, "persistence policies should not be null");
+        final ServiceConfiguration config = pulsar().getConfiguration();
+        checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
+                "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize());
+        checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
+                "Bookkeeper-WriteQuorum must be <= " + config.getManagedLedgerMaxWriteQuorum());
+        checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
+                "Bookkeeper-AckQuorum must be <= " + config.getManagedLedgerMaxAckQuorum());
+        checkArgument(
+                (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
+                        && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
+                String.format("Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)",
+                persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
+                persistence.getBookkeeperAckQuorum()));
+
     }
 
     protected RetentionPolicies internalGetRetention() {
