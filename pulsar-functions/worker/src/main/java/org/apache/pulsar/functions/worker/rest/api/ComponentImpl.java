@@ -1544,6 +1544,8 @@ public abstract class ComponentImpl {
             throw new RestException(e.getStatusCode(), e.getMessage());
         } catch (IllegalStateException e) {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
         }
     }
 }
