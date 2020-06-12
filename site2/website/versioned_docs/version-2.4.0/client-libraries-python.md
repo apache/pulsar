@@ -167,7 +167,7 @@ the existing topic schema is indeed of "Avro" type and that the
 format is compatible with the schema definition of the `Example`
 class.
 
-If there is a mismatch, the producer creation will raise an
+If there is a mismatch, the producer creation raises an
 exception.
 
 Once a producer is created with a certain schema definition,
