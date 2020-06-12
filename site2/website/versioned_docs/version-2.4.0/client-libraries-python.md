@@ -28,7 +28,7 @@ Platform | Supported Python versions
 
 ### Installing from source
 
-To install the `pulsar-client` library by building from source, follow [these instructions](client-libraries-cpp.md#compilation) and compile the Pulsar C++ client library. That will also build the Python binding for the library.
+To install the `pulsar-client` library by building from source, follow [these instructions](client-libraries-cpp.md#compilation) and compile the Pulsar C++ client library. That also builds the Python binding for the library.
 
 To install the built Python bindings:
 
