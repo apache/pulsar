@@ -151,7 +151,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return containsFunctionMetaData(tenant, namespace, functionName);
     }
 
-    public synchronized void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete) throws IllegalStateException {
+    public synchronized void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
+            throws IllegalStateException, IllegalArgumentException {
         if (exclusiveLeaderProducer == null) {
             throw new IllegalStateException("Not the leader");
         }
@@ -241,7 +242,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 default:
                     log.warn("Received request with unrecognized type: {}", serviceRequest);
             }
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             // Its ok. Nothing much we can do about it
         }
     }
@@ -271,7 +272,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     @VisibleForTesting
-    synchronized boolean proccessDeregister(FunctionMetaData deregisterRequestFs) throws IllegalStateException {
+    synchronized boolean proccessDeregister(FunctionMetaData deregisterRequestFs) throws IllegalArgumentException {
 
         String functionName = deregisterRequestFs.getFunctionDetails().getName();
         String tenant = deregisterRequestFs.getFunctionDetails().getTenant();
@@ -292,7 +293,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     log.debug("{}/{}/{} Ignoring outdated request version: {}", tenant, namespace, functionName,
                             deregisterRequestFs.getVersion());
                 }
-                throw new IllegalStateException("Delete request ignored because it is out of date. Please try again.");
+                throw new IllegalArgumentException("Delete request ignored because it is out of date. Please try again.");
             }
         }
 
@@ -300,7 +301,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     @VisibleForTesting
-    synchronized boolean processUpdate(FunctionMetaData updateRequestFs) throws IllegalStateException {
+    synchronized boolean processUpdate(FunctionMetaData updateRequestFs) throws IllegalArgumentException {
 
         log.debug("Process update request: {}", updateRequestFs);
 
@@ -320,7 +321,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 setFunctionMetaData(updateRequestFs);
                 needsScheduling = true;
             } else {
-                throw new IllegalStateException("Update request ignored because it is out of date. Please try again.");
+                throw new IllegalArgumentException("Update request ignored because it is out of date. Please try again.");
             }
         }
 
