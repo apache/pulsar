@@ -44,7 +44,7 @@ The complete Python API reference is available at [api/python](/api/python).
 
 ## Examples
 
-Below you'll find a variety of Python code examples for the `pulsar-client` library.
+You can find a variety of Python code examples for the `pulsar-client` library as below.
 
 ### Producer example
 
