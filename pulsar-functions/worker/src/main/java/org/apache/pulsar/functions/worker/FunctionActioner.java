@@ -78,16 +78,18 @@ public class FunctionActioner {
     private final RuntimeFactory runtimeFactory;
     private final Namespace dlogNamespace;
     private final ConnectorsManager connectorsManager;
+    private final FunctionsManager functionsManager;
     private final PulsarAdmin pulsarAdmin;
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
                             Namespace dlogNamespace,
-                            ConnectorsManager connectorsManager, PulsarAdmin pulsarAdmin) {
+                            ConnectorsManager connectorsManager,FunctionsManager functionsManager,PulsarAdmin pulsarAdmin) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
         this.dlogNamespace = dlogNamespace;
         this.connectorsManager = connectorsManager;
+        this.functionsManager = functionsManager;
         this.pulsarAdmin = pulsarAdmin;
     }
 
@@ -437,6 +439,10 @@ public class FunctionActioner {
                 fillSinkTypeClass(functionDetails, archive, sinkClass);
                 return archive;
             }
+        }
+
+        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+            return functionsManager.getFunctionArchive(functionDetails.getBuiltin()).toFile();
         }
 
         throw new IOException("Could not find built in archive definition");

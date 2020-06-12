@@ -154,7 +154,9 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                functionMetaDataManager));
+                mock(FunctionsManager.class),
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, pulsarClient, pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -226,7 +228,9 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                functionMetaDataManager));
+                mock(FunctionsManager.class),
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
 
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
@@ -313,7 +317,9 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                functionMetaDataManager));
+                mock(FunctionsManager.class),
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -392,7 +398,9 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class),
                 mock(ConnectorsManager.class),
-                functionMetaDataManager));
+                mock(FunctionsManager.class),
+                functionMetaDataManager,
+                mock(ErrorNotifier.class)));
         MembershipManager membershipManager = spy(new MembershipManager(workerService, mockPulsarClient(), pulsarAdmin));
 
         List<WorkerInfo> workerInfoList = new LinkedList<>();
@@ -436,5 +444,4 @@ public class MembershipManagerTest {
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
-
 }

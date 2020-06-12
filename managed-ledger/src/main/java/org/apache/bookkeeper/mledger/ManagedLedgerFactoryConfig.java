@@ -51,4 +51,19 @@ public class ManagedLedgerFactoryConfig {
      * Whether we should make a copy of the entry payloads when inserting in cache
      */
     private boolean copyEntriesInCache = false;
+
+    /**
+     * Whether trace managed ledger task execution time
+     */
+    private boolean traceTaskExecution = true;
+
+    /**
+     * Managed ledger prometheus stats Latency Rollover Seconds
+     */
+    private int prometheusStatsLatencyRolloverSeconds = 60;
+
+    /**
+     * cluster name for prometheus stats
+     */
+    private String clusterName;
 }

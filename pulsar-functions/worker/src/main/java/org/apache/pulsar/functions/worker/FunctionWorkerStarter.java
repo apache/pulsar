@@ -65,8 +65,7 @@ public class FunctionWorkerStarter {
         final Worker worker = new Worker(workerConfig);
         try {
             worker.start();
-        }catch(Exception e){
-            log.error("Failed to start function worker", e);
+        } catch (Throwable th) {
             worker.stop();
             System.exit(-1);
         }

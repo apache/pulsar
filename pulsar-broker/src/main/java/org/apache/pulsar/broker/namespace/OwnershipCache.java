@@ -372,6 +372,10 @@ public class OwnershipCache {
         }
     }
 
+    public void invalidateLocalOwnerCache() {
+        this.ownedBundlesCache.synchronous().invalidateAll();
+    }
+
     public NamespaceEphemeralData getSelfOwnerInfo() {
         return selfOwnerInfo;
     }

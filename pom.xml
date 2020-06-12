@@ -581,7 +581,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.4</version>
+        <version>3.6</version>
       </dependency>
 
       <dependency>
@@ -1394,6 +1394,8 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-go/go.sum</exclude>
             <exclude>pulsar-function-go/go.mod</exclude>
             <exclude>pulsar-function-go/go.sum</exclude>
+            <exclude>pulsar-function-go/examples/go.mod</exclude>
+            <exclude>pulsar-function-go/examples/go.sum</exclude>
 
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
@@ -1426,6 +1428,7 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+            <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>

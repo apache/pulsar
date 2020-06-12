@@ -79,6 +79,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private static final String CATEGORY_STATE = "State Management";
     @Category
     private static final String CATEGORY_CONNECTORS = "Connectors";
+    @Category
+    private static final String CATEGORY_FUNCTIONS = "Functions";
 
     @FieldContext(
         category = CATEGORY_WORKER,
@@ -100,6 +102,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The port for serving worker https requests"
     )
     private Integer workerPortTls;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = true;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint should return default prometheus metrics. Defaults to false."
+    )
+    private boolean includeStandardPrometheusMetrics = false;
     @FieldContext(
         category = CATEGORY_WORKER,
         doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -145,6 +158,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Should we validate connector config during submission"
     )
     private Boolean validateConnectorConfig = false;
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The path to the location to locate builtin functions"
+    )
+    private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"

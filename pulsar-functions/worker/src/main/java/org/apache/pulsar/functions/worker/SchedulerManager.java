@@ -106,6 +106,7 @@ public class SchedulerManager implements AutoCloseable {
                                 .blockIfQueueFull(true)
                                 .compressionType(CompressionType.LZ4)
                                 .sendTimeout(0, TimeUnit.MILLISECONDS)
+                                .producerName(config.getWorkerId() + "-scheduler-manager")
                                 .createAsync().get(10, TimeUnit.SECONDS);
                         return Actions.ActionResult.builder().success(true).result(producer).build();
                     } catch (Exception e) {

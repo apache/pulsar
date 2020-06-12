@@ -18,20 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
-import lombok.Cleanup;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
-import org.apache.curator.shaded.com.google.common.collect.Lists;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
+import com.google.common.collect.Sets;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,10 +34,24 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import lombok.Cleanup;
+
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.curator.shaded.com.google.common.collect.Lists;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
@@ -112,6 +118,43 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                     .value(i)
                     .send();
         }
+
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+    }
+
+    @Test(dataProvider = "data")
+    public void testSendAndReceiveWithBatching(String topicType, boolean enableBatch)
+            throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = topicType + "://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        for (int i = 0; i < 1000; i++) {
+            // Send the same key twice so that we'll have a batch message
+            String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .sendAsync();
+
+            producer.newMessage()
+                    .key(key)
+                    .value(i)
+                    .sendAsync();
+        }
+
+        producer.flush();
 
         receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
     }
@@ -390,6 +433,290 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 } catch (PulsarClientException.InvalidConfigurationException ignore) {}
             }
         }
+    }
+
+    @Test(dataProvider = "batch")
+    public void testMakingProgressWithSlowerConsumer(boolean enableBatch) throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testMakingProgressWithSlowerConsumer-" + UUID.randomUUID();
+
+        String slowKey = "slowKey";
+
+        List<PulsarClient> clients = new ArrayList<>();
+
+        AtomicInteger receivedMessages = new AtomicInteger();
+
+        for (int i = 0; i < 10; i++) {
+            PulsarClient client = PulsarClient.builder()
+                    .serviceUrl(brokerUrl.toString())
+                    .build();
+            clients.add(client);
+
+            client.newConsumer(Schema.INT32)
+                    .topic(topic)
+                    .subscriptionName("key_shared")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .receiverQueueSize(1)
+                    .messageListener((consumer, msg) -> {
+                        try {
+                            if (slowKey.equals(msg.getKey())) {
+                                // Block the thread to simulate a slow consumer
+                                Thread.sleep(10000);
+                            }
+
+                            receivedMessages.incrementAndGet();
+                            consumer.acknowledge(msg);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    })
+                    .subscribe();
+        }
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        // First send the "slow key" so that 1 consumer will get stuck
+        producer.newMessage()
+                .key(slowKey)
+                .value(-1)
+                .send();
+
+        int N = 1000;
+
+        // Then send all the other keys
+        for (int i = 0; i < N; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // Since only 1 out of 10 consumers is stuck, we should be able to receive ~90% messages,
+        // plus or minus for some skew in the key distribution.
+        Thread.sleep(5000);
+
+        assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
+
+        for (PulsarClient c : clients) {
+            c.close();
+        }
+    }
+
+    @Test
+    public void testOrderingWhenAddingConsumers() throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testOrderingWhenAddingConsumers-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = createConsumer(topic);
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = createConsumer(topic);
+
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // Closing c1, would trigger all messages to go to c2
+        c1.close();
+
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = c2.receive();
+            assertEquals(msg.getValue().intValue(), i);
+
+            c2.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testReadAheadWhenAddingConsumers() throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .subscribe();
+
+        // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
+
+        for (int i = 10; i < 1000; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .sendAsync();
+        }
+
+        producer.flush();
+        Thread.sleep(1000);
+
+        Topic t = pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentSubscription sub = (PersistentSubscription) t.getSubscription("key_shared");
+
+        // We need to ensure that dispatcher does not keep to look ahead in the topic,
+        PositionImpl readPosition = (PositionImpl) sub.getCursor().getReadPosition();
+        assertTrue(readPosition.getEntryId() < 1000);
+    }
+
+    @Test
+    public void testRemoveFirstConsumer() throws Exception {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "testReadAheadWhenAddingConsumers-" + UUID.randomUUID();
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, false);
+
+        @Cleanup
+        Consumer<Integer> c1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .consumerName("c1")
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // All the already published messages will be pre-fetched by C1.
+
+        // Adding a new consumer.
+        @Cleanup
+        Consumer<Integer> c2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("key_shared")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .receiverQueueSize(10)
+                .consumerName("c2")
+                .subscribe();
+
+        for (int i = 10; i < 20; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        // C2 will not be able to receive any messages until C1 is done processing whatever he got prefetched
+        assertNull(c2.receive(100, TimeUnit.MILLISECONDS));
+
+        c1.close();
+
+        // Now C2 will get all messages
+        for (int i = 0; i < 20; i++) {
+            Message<Integer> msg = c2.receive();
+            assertEquals(msg.getValue().intValue(), i);
+            c2.acknowledge(msg);
+        }
+    }
+
+    @Test
+    public void testHashRangeConflict() throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        final String topic = "testHashRangeConflict-" + UUID.randomUUID().toString();
+        final String sub = "test";
+
+        Consumer<String> consumer1 = createFixedHashRangesConsumer(topic, sub, Range.of(0,99), Range.of(400, 65535));
+        Assert.assertTrue(consumer1.isConnected());
+
+        Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
+        Assert.assertTrue(consumer2.isConnected());
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(1,1));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        consumer1.close();
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(50,100));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        try {
+            createFixedHashRangesConsumer(topic, sub, Range.of(399,500));
+            Assert.fail("Should failed with conflict range.");
+        } catch (PulsarClientException.ConsumerAssignException ignore) {
+        }
+
+        Consumer<String> consumer3 = createFixedHashRangesConsumer(topic, sub, Range.of(400,600));
+        Assert.assertTrue(consumer3.isConnected());
+
+        Consumer<String> consumer4 = createFixedHashRangesConsumer(topic, sub, Range.of(50,99));
+        Assert.assertTrue(consumer4.isConnected());
+
+        consumer2.close();
+        consumer3.close();
+        consumer4.close();
+    }
+
+    private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {
+        return pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subscription)
+                .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(ranges))
+                .subscribe();
     }
 
     private Producer<Integer> createProducer(String topic, boolean enableBatch) throws PulsarClientException {
