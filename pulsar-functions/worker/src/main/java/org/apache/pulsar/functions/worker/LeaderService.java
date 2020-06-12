@@ -74,6 +74,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 .subscriptionType(SubscriptionType.Failover)
                 .consumerEventListener(this)
                 .property(WORKER_IDENTIFIER, consumerName)
+                .consumerName(consumerName)
                 .subscribe();
 
     }
@@ -118,6 +119,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
     @Override
     public void close() throws PulsarClientException {
-        consumer.close();
+        if (consumer != null) {
+            consumer.close();
+        }
     }
 }

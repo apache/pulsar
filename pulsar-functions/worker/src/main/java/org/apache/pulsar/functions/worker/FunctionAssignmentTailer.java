@@ -46,13 +46,14 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private final FunctionRuntimeManager functionRuntimeManager;
     private final ReaderBuilder readerBuilder;
     private final WorkerConfig workerConfig;
+    private final ErrorNotifier errorNotifier;
     @Getter
     private Reader<byte[]> reader;
     private volatile boolean isRunning = false;
     private volatile boolean exitOnEndOfTopic = false;
     private CompletableFuture<Void> hasExited;
 
-    private final Thread tailerThread;
+    private Thread tailerThread;
 
     @Getter
     @Setter
@@ -67,38 +68,10 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         this.hasExited = new CompletableFuture<>();
         this.readerBuilder = readerBuilder;
         this.workerConfig = workerConfig;
+        this.errorNotifier = errorNotifier;
         this.reader = createReader();
         
-        this.tailerThread = new Thread(() -> {
-            while(isRunning) {
-                try {
-                    Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
-                    if (msg == null) {
-                        if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
-                            break;
-                        } 
-                    } else {
-                        processAssignment(msg);
-                        // keep track of the last message read
-                        lastMessageId = msg.getMessageId();
-                    }
-                } catch (Throwable th) {
-                    if (isRunning) {
-                        log.error("Encountered error in assignment tailer", th);
-                        // trigger fatal error
-                        isRunning = false;
-                        errorNotifier.triggerError(th);
-                    } else {
-                        if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
-                            log.warn("Encountered error when assignment tailer is not running", th);
-                        }
-                    }
-                }
-            }
-            log.info("tailer thread exiting...");
-            hasExited.complete(null);
-        });
-        this.tailerThread.setName("assignment-tailer-thread");
+        this.tailerThread = getTailerThread();
     }
 
     public CompletableFuture<Void> triggerReadToTheEndAndExit() {
@@ -111,6 +84,9 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             isRunning = true;
             if (reader == null) {
                 reader = createReader();
+            }
+            if (tailerThread == null || !tailerThread.isAlive()) {
+                tailerThread = getTailerThread();
             }
             tailerThread.start();
         }
@@ -139,7 +115,8 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                         break;
                     }
                 }
-            }            
+                tailerThread = null;
+            }
             if (reader != null) {
                 reader.close();
                 reader = null;
@@ -182,5 +159,39 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 .readCompacted(true)
                 .startMessageId(startMessageId)
                 .create();
+    }
+
+    private Thread getTailerThread() {
+        Thread t = new Thread(() -> {
+            while (isRunning) {
+                try {
+                    Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
+                            break;
+                        }
+                    } else {
+                        processAssignment(msg);
+                        // keep track of the last message read
+                        lastMessageId = msg.getMessageId();
+                    }
+                } catch (Throwable th) {
+                    if (isRunning) {
+                        log.error("Encountered error in assignment tailer", th);
+                        // trigger fatal error
+                        isRunning = false;
+                        errorNotifier.triggerError(th);
+                    } else {
+                        if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
+                            log.warn("Encountered error when assignment tailer is not running", th);
+                        }
+                    }
+                }
+            }
+            log.info("tailer thread exiting...");
+            hasExited.complete(null);
+        });
+        t.setName("assignment-tailer-thread");
+        return t;
     }
 }
