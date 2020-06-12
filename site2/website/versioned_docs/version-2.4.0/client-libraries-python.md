@@ -162,7 +162,7 @@ producer = client.create_producer(
 producer.send(Example(a='Hello', b=1))
 ```
 
-When the producer is created, the Pulsar broker will validate that
+When the producer is created, the Pulsar broker validates that
 the existing topic schema is indeed of "Avro" type and that the
 format is compatible with the schema definition of the `Example`
 class.
