@@ -174,7 +174,7 @@ Once a producer is created with a certain schema definition,
 it only accepts objects that are instances of the declared
 schema class.
 
-Similarly, for a consumer/reader, the consumer will return an
+Similarly, for a consumer/reader, the consumer returns an
 object, instance of the schema record class, rather than the raw
 bytes:
 
