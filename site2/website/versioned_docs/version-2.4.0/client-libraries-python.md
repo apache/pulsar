@@ -171,7 +171,7 @@ If there is a mismatch, the producer creation raises an
 exception.
 
 Once a producer is created with a certain schema definition,
-it will only accept objects that are instances of the declared
+it only accepts objects that are instances of the declared
 schema class.
 
 Similarly, for a consumer/reader, the consumer will return an
