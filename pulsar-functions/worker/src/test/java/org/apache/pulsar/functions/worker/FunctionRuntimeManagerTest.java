@@ -51,6 +51,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
@@ -529,7 +530,7 @@ public class FunctionRuntimeManagerTest {
         Reader<byte[]> reader = mock(Reader.class);
 
 
-        when(reader.readNext()).thenAnswer(new Answer<Message<byte[]>>() {
+        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
             @Override
             public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
                 return messageList.poll(10, TimeUnit.SECONDS);

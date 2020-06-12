@@ -28,7 +28,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
@@ -58,6 +57,7 @@ import java.net.URI;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -132,6 +132,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final FunctionMetaDataManager functionMetaDataManager;
 
     private final ErrorNotifier errorNotifier;
+
+    private MessageId lastPublishedMessageId = null;
     
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
@@ -248,9 +250,19 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionAssignmentTailer.start();
     }
 
+    public void stopReadingAssignments() throws ExecutionException, InterruptedException {
+        this.functionAssignmentTailer.triggerReadToTheEndAndExit().get();
+        this.functionAssignmentTailer.close();
+    }
+
     /**
      * Public methods
      */
+
+    //Todo add comment
+    public void setMessageId(MessageId messageId) {
+        functionAssignmentTailer.setLastMessageId(messageId);
+    }
 
     /**
      * Get current assignments

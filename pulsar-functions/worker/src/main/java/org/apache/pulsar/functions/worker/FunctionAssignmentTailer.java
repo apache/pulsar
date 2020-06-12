@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -52,6 +53,10 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private CompletableFuture<Void> hasExited;
 
     private final Thread tailerThread;
+
+    @Getter
+    @Setter
+    private MessageId lastMessageId = null;
     
     public FunctionAssignmentTailer(
             FunctionRuntimeManager functionRuntimeManager,
@@ -74,6 +79,8 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                         } 
                     } else {
                         processAssignment(msg);
+                        // keep track of the last message read
+                        lastMessageId = msg.getMessageId();
                     }
                 } catch (Throwable th) {
                     if (isRunning) {
@@ -165,12 +172,15 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     }
     
     private Reader<byte[]> createReader() throws PulsarClientException {
+        MessageId startMessageId = lastMessageId == null ? MessageId.earliest : lastMessageId;
+        log.info("Assignment tailer will start reading from message id {}", startMessageId);
+
         return readerBuilder
                 .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-runtime-manager")
                 .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
                 .topic(workerConfig.getFunctionAssignmentTopic())
                 .readCompacted(true)
-                .startMessageId(MessageId.earliest)
+                .startMessageId(startMessageId)
                 .create();
     }
 }

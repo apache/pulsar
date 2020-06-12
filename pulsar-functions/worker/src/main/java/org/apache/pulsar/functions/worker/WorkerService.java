@@ -199,7 +199,8 @@ public class WorkerService {
 
             this.leaderService = new LeaderService(this,
                     client,
-                    functionRuntimeManager.getFunctionAssignmentTailer(),
+                    functionRuntimeManager,
+                    schedulerManager,
                     errorNotifier);
 
             // Setting references to managers in scheduler

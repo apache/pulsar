@@ -48,6 +48,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -97,7 +98,7 @@ public class SchedulerManager implements AutoCloseable {
 
     @Getter
     private Lock schedulerLock = new ReentrantLock(true);
-    
+
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
     public static final String HEARTBEAT_TENANT = "pulsar-function";
@@ -225,11 +226,13 @@ public class SchedulerManager implements AutoCloseable {
                 boolean deleted = !allInstances.containsKey(fullyQualifiedInstanceId);
                 if (deleted) {
                     Assignment assignment = entry.getValue();
-                    publishNewAssignment(assignment.toBuilder().build(), true);
+                    MessageId messageId = publishNewAssignment(assignment.toBuilder().build(), true);
                     
                     // Directly update in memory assignment cache since I am leader
                     log.info("Deleting assignment: {}", assignment);
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
+                    // update message id associated with current view of assignments map
+                    functionRuntimeManager.setMessageId(messageId);
                 }
                 return deleted;
             });
@@ -243,11 +246,13 @@ public class SchedulerManager implements AutoCloseable {
                 if (!assignment.getInstance().equals(instance)) {
                     functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
                     Assignment newAssignment = assignment.toBuilder().setInstance(instance).build().toBuilder().build();
-                    publishNewAssignment(newAssignment, false);
+                    MessageId messageId = publishNewAssignment(newAssignment, false);
 
                     // Directly update in memory assignment cache since I am leader
                     log.info("Updating assignment: {}", assignment);
                     functionRuntimeManager.processAssignment(newAssignment);
+                    // update message id associated with current view of assignments map
+                    functionRuntimeManager.setMessageId(messageId);
                 }
                 if (functionMap.isEmpty()) {
                     it.remove();
@@ -284,11 +289,13 @@ public class SchedulerManager implements AutoCloseable {
         isCompactionNeeded.set(!assignments.isEmpty());
 
         for(Assignment assignment : assignments) {
-            publishNewAssignment(assignment, false);
+            MessageId messageId = publishNewAssignment(assignment, false);
 
             // Directly update in memory assignment cache since I am leader
             log.info("Adding assignment: {}", assignment);
             functionRuntimeManager.processAssignment(assignment);
+            // update message id associated with current view of assignments map
+            functionRuntimeManager.setMessageId(messageId);
         }
         
     }
@@ -305,12 +312,12 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    private void publishNewAssignment(Assignment assignment, boolean deleted) {
+    private MessageId publishNewAssignment(Assignment assignment, boolean deleted) {
         try {
             String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
             // publish empty message with instance-id key so, compactor can delete and skip delivery of this instance-id
             // message
-            producer.newMessage().key(fullyQualifiedInstanceId)
+            return producer.newMessage().key(fullyQualifiedInstanceId)
                     .value(deleted ? "".getBytes() : assignment.toByteArray()).send();
         } catch (Exception e) {
             log.error("Failed to {} assignment update {}", assignment, deleted ? "send" : "deleted", e);
