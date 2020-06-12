@@ -697,6 +697,8 @@ public class FunctionsImpl extends ComponentImpl {
         try {
             functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
         } catch (IllegalStateException e) {
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
     }
