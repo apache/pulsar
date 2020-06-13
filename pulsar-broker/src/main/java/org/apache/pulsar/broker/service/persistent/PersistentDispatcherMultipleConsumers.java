@@ -480,6 +480,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
+        int totalMessages = updateEntriesWithMetadata(entries);
+        int avgBatchSizePerMsg = totalMessages > 0 ? Math.max(totalMessages / entries.size(), 1) : 1;
 
         int firstAvailableConsumerPermits, currentTotalAvailablePermits;
         boolean dispatchMessage;
@@ -506,9 +508,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                 + "availablePermits are {}", topic.getName(), name,
                         c, c.getAvailablePermits());
             }
-            int messagesForC = Math.min(
-                    Math.min(entriesToDispatch, availablePermits),
+
+            int messagesForC = Math.min(Math.min(entriesToDispatch, availablePermits),
                     serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+            messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
             if (messagesForC > 0) {
 
