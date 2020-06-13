@@ -198,7 +198,7 @@ public class SchedulerManagerTest {
         doReturn(true).when(leaderService).isLeader();
         callSchedule();
         List<Invocation> invocations = getMethodInvocationDetails(schedulerManager,
-                SchedulerManager.class.getMethod("invokeScheduler"));
+                SchedulerManager.class.getDeclaredMethod("invokeScheduler"));
         Assert.assertEquals(invocations.size(), 1);
         verify(errorNotifier, times(0)).triggerError(any());
     }

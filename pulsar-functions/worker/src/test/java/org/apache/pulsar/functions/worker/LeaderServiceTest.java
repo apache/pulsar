@@ -70,6 +70,8 @@ public class LeaderServiceTest {
         when(mockConsumerBuilder.subscriptionName(anyString())).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.subscriptionType(any(SubscriptionType.class))).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
+        when(mockConsumerBuilder.consumerName(anyString())).thenReturn(mockConsumerBuilder);
+
 
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
         WorkerService workerService = mock(WorkerService.class);
