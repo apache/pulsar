@@ -118,7 +118,7 @@ public class FunctionMetaDataManagerTest {
         try {
             functionMetaDataManager.updateFunctionOnLeader(m1, false);
             Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Update request ignored because it is out of date. Please try again.");
         }
         // udpate with new version
@@ -164,7 +164,7 @@ public class FunctionMetaDataManagerTest {
         try {
             functionMetaDataManager.updateFunctionOnLeader(m1, true);
             Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Delete request ignored because it is out of date. Please try again.");
         }
         verify(mockedScheduler, times(2)).schedule();
@@ -237,7 +237,7 @@ public class FunctionMetaDataManagerTest {
         try {
             functionMetaDataManager.processUpdate(m1);
             Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Update request ignored because it is out of date. Please try again.");
         }
         verify(functionMetaDataManager, times(1))
@@ -294,7 +294,7 @@ public class FunctionMetaDataManagerTest {
         try {
             functionMetaDataManager.proccessDeregister(m1);
             Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
+        } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Delete request ignored because it is out of date. Please try again.");
         }
         verify(functionMetaDataManager, times(1))
