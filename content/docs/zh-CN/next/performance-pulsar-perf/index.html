@@ -83,7 +83,7 @@
 <pre><code class="hljs">bin/pulsar-perf produce <span class="hljs-keyword">my</span>-topic
 </code></pre>
 <p>After the command is executed, the test data is continuously output on the Console.</p>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-number">19</span>:<span class="hljs-number">53</span>:<span class="hljs-number">31.459</span> [pulsar-perf-producer-exec<span class="hljs-number">-1</span><span class="hljs-number">-1</span>] INFO  org.apache.pulsar.testclient.PerformanceProducer - Created <span class="hljs-number">1</span> producers
 <span class="hljs-number">19</span>:<span class="hljs-number">53</span>:<span class="hljs-number">31.482</span> [pulsar-timer<span class="hljs-number">-5</span><span class="hljs-number">-1</span>] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 <span class="hljs-number">19</span>:<span class="hljs-number">53</span>:<span class="hljs-number">40.861</span> [main] INFO  org.apache.pulsar.testclient.PerformanceProducer - Throughput produced:     <span class="hljs-number">93.7</span>  msg/s ---      <span class="hljs-number">0.7</span> Mbit/s --- failure      <span class="hljs-number">0.0</span> msg/s --- Latency: mean:   <span class="hljs-number">3.575</span> ms - med:   <span class="hljs-number">3.460</span> - <span class="hljs-number">95</span>pct:   <span class="hljs-number">4.790</span> - <span class="hljs-number">99</span>pct:   <span class="hljs-number">5.308</span> - <span class="hljs-number">99.9</span>pct:   <span class="hljs-number">5.834</span> - <span class="hljs-number">99.99</span>pct:   <span class="hljs-number">6.609</span> - Max:   <span class="hljs-number">6.609</span>
@@ -140,7 +140,7 @@
 <pre><code class="hljs">bin/pulsar-perf consume <span class="hljs-keyword">my</span>-topic
 </code></pre>
 <p>After the command is executed, the test data is continuously output on the Console.</p>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <pre><code class="hljs"><span class="hljs-number">20</span>:<span class="hljs-number">35</span>:<span class="hljs-number">37.071</span> [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Start receiving <span class="hljs-keyword">from</span> <span class="hljs-number">1</span> consumers on <span class="hljs-number">1</span> topics
 <span class="hljs-number">20</span>:<span class="hljs-number">35</span>:<span class="hljs-number">41.150</span> [pulsar-client-io<span class="hljs-number">-1</span><span class="hljs-number">-9</span>] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 <span class="hljs-number">20</span>:<span class="hljs-number">35</span>:<span class="hljs-number">47.092</span> [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Throughput received: <span class="hljs-number">59.572</span>  msg/s -- <span class="hljs-number">0.465</span> Mbit/s --- Latency: mean: <span class="hljs-number">11.298</span> ms - med: <span class="hljs-number">10</span> - <span class="hljs-number">95</span>pct: <span class="hljs-number">15</span> - <span class="hljs-number">99</span>pct: <span class="hljs-number">98</span> - <span class="hljs-number">99.9</span>pct: <span class="hljs-number">137</span> - <span class="hljs-number">99.99</span>pct: <span class="hljs-number">152</span> - Max: <span class="hljs-number">152</span>

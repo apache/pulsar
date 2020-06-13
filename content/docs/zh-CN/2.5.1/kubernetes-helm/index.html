@@ -93,7 +93,7 @@
 <p>Tip For the following steps, step 2 and step 3 are for developers and step 4 and step 5 are for administrators.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="步骤-0：准备一个-kubernetes-集群"></a><a href="#步骤-0：准备一个-kubernetes-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 0：准备一个 Kubernetes 集群</h2>
-<p>在安装 Pulsar Helm 图表之前，你必须创建一个 Kubernetes 集群。 你可以按照 <a href="/docs/zh-CN/2.5.1/helm-prepare">指示</a> 来准备一个Kubernetes集群。</p>
+<p>在安装 Pulsar Helm chart 之前，你必须创建一个 Kubernetes 集群。 你可以按照 <a href="/docs/zh-CN/2.5.1/helm-prepare">指示</a> 来准备一个Kubernetes集群。</p>
 <p>We use <a href="https://kubernetes.io/docs/getting-started-guides/minikube/">Minikube</a> in this quick start guide.</p>
 <ol>
 <li><p>Create a kubernetes cluster on Minikube.</p>
@@ -110,7 +110,7 @@
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="step-1-install-pulsar-helm-chart"></a><a href="#step-1-install-pulsar-helm-chart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 1: Install Pulsar Helm Chart</h2>
 <ol>
-<li><p>克隆 Pulsar Helm 图表的仓库。</p>
+<li><p>克隆 Pulsar Helm chart 的仓库。</p>
 <pre><code class="hljs css language-bash">git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar
 <span class="hljs-built_in">cd</span> deployment/kubernetes/helm/
 </code></pre></li>
@@ -122,16 +122,16 @@
     --control-center-password pulsar \
     -c
 </code></pre></li>
-<li><p>Use the Pulsar Helm chart to install a Pulsar cluster to Kubernetes.</p>
+<li><p>使用 Pulsar Helm chart 来将一个 Pulsar 集群安装至 Kubernetes。</p>
 <pre><code class="hljs css language-bash">helm install \
     --values examples/values-minikube.yaml \
     pulsar-mini pulsar
 </code></pre></li>
-<li><p>Check the status of all pods.</p>
+<li><p>检查所有 pod 的状态。</p>
 <pre><code class="hljs css language-bash">kubectl get pods -n pulsar
 </code></pre>
 <p>If all pods start up successfully, you can see <code>STATUS</code> changes to <code>Running</code> or <code>Completed</code>.</p>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <pre><code class="hljs css language-bash">NAME                                         READY   STATUS      RESTARTS   AGE
 pulsar-mini-bookie-0                         1/1     Running     0          9m27s
 pulsar-mini-bookie-init-5gphs                0/1     Completed   0          9m27s
@@ -144,10 +144,10 @@ pulsar-mini-pulsar-manager-9bcbb4d9f-htpcs   1/1     Running     0          9m27
 pulsar-mini-toolset-0                        1/1     Running     0          9m27s
 pulsar-mini-zookeeper-0                      1/1     Running     0          9m27s
 </code></pre></li>
-<li><p>Check the status of all services in the namespace <code>pulsar</code>.</p>
+<li><p>检查命名空间 <code>pulsar</code> 下所有服务的状态。</p>
 <pre><code class="hljs css language-bash">kubectl get services -n pulsar
 </code></pre>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <pre><code class="hljs css language-bash">NAME                         TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)                       AGE
 pulsar-mini-bookie           ClusterIP      None             &lt;none&gt;        3181/TCP,8000/TCP             11m
 pulsar-mini-broker           ClusterIP      None             &lt;none&gt;        8080/TCP,6650/TCP             11m
@@ -159,39 +159,39 @@ pulsar-mini-toolset          ClusterIP      None             &lt;none&gt;       
 pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;        2888/TCP,3888/TCP,2181/TCP    11m
 </code></pre></li>
 </ol>
-<h2><a class="anchor" aria-hidden="true" id="step-2-use-pulsar-admin-to-create-pulsar-tenantsnamespacestopics"></a><a href="#step-2-use-pulsar-admin-to-create-pulsar-tenantsnamespacestopics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step 2: Use pulsar-admin to create Pulsar tenants/namespaces/topics</h2>
+<h2><a class="anchor" aria-hidden="true" id="步骤-2：使用-pulsar-admin-来创建-pulsar-租户命名空间主题"></a><a href="#步骤-2：使用-pulsar-admin-来创建-pulsar-租户命名空间主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>步骤 2：使用 pulsar-admin 来创建 Pulsar 租户/命名空间/主题</h2>
 <p><code>pulsar-admin</code> is the CLI tool for Pulsar. In this step, you can use <code>pulsar-admin</code> to create resources including tenants, namespaces, and topics.</p>
 <ol>
-<li><p>Enter the <code>toolset</code> container.</p>
+<li><p>进入 <code>toolset</code> 容器。</p>
 <pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 /bin/bash
 </code></pre></li>
-<li><p>In the <code>toolset</code> container, create a tenant named <code>apache</code>.</p>
+<li><p>在 <code>toolset</code> 容器里，创建一个名为 <code>apache</code> 的租户。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin tenants create apache
 </code></pre>
-<p>Then you can list the tenants to see if the tenant is created successfully.</p>
+<p>然后你可以列出所有租户，来查看租户是否创建成功。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin tenants list
 </code></pre>
-<p>You should see a similar output as below. The tenant <code>apache</code> has been successfully created.</p>
+<p>你应该能看到类似如下的输出： 租户 <code>apache</code> 已经被成功地创建了。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"apache"</span>
 <span class="hljs-string">"public"</span>
 <span class="hljs-string">"pulsar"</span>
 </code></pre></li>
-<li><p>In the <code>toolset</code> container, create a namespace named <code>pulsar</code> in the tenant <code>apache</code>.</p>
+<li><p>在 <code>toolset</code> 容器里，在租户 <code>apache</code> 下创建一个名为 <code>pulsar</code> 的命名空间。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin namespaces create apache/pulsar
 </code></pre>
-<p>Then you can list the namespaces of tenant <code>apache</code> to see if the namespace is created successfully.</p>
+<p>然后你可以列出租户 <code>apache</code> 的所有命名空间，来查看命名空间是否创建成功。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin namespaces list apache
 </code></pre>
-<p>You should see a similar output as below. The namespace <code>apache/pulsar</code> has been successfully created.</p>
+<p>你应该能看到类似如下的输出： 命名空间 <code>apache/pulsar</code> 已经被成功地创建了。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"apache/pulsar"</span>
 </code></pre></li>
-<li><p>In the <code>toolset</code> container, create a topic <code>test-topic</code> with <code>4</code> partitions in the namespace <code>apache/pulsar</code>.</p>
+<li><p>在 <code>toolset</code> 容器里，在命名空间 <code>apache/pulsar</code> 下创建一个包含 <code>4</code> 个分区的主题 <code>test-topic</code>。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin topics create-partitioned-topic apache/pulsar/<span class="hljs-built_in">test</span>-topic -p 4
 </code></pre></li>
-<li><p>In the <code>toolset</code> container, list all the partitioned topics in the namespace <code>apache/pulsar</code>.</p>
+<li><p>在 <code>toolset</code> 容器里，列出命名空间 <code>apache/pulsar</code> 中的所有分区主题。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin topics list-partitioned-topics apache/pulsar
 </code></pre>
-<p>Then you can see all the partitioned topics in the namespace <code>apache/pulsar</code>.</p>
+<p>然后你可以看见命名空间 <code>apache/pulsar</code> 下的所有分区主题。</p>
 <pre><code class="hljs css language-bash"><span class="hljs-string">"persistent://apache/pulsar/test-topic"</span>
 </code></pre></li>
 </ol>
@@ -233,12 +233,12 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <li><p>Verify the results.</p>
 <ul>
 <li><p>From producer side</p>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <p>The messages have been produced successfully.</p>
 <pre><code class="hljs css language-bash">18:15:15.489 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 10 messages successfully produced
 </code></pre></li>
 <li><p>From consumer side</p>
-<p><strong>Output</strong></p>
+<p><strong>输出</strong></p>
 <p>At the same time, you can receive the messages as below.</p>
 <pre><code class="hljs css language-bash">----- got message -----
 ---------hello apache pulsar-------
@@ -288,7 +288,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <li><p>The Grafana UI will be open in your browser. You can use username <code>pulsar</code> and password <code>pulsar</code> to log into Grafana Dashboard.</p></li>
 <li><p>You will be able to view dashboards for different components of a Pulsar cluster.</p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/standalone-docker"><span class="arrow-prev">← </span><span>在 Docker 中运行 Pulsar</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/client-libraries"><span>用客户端库使用 Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤-0：准备一个-kubernetes-集群">步骤 0：准备一个 Kubernetes 集群</a></li><li><a href="#step-1-install-pulsar-helm-chart">Step 1: Install Pulsar Helm Chart</a></li><li><a href="#step-2-use-pulsar-admin-to-create-pulsar-tenantsnamespacestopics">Step 2: Use pulsar-admin to create Pulsar tenants/namespaces/topics</a></li><li><a href="#step-3-use-pulsar-client-to-produce-and-consume-messages">Step 3: Use Pulsar client to produce and consume messages</a></li><li><a href="#step-4-use-pulsar-manager-to-manage-the-cluster">Step 4: Use Pulsar Manager to manage the cluster</a></li><li><a href="#step-5-use-prometheus-and-grafana-to-monitor-the-cluster">Step 5: Use Prometheus and Grafana to monitor the cluster</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/standalone-docker"><span class="arrow-prev">← </span><span>在 Docker 中运行 Pulsar</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/client-libraries"><span>用客户端库使用 Pulsar</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#前提条件">前提条件</a></li><li><a href="#步骤-0：准备一个-kubernetes-集群">步骤 0：准备一个 Kubernetes 集群</a></li><li><a href="#step-1-install-pulsar-helm-chart">Step 1: Install Pulsar Helm Chart</a></li><li><a href="#步骤-2：使用-pulsar-admin-来创建-pulsar-租户命名空间主题">步骤 2：使用 pulsar-admin 来创建 Pulsar 租户/命名空间/主题</a></li><li><a href="#step-3-use-pulsar-client-to-produce-and-consume-messages">Step 3: Use Pulsar client to produce and consume messages</a></li><li><a href="#step-4-use-pulsar-manager-to-manage-the-cluster">Step 4: Use Pulsar Manager to manage the cluster</a></li><li><a href="#step-5-use-prometheus-and-grafana-to-monitor-the-cluster">Step 5: Use Prometheus and Grafana to monitor the cluster</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

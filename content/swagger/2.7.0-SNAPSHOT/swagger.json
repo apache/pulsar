@@ -10543,7 +10543,23 @@
           "type" : "number",
           "format" : "double"
         },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
+        },
         "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "directMemory" : {
@@ -10562,22 +10578,6 @@
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -11054,13 +11054,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
+        "s3Driver" : {
+          "type" : "boolean"
+        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
-          "type" : "boolean"
-        },
-        "s3Driver" : {
           "type" : "boolean"
         }
       }

@@ -509,18 +509,33 @@ You can configure parameters if you do not want to use the default configuration
   ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
           .subscriptionName(subscription);
   
-  // Abonnement à tous les topics d'un namespace
-  Pattern allTopicsInNamespace = Pattern.compile(&quot;persistent://public/default/.*&quot;);
+  // Subscribe to all topics in a namespace
+  Pattern allTopicsInNamespace = Pattern.compile(&quot;public/default/.*&quot;);
   Consumer allTopicsConsumer = consumerBuilder
           .topicsPattern(allTopicsInNamespace)
           .subscribe();
   
-  // Abonnement à un sous-ensemble des topics d'un namespace, basé sur une regex
-  Pattern someTopicsInNamespace = Pattern.compile(&quot;persistent://public/default/foo.*&quot;);
+  // Subscribe to a subsets of topics in a namespace, based on regex
+  Pattern someTopicsInNamespace = Pattern.compile(&quot;public/default/foo.*&quot;);
   Consumer allTopicsConsumer = consumerBuilder
           .topicsPattern(someTopicsInNamespace)
           .subscribe();
   ```
+  
+  In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
+  
+  ```java
+  Pattern pattern = Pattern.compile(&quot;public/default/.*&quot;);
+  pulsarClient.newConsumer()
+          .subscriptionName(&quot;my-sub&quot;)
+          .topicsPattern(pattern)
+          .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+          .subscribe();
+  ```
+  
+  &gt; #### Note
+  &gt; 
+  &gt; By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
   
   Vous pouvez également vous abonner à une liste explicite de topics (à travers les namespaces si vous le souhaitez) :
   
