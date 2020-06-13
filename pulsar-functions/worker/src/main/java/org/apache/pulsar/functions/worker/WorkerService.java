@@ -248,6 +248,8 @@ public class WorkerService {
 
             // indicate function worker service is done initializing
             this.isInitialized = true;
+
+            log.info("/** Started worker id={} **/", workerConfig.getWorkerId());
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);

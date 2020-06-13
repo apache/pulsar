@@ -18,7 +18,32 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.util.Collections;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.worker.scheduler.IScheduler;
+
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -26,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -40,40 +64,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Getter;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.Instance;
-import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.functions.worker.scheduler.IScheduler;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
-
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-
 @Slf4j
 public class SchedulerManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
     private final ErrorNotifier errorNotifier;
-    private final ThreadPoolExecutor executorService;
+    private ThreadPoolExecutor executorService;
+    private final PulsarClient pulsarClient;
 
     @Setter
     private FunctionMetaDataManager functionMetaDataManager;
@@ -89,15 +86,17 @@ public class SchedulerManager implements AutoCloseable {
 
     private final IScheduler scheduler;
 
-    private final Producer<byte[]> producer;
+    private Producer<byte[]> producer;
 
 
-    private final ScheduledExecutorService scheduledExecutorService;
+    private ScheduledExecutorService scheduledExecutorService;
     
     private final PulsarAdmin admin;
 
     @Getter
     private Lock schedulerLock = new ReentrantLock(true);
+
+    private volatile boolean isRunning = false;
 
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
@@ -109,18 +108,12 @@ public class SchedulerManager implements AutoCloseable {
                             PulsarAdmin admin,
                             ErrorNotifier errorNotifier) {
         this.workerConfig = workerConfig;
+        this.pulsarClient = pulsarClient;
         this.admin = admin;
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
-
-        this.producer = createProducer(pulsarClient, workerConfig);
-        this.executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>(5));
-        this.executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
-        this.scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
         this.errorNotifier = errorNotifier;
         
-        scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
     }
 
     private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
@@ -165,7 +158,28 @@ public class SchedulerManager implements AutoCloseable {
         return producer.get();
     }
 
+    public synchronized void initialize() {
+        if (!isRunning) {
+            log.info("Initializing scheduler manager");
+            executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<>(5));
+            executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
+            scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
+            scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
+
+            this.producer = createProducer(pulsarClient, workerConfig);
+            isRunning = true;
+        }
+    }
+
     public Future<?> schedule() {
+        if (!leaderService.isLeader()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // make sure we are initialized before scheduling
+        initialize();
+
         try {
             return executorService.submit(() -> {
                 try {
@@ -203,7 +217,7 @@ public class SchedulerManager implements AutoCloseable {
     }
     
     @VisibleForTesting
-    public void invokeScheduler() {
+    void invokeScheduler() {
         
         Set<String> currentMembership = membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
@@ -300,7 +314,7 @@ public class SchedulerManager implements AutoCloseable {
         
     }
 
-    public void compactAssignmentTopic() {
+    private void compactAssignmentTopic() {
         if (this.admin != null) {
             try {
                 this.admin.topics().triggerCompaction(workerConfig.getFunctionAssignmentTopic());
@@ -325,7 +339,7 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions,
+    private static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions,
                                                                      boolean externallyManagedRuntime) {
         Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
@@ -336,7 +350,7 @@ public class SchedulerManager implements AutoCloseable {
         return functionInstances;
     }
 
-    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData,
+    static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData,
                                                            boolean externallyManagedRuntime) {
         List<Function.Instance> functionInstances = new LinkedList<>();
         if (!externallyManagedRuntime) {
@@ -383,19 +397,28 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     @Override
-    public void close() {
-        scheduledExecutorService.shutdown();
+    public synchronized void close() {
+        log.info("Closing scheduler manager");
+        isRunning = false;
 
-        executorService.shutdown();
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+        }
 
-        try {
-            this.producer.close();
-        } catch (PulsarClientException e) {
-            log.warn("Failed to shutdown scheduler manager assignment producer", e);
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+
+        if (producer != null) {
+            try {
+                producer.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to shutdown scheduler manager assignment producer", e);
+            }
         }
     }
     
-    public static String checkHeartBeatFunction(Instance funInstance) {
+    static String checkHeartBeatFunction(Instance funInstance) {
         if (funInstance.getFunctionMetaData() != null
                 && funInstance.getFunctionMetaData().getFunctionDetails() != null) {
             FunctionDetails funDetails = funInstance.getFunctionMetaData().getFunctionDetails();

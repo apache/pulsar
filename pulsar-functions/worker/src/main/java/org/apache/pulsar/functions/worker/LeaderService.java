@@ -87,6 +87,9 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
                 functionRuntimeManager.stopReadingAssignments();
+
+                // make sure scheduler is initialized
+                schedulerManager.initialize();
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);
@@ -103,7 +106,11 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // acquire scheduler lock to make sure a scheduling is not in process
                 schedulerManager.getSchedulerLock().lock();
 
+                // starting reading from assignment topic
                 functionRuntimeManager.start();
+
+                // stop scheduler manager since we are not the leader anymore
+                schedulerManager.close();
             } catch (Throwable th) {
                 log.error("Encountered error in routine when worker lost leadership", th);
                 errorNotifier.triggerError(th);

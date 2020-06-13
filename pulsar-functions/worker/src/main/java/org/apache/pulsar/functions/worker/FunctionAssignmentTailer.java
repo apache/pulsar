@@ -153,8 +153,8 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         log.info("Assignment tailer will start reading from message id {}", startMessageId);
 
         return readerBuilder
-                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-runtime-manager")
-                .readerName(workerConfig.getWorkerId() + "-function-runtime-manager")
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-assignment-tailer")
+                .readerName(workerConfig.getWorkerId() + "-function-assignment-tailer")
                 .topic(workerConfig.getFunctionAssignmentTopic())
                 .readCompacted(true)
                 .startMessageId(startMessageId)
@@ -188,7 +188,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                     }
                 }
             }
-            log.info("tailer thread exiting...");
+            log.info("tailer thread exiting");
             hasExited.complete(null);
         });
         t.setName("assignment-tailer-thread");
