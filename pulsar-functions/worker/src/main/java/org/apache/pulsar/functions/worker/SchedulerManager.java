@@ -65,6 +65,13 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 @Slf4j
+/**
+ * The scheduler manager is used to compute scheduling of function instances
+ * Only the leader computes new schedulings and writes assignments to the assignment topic
+ * The lifecyle of this class is the following:
+ *  1. When worker becomes leader, this class with me initialized
+ *  2. When worker loses leadership, this class will be closed which also closes the worker's producer to the assignments topic
+ */
 public class SchedulerManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;

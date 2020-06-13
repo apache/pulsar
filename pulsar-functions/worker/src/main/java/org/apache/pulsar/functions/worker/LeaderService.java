@@ -88,7 +88,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // Since the leader can just update its in memory assignments cache directly
                 functionRuntimeManager.stopReadingAssignments();
 
-                // make sure scheduler is initialized
+                // make sure scheduler is initialized because this worker
+                // is the leader and may need to start computing and writing assignments
                 schedulerManager.initialize();
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
