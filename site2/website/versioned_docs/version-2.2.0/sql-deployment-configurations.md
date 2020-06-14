@@ -40,7 +40,7 @@ $ wget pulsar:binary_release_url
 
 Please note that the [Getting Started](sql-getting-started.md) guide shows you how to easily setup a standalone single node enviroment to experiment with.
 
-Pulsar SQL is powered by [Presto](https://prestodb.io) thus many of the configurations for deployment is the same for the Pulsar SQL worker.
+Pulsar SQL is powered by [Presto](https://prestosql.io) thus many of the configurations for deployment is the same for the Pulsar SQL worker.
 
 You can use the same CLI args as the Presto launcher:
 
@@ -149,5 +149,5 @@ presto> SELECT * FROM system.runtime.nodes;
 
 For more information about deployment in Presto, please reference:
 
-[Deploying Presto](https://prestodb.io/docs/current/installation/deployment.html)
+[Deploying Presto](https://prestosql.io/docs/current/installation/deployment.html)
 

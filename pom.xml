@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
     <elasticsearch.version>6.3.2</elasticsearch.version>
-    <presto.version>0.206</presto.version>
+    <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>1.0.0.Final</debezium.version>
@@ -1402,7 +1402,7 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/com.facebook.presto.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
