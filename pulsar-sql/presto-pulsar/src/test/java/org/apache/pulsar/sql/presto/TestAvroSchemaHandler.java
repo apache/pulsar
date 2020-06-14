@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.type.BigintType;
 import io.netty.buffer.ByteBufAllocator;
+import io.prestosql.spi.type.BigintType;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;

@@ -81,9 +81,15 @@
             <version>${dslJson.verson}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-plugin-toolkit</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
         <!-- Presto SPI -->
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>io.prestosql</groupId>
             <artifactId>presto-spi</artifactId>
             <version>${presto.version}</version>
             <scope>provided</scope>
