@@ -76,6 +76,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                     .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
                     .subscriptionType(pulsarSourceConfig.getSubscriptionType())
+                    .loadConf(new HashMap<>(conf.getConsumerProperties()))
+                    //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
                     .messageListener(this);
 
             if (conf.isRegexPattern) {
@@ -85,9 +87,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
             if (conf.getReceiverQueueSize() != null) {
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
-            }
-            if(conf.readCompacted){
-                cb = cb.readCompacted(conf.readCompacted);
             }
             cb = cb.properties(properties);
             if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
@@ -175,7 +174,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                             schema(schema).
                             isRegexPattern(conf.isRegexPattern()).
                             receiverQueueSize(conf.getReceiverQueueSize()).
-                            readCompacted(conf.isReadCompacted()).build());
+                            consumerProperties(conf.getConsumerProperties()).build());
         });
 
         return configs;
@@ -195,7 +194,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         private Schema<T> schema;
         private boolean isRegexPattern;
         private Integer receiverQueueSize;
-        private boolean readCompacted;
+        private Map<String, String> consumerProperties;
     }
 
 }

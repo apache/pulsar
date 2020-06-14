@@ -547,7 +547,9 @@ public class PulsarFunctionE2ETest {
                 sourceTopic, sinkTopic, subscriptionName);
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         ConsumerConfig consumerConfig = new ConsumerConfig();
-        consumerConfig.setReadCompacted(true);
+        Map<String,String> consumerProperties = new HashMap<>();
+        consumerProperties.put("readCompacted","true");
+        consumerConfig.setConsumerProperties(consumerProperties);
         inputSpecs.put(sourceTopic, consumerConfig);
         functionConfig.setInputSpecs(inputSpecs);
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
@@ -611,7 +613,9 @@ public class PulsarFunctionE2ETest {
         // 4 Setup sink
         SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().readCompacted(true).build()));
+        Map<String,String> consumerProperties = new HashMap<>();
+        consumerProperties.put("readCompacted","true");
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().consumerProperties(consumerProperties).build()));
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         admin.sink().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
