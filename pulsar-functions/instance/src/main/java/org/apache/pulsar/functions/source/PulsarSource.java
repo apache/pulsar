@@ -75,10 +75,13 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                     .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
-                    .subscriptionType(pulsarSourceConfig.getSubscriptionType())
-                    .loadConf(new HashMap<>(conf.getConsumerProperties()))
-                    //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
-                    .messageListener(this);
+                    .subscriptionType(pulsarSourceConfig.getSubscriptionType());
+
+            if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
+                cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
+            }
+            //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
+            cb.messageListener(this);
 
             if (conf.isRegexPattern) {
                 cb = cb.topicsPattern(topic);
