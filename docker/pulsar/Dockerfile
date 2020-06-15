@@ -62,7 +62,7 @@ RUN apt-get update \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
 
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
+RUN chmod -R a+w /pulsar/{conf,data}
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 
