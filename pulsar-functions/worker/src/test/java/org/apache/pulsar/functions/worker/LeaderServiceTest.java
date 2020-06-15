@@ -72,7 +72,6 @@ public class LeaderServiceTest {
         when(mockConsumerBuilder.property(anyString(), anyString())).thenReturn(mockConsumerBuilder);
         when(mockConsumerBuilder.consumerName(anyString())).thenReturn(mockConsumerBuilder);
 
-
         when(mockConsumerBuilder.subscribe()).thenReturn(mockConsumer);
         WorkerService workerService = mock(WorkerService.class);
         doReturn(workerConfig).when(workerService).getWorkerConfig();
@@ -92,7 +91,9 @@ public class LeaderServiceTest {
         Lock lock = mock(Lock.class);
         when(schedulerManager.getSchedulerLock()).thenReturn(lock);
 
-        LeaderService leaderService = spy(new LeaderService(workerService, mockClient, mock(FunctionRuntimeManager.class), schedulerManager, ErrorNotifier.getDefaultImpl()));
+        FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
+
+        LeaderService leaderService = spy(new LeaderService(workerService, mockClient, functionRuntimeManager, schedulerManager, ErrorNotifier.getDefaultImpl()));
         leaderService.start();
         assertFalse(leaderService.isLeader());
         verify(mockClient, times(1)).newConsumer();
@@ -100,7 +101,15 @@ public class LeaderServiceTest {
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(leaderService.isLeader());
 
+        verify(functionRuntimeManager, times(1)).stopReadingAssignments();
+        verify(schedulerManager, times((1))).initialize();
+
         listenerHolder.get().becameInactive(mockConsumer, 0);
         assertFalse(leaderService.isLeader());
+
+        verify(lock, times(1)).lock();
+        verify(functionRuntimeManager, times(1)).start();
+        verify(schedulerManager, times(1)).close();
+        verify(lock, times(1)).unlock();
     }
 }
