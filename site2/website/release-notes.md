@@ -3,7 +3,9 @@
 
 ### 2.6.0 &mdash; 2020-06-15 <a id=“2.6.0”></a>
 
-#### PIPs
+#### Features
+
+##### PIPs
 
 * [PIP-37] Large message size support [#4400](https://github.com/apache/pulsar/pull/4400)
 * [PIP-39] Namespace change events (System Topic) [#4955](https://github.com/apache/pulsar/pull/4955)
@@ -68,7 +70,7 @@
 * [influxdb2]  Add support for influxdb2 in pulsar-influxdb-sink [#6601](https://github.com/apache/pulsar/pull/6601)
 * [jdbc] Add jdbc sinks: postgres, mariadb, clickhouse [#6835](https://github.com/apache/pulsar/pull/6835)
 
-#### Pulsar Proxy
+##### Pulsar Proxy
 
 * [Proxy] Add REST API to get connection and topic stats [#6473](https://github.com/apache/pulsar/pull/6473)
 * [Proxy] Add advertised address option [#6942](https://github.com/apache/pulsar/pull/6942)
@@ -104,7 +106,7 @@
 * [Admin] Support enable or disable subscription auto-creation at namespace level [#6637](https://github.com/apache/pulsar/pull/6637)
 * [Admin] Enable to set the subscription expiration time for each namespace [#6851](https://github.com/apache/pulsar/pull/6851)
 
-##### Fixes
+#### Fixes
 
 * [Broker] Fixed increasing number of partitions with attached readers [#7077](https://github.com/apache/pulsar/pull/7077)
 * [Broker] Make ZkBookieRackAffinityMapping work as expected [#6917](https://github.com/apache/pulsar/pull/6917)
@@ -222,7 +224,7 @@
 * [Broker] Fixed restore clusterDispatchRate policy for compatibility [#6176](https://github.com/apache/pulsar/pull/6176) 
 * [Broker] Fix some async method problems at PersistentTopicsBase. [#6483](https://github.com/apache/pulsar/pull/6483) 
 * [Broker] This "earlier" message should be avoided to emit when reset cursor.[#6393](https://github.com/apache/pulsar/pull/6393)
-
+* [Broker] Change the permission level of managing subscription from super-user to tenant admin [#6122](https://github.com/apache/pulsar/pull/6122)
 
 ##### Managed Ledger
 * [Managed Ledger] Fixed consumer received duplicated delayed messages upon restart [#6404](https://github.com/apache/pulsar/pull/6404)
