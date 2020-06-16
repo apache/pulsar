@@ -105,6 +105,8 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 
 |Name|Description|Default|
 |---|---|---|
+|advertisedListeners|Specify multiple advertised listeners for the broker.<br><br>The format is `<listener_name>:pulsar://<host>:<port>`.<br><br>If there are multiple listeners, separate them with commas.<br><br>**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
+internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
 |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
