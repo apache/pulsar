@@ -2830,11 +2830,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public PositionImpl getNextValidPosition(final PositionImpl position) {
+        PositionImpl next;
+        try {
+            next = getNextValidPositionInternal(position);
+        } catch (NullPointerException e) {
+            next = lastConfirmedEntry.getNext();
+            log.error("[{}] Can't find next valid position, fail back to the next position of the last position.", name, e);
+        }
+        return next;
+    }
+
+    public PositionImpl getNextValidPositionInternal(final PositionImpl position) {
         PositionImpl nextPosition = position.getNext();
         while (!isValidPosition(nextPosition)) {
             Long nextLedgerId = ledgers.ceilingKey(nextPosition.getLedgerId() + 1);
             if (nextLedgerId == null) {
-                return null;
+                throw new NullPointerException();
             }
             nextPosition = PositionImpl.get(nextLedgerId, 0);
         }
