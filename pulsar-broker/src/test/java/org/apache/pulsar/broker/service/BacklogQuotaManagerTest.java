@@ -161,7 +161,7 @@ public class BacklogQuotaManagerTest {
             // non-durable mes should still
             assertEquals(stats.subscriptions.size(), 1);
             long nonDurableSubscriptionBacklog = stats.subscriptions.values().iterator().next().msgBacklog;
-            assertEquals(nonDurableSubscriptionBacklog, numMsgs,
+            assertEquals(nonDurableSubscriptionBacklog, MAX_ENTRIES_PER_LEDGER,
               "non-durable subscription backlog is [" + nonDurableSubscriptionBacklog + "]"); ;
 
             try {
