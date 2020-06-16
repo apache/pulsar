@@ -984,14 +984,16 @@ public class KubernetesRuntime implements Runtime {
 
         Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
 
-        if (runtime == Function.FunctionDetails.Runtime.JAVA){
-            container.setImage(javaFunctionDockerImageName);
-        } else if (runtime == Function.FunctionDetails.Runtime.PYTHON){
-            container.setImage(pythonFunctionDockerImageName);
-        } else if (runtime == Function.FunctionDetails.Runtime.GO) {
-            container.setImage(goFunctionDockerImageName);
-        } else {
+        if (pulsarDockerImageName != null) {
             container.setImage(pulsarDockerImageName);
+        } else {
+            if (runtime == Function.FunctionDetails.Runtime.JAVA) {
+                container.setImage(javaFunctionDockerImageName);
+            } else if (runtime == Function.FunctionDetails.Runtime.PYTHON) {
+                container.setImage(pythonFunctionDockerImageName);
+            } else if (runtime == Function.FunctionDetails.Runtime.GO) {
+                container.setImage(goFunctionDockerImageName);
+            }
         }
 
         container.setImagePullPolicy(imagePullPolicy);
