@@ -75,9 +75,9 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Topic compaction</h1></header><article><div><span><p>Pulsar's <a href="/docs/zh-CN/2.2.1/concepts-topic-compaction#compaction">topic compaction</a> feature enables you to create <strong>compacted</strong> topics in which older, &quot;obscured&quot; entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).</p>
-<p>To use compaction:</p>
+<p>如要使用压缩：</p>
 <ul>
-<li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. <code>AAPL</code> or <code>GOOG</code>---could serve as the key (more on this <a href="#when">below</a>). Messages without keys will be left alone by the compaction process.</li>
+<li>你需要给定消息键，因为 Pulsar 的主题压缩是 <em>基于每个键的</em> （也就是说，消息是根据它们的键进行压缩的）。 For a stock ticker use case, the stock symbol---e.g. <code>AAPL</code> or <code>GOOG</code>---could serve as the key (more on this <a href="#when">below</a>). 没有键的消息会被压缩进程单独留下。</li>
 <li>Compaction can be configured to run <a href="#automatic">automatically</a>, or you can manually <a href="#trigger">trigger</a> compaction using the Pulsar administrative API.</li>
 <li>Your consumers must be <a href="#config">configured</a> to read from compacted topics (<a href="#java">Java consumers</a>, for example, have a <code>readCompacted</code> setting that must be set to <code>true</code>). If this configuration is not set, consumers will still be able to read from the non-compacted topic.</li>
 </ul>

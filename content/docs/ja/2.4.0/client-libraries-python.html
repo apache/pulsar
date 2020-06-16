@@ -87,14 +87,12 @@
 <tr><th style="text-align:left">プラットフォーム</th><th style="text-align:left">サポートしているバージョン</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left">MacOS</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left">MacOS<br /> 10.11 (El Capitan) — 10.12 (Sierra) — 10.13 (High Sierra) — 10.14 (Mojave)<br /></td><td>2.7, 3.7</td></tr>
+<tr><td style="text-align:left"></td><td style="text-align:left">Linux</td><td>2.7, 3.4, 3.5, 3.6, 3.7</td></tr>
 </tbody>
 </table>
-<p>10.11 (El Capitan) — 10.12 (Sierra) —<br>
-10.13 (High Sierra) — 10.14 (Mojave) | 2.7, 3.7                |
-| Linux                                                                                                    | 2.7, 3.4, 3.5, 3.6, 3.7 |</p>
 <h3><a class="anchor" aria-hidden="true" id="installing-from-source"></a><a href="#installing-from-source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing from source</h3>
-<p>To install the <code>pulsar-client</code> library by building from source, follow <a href="/docs/ja/2.4.0/client-libraries-cpp#compilation">these instructions</a> and compile the Pulsar C++ client library. That will also build the Python binding for the library.</p>
+<p>To install the <code>pulsar-client</code> library by building from source, follow <a href="/docs/ja/2.4.0/client-libraries-cpp#compilation">these instructions</a> and compile the Pulsar C++ client library. That also builds the Python binding for the library.</p>
 <p>To install the built Python bindings:</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> git <span class="hljs-built_in">clone</span> https://github.com/apache/pulsar</span>
 <span class="hljs-meta">$</span><span class="bash"> <span class="hljs-built_in">cd</span> pulsar/pulsar-client-cpp/python</span>
@@ -103,7 +101,7 @@
 <h2><a class="anchor" aria-hidden="true" id="api-リファレンス"></a><a href="#api-リファレンス" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API リファレンス</h2>
 <p>The complete Python API reference is available at <a href="/api/python/2.5.0-SNAPSHOT">api/python</a>.</p>
 <h2><a class="anchor" aria-hidden="true" id="例"></a><a href="#例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>例</h2>
-<p>Below you'll find a variety of Python code examples for the <code>pulsar-client</code> library.</p>
+<p>You can find a variety of Python code examples for the <code>pulsar-client</code> library as below.</p>
 <h3><a class="anchor" aria-hidden="true" id="producer-example"></a><a href="#producer-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer example</h3>
 <p>This creates a Python producer for the <code>my-topic</code> topic and send 10 messages on that topic:</p>
 <pre><code class="hljs css language-python"><span class="hljs-keyword">import</span> pulsar
@@ -118,7 +116,7 @@ producer = client.create_producer(<span class="hljs-string">'my-topic'</span>)
 client.close()
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="consumer-example"></a><a href="#consumer-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer example</h3>
-<p>This creates a consumer with the <code>my-subscription</code> subscription on the <code>my-topic</code> topic, listen for incoming messages, print the content and ID of messages that arrive, and acknowledge each message to the Pulsar broker:</p>
+<p>This example creates a consumer with the <code>my-subscription</code> subscription on the <code>my-topic</code> topic, listens for incoming messages, prints the content and ID of messages that arrive, and acknowledges each message to the Pulsar broker:</p>
 <pre><code class="hljs css language-python">consumer = client.subscribe(<span class="hljs-string">'my-topic'</span>, <span class="hljs-string">'my-subscription'</span>)
 
 <span class="hljs-keyword">while</span> <span class="hljs-literal">True</span>:
@@ -132,6 +130,37 @@ client.close()
         consumer.negative_acknowledge(msg)
 
 client.close()
+</code></pre>
+<p>This example shows how to configure negative acknowledgement.</p>
+<pre><code class="hljs css language-python"><span class="hljs-keyword">from</span> pulsar <span class="hljs-keyword">import</span> Client, schema
+
+client = Client(<span class="hljs-string">'pulsar://localhost:6650'</span>)
+
+consumer = client.subscribe(<span class="hljs-string">'negative_acks'</span>,<span class="hljs-string">'test'</span>,schema=schema.StringSchema())
+producer = client.create_producer(<span class="hljs-string">'negative_acks'</span>,schema=schema.StringSchema())
+
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">10</span>):
+    print(<span class="hljs-string">'send msg "hello-%d"'</span> % i)
+    producer.send_async(<span class="hljs-string">'hello-%d'</span> % i, callback=<span class="hljs-literal">None</span>)
+
+producer.flush()
+
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">10</span>):
+    msg = consumer.receive()
+    consumer.negative_acknowledge(msg)
+    print(<span class="hljs-string">'receive and nack msg "%s"'</span> % msg.data())
+
+<span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(<span class="hljs-number">10</span>):
+    msg = consumer.receive()
+    consumer.acknowledge(msg)
+    print(<span class="hljs-string">'receive and ack msg "%s"'</span> % msg.data())
+
+<span class="hljs-keyword">try</span>:
+    <span class="hljs-comment"># No more messages expected</span>
+    msg = consumer.receive(<span class="hljs-number">100</span>)
+<span class="hljs-keyword">except</span>:
+    print(<span class="hljs-string">"no more msg"</span>)
+    <span class="hljs-keyword">pass</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="reader-interface-example"></a><a href="#reader-interface-example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader interface example</h3>
 <p>You can use the Pulsar Python API to use the Pulsar <a href="/docs/ja/2.4.0/concepts-clients#reader-interface">reader interface</a>. Here's an example:</p>
@@ -162,10 +191,10 @@ reader = client.create_reader(<span class="hljs-string">'my-topic'</span>, msg_i
 
 producer.send(Example(a=<span class="hljs-string">'Hello'</span>, b=<span class="hljs-number">1</span>))
 </code></pre>
-<p>When the producer is created, the Pulsar broker will validate that the existing topic schema is indeed of &quot;Avro&quot; type and that the format is compatible with the schema definition of the <code>Example</code> class.</p>
-<p>If there is a mismatch, the producer creation will raise an exception.</p>
-<p>Once a producer is created with a certain schema definition, it will only accept objects that are instances of the declared schema class.</p>
-<p>Similarly, for a consumer/reader, the consumer will return an object, instance of the schema record class, rather than the raw bytes:</p>
+<p>When the producer is created, the Pulsar broker validates that the existing topic schema is indeed of &quot;Avro&quot; type and that the format is compatible with the schema definition of the <code>Example</code> class.</p>
+<p>If there is a mismatch, the producer creation raises an exception.</p>
+<p>Once a producer is created with a certain schema definition, it only accepts objects that are instances of the declared schema class.</p>
+<p>Similarly, for a consumer/reader, the consumer returns an object, instance of the schema record class, rather than the raw bytes:</p>
 <pre><code class="hljs css language-python">consumer = client.subscribe(
                   topic=<span class="hljs-string">'my-topic'</span>,
                   subscription_name=<span class="hljs-string">'my-subscription'</span>,
