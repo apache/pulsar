@@ -372,7 +372,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | numIOThreads | Number of threads to use for Netty IO | 2 * Runtime.getRuntime().availableProcessors() |
 | numHttpServerThreads | Number of threads to use for HTTP requests processing | 2 * Runtime.getRuntime().availableProcessors()|
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
-| failureDomainsEnabled | nable cluster's failure-domain which can distribute brokers into logical region. | false |
+| failureDomainsEnabled | Enable cluster's failure-domain which can distribute brokers into logical region. | false |
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. |30000|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
