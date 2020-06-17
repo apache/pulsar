@@ -131,7 +131,7 @@ void PartitionedProducerImpl::handleSinglePartitionProducerCreated(Result result
         lock.unlock();
         closeAsync(closeCallback);
         partitionedProducerCreatedPromise_.setFailed(result);
-        LOG_DEBUG("Unable to create Producer for partition - " << partitionIndex << " Error - " << result);
+        LOG_ERROR("Unable to create Producer for partition - " << partitionIndex << " Error - " << result);
         return;
     }
 
@@ -204,17 +204,17 @@ int64_t PartitionedProducerImpl::getLastSequenceId() const {
 void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
     setState(Closing);
 
-    int producerIndex = 0;
     unsigned int producerAlreadyClosed = 0;
 
     // Here we don't need `producersMutex` to protect `producers_`, because `producers_` can only be increased
     // when `state_` is Ready
-    for (ProducerList::const_iterator i = producers_.begin(); i != producers_.end(); i++) {
-        ProducerImplPtr prod = *i;
-        if (!prod->isClosed()) {
-            prod->closeAsync(std::bind(&PartitionedProducerImpl::handleSinglePartitionProducerClose,
-                                       shared_from_this(), std::placeholders::_1, producerIndex,
-                                       closeCallback));
+    for (auto& producer : producers_) {
+        if (!producer->isClosed()) {
+            auto self = shared_from_this();
+            const auto partition = static_cast<unsigned int>(producer->partition());
+            producer->closeAsync([this, self, partition, closeCallback](Result result) {
+                handleSinglePartitionProducerClose(result, partition, closeCallback);
+            });
         } else {
             producerAlreadyClosed++;
         }
