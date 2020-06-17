@@ -492,7 +492,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 | bookkeeperTLSTrustCertsFilePath | Path for the trusted TLS certificate file. | |
 | bookkeeperDiskWeightBasedPlacementEnabled | Enable/Disable disk weight based placement. | false |
 | bookkeeperExplicitLacIntervalInMills | Set the interval to check the need for sending an explicit LAC. When the value is set to 0, no explicit LAC is sent. | 0 |
-| bookkeeperClientExposeStatsToPrometheus | Expose BookKeeper client managed ledger stats to prometheus. | false |
+| bookkeeperClientExposeStatsToPrometheus | Expose BookKeeper client managed ledger stats to Prometheus. | false |
 |managedLedgerDefaultEnsembleSize|    |1|
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
