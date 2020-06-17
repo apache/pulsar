@@ -79,7 +79,7 @@
 <ul>
 <li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. <code>AAPL</code> or <code>GOOG</code>---could serve as the key (more on this <a href="#when">below</a>). 没有键的消息会被压缩进程单独留下。</li>
 <li>Compaction can be configured to run <a href="#automatic">automatically</a>, or you can manually <a href="#trigger">trigger</a> compaction using the Pulsar administrative API.</li>
-<li>Your consumers must be <a href="#config">configured</a> to read from compacted topics (<a href="#java">Java consumers</a>, for example, have a <code>readCompacted</code> setting that must be set to <code>true</code>). If this configuration is not set, consumers will still be able to read from the non-compacted topic.</li>
+<li>Your consumers must be <a href="#config">configured</a> to read from compacted topics (<a href="#java">Java consumers</a>, for example, have a <code>readCompacted</code> setting that must be set to <code>true</code>). 如果没这么配置，消费者将仍能从非压缩主题中进行读取。</li>
 </ul>
 <blockquote>
 <p>Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction.</p>
