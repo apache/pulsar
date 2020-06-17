@@ -1,7 +1,7 @@
 
 ## Apache Pulsar Release Notes
 
-### 2.6.0 &mdash; 2020-06-15 <a id=“2.6.0”></a>
+### 2.6.0 &mdash; 2020-06-17 <a id=“2.6.0”></a>
 
 #### Features
 
