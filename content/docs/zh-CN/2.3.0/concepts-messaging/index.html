@@ -137,7 +137,7 @@
 <p>Cumulative acknowledgement cannot be used with <a href="#subscription-modes">shared subscription mode</a>, because shared mode involves multiple consumers having access to the same subscription.</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="监听"></a><a href="#监听" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>监听</h3>
-<p>客户端类库提供了自身对于consumer监听的实现。 举一个 <a href="/docs/zh-CN/2.3.0/client-libraries-java">Java客户端</a>的例子，它提供了 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
+<p>客户端类库提供了自身对于consumer监听的实现。 举一个 <a href="/docs/zh-CN/2.3.0/client-libraries-java">Java客户端</a>的例子，它提供了 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/MessageListener">MesssageListener</a>
  接口。 在这个接口中，一旦接受到新的消息，<code>received</code>方法将被调用。</p>
 <h2><a class="anchor" aria-hidden="true" id="主题"></a><a href="#主题" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>主题</h2>
 <p>和其他的发布订阅系统一样，Pulsar 中的 topic 是被命名的通道，用做从<a href="/docs/zh-CN/2.3.0/reference-terminology#producer">producer</a>到 <a href="/docs/zh-CN/2.3.0/reference-terminology#consumer">consumer</a>传输消息。 Topic的名称为符合良好结构的URL:</p>
@@ -229,7 +229,7 @@ Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, <spa
 <p>Partitioned topics need to be explicitly created via the <a href="/docs/zh-CN/2.3.0/admin-api-overview">admin API</a>. The number of partitions can be specified when creating the topic.</p>
 <h3><a class="anchor" aria-hidden="true" id="路由模式"></a><a href="#路由模式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>路由模式</h3>
 <p>When publishing to partitioned topics, you must specify a <em>routing mode</em>. The routing mode determines which partition---that is, which internal topic---each message should be published to.</p>
-<p>有三种 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRoutingMode">MessageRoutingMode</a>
+<p>有三种 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRoutingMode">MessageRoutingMode</a>
  可用:</p>
 <table>
 <thead>
@@ -238,14 +238,14 @@ Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, <spa
 <tbody>
 <tr><td style="text-align:left"><code>RoundRobinPartition</code></td><td style="text-align:left">如果消息没有指定 key，为了达到最大吞吐量，消息会以 round-robin 方式被路由所有分区。 请注意round-robin并不是作用于每条单独的消息，而是作用于延迟处理的批次边界，以确保批处理有效。 如果为消息指定了key，发往分区的消息会被分区生产者根据 key 做 hash，然后分散到对应的分区上。 这是默认的模式。</td></tr>
 <tr><td style="text-align:left"><code>SinglePartition</code></td><td style="text-align:left">如果消息没有指定 key，生产者将会随机选择一个分区，并发送所有消息。 如果为消息指定了key，发往分区的消息会被分区生产者根据 key 做 hash，然后分散到对应的分区上。</td></tr>
-<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">使用自定义消息路由，可以定制消息如何进入特定的分区。 可以使用 <a href="/docs/zh-CN/2.3.0/client-libraries-java">Java client</a> 或实现<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
+<tr><td style="text-align:left"><code>CustomPartition</code></td><td style="text-align:left">使用自定义消息路由，可以定制消息如何进入特定的分区。 可以使用 <a href="/docs/zh-CN/2.3.0/client-libraries-java">Java client</a> 或实现<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/MessageRouter">MessageRouter</a>
 接口来实现自定义的路由模式。</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="顺序保证"></a><a href="#顺序保证" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>顺序保证</h3>
 <p>The ordering of messages is related to MessageRoutingMode and Message Key. Usually, user would want an ordering of Per-key-partition guarantee.</p>
-<p>当使用 <code>SinglePartition</code>或者<code>RoundRobinPartition</code>模式时，如果消息有key，消息将会被路由到匹配的分区，这是基于<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
-中<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
+<p>当使用 <code>SinglePartition</code>或者<code>RoundRobinPartition</code>模式时，如果消息有key，消息将会被路由到匹配的分区，这是基于<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerBuilder">ProducerBuilder</a>
+中<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
 指定的散列shema。</p>
 <table>
 <thead>
@@ -257,7 +257,7 @@ Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, <spa
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="散列scheme"></a><a href="#散列scheme" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>散列scheme</h3>
-<p><a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
+<p><a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/HashingScheme">HashingScheme</a>
  是代表一组标准散列函数的枚举。为一个指定消息选择分区时使用。</p>
 <p>有两种可用的散列函数： <code>JavaStringHash</code> 和<code>Murmur3_32Hash</code>. The default hashing function for producer is <code>JavaStringHash</code>. 请注意，当producer可能来自于不同语言客户端时，<code>JavaStringHash</code>是不起作用的。建议使用<code>Murmur3_32Hash</code>。</p>
 <h2><a class="anchor" aria-hidden="true" id="非持久topic"></a><a href="#非持久topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>非持久topic</h2>

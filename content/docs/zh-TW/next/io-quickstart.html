@@ -462,7 +462,7 @@ name VARCHAR(255) NOT NULL
 <p>你可以使用 <a href="/docs/zh-TW/next/io-cli">Connector Admin CLI</a> 創建 sink 連接器並對其執行其它操作。</p>
 <p>本範例創建一個 sink 連接器並指定所需的訊息。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-postgres-2.5.2.nar \
+--archive ./connectors/pulsar-io-jdbc-postgres-2.6.0.nar \
 --inputs pulsar-postgres-jdbc-sink-topic \
 --name pulsar-postgres-jdbc-sink \
 --sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
@@ -476,7 +476,7 @@ name VARCHAR(255) NOT NULL
 <tr><th>旗標</th><th>說明</th><th>本範例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>sink 的nar 檔路徑。</td><td><em>pulsar-io-jdbc-postgres-2.5.2.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>sink 的nar 檔路徑。</td><td><em>pulsar-io-jdbc-postgres-2.6.0.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>Pulsar Function 的一個或多個輸入 topic（可以使用逗號分隔來指定多個 topic）。</td><td></td></tr>
 <tr><td><code>--name</code></td><td>sink 連結器的名稱。</td><td><em>pulsar-postgres-jdbc-sink</em></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>指定配置 Pulsar Function 的 YAML 設定檔路徑。</td><td><em>pulsar-postgres-jdbc-sink.yaml</em></td></tr>

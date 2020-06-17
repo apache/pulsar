@@ -1602,11 +1602,7 @@
         "Message": {
             "type": "object",
             "properties": {
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1623,15 +1619,19 @@
                         "format": "byte"
                     }
                 },
-                "keyBytes": {
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1641,21 +1641,21 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "topicName": {
                     "type": "string"
                 },
                 "replicated": {
                     "type": "boolean"
                 },
-                "replicatedFrom": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "data": {
                     "type": "array",

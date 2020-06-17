@@ -446,7 +446,7 @@ engine=innodb;
 <p>Pulsar provides the <a href="/docs/fr/2.4.1/admin-api-overview">CLI</a> for running and managing Pulsar I/O connectors.</p>
 <p>This example creates a sink connector and specifies the desired information.</p>
 <pre><code class="hljs css language-text">$ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-2.5.2.nar \
+--archive ./connectors/pulsar-io-jdbc-2.6.0.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
 --name pulsar-mysql-jdbc-sink \
 --sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
@@ -460,7 +460,7 @@ engine=innodb;
 <tr><th>Flag</th><th>Description</th><th>This example</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>Path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.5.2.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>Path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.6.0.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>The input topic or topics of the sink.</td></tr>
 <tr><td>(Multiple topics can be specified as a comma-separated list.)</td><td></td></tr>
 <tr><td><code>--name</code></td><td>The name of the sink.</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>

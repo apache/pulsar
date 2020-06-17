@@ -19,9 +19,28 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">InfluxDB sink connector</h1></header><article><div><span><p>The InfluxDB sink connector pulls messages from Pulsar topics and persists the messages to InfluxDB.</p>
+<p>The InfluxDB sink provides different configurations for InfluxDBv1 and v2 respectively.</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
 <p>The configuration of the InfluxDB sink connector has the following properties.</p>
 <h3><a class="anchor" aria-hidden="true" id="property"></a><a href="#property" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Property</h3>
+<h4><a class="anchor" aria-hidden="true" id="influxdbv2"></a><a href="#influxdbv2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>InfluxDBv2</h4>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>influxdbUrl</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The URL of the InfluxDB instance.</td></tr>
+<tr><td><code>token</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The authentication token used to authenticate to InfluxDB.</td></tr>
+<tr><td><code>organization</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The InfluxDB organization to write to.</td></tr>
+<tr><td><code>bucket</code></td><td>String</td><td>true</td><td>&quot; &quot; (empty string)</td><td>The InfluxDB bucket to write to.</td></tr>
+<tr><td><code>precision</code></td><td>String</td><td>false</td><td>ns</td><td>The timestamp precision for writing data to InfluxDB. <br><br>Below are the available options:<li>ns<br><li>us<br><li>ms<br><li>s</td></tr>
+<tr><td><code>logLevel</code></td><td>String</td><td>false</td><td>NONE</td><td>The log level for InfluxDB request and response. <br><br>Below are the available options:<li>NONE<br><li>BASIC<br><li>HEADERS<br><li>FULL</td></tr>
+<tr><td><code>gzipEnable</code></td><td>boolean</td><td>false</td><td>false</td><td>Whether to enable gzip or not.</td></tr>
+<tr><td><code>batchTimeMs</code></td><td>long</td><td>false</td><td>1000L</td><td>The InfluxDB operation time in milliseconds.</td></tr>
+<tr><td><code>batchSize</code></td><td>int</td><td>false</td><td>200</td><td>The batch size of writing to InfluxDB.</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="influxdbv1"></a><a href="#influxdbv1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>InfluxDBv1</h4>
 <table>
 <thead>
 <tr><th>Name</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>
@@ -41,6 +60,36 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
 <p>Before using the InfluxDB sink connector, you need to create a configuration file through one of the following methods.</p>
+<h4><a class="anchor" aria-hidden="true" id="influxdbv2-1"></a><a href="#influxdbv2-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>InfluxDBv2</h4>
+<ul>
+<li><p>JSON</p>
+<pre><code class="hljs css language-json">{
+    <span class="hljs-attr">"influxdbUrl"</span>: <span class="hljs-string">"http://localhost:9999"</span>,
+    <span class="hljs-attr">"organization"</span>: <span class="hljs-string">"example-org"</span>,
+    <span class="hljs-attr">"bucket"</span>: <span class="hljs-string">"example-bucket"</span>,
+    <span class="hljs-attr">"token"</span>: <span class="hljs-string">"xxxx"</span>,
+    <span class="hljs-attr">"precision"</span>: <span class="hljs-string">"ns"</span>,
+    <span class="hljs-attr">"logLevel"</span>: <span class="hljs-string">"NONE"</span>,
+    <span class="hljs-attr">"gzipEnable"</span>: <span class="hljs-literal">false</span>,
+    <span class="hljs-attr">"batchTimeMs"</span>: <span class="hljs-number">1000</span>,
+    <span class="hljs-attr">"batchSize"</span>: <span class="hljs-number">100</span>
+}
+</code></pre></li>
+<li><p>YAML</p>
+<pre><code class="hljs css language-yaml"><span class="hljs-string">{</span>
+    <span class="hljs-attr">influxdbUrl:</span> <span class="hljs-string">"http://localhost:9999"</span>
+    <span class="hljs-attr">organization:</span> <span class="hljs-string">"example-org"</span>
+    <span class="hljs-attr">bucket:</span> <span class="hljs-string">"example-bucket"</span>
+    <span class="hljs-attr">token:</span> <span class="hljs-string">"xxxx"</span>
+    <span class="hljs-attr">precision:</span> <span class="hljs-string">"ns"</span>
+    <span class="hljs-attr">logLevel:</span> <span class="hljs-string">"NONE"</span>
+    <span class="hljs-attr">gzipEnable:</span> <span class="hljs-literal">false</span>
+    <span class="hljs-attr">batchTimeMs:</span> <span class="hljs-number">1000</span>
+    <span class="hljs-attr">batchSize:</span> <span class="hljs-number">100</span>
+<span class="hljs-string">}</span>
+</code></pre></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="influxdbv1-1"></a><a href="#influxdbv1-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>InfluxDBv1</h4>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
@@ -58,7 +107,7 @@
 <pre><code class="hljs css language-yaml"><span class="hljs-string">{</span>
     <span class="hljs-attr">influxdbUrl:</span> <span class="hljs-string">"http://localhost:8086"</span>
     <span class="hljs-attr">database:</span> <span class="hljs-string">"test_db"</span>
-    <span class="hljs-string">consistencyLevel":</span> <span class="hljs-string">"ONE"</span>
+    <span class="hljs-attr">consistencyLevel:</span> <span class="hljs-string">"ONE"</span>
     <span class="hljs-attr">logLevel:</span> <span class="hljs-string">"NONE"</span>
     <span class="hljs-attr">retentionPolicy:</span> <span class="hljs-string">"autogen"</span>
     <span class="hljs-attr">gzipEnable:</span> <span class="hljs-literal">false</span>
