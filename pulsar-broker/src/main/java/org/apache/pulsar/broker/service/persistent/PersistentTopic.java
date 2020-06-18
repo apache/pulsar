@@ -2190,7 +2190,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ctrl = replicatedSubscriptionsController.get();
         }
 
-        ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);;
+        ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);
      }
 
     Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {

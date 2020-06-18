@@ -93,7 +93,7 @@ public class BacklogQuotaManagerTest {
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
-            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();;
+            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.tenants().createTenant("prop",
