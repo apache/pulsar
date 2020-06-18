@@ -132,8 +132,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final FunctionMetaDataManager functionMetaDataManager;
 
     private final ErrorNotifier errorNotifier;
-
-    private MessageId lastPublishedMessageId = null;
     
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
