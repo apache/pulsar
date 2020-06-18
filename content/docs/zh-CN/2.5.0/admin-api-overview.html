@@ -94,7 +94,7 @@
 <p>在本文档中，将展示三个可用接口中的每一个的示例。</p>
 <h2><a class="anchor" aria-hidden="true" id="管理设置"></a><a href="#管理设置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理设置</h2>
 <p>Pulsar的三种接口<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
-[`pulsar-admin&lt;0&gt;CLI工具，<a href="/api/admin/2.5.0-SNAPSHOT">java管理API</a>,<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+[`pulsar-admin&lt;0&gt;CLI工具，<a href="/api/admin/2.6.0-SNAPSHOT">java管理API</a>,<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
  API 中的每一种---需要一些特殊的设置，如果你在Pulsar <a href="reference-terminology.md#instance">实例</a>中开启了<a href="security-overview.md#authentication-providers">身份认证</a>。</p></p>
 <p><h3 spaces-before="0">pulsar-admin</h3></p>
 <p spaces-before="0">如果启用了 <a href="security-overview.md#authentication-providers">身份验证</a>, 则需要提供一个授权配置以使用 <a href="/docs/zh-CN/2.5.0/pulsar-admin"><code>pulsar-admin`](reference-pulsar-admin.md) 工具。 默认情况下，`pulsar-admin`的配置文件在[`conf/client.conf`](/docs/zh-CN/2.5.0/reference-configuration#client)文件中。 以下是可用参数:
@@ -116,8 +116,8 @@
 <p>您可以在此<a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">document</a>
 参考文档中找到Pulsar <a href="/docs/zh-CN/2.5.0/reference-terminology#broker">broker</a>暴露的REST API的文档。</p>
 <h3><a class="anchor" aria-hidden="true" id="java-管理客户端"></a><a href="#java-管理客户端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java 管理客户端</h3>
-<p>要使用 Java 管理 API，需实例化一个 <a href="https://pulsar.incubator.apache.org/api/admin/2.5.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
-对象，为 Pulsar <a href="/docs/zh-CN/2.5.0/reference-terminology#broker">broker</a> 和 <a href="https://pulsar.incubator.apache.org/api/admin/2.5.0-SNAPSHOT/org/apache/pulsar/client/admin/ClientConfiguration">ClientConfiguration</a>
+<p>要使用 Java 管理 API，需实例化一个 <a href="https://pulsar.incubator.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+对象，为 Pulsar <a href="/docs/zh-CN/2.5.0/reference-terminology#broker">broker</a> 和 <a href="https://pulsar.incubator.apache.org/api/admin/2.6.0-SNAPSHOT/org/apache/pulsar/client/admin/ClientConfiguration">ClientConfiguration</a>
  指定一个URL。 下面是一个使用 <code>localhost</code> 的最小示例:</p>
 <pre><code class="hljs css language-java">String url = <span class="hljs-string">"http://localhost:8080"</span>;
 <span class="hljs-comment">// Pass auth-plugin class fully-qualified name if Pulsar-security enabled</span>

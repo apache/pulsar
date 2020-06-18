@@ -124,17 +124,17 @@
 <ul>
 <li>点击下面的链接，会自动触发下载：
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz" download>Pulsar 2.5.2 binary release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz" download>Pulsar 2.6.0 binary release</a></li>
 </ul></li>
 <li>从Pulsar的 <a href="/download">下载页面</a>下载</li>
 <li>From the Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">releases page</a> on <a href="https://github.com">GitHub</a></li>
 <li>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载:</li>
 </ul>
-<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz
+<pre><code class="hljs css language-bash">$ wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz
 </code></pre>
 <p>下载压缩包后，将其解压，使用<code>cd</code>命令，进入解压后的文件目录中：</p>
-<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.5.2-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.2
+<pre><code class="hljs css language-bash">$ tar xvzf apache-pulsar-2.6.0-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
 </code></pre>
 <p>解压后的文件目录包含以下子目录:</p>
 <table>
@@ -157,29 +157,29 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.2
 <ul>
 <li><p>通过单击下面的链接并从 Apache 镜像下载该版本:</p>
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors" download>Pulsar IO Connectors 2.5.2 release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors" download>Pulsar IO Connectors 2.6.0 release</a></li>
 </ul></li>
 <li><p>Pulsar <a href="/download">下载页面</a></p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/incubator-pulsar/releases/latest">github releases 页面</a></p></li>
 <li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a>：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as <code>connectors</code> in the pulsar directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-io-connectors-2.5.2-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-io-connectors-2.6.0-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-io-connectors-2.5.2` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-io-connectors-2.6.0` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the connectors
 
-$ mv apache-pulsar-io-connectors-2.5.2/connectors connectors
+$ mv apache-pulsar-io-connectors-2.6.0/connectors connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.5.2.nar
-pulsar-io-cassandra-2.5.2.nar
-pulsar-io-kafka-2.5.2.nar
-pulsar-io-kinesis-2.5.2.nar
-pulsar-io-rabbitmq-2.5.2.nar
-pulsar-io-twitter-2.5.2.nar
+pulsar-io-aerospike-2.6.0.nar
+pulsar-io-cassandra-2.6.0.nar
+pulsar-io-kafka-2.6.0.nar
+pulsar-io-kinesis-2.6.0.nar
+pulsar-io-rabbitmq-2.6.0.nar
+pulsar-io-twitter-2.6.0.nar
 ...
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="deploying-a-zookeeper-cluster"></a><a href="#deploying-a-zookeeper-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying a ZooKeeper cluster</h2>

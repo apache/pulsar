@@ -91,16 +91,16 @@
 <h3><a class="anchor" aria-hidden="true" id="安装二进制版本-pulsar"></a><a href="#安装二进制版本-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装二进制版本 Pulsar</h3>
 <p>首先，通过以下方式下载二进制安装包：</p>
 <ul>
-<li><p>从 Apache mirror 下载（<a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz" download>Pulsar 2.5.2 二进制版本</a>）</p></li>
+<li><p>从 Apache mirror 下载（<a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz" download>Pulsar 2.6.0 二进制版本</a>）</p></li>
 <li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
 <li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-2.5.2-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>下载好压缩文件后，解压缩并使用 <code>cd</code> 命令进入文件所在位置：</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.5.2-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.2
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.6.0-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="软件包包含的内容"></a><a href="#软件包包含的内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>软件包包含的内容:</h4>
 <p>Pulsar 二进制包包含以下目录:</p>
@@ -139,19 +139,19 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.5.2
 <h3><a class="anchor" aria-hidden="true" id="安装内置连接器（可选）"></a><a href="#安装内置连接器（可选）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装内置连接器（可选）</h3>
 <p>在 <code>2.1.0-孵化</code> 发布以后，Pulsar 发布了一个单独的二进制分布，其中包含所有的<code>内置</code>连接器。 要启用这些<code>内置</code>连接器，可以通过以下方式下载连接器安装包：</p>
 <ul>
-<li><p>从 Apache mirror 下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors" download>Pulsar IO 连接器 2.5.2 版本</a></p></li>
+<li><p>从 Apache mirror 下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors" download>Pulsar IO 连接器 2.6.0 版本</a></p></li>
 <li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
 <li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/connectors/{connector}-2.5.2.nar</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors/{connector}-2.6.0.nar</span>
 </code></pre></li>
 </ul>
-<p>下载 nar 文件后，将其复制到 pulsar 目录下的 <code>connectors</code> 目录中。 比如，要下载 <code>pulsar-io-aerospike-2.5.2.nar</code> 连接器文件，则输入以下命令：</p>
+<p>下载 nar 文件后，将其复制到 pulsar 目录下的 <code>connectors</code> 目录中。 比如，要下载 <code>pulsar-io-aerospike-2.6.0.nar</code> 连接器文件，则输入以下命令：</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
-$ mv pulsar-io-aerospike-2.5.2.nar connectors
+$ mv pulsar-io-aerospike-2.6.0.nar connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.5.2.nar
+pulsar-io-aerospike-2.6.0.nar
 ...
 </code></pre>
 <blockquote>
@@ -168,23 +168,23 @@ pulsar-io-aerospike-2.5.2.nar
 </blockquote>
 <p>要使用<a href="/docs/zh-CN/next/concepts-tiered-storage">分层存储卸载程序</a>，需要在所有 broker 节点上下载卸载程序的压缩文件，下载方式有以下几种：</p>
 <ul>
-<li><p>从 Apache mirror 下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-offloaders-2.5.2-bin.tar.gz" download>Pulsar 分层存储卸载程序 {{pulsar：version}} 版本</a></p></li>
+<li><p>从 Apache mirror 下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-offloaders-2.6.0-bin.tar.gz" download>Pulsar 分层存储卸载程序 {{pulsar：version}} 版本</a></p></li>
 <li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
 <li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
 <li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.5.2/apache-pulsar-offloaders-2.5.2-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-offloaders-2.6.0-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>下载卸载程序压缩包后，解压缩，并将卸载程序复制为 <code>offloaders</code> 存储在 pulsar 目录中：</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.5.2-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.6.0-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-2.5.2` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-2.6.0` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the offloaders
 
-$ mv apache-pulsar-offloaders-2.5.2/offloaders offloaders
+$ mv apache-pulsar-offloaders-2.6.0/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-2.5.2.nar
+tiered-storage-jcloud-2.6.0.nar
 </code></pre>
 <p>关于如何配置分层存储的详细信息，请参阅<a href="/docs/zh-CN/next/cookbooks-tiered-storage">分层存储指南</a>。</p>
 <blockquote>

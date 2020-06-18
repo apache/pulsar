@@ -68,7 +68,7 @@
 <span class="hljs-attribute">namespace</span>: <span class="hljs-string">"default"</span>
 <span class="hljs-attribute">name</span>: <span class="hljs-string">"debezium-mysql-source"</span>
 <span class="hljs-attribute">topicName</span>: <span class="hljs-string">"debezium-mysql-topic"</span>
-<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-2.5.2.nar"</span>
+<span class="hljs-attribute">archive</span>: <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-2.6.0.nar"</span>
 
 <span class="hljs-attribute">parallelism</span>: <span class="hljs-number">1</span>
 
@@ -102,7 +102,7 @@
 <li><p>Start a Pulsar service locally in standalone mode.</p>
 <pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar </span>standalone
 </code></pre></li>
-<li><p>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-debezium-mysql-2.5.2.nar</code>.</p>
+<li><p>Start pulsar debezium connector, with local run mode, and using above yaml config file. Please make sure that the nar file is available as configured in path <code>connectors/pulsar-io-debezium-mysql-2.6.0.nar</code>.</p>
 <pre><code class="hljs css language-$bash"> bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --<span class="hljs-keyword">source</span>-config-<span class="hljs-keyword">file</span> debezium-mysql-<span class="hljs-keyword">source</span>-config.yaml
 </code></pre>
 <pre><code class="hljs css language-$bash">bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-mysql-{{<span class="hljs-attribute">pulsar</span>:version}}<span class="hljs-variable">.nar</span> --name debezium-mysql-source --destination-topic-name debezium-mysql-topic --tenant public --namespace default --source-config '{"database<span class="hljs-variable">.hostname</span>": "localhost","database<span class="hljs-variable">.port</span>": "3306","database<span class="hljs-variable">.user</span>": "debezium","database<span class="hljs-variable">.password</span>": "dbz","database<span class="hljs-variable">.server</span><span class="hljs-variable">.id</span>": "184054","database<span class="hljs-variable">.server</span><span class="hljs-variable">.name</span>": "dbserver1","database<span class="hljs-variable">.whitelist</span>": "inventory","database<span class="hljs-variable">.history</span>": "org<span class="hljs-variable">.apache</span><span class="hljs-variable">.pulsar</span><span class="hljs-variable">.io</span><span class="hljs-variable">.debezium</span><span class="hljs-variable">.PulsarDatabaseHistory</span>","database<span class="hljs-variable">.history</span><span class="hljs-variable">.pulsar</span><span class="hljs-variable">.topic</span>": "history-topic","database<span class="hljs-variable">.history</span><span class="hljs-variable">.pulsar</span><span class="hljs-variable">.service</span><span class="hljs-variable">.url</span>": "pulsar://127.0.0.1:6650","key<span class="hljs-variable">.converter</span>": "org<span class="hljs-variable">.apache</span><span class="hljs-variable">.kafka</span><span class="hljs-variable">.connect</span><span class="hljs-variable">.json</span><span class="hljs-variable">.JsonConverter</span>","value<span class="hljs-variable">.converter</span>": "org<span class="hljs-variable">.apache</span><span class="hljs-variable">.kafka</span><span class="hljs-variable">.connect</span><span class="hljs-variable">.json</span><span class="hljs-variable">.JsonConverter</span>","pulsar<span class="hljs-variable">.service</span><span class="hljs-variable">.url</span>": "pulsar://127.0.0.1:6650","offset<span class="hljs-variable">.storage</span><span class="hljs-variable">.topic</span>": "offset-topic"}'
@@ -142,7 +142,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-postgres-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-postgres-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.5.2</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.6.0</span>.nar"</span>
 
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
@@ -169,13 +169,13 @@ docker run -d -it --rm --name pulsar-postgresql -p <span class="hljs-number">543
 <li><p>Start a Pulsar service locally in standalone mode.</p>
 <pre><code class="hljs css language-$bash"> <span class="hljs-keyword">bin/pulsar </span>standalone
 </code></pre></li>
-<li><p>Start the Pulsar Debezium connector in local run mode and use the JSON or YAML configuration file in the example above. Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.5.2.nar</code>.</p>
+<li><p>Start the Pulsar Debezium connector in local run mode and use the JSON or YAML configuration file in the example above. Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.0.nar</code>.</p>
 <pre><code class="hljs css language-$bash">bin/pulsar-admin <span class="hljs-keyword">source</span> localrun  --<span class="hljs-keyword">source</span>-config-<span class="hljs-keyword">file</span> debezium-postgres-<span class="hljs-keyword">source</span>-config.yaml
 </code></pre></li>
 </ol>
 <p>Optionally, start Pulsar Debezium connector in local run mode and use the JSON config file in the example above.</p>
 <pre><code class="hljs">```$bash
-bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-postgres-2.5.2.nar --name debezium-postgres-source --destination-topic-name debezium-postgres-topic --tenant public --namespace default --source-config '{&quot;database.hostname&quot;: &quot;localhost&quot;,&quot;database.port&quot;: &quot;5432&quot;,&quot;database.user&quot;: &quot;postgres&quot;,&quot;database.password&quot;: &quot;postgres&quot;,&quot;database.dbname&quot;: &quot;postgres&quot;,&quot;database.server.name&quot;: &quot;dbserver1&quot;,&quot;schema.whitelist&quot;: &quot;inventory&quot;,&quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;}'
+bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-postgres-2.6.0.nar --name debezium-postgres-source --destination-topic-name debezium-postgres-topic --tenant public --namespace default --source-config '{&quot;database.hostname&quot;: &quot;localhost&quot;,&quot;database.port&quot;: &quot;5432&quot;,&quot;database.user&quot;: &quot;postgres&quot;,&quot;database.password&quot;: &quot;postgres&quot;,&quot;database.dbname&quot;: &quot;postgres&quot;,&quot;database.server.name&quot;: &quot;dbserver1&quot;,&quot;schema.whitelist&quot;: &quot;inventory&quot;,&quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;}'
 ```
 </code></pre>
 <ol start="4">
