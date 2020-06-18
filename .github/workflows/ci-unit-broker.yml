@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit - Brokers
+name: CI - Unit - Brokers - Default
 on:
   pull_request:
     branches:
@@ -66,66 +66,14 @@ jobs:
 
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
-
-      - name: run unit tests pulsar broker reader test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ReaderTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker rack aware test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=RackAwareTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker simple producer consumer test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=SimpleProducerConsumerTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker V1 producer consumer test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=V1_ProducerConsumerTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker persistent failover end to end test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=PersistentFailoverE2ETest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker client integration test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=BrokerClientIntegrationTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker replicatior rate limiter test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ReplicatorRateLimiterTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker persistent dispatcher failover consumer test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=PersistentDispatcherFailoverConsumerTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker admin api test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=AdminApiTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker v1 admin api test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=V1_AdminApiTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker compaction test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=CompactionTest' -pl pulsar-broker
-
-      - name: run unit tests pulsar broker batch message test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=BatchMessageTest' -pl pulsar-broker
+        run: mvn clean install -DskipTests -pl pulsar-broker -am
         
-      - name: run unit tests pulsar broker partitioned topics schema test
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=PartitionedTopicsSchemaTest' -pl pulsar-broker
-        
-      - name: run unit test pulsar-broker
+      - name: run unit test pulsar-broker default tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           df -h
           free -h
-          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!PulsarFunctionE2ESecurityTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest' -DfailIfNoTests=false -pl pulsar-broker
+          mvn test -e '-Dtest=!PersistentTransactionBufferTest,!ServerCnxTest,!AdminApiOffloadTest,!AdminApiSchemaValidationEnforced,!V1_AdminApiTest2,!ProxyPublishConsumeTlsTest,!PulsarFunctionE2ETest,!MessageIdSerialization,!AdminApiTest2,!PulsarFunctionLocalRunTest,!PartitionedProducerConsumerTest,!KafkaProducerSimpleConsumerTest,!MessagePublishThrottlingTest,!ReaderTest,!RackAwareTest,!SimpleProducerConsumerTest,!V1_ProducerConsumerTest,!PersistentFailoverE2ETest,!BrokerClientIntegrationTest,!ReplicatorRateLimiterTest,!PersistentDispatcherFailoverConsumerTest,!AdminApiTest,!V1_AdminApiTest,!CompactionTest,!BatchMessageTest,!PartitionedTopicsSchemaTest,!PulsarFunctionE2ESecurityTest,!SchemaCompatibilityCheckTest,!CompactedTopicTest,!LoadBalancerTest,!ConsumerBatchReceiveTest,!KeySharedSubscriptionTest,!MessagePublishBufferThrottleTest,!PrecisTopicPublishRateThrottleTest,!PublishRateLimiterTest,!MessagePublishThrottlingTest,!MessageIdTest,!UnAcknowledgedMessagesTimeoutTest,!ConsumerPreciseDispatcherFlowControl,!SimpleSchemaTest,!ConsumerDedupPermitsUpdate,!NamespaceOwnershipListenerTests,!org/apache/pulsar/client/**/*.java,!org/apache/pulsar/broker/**/*.java' -DfailIfNoTests=false -pl pulsar-broker
 
       - name: package surefire artifacts
         if: failure()

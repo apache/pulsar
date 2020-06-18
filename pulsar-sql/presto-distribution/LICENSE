@@ -222,13 +222,13 @@ The Apache Software License, Version 2.0
     - guava-25.1-jre.jar
  * Google Guice
     - guice-4.2.0.jar
+    - guice-4.2.3.jar
     - guice-multibindings-4.2.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
     - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.19.jar
-    - commons-lang3-3.3.2.jar
-    - commons-lang3-3.4.jar
+    - commons-lang3-3.6.jar
  * Netty
     - netty-3.10.6.Final.jar
     - netty-buffer-4.1.48.Final.jar
@@ -239,91 +239,99 @@ The Apache Software License, Version 2.0
     - netty-common-4.1.48.Final.jar
     - netty-handler-4.1.48.Final.jar
     - netty-handler-proxy-4.1.48.Final.jar
-    - netty-reactive-streams-2.0.0.jar
+    - netty-reactive-streams-2.0.4.jar
     - netty-resolver-4.1.48.Final.jar
     - netty-resolver-dns-4.1.48.Final.jar
     - netty-tcnative-boringssl-static-2.0.30.Final.jar
     - netty-transport-4.1.48.Final.jar
     - netty-transport-native-epoll-4.1.48.Final.jar
     - netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
+    - netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
     - netty-transport-native-unix-common-4.1.48.Final.jar
     - netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
  * Joda Time
-    - joda-time-2.9.9.jar
+    - joda-time-2.10.5.jar
     - joda-time-2.10.1.jar
  * Jetty
-    - http2-client-9.4.11.v20180605.jar
-    - http2-common-9.4.11.v20180605.jar
-    - http2-hpack-9.4.11.v20180605.jar
-    - http2-http-client-transport-9.4.11.v20180605.jar
-    - http2-server-9.4.11.v20180605.jar
-    - jetty-alpn-client-9.4.11.v20180605.jar
-    - jetty-client-9.4.11.v20180605.jar
-    - jetty-http-9.4.11.v20180605.jar
-    - jetty-io-9.4.11.v20180605.jar
-    - jetty-jmx-9.4.11.v20180605.jar
-    - jetty-security-9.4.11.v20180605.jar
-    - jetty-server-9.4.11.v20180605.jar
-    - jetty-servlet-9.4.11.v20180605.jar
-    - jetty-util-9.4.11.v20180605.jar
+    - http2-client-9.4.27.v20200227.jar
+    - http2-common-9.4.27.v20200227.jar
+    - http2-hpack-9.4.27.v20200227.jar
+    - http2-http-client-transport-9.4.27.v20200227.jar
+    - http2-server-9.4.27.v20200227.jar
+    - jetty-alpn-client-9.4.27.v20200227.jar
+    - jetty-client-9.4.27.v20200227.jar
+    - jetty-http-9.4.27.v20200227.jar
+    - jetty-io-9.4.27.v20200227.jar
+    - jetty-jmx-9.4.27.v20200227.jar
+    - jetty-security-9.4.27.v20200227.jar
+    - jetty-server-9.4.27.v20200227.jar
+    - jetty-servlet-9.4.27.v20200227.jar
+    - jetty-util-9.4.27.v20200227.jar
   * Asynchronous Http Client
     - async-http-client-1.9.40.jar
   * Apache BVal
     - bval-core-1.1.1.jar
     - bval-jsr-1.1.1.jar
+    - bval-jsr-2.0.0.jar
   * Bytecode
-    - bytecode-1.0.jar
+    - bytecode-1.2.jar
   * CGLIB Nodep
     - cglib-nodep-3.2.5.jar
+    - cglib-nodep-3.3.0.jar
   * Airlift
-    - aircompressor-0.11.jar
+    - aircompressor-0.16.jar
     - airline-0.8.jar
     - bootstrap-0.170.jar
-    - bootstrap-0.171.jar
-    - concurrent-0.171.jar
-    - configuration-0.171.jar
+    - bootstrap-0.195.jar
+    - concurrent-0.195.jar
     - configuration-0.170.jar
-    - discovery-0.171.jar
+    - configuration-0.195.jar
+    - discovery-0.195.jar
     - discovery-server-1.29.jar
-    - event-0.171.jar
-    - http-client-0.171.jar
-    - http-server-0.171.jar
-    - jmx-0.171.jar
-    - jmx-http-0.171.jar
+    - event-0.195.jar
+    - http-client-0.195.jar
+    - http-server-0.195.jar
+    - jmx-0.195.jar
+    - jmx-http-0.195.jar
     - jmx-http-rpc-0.159.jar
-    - joni-2.1.5.1.jar
+    - joni-2.1.5.3.jar
     - json-0.170.jar
-    - json-0.171.jar
+    - json-0.195.jar
     - log-0.170.jar
-    - log-0.171.jar
+    - log-0.195.jar
     - log-manager-0.170.jar
-    - log-manager-0.171.jar
-    - node-0.171.jar
-    - resolver-1.4.jar
-    - security-0.171.jar
-    - slice-0.35.jar
-    - stats-0.171.jar
-    - trace-token-0.171.jar
-    - units-1.0.jar
+    - log-manager-0.195.jar
+    - node-0.195.jar
+    - parameternames-1.4.jar
+    - resolver-1.5.jar
+    - security-0.195.jar
+    - slice-0.38.jar
+    - stats-0.195.jar
+    - trace-token-0.195.jar
+    - units-1.6.jar
   * Error Prone Annotations
     - error_prone_annotations-2.1.3.jar
   * Esri Geometry API For Java
-    - esri-geometry-api-2.1.0.jar
+    - esri-geometry-api-2.2.2.jar
+  * Failsafe
+    - failsafe-2.0.1.jar
   * Fastutil
-    - fastutil-6.5.9.jar
+    - fastutil-8.3.0.jar
   * J2ObjC Annotations
     - j2objc-annotations-1.1.jar
   * JSON Web Token Support For The JVM
     - jjwt-0.9.0.jar
   * Jmxutils
-    - jmxutils-1.19.jar
+    - jmxutils-1.21.jar
   * LevelDB
     - leveldb-0.10.jar
     - leveldb-api-0.10.jar
   * Log4j implemented over SLF4J
     - log4j-over-slf4j-1.7.25.jar
+    - log4j-over-slf4j-1.7.29.jar
   * Lucene Common Analyzers
-    - lucene-analyzers-common-7.2.1.jar
+    - lucene-analyzers-common-8.4.1.jar
+    - lucene-core-8.4.1.jar
   * Maven
     - maven-aether-provider-3.0.5.jar
     - maven-artifact-3.0.5.jar
@@ -361,6 +369,7 @@ The Apache Software License, Version 2.0
     - javax.inject-1.jar
     - javax.inject-1.jar
     - javax.servlet-api-3.1.0.jar
+    - javax.servlet-api-4.0.1.jar
     - javax.ws.rs-api-2.1.jar
   * JCommander
     - jcommander-1.48.jar
@@ -371,23 +380,22 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.13.0.jar
   * Presto
-    - presto-array-0.206.jar
-    - presto-cli-0.206.jar
-    - presto-client-0.206.jar
-    - presto-geospatial-toolkit-0.206.jar
-    - presto-main-0.206.jar
-    - presto-matching-0.206.jar
-    - presto-memory-context-0.206.jar
-    - presto-parser-0.206.jar
-    - presto-spi-0.206.jar
+    - presto-array-332.jar
+    - presto-cli-332.jar
+    - presto-client-332.jar
+    - presto-geospatial-toolkit-332.jar
+    - presto-main-332.jar
+    - presto-matching-332.jar
+    - presto-memory-context-332.jar
+    - presto-parser-332.jar
+    - presto-plugin-toolkit-332.jar
+    - presto-spi-332.jar
   * RocksDB JNI
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
     - snakeyaml-1.17.jar
-  * Snappy Java
-    - snappy-java-1.1.1.3.jar
   * Bean Validation API
-    - validation-api-1.1.0.Final.jar
+    - validation-api-2.0.1.Final.jar
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
@@ -399,13 +407,11 @@ The Apache Software License, Version 2.0
     - simpleclient_common-0.5.0.jar
     - simpleclient_hotspot-0.5.0.jar
     - simpleclient_servlet-0.5.0.jar
-  * LZ4
-    - lz4-java-1.5.0.jar
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
-    - async-http-client-2.7.0.jar
-    - async-http-client-netty-utils-2.7.0.jar
+    - async-http-client-2.12.1.jar
+    - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
     - bookkeeper-common-4.10.0.jar
     - bookkeeper-common-allocator-4.10.0.jar
@@ -433,6 +439,7 @@ The Apache Software License, Version 2.0
     - jackson-jaxrs-json-provider-2.8.11.jar
     - jackson-module-jaxb-annotations-2.8.11.jar
     - jackson-module-jsonSchema-2.8.11.jar
+    - jackson-module-parameter-names-2.10.0.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
@@ -444,6 +451,9 @@ The Apache Software License, Version 2.0
     - jetty-util-9.4.20.v20190813.jar
   * Java Native Access
     - jna-4.2.0.jar
+    - jna-5.3.1.jar
+  * Java Object Layout: Core
+    - jol-core-0.2.jar
   * Yahoo Datasketches
     - memory-0.8.3.jar
     - sketches-core-0.8.3.jar
@@ -467,16 +477,16 @@ BSD 3-clause "New" or "Revised" License
     - dsl-json-1.8.4.jar
 
 BSD License
- * ANTLR 4 Runtime -- antlr4-runtime-4.6.jar
+ * ANTLR 4 Runtime -- antlr4-runtime-4.7.1.jar
  * ASM, a very small and fast Java bytecode manipulation framework
-    - asm-6.1.1.jar
-    - asm-analysis-6.0.jar
-    - asm-tree-6.0.jar
-    - asm-util-6.0.jar
+    - asm-6.2.1.jar
+    - asm-analysis-6.2.1.jar
+    - asm-tree-6.2.1.jar
+    - asm-util-6.2.1.jar
  * JLine
-   - jline-2.14.6.jar
- * Zstd-jni
-   - zstd-jni-1.3.7-3.jar
+   - jline-reader-3.12.1.jar
+   - jline-terminal-3.12.1.jar
+   - jline-terminal-jna-3.12.1.jar
 
 MIT License
  * Animal Sniffer Annotations
@@ -485,10 +495,11 @@ MIT License
    - pcollections-2.1.2.jar
  * SLF4J
    - slf4j-jdk14-1.7.25.jar
-   - slf4j-api-1.7.12.jar
+   - slf4j-jdk14-1.7.29.jar
    - slf4j-api-1.7.25.jar
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.25.jar
+   - jcl-over-slf4j-1.7.29.jar
  * JUL to SLF4J Bridge
    - jul-to-slf4j-1.7.25.jar
  * Checker Qual
@@ -501,14 +512,15 @@ CDDL - 1.0
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
    - javax.annotation-api-1.2.jar
-   - javax.annotation-api-1.3.1.jar
+   - javax.annotation-api-1.3.2.jar
    - javax.activation-1.2.0.jar
+   - javax.activation-api-1.2.0.jar
  * HK2 - Dependency Injection Kernel
    - hk2-api-2.5.0-b42.jar
    - hk2-locator-2.5.0-b42.jar
    - hk2-utils-2.5.0-b42.jar
  * Jersey
-    - jaxrs-0.171.jar
+    - jaxrs-0.195.jar
     - jersey-client-2.26.jar
     - jersey-container-servlet-2.26.jar
     - jersey-container-servlet-core-2.26.jar
@@ -517,7 +529,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-server-2.26.jar
     - jersey-common-2.26.jar
  * JAXB
-    - jaxb-api-2.2.6.jar
     - jaxb-api-2.3.1.jar
     - jaxb-impl-2.2.6.jar
 
@@ -530,7 +541,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
      - aether-spi-1.13.1.jar
      - aether-util-1.13.1.jar
   * JTS Core
-     - jts-core-1.15.0.jar
+     - jts-core-1.16.1.jar
   *JGraphT Core
      - jgrapht-core-0.9.0.jar
   * Logback Core Module
@@ -544,7 +555,7 @@ Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * AOP Alliance
    - aopalliance-1.0.jar
  * Reactive Streams
-    - reactive-streams-1.0.2.jar
+    - reactive-streams-1.0.3.jar
 
 Creative Commons Attribution License
  * Jcip -- licenses/LICENSE-jcip.txt
@@ -552,4 +563,4 @@ Creative Commons Attribution License
 
 Bouncy Castle License
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
-    - bouncy-castle-bc-shaded-2.6.0-SNAPSHOT.jar
+    - bouncy-castle-bc-shaded-2.7.0-SNAPSHOT.jar

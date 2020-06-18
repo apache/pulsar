@@ -46,7 +46,7 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsPro
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionInstanceId;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -129,10 +129,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private final FunctionMetaDataManager functionMetaDataManager;
 
-
+    private final ErrorNotifier errorNotifier;
+    
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
-                                  MembershipManager membershipManager, ConnectorsManager connectorsManager,
-                                  FunctionMetaDataManager functionMetaDataManager) throws Exception {
+                                  MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
+                                  FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
         this.workerConfig = workerConfig;
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
@@ -143,6 +144,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else {
             secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
         }
+        log.info("Initializing secrets provider configurator {} with configs: {}",
+          secretsProviderConfigurator.getClass().getName(), workerConfig.getSecretsProviderConfiguratorConfig());
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
         Optional<FunctionAuthProvider> functionAuthProvider = Optional.empty();
@@ -194,10 +197,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.runtimeFactory.initialize(workerConfig, authConfig, secretsProviderConfigurator, functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                dlogNamespace, connectorsManager, workerService.getBrokerAdmin());
+                dlogNamespace, connectorsManager, functionsManager, workerService.getBrokerAdmin());
 
         this.membershipManager = membershipManager;
         this.functionMetaDataManager = functionMetaDataManager;
+        this.errorNotifier = errorNotifier;
     }
 
     /**
@@ -208,16 +212,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void initialize() {
         log.info("/** Initializing Runtime Manager **/");
         try {
-            Reader<byte[]> reader = this.getWorkerService().getClient().newReader()
-                    .topic(this.getWorkerConfig().getFunctionAssignmentTopic()).readCompacted(true)
-                    .startMessageId(MessageId.earliest).create();
-
-            this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
+            this.functionAssignmentTailer = new FunctionAssignmentTailer(
+                    this,
+                    this.getWorkerService().getClient().newReader(),
+                    this.workerConfig,
+                    this.errorNotifier);
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages
-            while (reader.hasMessageAvailable()) {
-                this.functionAssignmentTailer.processAssignment(reader.readNext());
+            while (this.functionAssignmentTailer.getReader().hasMessageAvailable()) {
+                this.functionAssignmentTailer.processAssignment(this.functionAssignmentTailer.getReader().readNext());
             }
             // init phase is done
             this.isInitializePhase = false;
@@ -241,7 +245,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
-        log.info("Starting function assignment tailer...");
         this.functionAssignmentTailer.start();
     }
 
@@ -251,7 +254,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     /**
      * Get current assignments
-     * @return a map of current assignments in the follwing format
+     * @return a map of current assignments in the following format
      * {workerId : {FullyQualifiedInstanceId : Assignment}}
      */
     public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {

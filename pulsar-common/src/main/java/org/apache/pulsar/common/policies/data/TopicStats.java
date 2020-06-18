@@ -43,8 +43,23 @@ public class TopicStats {
     /** Total throughput of messages dispatched for the topic (byte/s). */
     public double msgThroughputOut;
 
+    /** Total bytes published to the topic (bytes). */
+    public long bytesInCounter;
+
+    /** Total messages published to the topic (msg). */
+    public long msgInCounter;
+
+    /** Total bytes delivered to consumer (bytes). */
+    public long bytesOutCounter;
+
+    /** Total messages delivered to consumer (msg). */
+    public long msgOutCounter;
+
     /** Average size of published messages (bytes). */
     public double averageMsgSize;
+
+    /** Topic has chunked message published on it. */
+    public boolean msgChunkPublished;
 
     /** Space used to store the messages for the topic (bytes). */
     public long storageSize;
@@ -63,9 +78,6 @@ public class TopicStats {
 
     public String deduplicationStatus;
 
-    public long bytesInCounter;
-    public long msgInCounter;
-
     public TopicStats() {
         this.publishers = Lists.newArrayList();
         this.subscriptions = Maps.newHashMap();
@@ -83,6 +95,8 @@ public class TopicStats {
         this.backlogSize = 0;
         this.bytesInCounter = 0;
         this.msgInCounter = 0;
+        this.bytesOutCounter = 0;
+        this.msgOutCounter = 0;
         this.publishers.clear();
         this.subscriptions.clear();
         this.replication.clear();
@@ -100,6 +114,8 @@ public class TopicStats {
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesInCounter += stats.bytesInCounter;
         this.msgInCounter += stats.msgInCounter;
+        this.bytesOutCounter += stats.bytesOutCounter;
+        this.msgOutCounter += stats.msgOutCounter;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
         this.storageSize += stats.storageSize;

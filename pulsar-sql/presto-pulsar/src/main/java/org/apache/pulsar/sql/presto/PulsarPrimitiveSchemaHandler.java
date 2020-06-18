@@ -19,11 +19,12 @@
 package org.apache.pulsar.sql.presto;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
+
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
-import org.apache.pulsar.client.api.Schema;
+
+import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
@@ -33,17 +34,16 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
 
     private final SchemaInfo schemaInfo;
-    private final Schema<?> schema;
+    private final AbstractSchema<?> schema;
 
-    public PulsarPrimitiveSchemaHandler(SchemaInfo schemaInfo) {
+    PulsarPrimitiveSchemaHandler(SchemaInfo schemaInfo) {
         this.schemaInfo = schemaInfo;
-        this.schema = AutoConsumeSchema.getSchema(schemaInfo);
+        this.schema = (AbstractSchema<?>) AutoConsumeSchema.getSchema(schemaInfo);
     }
 
     @Override
-    public Object deserialize(ByteBuf byteBuf) {
-        byte[] data = ByteBufUtil.getBytes(byteBuf);
-        Object currentRecord = schema.decode(data);
+    public Object deserialize(ByteBuf payload) {
+        Object currentRecord = schema.decode(payload);
         switch (schemaInfo.getType()) {
             case DATE:
                 return ((Date) currentRecord).getTime();
@@ -54,11 +54,6 @@ public class PulsarPrimitiveSchemaHandler implements SchemaHandler {
             default:
                 return currentRecord;
         }
-    }
-
-    @Override
-    public Object deserialize(ByteBuf keyPayload, ByteBuf dataPayload) {
-        return null;
     }
 
     @Override

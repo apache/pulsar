@@ -135,25 +135,31 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    private static final File NAR_CACHE_DIR = new File(System.getProperty("java.io.tmpdir") + "/" + TMP_DIR_PREFIX);
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
-        try {
-            return new NarClassLoader(unpacked, additionalJars, NarClassLoader.class.getClassLoader());
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new IOException(e);
-        }
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
+                                                String narExtractionDirectory) throws IOException {
+        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
+                                                NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
     }
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent)
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
+        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    }
+
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+                                                String narExtractionDirectory)
         throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
         try {
             return new NarClassLoader(unpacked, additionalJars, parent);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
+    }
+
+    private static File getNarExtractionDirectory(String configuredDirectory) {
+        return new File(configuredDirectory + "/" + TMP_DIR_PREFIX);
     }
 
     /**

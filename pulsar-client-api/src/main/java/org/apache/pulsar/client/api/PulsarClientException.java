@@ -68,12 +68,25 @@ public class PulsarClientException extends IOException {
     /**
      * Constructs an {@code PulsarClientException} with the specified cause.
      *
+     * @param msg
+     *            The detail message (which is saved for later retrieval by the {@link #getMessage()} method)
+     *
      * @param t
-     *        The cause (which is saved for later retrieval by the
-     *        {@link #getCause()} method).  (A null value is permitted,
-     *        and indicates that the cause is nonexistent or unknown.)
+     *            The cause (which is saved for later retrieval by the {@link #getCause()} method). (A null value is
+     *            permitted, and indicates that the cause is nonexistent or unknown.)
+     */
+    public PulsarClientException(String msg, Throwable t) {
+        super(msg, t);
+    }
+
+    /**
+     * Constructs an {@code PulsarClientException} with the specified cause.
+     *
+     * @param t
+     *            The cause (which is saved for later retrieval by the {@link #getCause()} method). (A null value is
+     *            permitted, and indicates that the cause is nonexistent or unknown.)
      * @param sequenceId
-     *        The sequenceId of the message
+     *            The sequenceId of the message
      */
     public PulsarClientException(Throwable t, long sequenceId) {
         super(t);
@@ -94,6 +107,21 @@ public class PulsarClientException extends IOException {
          */
         public InvalidServiceURL(Throwable t) {
             super(t);
+        }
+
+        /**
+         * Constructs an {@code InvalidServiceURL} with the specified cause.
+         *
+         *@param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public InvalidServiceURL(String msg, Throwable t) {
+            super(msg, t);
         }
     }
 
@@ -122,6 +150,21 @@ public class PulsarClientException extends IOException {
          */
         public InvalidConfigurationException(Throwable t) {
             super(t);
+        }
+
+        /**
+         * Constructs an {@code InvalidConfigurationException} with the specified cause.
+         *
+         *@param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         * @param t
+         *        The cause (which is saved for later retrieval by the
+         *        {@link #getCause()} method).  (A null value is permitted,
+         *        and indicates that the cause is nonexistent or unknown.)
+         */
+        public InvalidConfigurationException(String msg, Throwable t) {
+            super(msg, t);
         }
     }
 
@@ -689,6 +732,20 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    /**
+     * Consumer assign exception thrown by Pulsar client.
+     */
+    public static class ConsumerAssignException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code ConsumerAssignException} with the specified detail message.
+         * @param msg The detail message.
+         */
+        public ConsumerAssignException(String msg) {
+            super(msg);
+        }
+    }
+
     // wrap an exception to enriching more info messages.
     public static Throwable wrap(Throwable t, String msg) {
         msg += "\n" + t.getMessage();
@@ -743,6 +800,8 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (t instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (t instanceof ConsumerAssignException) {
+            return new ConsumerAssignException(msg);
         } else if (t instanceof PulsarClientException) {
             return new PulsarClientException(msg);
         } else if (t instanceof CompletionException) {
@@ -824,6 +883,8 @@ public class PulsarClientException extends IOException {
             return new ChecksumException(msg);
         } else if (cause instanceof CryptoException) {
             return new CryptoException(msg);
+        } else if (cause instanceof ConsumerAssignException) {
+            return new ConsumerAssignException(msg);
         } else if (cause instanceof TopicDoesNotExistException) {
             return new TopicDoesNotExistException(msg);
         } else {
@@ -852,6 +913,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof NotSupportedException
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
+                || t instanceof ConsumerAssignException
                 || t instanceof ProducerBusyException
                 || t instanceof ConsumerBusyException) {
             return false;

@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -96,15 +96,21 @@
     </dependency>
 
     <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
-      <version>${mysql-jdbc.version}</version>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>${postgresql-jdbc.version}</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-io-jdbc</artifactId>
+      <artifactId>pulsar-io-jdbc-postgres</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -139,7 +145,7 @@
     </dependency>
 
     <dependency>
-      <groupId>com.facebook.presto</groupId>
+      <groupId>io.prestosql</groupId>
       <artifactId>presto-jdbc</artifactId>
       <version>${presto.version}</version>
       <scope>test</scope>

@@ -15,6 +15,9 @@ Pulsar exposes metrics in Prometheus format that can be collected and used for m
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
+* [Pulsar Functions](#pulsar functions)
+* [Proxy](#proxy)
+* [Pulsar SQL Worker](#Pulsar SQL Worker)
 
 ## Overview
 
@@ -107,6 +110,7 @@ Broker has the following kinds of metrics:
     * [BundleSplit metrics](#bundlesplit-metrics)
 * [Subscription metrics](#subscription-metrics)
 * [Consumer metrics](#consumer-metrics)
+* [ManagedLedger bookie client metrics](#managed-ledger-bookie-client-metrics)
 
 ### Namespace metrics
 
@@ -180,6 +184,8 @@ All the topic metrics are labelled with the following labels:
 | pulsar_entry_size_le_* | Histogram | The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: <= 128 bytes </li><li>pulsar_entry_size_le_512: <= 512 bytes</li><li>pulsar_entry_size_le_1_kb: <= 1 KB</li><li>pulsar_entry_size_le_2_kb: <= 2 KB</li><li>pulsar_entry_size_le_4_kb: <= 4 KB</li><li>pulsar_entry_size_le_16_kb: <= 16 KB</li><li>pulsar_entry_size_le_100_kb: <= 100 KB</li><li>pulsar_entry_size_le_1_mb: <= 1 MB</li><li>pulsar_entry_size_le_overflow: > 1 MB</li></ul> |
 | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic |
 | pulsar_in_messages_total | Counter | The total number of messages received for this topic |
+| pulsar_out_bytes_total | Counter | The total number of bytes read from this topic |
+| pulsar_out_messages_total | Counter | The total number of messages read from this topic |
 
 #### Replication metrics
 
@@ -318,6 +324,88 @@ All the consumer metrics are labelled with the following labels:
 | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). |
 | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). |
 | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |
+
+### Managed ledger bookie client metrics
+
+All the managed ledger bookie client metrics labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+
+| Name | Type | Description |
+| --- | --- | --- |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br>The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_* | Gauge | The number of tasks the worker executor execute completed. <br>The number of metrics determined by the number of worker task thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf` <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_queue_* | Gauge | The number of tasks queued in the worker executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_total_tasks_* | Gauge | The total number of tasks the worker executor received. <br>The number of metrics determined by worker executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution | Summary | The scheduler task execution latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
+| pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
+
+# Pulsar Functions
+
+All the Pulsar Functions metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_function_processed_successfully_total | Counter | Total number of messages processed successfully. |
+| pulsar_function_processed_successfully_total_1min | Counter | Total number of messages processed successfully in the last 1 minute. |
+| pulsar_function_system_exceptions_total | Counter | Total number of system exceptions. |
+| pulsar_function_system_exceptions_total_1min | Counter | Total number of system exceptions in the last 1 minute. |
+| pulsar_function_user_exceptions_total | Counter | Total number of user exceptions. |
+| pulsar_function_user_exceptions_total_1min | Counter | Total number of user exceptions in the last 1 minute. |
+| pulsar_function_process_latency_ms | Summary | Process latency in milliseconds. |
+| pulsar_function_process_latency_ms_1min | Summary | Process latency in milliseconds in the last 1 minute. |
+| pulsar_function_last_invocation | Gauge | The timestamp of the last invocation of the function. |
+| pulsar_function_received_total | Counter | Total number of messages received from source. |
+| pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
+
+# Proxy
+
+All the proxy metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_proxy_active_connections | Gauge | Number of connections currently active in the proxy. |
+| pulsar_proxy_new_connections | Counter | Counter of connections being opened in the proxy. |
+| pulsar_proxy_rejected_connections | Counter | Counter for connections rejected due to throttling. |
+| pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
+| pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
+
+# Pulsar SQL Worker
+
+| Name | Type | Description |
+|---|---|---|
+| split_bytes_read | Counter | Number of bytes read from BookKeeper. |
+| split_num_messages_deserialized | Counter | Number of messages deserialized. |
+| split_num_record_deserialized | Counter | Number of records deserialized. |
+| split_bytes_read_per_query | Summary | Total number of bytes read per query. |
+| split_entry_deserialize_time | Summary | Time spent on derserializing entries. |
+| split_entry_deserialize_time_per_query | Summary | Time spent on derserializing entries per query. |
+| split_entry_queue_dequeue_wait_time | Summary | Time spend on waiting to get entry from entry queue because it is empty. |
+| split_entry_queue_dequeue_wait_time_per_query | Summary | Total time spent on waiting to get entry from entry queue per query. |
+| split_message_queue_dequeue_wait_time_per_query | Summary | Time spent on waiting to dequeue from message queue because is is empty per query. |
+| split_message_queue_enqueue_wait_time | Summary | Time spent on waiting for message queue enqueue because the message queue is full. |
+| split_message_queue_enqueue_wait_time_per_query | Summary | Time spent on waiting for message queue enqueue because the message queue is full per query. |
+| split_num_entries_per_batch | Summary | Number of entries per batch. |
+| split_num_entries_per_query | Summary | Number of entries per query. |
+| split_num_messages_deserialized_per_entry | Summary | Number of messages deserialized per entry. |
+| split_num_messages_deserialized_per_query | Summary | Number of messages deserialized per query. |
+| split_read_attempts | Summary | Number of read attempts (fail if queues are full). |
+| split_read_attempts_per_query | Summary | Number of read attempts per query. |
+| split_read_latency_per_batch | Summary | Latency of reads per batch. |
+| split_read_latency_per_query | Summary | Total read latency per query. |
+| split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
+| split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
+| split_total_execution_time | Summary | Total execution time . |
 
 ## Monitor
 

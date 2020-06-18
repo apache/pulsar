@@ -81,6 +81,9 @@ message FunctionDetails {
     string runtimeFlags = 17;
     ComponentType componentType = 18;
     string customRuntimeOptions = 19;
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 20;
 }
 
 message ConsumerSpec {
@@ -91,6 +94,7 @@ message ConsumerSpec {
         int32 value = 1;
     }
     ReceiverQueueSize receiverQueueSize = 4;
+    map<string, string> schemaProperties = 5;
 }
 
 message SourceSpec {
@@ -119,6 +123,7 @@ message SourceSpec {
     string subscriptionName = 9;
     bool cleanupSubscription = 11;
     SubscriptionPosition subscriptionPosition = 12;
+    uint64 negativeAckRedeliveryDelayMs = 13;
 }
 
 message SinkSpec {
@@ -142,6 +147,8 @@ message SinkSpec {
     string schemaType = 7;
 
     bool forwardSourceMessageProperty = 8;
+
+    map<string, string> schemaProperties = 9;
 }
 
 message PackageLocationMetaData {

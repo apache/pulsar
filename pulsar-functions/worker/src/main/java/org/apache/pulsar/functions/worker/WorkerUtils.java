@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
@@ -54,9 +57,6 @@ import java.nio.file.Files;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
-
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 @Slf4j
 public final class WorkerUtils {
@@ -116,6 +116,11 @@ public final class WorkerUtils {
             }
             outputStream.flush();
         }
+    }
+
+    public static void deleteFromBookkeeper(Namespace namespace, String packagePath) throws IOException {
+        log.info("Deleting {} from BK", packagePath);
+        namespace.deleteLog(packagePath);
     }
 
     public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
@@ -302,6 +307,10 @@ public final class WorkerUtils {
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 return true;
             }
+        }
+
+        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+            return true;
         }
 
         return false;

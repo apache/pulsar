@@ -19,17 +19,25 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import lombok.Data;
 
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RegexSubscriptionMode;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -38,7 +46,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 
-@Test
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
     @BeforeMethod
@@ -124,6 +131,43 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
         topic = getTopic(topicName);
         assertFalse(topic.isPresent());
         assertFalse(topicHasSchema(topicName));
+    }
+
+    @Test
+    public void testPatternTopic() throws PulsarClientException, InterruptedException {
+        final String topic1 = "non-persistent://prop/ns-abc/testPatternTopic1-" + UUID.randomUUID().toString();
+        final String topic2 = "non-persistent://prop/ns-abc/testPatternTopic2-" + UUID.randomUUID().toString();
+        Pattern pattern = Pattern.compile("prop/ns-abc/test.*");
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topicsPattern(pattern)
+                .subscriptionName("my-sub")
+                .patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS)
+                .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+                .subscribe();
+
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic1)
+                .create();
+
+        Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic2)
+                .create();
+
+        Thread.sleep(2000);
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer1.send("Message sent by producer-1 -> " + i);
+            producer2.send("Message sent by producer-2 -> " + i);
+        }
+
+        for (int i = 0; i < messages * 2; i++) {
+            Message<String> received = consumer.receive(3, TimeUnit.SECONDS);
+            Assert.assertNotNull(received);
+        }
+
+        consumer.close();
+        producer1.close();
+        producer2.close();
     }
 
 }

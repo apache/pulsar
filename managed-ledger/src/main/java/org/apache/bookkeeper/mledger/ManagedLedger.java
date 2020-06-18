@@ -151,7 +151,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
+     *            the cursor will be set at latest position or not when first created
      *            default is <b>true</b>
      * @return the ManagedCursor
      * @throws ManagedLedgerException
@@ -166,7 +166,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
+     *            the cursor will be set at latest position or not when first created
      *            default is <b>true</b>
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
@@ -444,8 +444,37 @@ public interface ManagedLedger {
     void readyToCreateNewLedger();
 
     /**
+     * Returns managed-ledger's properties.
+     *
+     * @return key-values of properties
+     */
+    Map<String, String> getProperties();
+
+    /**
+     * Update managed-ledger's properties.
+     *
+     * @param properties key-values of properties
+     */
+    void setProperties(Map<String, String> properties) throws InterruptedException;
+
+    /**
+     * Async update managed-ledger's properties.
+     *
+     * @param properties key-values of properties.
+     * @param callback   a callback which will be supplied with the newest properties in managedLedger.
+     * @param ctx        a context object which will be passed to the callback on completion.
+     */
+    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.SetPropertiesCallback callback,
+        Object ctx);
+  
+    /**
      * Trim consumed ledgers in background
      * @param promise
      */
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
+
+    /**
+     * Roll current ledger if it is full
+     */
+    void rollCurrentLedgerIfFull();
 }

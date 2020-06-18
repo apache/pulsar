@@ -45,7 +45,6 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.policies.data.SourceStatus;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
@@ -59,25 +58,32 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
-import org.apache.pulsar.tests.integration.io.*;
-import org.apache.pulsar.tests.integration.io.JdbcSinkTester.Foo;
+import org.apache.pulsar.tests.integration.io.CassandraSinkTester;
+import org.apache.pulsar.tests.integration.io.DebeziumMongoDbSourceTester;
+import org.apache.pulsar.tests.integration.io.DebeziumMySqlSourceTester;
+import org.apache.pulsar.tests.integration.io.DebeziumPostgreSqlSourceTester;
+import org.apache.pulsar.tests.integration.io.ElasticSearchSinkTester;
+import org.apache.pulsar.tests.integration.io.HdfsSinkTester;
+import org.apache.pulsar.tests.integration.io.JdbcPostgresSinkTester;
+import org.apache.pulsar.tests.integration.io.JdbcPostgresSinkTester.Foo;
+import org.apache.pulsar.tests.integration.io.KafkaSinkTester;
+import org.apache.pulsar.tests.integration.io.KafkaSourceTester;
+import org.apache.pulsar.tests.integration.io.RabbitMQSinkTester;
+import org.apache.pulsar.tests.integration.io.RabbitMQSourceTester;
+import org.apache.pulsar.tests.integration.io.SinkTester;
+import org.apache.pulsar.tests.integration.io.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.assertj.core.api.Assertions;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.shaded.com.google.common.collect.Sets;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -87,7 +93,6 @@ import java.util.concurrent.TimeUnit;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -132,7 +137,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     @Test(groups = "sink")
     public void testJdbcSink() throws Exception {
-        testSink(new JdbcSinkTester(), true);
+        testSink(new JdbcPostgresSinkTester(), true);
     }
 
     @Test(enabled = false, groups = "sink")
@@ -228,8 +233,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // produce messages
         Map<String, String> kvs;
-        if (tester instanceof JdbcSinkTester) {
-            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+        if (tester instanceof JdbcPostgresSinkTester) {
+            kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
                     waitForProcessingSinkMessages(tenant, namespace, sinkName, numMessages));
@@ -237,7 +242,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             // validate the sink result
             tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+            kvs = produceSchemaUpdateMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
@@ -246,7 +251,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             // validate the sink result
             tester.validateSinkResult(kvs);
 
-            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcSinkTester.Foo.class));
+            kvs = produceSchemaDeleteMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
 
             // wait for sink to process messages
             Failsafe.with(statusRetryPolicy).run(() ->
@@ -291,7 +296,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,
-                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName
             };
@@ -328,7 +333,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,
-                    "--sink-type", tester.sinkType().name().toLowerCase(),
+                    "--sink-type", tester.sinkType().getValue().toLowerCase(),
                     "--sinkConfig", new Gson().toJson(tester.sinkConfig()),
                     "--inputs", inputTopicName,
                     "--parallelism", "2"
@@ -371,7 +376,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         log.info("Get sink info : {}", result.getStdout());
         if (builtin) {
             assertTrue(
-                    result.getStdout().contains("\"archive\": \"builtin://" + tester.getSinkType().name().toLowerCase() + "\""),
+                    result.getStdout().contains("\"archive\": \"builtin://" + tester.getSinkType().getValue().toLowerCase() + "\""),
                     result.getStdout()
             );
         } else {
@@ -433,7 +438,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaInsertMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -451,7 +456,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_insert_" + i);
             obj.setField3(i);
@@ -470,7 +475,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaUpdateMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -489,7 +494,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_update_" + i);
             obj.setField3(i);
@@ -509,7 +514,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    // This for JdbcSinkTester
+    // This for JdbcPostgresSinkTester
     protected Map<String, String> produceSchemaDeleteMessagesToInputTopic(String inputTopicName,
                                                                           int numMessages,
                                                                           Schema<Foo> schema) throws Exception {
@@ -527,7 +532,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < numMessages; i++) {
             String key = "key-" + i;
 
-            JdbcSinkTester.Foo obj = new JdbcSinkTester.Foo();
+            JdbcPostgresSinkTester.Foo obj = new JdbcPostgresSinkTester.Foo();
             obj.setField1("field1_insert_" + i);
             obj.setField2("field2_update_" + i);
             obj.setField3(i);
@@ -1634,6 +1639,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function stats
         getFunctionStats(functionName, numMessages);
 
+        // update parallelism
+        updateFunctionParallelism(functionName, 2);
+
+        //get function status
+        getFunctionStatus(functionName, 0, true, 2);
+
         // delete function
         deleteFunction(functionName);
 
@@ -1749,6 +1760,22 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("\"Created successfully\""));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
+
+    private static void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        generator.setParallelism(parallelism);
+        String command = generator.generateUpdateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("\"Updated successfully\""));
     }
 
     private static <T> void submitFunction(Runtime runtime,
@@ -1943,6 +1970,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
+        getFunctionStatus(functionName, numMessages, checkRestarts, 1);
+    }
+
+    private static void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
+        throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
             PulsarCluster.ADMIN_SCRIPT,
             "functions",
@@ -1954,20 +1986,35 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         FunctionStatus functionStatus = FunctionStatus.decode(result.getStdout());
 
-        assertEquals(functionStatus.getNumInstances(), 1);
-        assertEquals(functionStatus.getNumRunning(), 1);
-        assertEquals(functionStatus.getInstances().size(), 1);
-        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
-        assertTrue(functionStatus.getInstances().get(0).getStatus().getAverageLatency() > 0.0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
-        assertTrue(functionStatus.getInstances().get(0).getStatus().getLastInvocationTime() > 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), numMessages);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), numMessages);
-        if (checkRestarts) {
-            assertEquals(functionStatus.getInstances().get(0).getStatus().getNumRestarts(), 0);
+        assertEquals(functionStatus.getNumInstances(), parallelism);
+        assertEquals(functionStatus.getNumRunning(), parallelism);
+        assertEquals(functionStatus.getInstances().size(), parallelism);
+        boolean avgLatencyGreaterThanZero = false;
+        int totalMessagesProcessed = 0;
+        int totalMessagesSuccessfullyProcessed = 0;
+        boolean lastInvocationTimeGreaterThanZero = false;
+        for (int i = 0; i < parallelism; ++i) {
+            assertEquals(functionStatus.getInstances().get(i).getStatus().isRunning(), true);
+            assertTrue(functionStatus.getInstances().get(i).getInstanceId() >= 0);
+            assertTrue(functionStatus.getInstances().get(i).getInstanceId() < parallelism);
+            avgLatencyGreaterThanZero = avgLatencyGreaterThanZero
+                    || functionStatus.getInstances().get(i).getStatus().getAverageLatency() > 0.0;
+            lastInvocationTimeGreaterThanZero = lastInvocationTimeGreaterThanZero
+                    || functionStatus.getInstances().get(i).getStatus().getLastInvocationTime() > 0;
+            totalMessagesProcessed += functionStatus.getInstances().get(i).getStatus().getNumReceived();
+            totalMessagesSuccessfullyProcessed += functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
+            if (checkRestarts) {
+                assertEquals(functionStatus.getInstances().get(i).getStatus().getNumRestarts(), 0);
+            }
+            assertEquals(functionStatus.getInstances().get(i).getStatus().getLatestUserExceptions().size(), 0);
+            assertEquals(functionStatus.getInstances().get(i).getStatus().getLatestSystemExceptions().size(), 0);
         }
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+        if (numMessages > 0) {
+            assertTrue(avgLatencyGreaterThanZero);
+            assertTrue(lastInvocationTimeGreaterThanZero);
+        }
+        assertEquals(totalMessagesProcessed, numMessages);
+        assertEquals(totalMessagesSuccessfullyProcessed, numMessages);
     }
 
     private static void publishAndConsumeMessages(String inputTopic,

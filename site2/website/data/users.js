@@ -1,5 +1,10 @@
 module.exports = [
     {
+        name: 'Kingsoft Cloud',
+        url: 'https://www.ksyun.com/',
+        logo: 'https://fe.ksyun.com/header/images/pc/logo.png?a048d39f',
+    },
+    {
         name: 'Narvar',
         url: 'https://corp.narvar.com/',
         logo: 'https://assets-global.website-files.com/5d278e4646ba9e55d6c67475/5d49ce69c03a64b2d8466816_Logo%20-%20Colored.svg',
@@ -226,5 +231,10 @@ module.exports = [
         name: 'MercadoLibre',
         url: 'https://www.mercadolibre.com/',
         logo: 'https://d1.awsstatic.com/case-studies/LATAM/mercadolibre.1d9d3766bb06e60948f1c5ce8851ce0eac63b349.png'
+    },
+    {
+        name: 'BIGO',
+        url: 'https://www.bigo.sg/',
+        logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
     }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);

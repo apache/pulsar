@@ -46,6 +46,7 @@ import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
@@ -78,6 +79,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private static final String CATEGORY_STATE = "State Management";
     @Category
     private static final String CATEGORY_CONNECTORS = "Connectors";
+    @Category
+    private static final String CATEGORY_FUNCTIONS = "Functions";
 
     @FieldContext(
         category = CATEGORY_WORKER,
@@ -99,6 +102,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The port for serving worker https requests"
     )
     private Integer workerPortTls;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = true;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint should return default prometheus metrics. Defaults to false."
+    )
+    private boolean includeStandardPrometheusMetrics = false;
     @FieldContext(
         category = CATEGORY_WORKER,
         doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -134,6 +148,21 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The path to the location to locate builtin connectors"
     )
     private String connectorsDirectory = "./connectors";
+    @FieldContext(
+        category = CATEGORY_CONNECTORS,
+        doc = "The directory where nar packages are extractors"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Should we validate connector config during submission"
+    )
+    private Boolean validateConnectorConfig = false;
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The path to the location to locate builtin functions"
+    )
+    private String functionsDirectory = "./functions";
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"
@@ -408,6 +437,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     " as this config is the the same across all functions"
     )
     private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
+
+    @FieldContext(
+            doc = "Max pending async requests per instance to avoid large number of concurrent requests."
+                  + "Only used in AsyncFunction. Default: 1000"
+    )
+    private int maxPendingAsyncRequests = 1000;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);

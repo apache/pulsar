@@ -21,10 +21,10 @@ Commands
 * `ns-isolation-policy`
 * `sources`
 
-    For more information, see [here](reference-connector-admin.md#sources)
+  For more information, see [here](io-cli.md#sources)
 * `sinks`
   
-  For more information, see [here](reference-connector-admin.md#sinks)
+  For more information, see [here](io-cli.md#sinks)
 * `topics`
 * `tenants`
 * `resource-quotas`
@@ -1138,7 +1138,7 @@ $ pulsar-admin namespaces set-persistence tenant/namespace options
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-a`, `--bookkeeper-ack-quorom`|The number of acks (guaranteed copies) to wait for each entry|0|
+|`-a`, `--bookkeeper-ack-quorum`|The number of acks (guaranteed copies) to wait for each entry|0|
 |`-e`, `--bookkeeper-ensemble`|The number of bookies to use for a topic|0|
 |`-w`, `--bookkeeper-write-quorum`|How many writes to make of each entry|0|
 |`-r`, `--ml-mark-delete-max-rate`|Throttling rate of mark-delete operation (0 means no throttle)||
@@ -1282,7 +1282,7 @@ Usage
 $ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 ```
 
-### set-replicator-dispatch-rate
+### `set-replicator-dispatch-rate`
 Set replicator message-dispatch-rate for all topics of the namespace
 
 Usage
@@ -1297,7 +1297,7 @@ Options
 |`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
 |`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
 
-### get-replicator-dispatch-rate
+### `get-replicator-dispatch-rate`
 Get replicator configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
 
 Usage

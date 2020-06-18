@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,7 +34,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -88,7 +87,10 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
             }
             cb = cb.properties(properties);
-
+            if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
+                    && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
+                cb.negativeAckRedeliveryDelay(pulsarSourceConfig.getNegativeAckRedeliveryDelayMs(), TimeUnit.MILLISECONDS);
+            }
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
@@ -99,7 +101,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
                     deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
                 }
-                cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
+                cb = cb.enableRetry(true).deadLetterPolicy(deadLetterPolicyBuilder.build());
             }
 
             Consumer<T> consumer = cb.subscribeAsync().join();
@@ -164,7 +166,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
             } else {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
             }
             configs.put(topic,
                     ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());

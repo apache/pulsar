@@ -19,78 +19,92 @@
 package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
-import java.util.function.Function;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 @Slf4j
 public class FunctionMetaDataTopicTailer
-        implements java.util.function.Consumer<Message<byte[]>>, Function<Throwable, Void>, AutoCloseable {
+        implements Runnable, AutoCloseable {
 
     private final FunctionMetaDataManager functionMetaDataManager;
+    @Getter
     private final Reader<byte[]> reader;
+    private final Thread readerThread;
+    private volatile boolean running;
+    private ErrorNotifier errorNotifier;
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       Reader<byte[]> reader)
+                                       ReaderBuilder readerBuilder, WorkerConfig workerConfig,
+                                       ErrorNotifier errorNotifier)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
-        this.reader = reader;
+        this.reader = readerBuilder
+                .topic(workerConfig.getFunctionMetadataTopic())
+                .startMessageId(MessageId.earliest)
+                .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-manager")
+                .create();
+        readerThread = new Thread(this);
+        readerThread.setName("function-metadata-tailer-thread");
+        this.errorNotifier = errorNotifier;
     }
 
     public void start() {
-        receiveOne();
+        running = true;
+        readerThread.start();
     }
 
-    private void receiveOne() {
-        reader.readNextAsync()
-                .thenAccept(this)
-                .exceptionally(this);
+    @Override
+    public void run() {
+        while(running) {
+            try {
+                Message<byte[]> msg = reader.readNext();
+                processRequest(msg);
+            } catch (Throwable th) {
+                if (running) {
+                    log.error("Encountered error in metadata tailer", th);
+                    // trigger fatal error
+                    running = false;
+                    errorNotifier.triggerError(th);
+                } else {
+                    if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
+                        log.warn("Encountered error when metadata tailer is not running", th);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     @Override
     public void close() {
-        log.info("Stopping function state consumer");
+        log.info("Stopping function metadata tailer");
         try {
-            reader.close();
+            running = false;
+            if (readerThread != null && readerThread.isAlive()) {
+                readerThread.interrupt();
+            }
+            if (reader != null) {
+                reader.close();
+            }
         } catch (IOException e) {
-            log.error("Failed to stop function state consumer", e);
+            log.error("Failed to stop function metadata tailer", e);
         }
-        log.info("Stopped function state consumer");
+        log.info("Stopped function metadata tailer");
     }
 
-    public void processRequest(Message<byte[]> msg) {
-        ServiceRequest serviceRequest;
-
-        try {
-            serviceRequest = ServiceRequest.parseFrom(msg.getData());
-        } catch (IOException e) {
-            log.error("Received bad service request at message {}", msg.getMessageId(), e);
-            // TODO: find a better way to handle bad request
-            throw new RuntimeException(e);
-        }
+    public void processRequest(Message<byte[]> msg) throws IOException {
+        ServiceRequest serviceRequest = ServiceRequest.parseFrom(msg.getData());
         if (log.isDebugEnabled()) {
             log.debug("Received Service Request: {}", serviceRequest);
         }
-
         this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
-    }
-
-    @Override
-    public void accept(Message<byte[]> msg) {
-
-        processRequest(msg);
-        // receive next request
-        receiveOne();
-    }
-
-    @Override
-    public Void apply(Throwable cause) {
-        log.error("Failed to retrieve messages from function state topic", cause);
-        // TODO: find a better way to handle consumer functions
-        throw new RuntimeException(cause);
     }
 }

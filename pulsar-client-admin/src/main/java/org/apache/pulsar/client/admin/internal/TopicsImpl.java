@@ -1288,6 +1288,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         String msgId = response.getHeaderString(MESSAGE_ID);
+        PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
         try (InputStream stream = (InputStream) response.getEntity()) {
             byte[] data = new byte[stream.available()];
             stream.read(data);
@@ -1298,10 +1299,16 @@ public class TopicsImpl extends BaseResource implements Topics {
             if (tmp != null) {
                 properties.put("publish-time", (String) tmp);
             }
+
+            tmp = headers.getFirst("X-Pulsar-null-value");
+            if (tmp != null) {
+                messageMetadata.setNullValue(Boolean.parseBoolean(tmp.toString()));
+            }
+
             tmp = headers.getFirst(BATCH_HEADER);
             if (response.getHeaderString(BATCH_HEADER) != null) {
                 properties.put(BATCH_HEADER, (String) tmp);
-                return getIndividualMsgsFromBatch(topic, msgId, data, properties);
+                return getIndividualMsgsFromBatch(topic, msgId, data, properties, messageMetadata);
             }
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
@@ -1312,12 +1319,12 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
 
             return Collections.singletonList(new MessageImpl<byte[]>(topic, msgId, properties,
-                    Unpooled.wrappedBuffer(data), Schema.BYTES));
+                    Unpooled.wrappedBuffer(data), Schema.BYTES, messageMetadata));
         }
     }
 
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
-                                                             Map<String, String> properties) {
+                                 Map<String, String> properties, PulsarApi.MessageMetadata.Builder msgMetadataBuilder) {
         List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         ByteBuf buf = Unpooled.wrappedBuffer(data);
@@ -1334,7 +1341,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload, Schema.BYTES));
+                ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
+                        Schema.BYTES, msgMetadataBuilder));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

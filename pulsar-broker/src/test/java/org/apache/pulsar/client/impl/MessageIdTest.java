@@ -263,7 +263,7 @@ public class MessageIdTest extends BrokerTestBase {
         Assert.assertEquals(messageIds.size(), 0, "Not all messages received successfully");
         // TODO - this statement causes the broker to hang - need to look into
         // it
-        // consumer.unsubscribe();;
+        // consumer.unsubscribe();
     }
 
     /**

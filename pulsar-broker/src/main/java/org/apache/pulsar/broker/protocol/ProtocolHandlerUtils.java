@@ -49,8 +49,8 @@ class ProtocolHandlerUtils {
      * @return the protocol handler definition
      * @throws IOException when fail to load the protocol handler or get the definition
      */
-    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+    public static ProtocolHandlerDefinition getProtocolHandlerDefinition(String narPath, String narExtractionDirectory) throws IOException {
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getProtocolHandlerDefinition(ncl);
         }
     }
@@ -70,7 +70,8 @@ class ProtocolHandlerUtils {
      * @return a collection of protocol handlers
      * @throws IOException when fail to load the available protocol handlers from the provided directory.
      */
-    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory) throws IOException {
+    public static ProtocolHandlerDefinitions searchForHandlers(String handlersDirectory,
+                                                               String narExtractionDirectory) throws IOException {
         Path path = Paths.get(handlersDirectory).toAbsolutePath();
         log.info("Searching for protocol handlers in {}", path);
 
@@ -84,7 +85,7 @@ class ProtocolHandlerUtils {
             for (Path archive : stream) {
                 try {
                     ProtocolHandlerDefinition phDef =
-                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString());
+                        ProtocolHandlerUtils.getProtocolHandlerDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found protocol handler from {} : {}", archive, phDef);
 
                     checkArgument(StringUtils.isNotBlank(phDef.getName()));
@@ -113,11 +114,12 @@ class ProtocolHandlerUtils {
      * @param metadata the protocol handler definition.
      * @return
      */
-    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata) throws IOException {
+    static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
+                                               String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
             metadata.getArchivePath().toAbsolutePath().toFile(),
             Collections.emptySet(),
-            ProtocolHandler.class.getClassLoader());
+            ProtocolHandler.class.getClassLoader(), narExtractionDirectory);
 
         ProtocolHandlerDefinition phDef = getProtocolHandlerDefinition(ncl);
         if (StringUtils.isBlank(phDef.getHandlerClass())) {

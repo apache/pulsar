@@ -30,6 +30,7 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.request.ServiceRequestInfo;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
@@ -59,6 +60,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private final SchedulerManager schedulerManager;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
+    private final ErrorNotifier errorNotifier;
 
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
 
@@ -68,12 +70,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
-                                   PulsarClient pulsarClient) throws PulsarClientException {
+                                   PulsarClient pulsarClient,
+                                   ErrorNotifier errorNotifier) throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
         this.serviceRequestManager = getServiceRequestManager(
                 this.pulsarClient, this.workerConfig.getFunctionMetadataTopic());
         this.schedulerManager = schedulerManager;
+        this.errorNotifier = errorNotifier;
     }
 
     /**
@@ -87,16 +91,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
     public void initialize() {
         log.info("/** Initializing Function Metadata Manager **/");
         try {
-            Reader<byte[]> reader = pulsarClient.newReader()
-                    .topic(this.workerConfig.getFunctionMetadataTopic())
-                    .startMessageId(MessageId.earliest)
-                    .create();
-
-            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this, reader);
+            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
+                    pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
             // read all existing messages
             this.setInitializePhase(true);
-            while (reader.hasMessageAvailable()) {
-                this.functionMetaDataTopicTailer.processRequest(reader.readNext());
+            while (this.functionMetaDataTopicTailer.getReader().hasMessageAvailable()) {
+                this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
             }
             this.setInitializePhase(false);
             // schedule functions if necessary
@@ -175,26 +175,16 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public synchronized CompletableFuture<RequestResult> updateFunction(FunctionMetaData functionMetaData) {
 
-        long version = 0;
-
-        String tenant = functionMetaData.getFunctionDetails().getTenant();
-        if (!this.functionMetaDataMap.containsKey(tenant)) {
-            this.functionMetaDataMap.put(tenant, new ConcurrentHashMap<>());
+        FunctionMetaData existingFunctionMetadata = null;
+        if (containsFunction(functionMetaData.getFunctionDetails().getTenant(),
+                functionMetaData.getFunctionDetails().getNamespace(),
+                functionMetaData.getFunctionDetails().getName())) {
+            existingFunctionMetadata = getFunctionMetaData(functionMetaData.getFunctionDetails().getTenant(),
+                    functionMetaData.getFunctionDetails().getNamespace(),
+                    functionMetaData.getFunctionDetails().getName());
         }
 
-        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionMetaDataMap.get(tenant);
-        String namespace = functionMetaData.getFunctionDetails().getNamespace();
-        if (!namespaces.containsKey(namespace)) {
-            namespaces.put(namespace, new ConcurrentHashMap<>());
-        }
-
-        Map<String, FunctionMetaData> functionMetaDatas = namespaces.get(namespace);
-        String functionName = functionMetaData.getFunctionDetails().getName();
-        if (functionMetaDatas.containsKey(functionName)) {
-            version = functionMetaDatas.get(functionName).getVersion() + 1;
-        }
-
-        FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder().setVersion(version).build();
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetadata, functionMetaData);
 
         Request.ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
                 this.workerConfig.getWorkerId(), newFunctionMetaData);
@@ -213,9 +203,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     public synchronized CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
         FunctionMetaData functionMetaData = this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
 
-        FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder()
-                .setVersion(functionMetaData.getVersion() + 1)
-                .build();
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, functionMetaData);
 
         Request.ServiceRequest deregisterRequest = ServiceRequestUtils.getDeregisterRequest(
                 this.workerConfig.getWorkerId(), newFunctionMetaData);
@@ -236,22 +224,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                                                                                       Integer instanceId, boolean start) {
         FunctionMetaData functionMetaData = this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
 
-        FunctionMetaData.Builder builder = functionMetaData.toBuilder()
-                .setVersion(functionMetaData.getVersion() + 1);
-        if (builder.getInstanceStatesMap() == null || builder.getInstanceStatesMap().isEmpty()) {
-            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
-                builder.putInstanceStates(i, Function.FunctionState.RUNNING);
-            }
-        }
-        Function.FunctionState state = start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED;
-        if (instanceId < 0) {
-            for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
-                builder.putInstanceStates(i, state);
-            }
-        } else {
-            builder.putInstanceStates(instanceId, state);
-        }
-        FunctionMetaData newFunctionMetaData = builder.build();
+        FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, instanceId, start);
 
         Request.ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
                 this.workerConfig.getWorkerId(), newFunctionMetaData);
@@ -457,30 +430,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    public boolean canChangeState(FunctionMetaData functionMetaData, int instanceId, Function.FunctionState newState) {
-        if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
-            return false;
-        }
-        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
-            // This means that all instances of the functions are running
-            return newState == Function.FunctionState.STOPPED;
-        }
-        if (instanceId >= 0) {
-            if (functionMetaData.getInstanceStatesMap().containsKey(instanceId)) {
-                return functionMetaData.getInstanceStatesMap().get(instanceId) != newState;
-            } else {
-                return false;
-            }
-        } else {
-            // want to change state for all instances
-            for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
-                if (state != newState) return true;
-            }
-            return false;
-        }
-    }
-
     private ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
-        return new ServiceRequestManager(pulsarClient.newProducer().topic(functionMetadataTopic).create());
+        return new ServiceRequestManager(pulsarClient.newProducer()
+                .topic(functionMetadataTopic)
+                .producerName(workerConfig.getWorkerId() + "-function-metadata-manager")
+                .create());
     }
 }
