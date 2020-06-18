@@ -986,7 +986,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         return future;
     }
 
-    @Override
     public void updateOnWorkerLeader(String tenant, String namespace,
                                      String function, byte[] functionMetaData,
                                      boolean delete) throws PulsarAdminException {
@@ -1003,7 +1002,6 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
     }
 
-    @Override
     public CompletableFuture<Void> updateOnWorkerLeaderAsync(String tenant, String namespace,
                                                              String function, byte[] functionMetaData,
                                                              boolean delete) {

@@ -1121,10 +1121,6 @@ public class SinkApiV3ResourceTest {
     @Test
     public void testDeregisterSinkSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(sink))).thenReturn(true);
-
-        doThrow(new PulsarAdminException("sink deregistered"))
-                .when(mockedFunctions).updateOnWorkerLeader(anyString(), anyString(),
-                anyString(), any(byte[].class), Mockito.anyBoolean());
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to deregister")

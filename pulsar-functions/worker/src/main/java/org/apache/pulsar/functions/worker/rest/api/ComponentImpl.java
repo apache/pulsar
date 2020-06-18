@@ -45,6 +45,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -1536,7 +1537,8 @@ public abstract class ComponentImpl {
             if (worker().getMembershipManager().isLeader()) {
                 worker().getFunctionMetaDataManager().updateFunctionOnLeader(functionMetadata, delete);
             } else {
-                worker().getFunctionAdmin().functions().updateOnWorkerLeader(tenant,
+                FunctionsImpl functions = (FunctionsImpl) worker().getFunctionAdmin().functions();
+                functions.updateOnWorkerLeader(tenant,
                         namespace, functionName, functionMetadata.toByteArray(), delete);
             }
         } catch (PulsarAdminException e) {
