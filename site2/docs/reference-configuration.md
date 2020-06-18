@@ -335,7 +335,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |log4j.appender.TRACEFILE.layout| org.apache.log4j.PatternLayout|
 |log4j.appender.TRACEFILE.layout.ConversionPattern| %d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n|
 
-> 'topic' in log4j2.appender is configurable. 
+> Note: 'topic' in log4j2.appender is configurable. 
 > - If you want to append all logs to a single topic, set the same topic name.
 > - If you want to append logs to different topics, you can set different topic names. 
 
