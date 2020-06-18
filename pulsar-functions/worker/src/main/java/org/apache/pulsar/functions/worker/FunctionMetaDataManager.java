@@ -54,6 +54,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
     private Producer exclusiveLeaderProducer;
+    private MessageId lastMessageSeen = MessageId.earliest;
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
@@ -84,7 +85,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private void initializeTailer() {
         try {
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
-                    pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
+                    pulsarClient.newReader().startMessageId(lastMessageSeen), this.workerConfig, this.errorNotifier);
             // start function metadata tailer
             this.functionMetaDataTopicTailer.start();
         } catch (Exception e) {
@@ -169,7 +170,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 .setRequestId(UUID.randomUUID().toString())
                 .build();
         try {
-            exclusiveLeaderProducer.send(serviceRequest.toByteArray());
+            lastMessageSeen = exclusiveLeaderProducer.send(serviceRequest.toByteArray());
         } catch (Exception e) {
             log.error("Could not write into Function Metadata topic", e);
             errorNotifier.triggerError(e);
@@ -185,7 +186,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
         FunctionMetaDataTopicTailer tailer = internalAcquireLeadership();
         // Now that we have created the exclusive producer, wait for reader to get over
         if (tailer != null) {
-            tailer.stopWhenNoMoreMessages();
+            try {
+                tailer.stopWhenNoMoreMessages().get();
+            } catch (Exception e) {
+                log.error("Error while waiting for metadata tailer thread to finish", e);
+                errorNotifier.triggerError(e);
+            }
             tailer.close();
         }
         this.schedulerManager.schedule();
@@ -245,6 +251,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         } catch (IllegalArgumentException e) {
             // Its ok. Nothing much we can do about it
         }
+        lastMessageSeen = messageId;
     }
 
     /**

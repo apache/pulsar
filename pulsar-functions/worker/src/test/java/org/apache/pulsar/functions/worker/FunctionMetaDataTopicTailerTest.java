@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -81,7 +83,7 @@ public class FunctionMetaDataTopicTailerTest {
         when(msg.getData()).thenReturn(request.toByteArray());
         CountDownLatch readLatch = new CountDownLatch(1);
         CountDownLatch processLatch = new CountDownLatch(1);
-        when(reader.readNext()).thenReturn(msg).then(new Answer<Message>() {
+        when(reader.readNext(anyInt(), any(TimeUnit.class))).thenReturn(msg).then(new Answer<Message>() {
             public Message answer(InvocationOnMock invocation) {
                 try {
                     readLatch.countDown();
@@ -97,7 +99,7 @@ public class FunctionMetaDataTopicTailerTest {
 
         readLatch.await();
 
-        verify(reader, times(2)).readNext();
+        verify(reader, times(2)).readNext(anyInt(), any(TimeUnit.class));
         verify(fsm, times(1)).processRequest(any(), any(ServiceRequest.class));
     }
 }

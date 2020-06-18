@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +42,7 @@ public class FunctionMetaDataTopicTailer
     private volatile boolean running;
     private ErrorNotifier errorNotifier;
     private volatile boolean stopOnNoMessageAvailable;
+    private CompletableFuture<Void> exitFuture;
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
                                        ReaderBuilder readerBuilder, WorkerConfig workerConfig,
@@ -48,7 +51,6 @@ public class FunctionMetaDataTopicTailer
         this.functionMetaDataManager = functionMetaDataManager;
         this.reader = readerBuilder
                 .topic(workerConfig.getFunctionMetadataTopic())
-                .startMessageId(MessageId.earliest)
                 .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
                 .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-manager")
                 .create();
@@ -60,6 +62,7 @@ public class FunctionMetaDataTopicTailer
 
     public void start() {
         running = true;
+        exitFuture = new CompletableFuture<>();
         readerThread.start();
     }
 
@@ -77,10 +80,12 @@ public class FunctionMetaDataTopicTailer
                 }
             }
             try {
-                Message<byte[]> msg = reader.readNext();
-                processRequest(msg);
+                Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
+                if (msg != null) {
+                    processRequest(msg);
+                }
             } catch (Throwable th) {
-                if (running && !stopOnNoMessageAvailable) {
+                if (running) {
                     log.error("Encountered error in metadata tailer", th);
                     // trigger fatal error
                     running = false;
@@ -92,20 +97,13 @@ public class FunctionMetaDataTopicTailer
                 }
             }
         }
+        log.info("metadata tailer thread exiting");
+        exitFuture.complete(null);
     }
 
-    public void stopWhenNoMoreMessages() {
+    public CompletableFuture<Void> stopWhenNoMoreMessages() {
         stopOnNoMessageAvailable = true;
-        readerThread.interrupt();
-        // We need to wait here till the thread exits to make sure that the reader is up to date
-        while (true) {
-            try {
-                readerThread.join();
-                return;
-            } catch (InterruptedException e) {
-                continue;
-            }
-        }
+        return exitFuture;
     }
 
     @Override
@@ -113,12 +111,22 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopping function metadata tailer");
         try {
             running = false;
-            if (readerThread != null && readerThread.isAlive()) {
+            while (true) {
                 readerThread.interrupt();
+                try {
+                    readerThread.join(5000, 0);
+                } catch (InterruptedException e) {
+                    log.warn("Waiting for metadata tailer thread to stop is interrupted", e);
+                }
+
+                if (readerThread.isAlive()) {
+                    log.warn("metadata tailer thread is still alive.  Will attempt to interrupt again.");
+                } else {
+                    break;
+                }
             }
-            if (reader != null) {
-                reader.close();
-            }
+
+            reader.close();
         } catch (IOException e) {
             log.error("Failed to stop function metadata tailer", e);
         }
