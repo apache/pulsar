@@ -107,6 +107,10 @@ public class PerformanceReader {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
 
+        @Parameter(names = {
+                "--tls-allow-insecure" }, description = "Allow insecure tls connection")
+        public Boolean tlsAllowInsecureConnection = null;
+
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If 0, it will keep consuming")
         public long testTime = 0;
@@ -168,6 +172,11 @@ public class PerformanceReader {
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                 arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
+
+            if (arguments.tlsAllowInsecureConnection == null) {
+                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
+                        .getProperty("tlsAllowInsecureConnection", ""));
+            }
         }
 
         // Dump config variables
@@ -205,6 +214,10 @@ public class PerformanceReader {
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        if (arguments.tlsAllowInsecureConnection != null) {
+            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
         PulsarClient pulsarClient = clientBuilder.build();

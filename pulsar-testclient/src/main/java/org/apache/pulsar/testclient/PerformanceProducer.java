@@ -420,12 +420,12 @@ public class PerformanceProducer {
                     .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
                     .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
             if (isNotBlank(arguments.authPluginClassName)) {
                 clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
+            if (arguments.tlsAllowInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
             }
 
             client = clientBuilder.build();
