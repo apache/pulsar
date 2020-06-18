@@ -1,0 +1,477 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing functions · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="**Pulsar Functions** 是轻量级计算流程，具有以下特点："/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Managing functions · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="**Pulsar Functions** 是轻量级计算流程，具有以下特点："/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.0/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.0/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.0/admin-api-functions">English</a></li><li><a href="/docs/ja/2.6.0/admin-api-functions">日本語</a></li><li><a href="/docs/fr/2.6.0/admin-api-functions">Français</a></li><li><a href="/docs/ko/2.6.0/admin-api-functions">한국어</a></li><li><a href="/docs/zh-TW/2.6.0/admin-api-functions">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-schemas">Schemas</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing functions</h1></header><article><div><span><p><strong>Pulsar Functions</strong> 是轻量级计算流程，具有以下特点：</p>
+<ul>
+<li>从一个或多个 Pulsar topic 中消费信息</li>
+<li>将用户提供的处理逻辑应用于每条信息</li>
+<li>将计算结果发布到另一个主题</li>
+</ul>
+<p>可以通过以下方法来管理 Functions。</p>
+<table>
+<thead>
+<tr><th>Method</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Admin CLI（命令行界面）</strong></td><td>[<code>pulsar-admin</code>](reference-pulsar-admin. md) 工具里的 [<code>functions</code>](/docs/zh-CN/2.6.0/pulsar-admin#funct  ions) 命令。</td></tr>
+<tr><td><strong>REST API</strong></td><td>admin <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+ API 中的 <code>/admin/v3/functions</code> 端点。</td></tr>
+<tr><td><strong>Java Admin API</strong></td><td><a href="/docs/zh-CN/2.6.0/client-libraries-java">Java API</a> 中 <a href="https://pulsar.incubator.apache.org/api/admin/2.5.0-SNAPSHOT/org/apache/pulsar/client/admin/PulsarAdmin">PulsarAdmin</a>
+ 对象的 <code>functions</code> 方法。</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="function-资源"></a><a href="#function-资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function 资源</h2>
+<p>可以对 functions 执行以下操作。</p>
+<h3><a class="anchor" aria-hidden="true" id="创建-function"></a><a href="#创建-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建 function</h3>
+<p>可以在集群模式下使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 创建 Pulsar function（在 Pulsar 集群上部署）。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）"></a><a href="#admin-cli（命令行界面）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-create"><code>create</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> create \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --inputs test-input-topic \
+  --output persistent://public/default/test-output-topic \
+  --classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --jar /examples/api-examples.jar
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api"></a><a href="#java-admin-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
+functionConfig.setTenant(tenant);
+functionConfig.setNamespace(namespace);
+functionConfig.setName(functionName);
+functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+functionConfig.setParallelism(<span class="hljs-number">1</span>);
+functionConfig.setClassName(<span class="hljs-string">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span>);
+functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+functionConfig.setTopicsPattern(sourceTopicPattern);
+functionConfig.setSubName(subscriptionName);
+functionConfig.setAutoAck(<span class="hljs-keyword">true</span>);
+functionConfig.setOutput(sinkTopic);
+admin.functions().createFunction(functionConfig, fileName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="更新-function"></a><a href="#更新-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新 function</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来更新已经部署到 Pulsar 集群的 Pulsar function。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-1"></a><a href="#admin-cli（命令行界面）-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-update"><code>update</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> update \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --output persistent://public/default/update-output-topic \
+<span class="hljs-meta">  #</span><span class="bash"> other options</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-admin-api"></a><a href="#rest-admin-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST Admin API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>PUT</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-1"></a><a href="#java-admin-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">FunctionConfig functionConfig = <span class="hljs-keyword">new</span> FunctionConfig();
+functionConfig.setTenant(tenant);
+functionConfig.setNamespace(namespace);
+functionConfig.setName(functionName);
+functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
+functionConfig.setParallelism(<span class="hljs-number">1</span>);
+functionConfig.setClassName(<span class="hljs-string">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span>);
+UpdateOptions updateOptions = <span class="hljs-keyword">new</span> UpdateOptions();
+updateOptions.setUpdateAuthData(updateAuthData);
+admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="启动-function-的单个实例"></a><a href="#启动-function-的单个实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 function 的单个实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来启动已停止的 function 实例（ 通过 <code>instance-id</code>）。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-2"></a><a href="#admin-cli（命令行界面）-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-start"><code>start</code></a> 子命令。</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> start \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --instance-id 1
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-1"></a><a href="#rest-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/{instanceId}/start</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-2"></a><a href="#java-admin-api-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().startFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="启动-function-的所有实例"></a><a href="#启动-function-的所有实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动 function 的所有实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API来启动所有已停止的 function 实例。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-3"></a><a href="#admin-cli（命令行界面）-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-start"><code>start</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> start \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-2"></a><a href="#rest-api-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/start</p>
+<h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.functions().startFunction(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="停止-function-的单个实例"></a><a href="#停止-function-的单个实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>停止 function 的单个实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API来停止一个 function 实例（通过 <code>instance-id</code>）。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-4"></a><a href="#admin-cli（命令行界面）-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-stop"><code>stop</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stop \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --instance-id 1
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-3"></a><a href="#rest-api-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/{instanceId}/stop</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-3"></a><a href="#java-admin-api-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().stopFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="停止-function-的所有实例"></a><a href="#停止-function-的所有实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>停止 function 的所有实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来停止 function 的所有实例。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-5"></a><a href="#admin-cli（命令行界面）-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-stop"><code>stop</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stop \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-4"></a><a href="#rest-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/stop</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-4"></a><a href="#java-admin-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().stopFunction(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="重启-function-的单个实例"></a><a href="#重启-function-的单个实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重启 function 的单个实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来重启单个 function 实例（通过 <code>instance-id</code>）。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-6"></a><a href="#admin-cli（命令行界面）-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-restart"><code>restart</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> restart \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --instance-id 1
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-5"></a><a href="#rest-api-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/{instanceId}/restart</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-5"></a><a href="#java-admin-api-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().restartFunction(tenant, namespace, functionName, Integer.parseInt(instanceId));
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="重启-function-的所有实例"></a><a href="#重启-function-的所有实例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>重启 function 的所有实例</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 重启 function 的所有实例。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-7"></a><a href="#admin-cli（命令行界面）-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-restart"><code>restart</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> restart \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-6"></a><a href="#rest-api-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/restart</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-6"></a><a href="#java-admin-api-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().restartFunction(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="function-列表"></a><a href="#function-列表" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Function 列表</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 列出指定租户和命名空间下正在运行的所有 Pulsar function。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-8"></a><a href="#admin-cli（命令行界面）-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-list"><code>list</code></a>子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> list \</span>
+  --tenant public \
+  --namespace default
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-7"></a><a href="#rest-api-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-7"></a><a href="#java-admin-api-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctions(tenant, namespace);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="删除-function"></a><a href="#删除-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 function</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 删除在 Pulsar 集群上运行的 Pulsar function。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-9"></a><a href="#admin-cli（命令行界面）-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-delete"><code>delete</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> delete \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称） 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-8"></a><a href="#rest-api-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>DELETE</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-8"></a><a href="#java-admin-api-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().deleteFunction(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取-function-的信息"></a><a href="#获取-function-的信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 function 的信息</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来获取某个在集群模式下运行的 Pulsar function 的信息。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-10"></a><a href="#admin-cli（命令行界面）-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-get"><code>get</code></a>子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> get \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称） 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-9"></a><a href="#rest-api-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-9"></a><a href="#java-admin-api-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunction(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取-function-单个实例的状态"></a><a href="#获取-function-单个实例的状态" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 function 单个实例的状态</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过 <code>instance-id</code> 来获取单个 function 实例的当前状态。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-11"></a><a href="#admin-cli（命令行界面）-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-status"><code>status</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> status \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称）\
+  --instance-id 1
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-10"></a><a href="#rest-api-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/{instanceId}/status</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-10"></a><a href="#java-admin-api-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctionStatus(tenant, namespace, functionName, Integer.parseInt(instanceId));
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取-function-所有实例的状态"></a><a href="#获取-function-所有实例的状态" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 function 所有实例的状态</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 获取所有 function 实例的当前状态。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-12"></a><a href="#admin-cli（命令行界面）-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-status"><code>status</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> status \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称） 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-11"></a><a href="#rest-api-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/status</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-11"></a><a href="#java-admin-api-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctionStatus(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取-function-单个实例的数据"></a><a href="#获取-function-单个实例的数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 function 单个实例的数据</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过 <code>instance-id</code> 获取单个 function 实例的当前数据。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-13"></a><a href="#admin-cli（命令行界面）-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-stats"><code>stats</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stats \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称）\
+  --instance-id 1
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-12"></a><a href="#rest-api-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/{instanceId}/stats</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-12"></a><a href="#java-admin-api-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctionStats(tenant, namespace, functionName, Integer.parseInt(instanceId));
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取-function-所有实例的数据"></a><a href="#获取-function-所有实例的数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取 function 所有实例的数据</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 获取所有 function 实例的当前数据。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-14"></a><a href="#admin-cli（命令行界面）-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-stats"><code>stats</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stats \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称） 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-13"></a><a href="#rest-api-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/stats</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-13"></a><a href="#java-admin-api-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctionStats(tenant, namespace, functionName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="触发-function"></a><a href="#触发-function" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>触发 function</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过触发值触发指定的 Pulsar function。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-15"></a><a href="#admin-cli（命令行界面）-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-trigger"><code>trigger</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> trigger \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称）\
+  --topic（输入 topic 的名称）\
+  --trigger-value \"hello pulsar\"
+<span class="hljs-meta">  #</span><span class="bash"> or --trigger-file（触发文件的路径）</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-14"></a><a href="#rest-api-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/trigger</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-14"></a><a href="#java-admin-api-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">admin.functions().triggerFunction(tenant, namespace, functionName, topic, triggerValue, triggerFile);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="为-function-关联状态"></a><a href="#为-function-关联状态" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>为 function 关联状态</h3>
+<p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 关联 Pulsar function 的状态。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-16"></a><a href="#admin-cli（命令行界面）-16" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-putstate"><code>putstate</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> putstate \</span>
+  --tenant public \
+  --namespace default \
+  --name（Pulsar Functions 的名称）\
+  --state "{\"key\":\"pulsar\", \"stringValue\":\"hello pulsar\"}" 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-15"></a><a href="#rest-api-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>POST</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/state/{key}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-api-15"></a><a href="#java-admin-api-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin API</h4>
+<pre><code class="hljs css language-java">TypeReference&lt;FunctionState&gt; typeRef = <span class="hljs-keyword">new</span> TypeReference&lt;FunctionState&gt;() {};
+FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
+admin.functions().putFunctionState(tenant, namespace, functionName, stateRepr);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取与-function-关联的状态"></a><a href="#获取与-function-关联的状态" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取与 function 关联的状态</h3>
+<p>你可以使用 Admin CLI（命令行客户端）、REST API 或 Java Admin API来获取与 Pulsar function 关联的当前状态。</p>
+<h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-17"></a><a href="#admin-cli（命令行界面）-17" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
+<p>使用 <a href="/docs/zh-CN/2.6.0/pulsar-admin#functions-querystate"><code>querystate</code></a> 子命令。</p>
+<p><strong>Example</strong></p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> querystate \</span>
+  --tenant public \
+  --namespace default \
+  --name (Pulsar Functions 的名称) \
+  --key (状态的键值) 
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-16"></a><a href="#rest-api-16" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#undefined"><b>GET</b> <i>/admin/v3/functions/{tenant</i></a>
+/{namespace}/{functionName}/state/{key}</p>
+<h4><a class="anchor" aria-hidden="true" id="java-admin-cli"></a><a href="#java-admin-cli" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java Admin CLI</h4>
+<pre><code class="hljs css language-java">admin.functions().getFunctionState(tenant, namespace, functionName, key);
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/admin-api-schemas"><span class="arrow-prev">← </span><span>Schema</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/adaptors-kafka"><span>Kafka 客户端封装</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#function-资源">Function 资源</a><ul class="toc-headings"><li><a href="#创建-function">创建 function</a></li><li><a href="#更新-function">更新 function</a></li><li><a href="#启动-function-的单个实例">启动 function 的单个实例</a></li><li><a href="#启动-function-的所有实例">启动 function 的所有实例</a></li><li><a href="#停止-function-的单个实例">停止 function 的单个实例</a></li><li><a href="#停止-function-的所有实例">停止 function 的所有实例</a></li><li><a href="#重启-function-的单个实例">重启 function 的单个实例</a></li><li><a href="#重启-function-的所有实例">重启 function 的所有实例</a></li><li><a href="#function-列表">Function 列表</a></li><li><a href="#删除-function">删除 function</a></li><li><a href="#获取-function-的信息">获取 function 的信息</a></li><li><a href="#获取-function-单个实例的状态">获取 function 单个实例的状态</a></li><li><a href="#获取-function-所有实例的状态">获取 function 所有实例的状态</a></li><li><a href="#获取-function-单个实例的数据">获取 function 单个实例的数据</a></li><li><a href="#获取-function-所有实例的数据">获取 function 所有实例的数据</a></li><li><a href="#触发-function">触发 function</a></li><li><a href="#为-function-关联状态">为 function 关联状态</a></li><li><a href="#获取与-function-关联的状态">获取与 function 关联的状态</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.6.0"]}
+              });
+            </script></body></html>

@@ -10543,6 +10543,13 @@
           "type" : "number",
           "format" : "double"
         },
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
@@ -10551,24 +10558,8 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "underLoaded" : {
+          "type" : "boolean"
         },
         "overLoaded" : {
           "type" : "boolean"
@@ -10576,8 +10567,17 @@
         "loadReportType" : {
           "type" : "string"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -11685,15 +11685,15 @@
     "ResourceDescription" : {
       "type" : "object",
       "properties" : {
+        "usagePct" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "resourceUsage" : {
           "type" : "object",
           "additionalProperties" : {
             "$ref" : "#/definitions/ResourceUsage"
           }
-        },
-        "usagePct" : {
-          "type" : "integer",
-          "format" : "int32"
         }
       }
     },
@@ -11728,11 +11728,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

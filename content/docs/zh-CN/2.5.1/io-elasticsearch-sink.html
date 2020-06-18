@@ -87,12 +87,12 @@
 <li><p>以独立模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.6.0.nar</code>.</p></li>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.5.2.nar</code>.</p></li>
 <li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.6.0.nar \
+    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -102,7 +102,7 @@
 </code></pre></li>
 <li><p>使用前面显示的 <strong>YAML</strong> 配置文件。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.6.0.nar \
+    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \

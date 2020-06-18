@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar的Java客户端可用于创建Java生产者、消费者、 [读者](#readers)，也可以执行[管理任务](/docs/zh-CN/2.2.1/admin-api-overview)。 Java 客户端的当前版本为 **2.6.0**。"/><meta name="docsearch:version" content="2.2.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="The Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar的Java客户端可用于创建Java生产者、消费者、 [读者](#readers)，也可以执行[管理任务](/docs/zh-CN/2.2.1/admin-api-overview)。 Java 客户端的当前版本为 **2.6.0**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>The Pulsar Java client · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar的Java客户端可用于创建Java生产者、消费者、 [读者](#readers)，也可以执行[管理任务](/docs/zh-CN/2.2.1/admin-api-overview)。 Java 客户端的当前版本为 **2.5.2**。"/><meta name="docsearch:version" content="2.2.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="The Pulsar Java client · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar的Java客户端可用于创建Java生产者、消费者、 [读者](#readers)，也可以执行[管理任务](/docs/zh-CN/2.2.1/admin-api-overview)。 Java 客户端的当前版本为 **2.5.2**。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,24 +74,24 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Java client</h1></header><article><div><span><p>Pulsar的Java客户端可用于创建Java生产者、消费者、 <a href="#readers">读者</a>，也可以执行<a href="/docs/zh-CN/2.2.1/admin-api-overview">管理任务</a>。 Java 客户端的当前版本为 <strong>2.6.0</strong>。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">The Pulsar Java client</h1></header><article><div><span><p>Pulsar的Java客户端可用于创建Java生产者、消费者、 <a href="#readers">读者</a>，也可以执行<a href="/docs/zh-CN/2.2.1/admin-api-overview">管理任务</a>。 Java 客户端的当前版本为 <strong>2.5.2</strong>。</p>
 <p>Pulsar客户端的Javadoc分成了两个包:</p>
 <table>
 <thead>
 <tr><th style="text-align:left">包</th><th style="text-align:left">Description</th><th style="text-align:left">Maven Artifact</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><a href="/api/client/2.6.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">生产者和消费者API</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.6.0%7Cjar">org.apache.pulsar:pulsar-client:2.6.0</a></td></tr>
-<tr><td style="text-align:left"><a href="/api/admin/2.6.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">Java <a href="/docs/zh-CN/2.2.1/admin-api-overview">管理API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.6.0%7Cjar">org.apache.pulsar:pulsar-client-admin:2.6.0</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/client/2.5.0-SNAPSHOT"><code>org.apache.pulsar.client.api</code></a></td><td style="text-align:left">生产者和消费者API</td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.5.2%7Cjar">org.apache.pulsar:pulsar-client:2.5.2</a></td></tr>
+<tr><td style="text-align:left"><a href="/api/admin/2.5.0-SNAPSHOT"><code>org.apache.pulsar.client.admin</code></a></td><td style="text-align:left">Java <a href="/docs/zh-CN/2.2.1/admin-api-overview">管理API</a></td><td style="text-align:left"><a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C2.5.2%7Cjar">org.apache.pulsar:pulsar-client-admin:2.5.2</a></td></tr>
 </tbody>
 </table>
 <p>本文档仅关注Pulsar主题消息的生产和消费的客户端API. 关于使用 Java 管理客户端的指南, 请参见 <a href="/docs/zh-CN/2.2.1/admin-api-overview">Pulsar管理接口</a>。</p>
 <h2><a class="anchor" aria-hidden="true" id="安装"></a><a href="#安装" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装</h2>
-<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.6.0%7Cjar">Maven Central</a>. To use the latest version, add the <code>pulsar-client</code> library to your build configuration.</p>
+<p>The latest version of the Pulsar Java client library is available via <a href="http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C2.5.2%7Cjar">Maven Central</a>. To use the latest version, add the <code>pulsar-client</code> library to your build configuration.</p>
 <h3><a class="anchor" aria-hidden="true" id="maven"></a><a href="#maven" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Maven</h3>
 <p>如果你使用maven,添加以下内容到你的 <code>pom.xml</code> 中:</p>
 <pre><code class="hljs css language-xml"><span class="hljs-comment">&lt;!-- 在你的 &lt;properties&gt; 部分--&gt;</span>
-<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.6.0<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">pulsar.version</span>&gt;</span>2.5.2<span class="hljs-tag">&lt;/<span class="hljs-name">pulsar.version</span>&gt;</span>
 
 <span class="hljs-comment">&lt;!-- 在你的 &lt;dependencies&gt; 部分--&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">dependency</span>&gt;</span>
@@ -102,7 +102,7 @@
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="gradle"></a><a href="#gradle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Gradle</h3>
 <p>如果你使用Gradle,添加以下内容到你的 <code>build.gradle</code> 中:</p>
-<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.6.0'</span>
+<pre><code class="hljs css language-groovy"><span class="hljs-keyword">def</span> pulsarVersion = <span class="hljs-string">'2.5.2'</span>
 
 dependencies {
     compile <span class="hljs-string">group:</span> <span class="hljs-string">'org.apache.pulsar'</span>, <span class="hljs-string">name:</span> <span class="hljs-string">'pulsar-client'</span>, <span class="hljs-string">version:</span> pulsarVersion
@@ -120,7 +120,7 @@ dependencies {
 <pre><code class="hljs css language-http">pulsar+ssl://pulsar.us-west.example.com:6651
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="客户端配置"></a><a href="#客户端配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>客户端配置</h2>
-<p>你可以用一个URL来实例化一个连接到指定的Pulsar <a href="/docs/zh-CN/2.2.1/reference-terminology#cluster">集群</a>的 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>你可以用一个URL来实例化一个连接到指定的Pulsar <a href="/docs/zh-CN/2.2.1/reference-terminology#cluster">集群</a>的 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 对象，像这样：</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl(<span class="hljs-string">"pulsar://localhost:6650"</span>)
@@ -130,14 +130,14 @@ dependencies {
 <h4><a class="anchor" aria-hidden="true" id="默认的broker-url是单机集群。"></a><a href="#默认的broker-url是单机集群。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>默认的broker URL是单机集群。</h4>
 <p>如果你使用<a href="/docs/zh-CN/2.2.1/standalone">单机模式</a>运行一个集群，broker将默认使用<code>pulsar://localhost:6650</code></p>
 </blockquote>
-<p>完整的配置参数列表参考 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>完整的配置参数列表参考 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
  类的javadoc文档 。</p>
 <blockquote>
 <p>除了客户端级别的配置，你还可以使用 <a href="#configuring-producers">生产者</a>和<a href="#configuring-consumers">消费者</a>特定配置，你将在下面的章节中看到。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
-<p>在Pulsar中，生产者写消息到主题中。 一旦你实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
-客户端对象(在<a href="#client-configuration">如上</a>z章节)，你可以创建一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
+<p>在Pulsar中，生产者写消息到主题中。 一旦你实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+客户端对象(在<a href="#client-configuration">如上</a>z章节)，你可以创建一个<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Producer">Producer</a>
 生产者用于特定的<a href="/docs/zh-CN/2.2.1/reference-terminology#topic">主题</a>。</p>
 <pre><code class="hljs css language-java">Producer&lt;<span class="hljs-keyword">byte</span>[]&gt; producer = client.newProducer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -200,10 +200,10 @@ producer.closeAsync()
 `</pre> 
 <p>对于前一种情况，也可以使用<code>sendAsync()</code>来终止构建器链，并获取future返回值。</p>
 <h2><a class="anchor" aria-hidden="true" id="consumers"></a><a href="#consumers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumers</h2>
-<p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+<p>在Pulsar中，消费者订阅topic主题并处理生产者发布到这些主题的消息。 你可以首先实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
 对象并传递给他一个borker(<a href="#client-configuration">如上所示</a>) URL来实例化一个<a href="reference-terminology.md#consumer">消费者</a>。</p>
-<p>一旦实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
- 对象，你可以指定一个<a href="reference-terminology.md#topic">主题</a>和一个<a href="concepts-messaging.md#subscription-modes">订阅</a>来创建一个 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
+<p>一旦实例化一个<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/PulsarClient">PulsarClient</a>
+ 对象，你可以指定一个<a href="reference-terminology.md#topic">主题</a>和一个<a href="concepts-messaging.md#subscription-modes">订阅</a>来创建一个 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Consumer">Consumer</a>
 消费者。</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
         .topic(<span class="hljs-string">"my-topic"</span>)
@@ -222,7 +222,7 @@ producer.closeAsync()
 } <span class="hljs-keyword">while</span> (<span class="hljs-keyword">true</span>);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="消费者配置"></a><a href="#消费者配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者配置</h3>
-<p>如果实例化 <code>消费者</code> 对象, 仅指定主题和订阅名称, 如上面的示例所示, 消费者将采用默认配置。 要使用非默认配置, 你可以设置多种可配置的参数。 有关完整列表, 请参阅 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
+<p>如果实例化 <code>消费者</code> 对象, 仅指定主题和订阅名称, 如上面的示例所示, 消费者将采用默认配置。 要使用非默认配置, 你可以设置多种可配置的参数。 有关完整列表, 请参阅 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder">ConsumerBuilder</a>
 类javadoc文档。 Here's an example:</p>
 <p>这是一个示例配置：</p>
 <pre><code class="hljs css language-java">Consumer consumer = client.newConsumer()
@@ -300,9 +300,9 @@ consumerBuilder
         });
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="reader-接口-readers"></a><a href="#reader-接口-readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 接口 {#readers}</h2>
-<p>使用 <a href="concepts-clients.md#reader-interface">reader 接口</a>, Pulsar客户可以在主题中“手动定位”自己，从指定的消息开始向前读取所有消息。 Pulsar Java API可以让你通过指定一个主题，一个 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
-和 <a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
-/api/ReaderConfiguration}来创建<a href="https://pulsar.incubator.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
+<p>使用 <a href="concepts-clients.md#reader-interface">reader 接口</a>, Pulsar客户可以在主题中“手动定位”自己，从指定的消息开始向前读取所有消息。 Pulsar Java API可以让你通过指定一个主题，一个 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/MessageId">MessageId</a>
+和 <a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
+/api/ReaderConfiguration}来创建<a href="https://pulsar.incubator.apache.org/api/client/2.5.0-SNAPSHOT/org/apache/pulsar/client/api/Reader">Reader</a>
 。</p>
 <p>Here's an example:</p>
 <pre><code class="hljs css language-java">ReaderConfiguration conf = <span class="hljs-keyword">new</span> ReaderConfiguration();

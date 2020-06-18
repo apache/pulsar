@@ -1,0 +1,401 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing partitioned topics · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="您可以使用Pulsar的 [admin API](/docs/zh-CN/2.6.0/admin-api-overview)来创建和管理分区主题。"/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Managing partitioned topics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="您可以使用Pulsar的 [admin API](/docs/zh-CN/2.6.0/admin-api-overview)来创建和管理分区主题。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.0/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.0/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.0/admin-api-partitioned-topics">English</a></li><li><a href="/docs/ja/2.6.0/admin-api-partitioned-topics">日本語</a></li><li><a href="/docs/fr/2.6.0/admin-api-partitioned-topics">Français</a></li><li><a href="/docs/ko/2.6.0/admin-api-partitioned-topics">한국어</a></li><li><a href="/docs/zh-TW/2.6.0/admin-api-partitioned-topics">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Admin API</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.0/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing partitioned topics</h1></header><article><div><span><p>您可以使用Pulsar的 <a href="/docs/zh-CN/2.6.0/admin-api-overview">admin API</a>来创建和管理分区主题。</p>
+<p>下面所有说明和命令中，topic名称的结构为：</p>
+<pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="分区主题资源"></a><a href="#分区主题资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分区主题资源</h2>
+<h3><a class="anchor" aria-hidden="true" id="创建"></a><a href="#创建" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建</h3>
+<p>Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.</p>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.</p>
+<p>To disable this feature, set <code>brokerDeleteInactiveTopicsEnabled</code>  to <code>false</code>.</p>
+<p>To change the frequency of checking inactive topics, set <code>brokerDeleteInactiveTopicsFrequencySeconds</code> to your desired value.</p>
+<p>For more information about these two parameters, see <a href="/docs/zh-CN/2.6.0/reference-configuration#broker">here</a>.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>你可以使用<a href="/docs/zh-CN/2.6.0/pulsar-admin#create-partitioned-topic"><code>create-partitioned-topic</code></a>命令创建partitioned topic，并指定topic的名字；使用<code>-p</code> 或 <code>--partitions</code>标志指定分区数。</p>
+<p>Here's an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-partitioned-topic \</span>
+  persistent://my-tenant/my-namespace/my-topic \
+  --partitions 4
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>If there already exists a non partitioned topic with suffix '-partition-' followed by numeric value like 'xyz-topic-partition-10', then you can not create partitioned topic with name 'xyz-topic' as the partitions of the partitioned topic could override the existing non partitioned topic. You have to delete that non partitioned topic first then create the partitioned topic.</p>
+</blockquote>
+<h4><a class="anchor" aria-hidden="true" id="rest-api"></a><a href="#rest-api" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/createPartitionedTopic"><b>PUT</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+<span class="hljs-keyword">int</span> numPartitions = <span class="hljs-number">4</span>;
+admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="create-missed-partitions"></a><a href="#create-missed-partitions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create missed partitions</h3>
+<p>Try to create partitions for partitioned topic. The partitions of partition topic has to be created, can be used by repair partitions when topic auto creation is disabled</p>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>You can create missed partitions using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#create-missed-partitions"><code>create-missed-partitions</code></a> command and specifying the topic name as an argument.</p>
+<p>Here's an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics create-missed-partitions \</span>
+  persistent://my-tenant/my-namespace/my-topic \
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-1"></a><a href="#rest-api-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/createMissedPartitions"><b>POST</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-1"></a><a href="#java-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+admin.persistentTopics().createMissedPartitions(topicName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="获取元数据"></a><a href="#获取元数据" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取元数据</h3>
+<p>Partitioned topics have metadata associated with them that you can fetch as a JSON object. The following metadata fields are currently available:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">字段</th><th style="text-align:left">含义</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">Topic划分的分区数量</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>You can see the number of partitions in a partitioned topic using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#get-partitioned-topic-metadata"><code>get-partitioned-topic-metadata</code></a> subcommand. Here's an example:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics get-partitioned-topic-metadata \</span>
+  persistent://my-tenant/my-namespace/my-topic
+{
+  "partitions": 4
+}
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-2"></a><a href="#rest-api-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getPartitionedMetadata"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/partitions</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-2"></a><a href="#java-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
+admin.persistentTopics().getPartitionedTopicMetadata(topicName);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="更新"></a><a href="#更新" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新</h3>
+<p>You can update the number of partitions on an existing partitioned topic <em>if</em> the topic is non-global. To update, the new number of partitions must be greater than the existing number.</p>
+<p>Decrementing the number of partitions would deleting the topic, which is not supported in Pulsar.</p>
+<p>已创建的分区生产者和消费者，将自动查找新创建的分区。</p>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>Partitioned topics can be updated using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#update-partitioned-topic"><code>update-partitioned-topic</code></a> command.</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics update-partitioned-topic \</span>
+  persistent://my-tenant/my-namespace/my-topic \
+  --partitions 8
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-3"></a><a href="#rest-api-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/updatePartitionedTopic"><b>POST</b> <i>/admin/v2/persistent/:tenant/:cluster/:namespace/:destination/partitions</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-3"></a><a href="#java-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.persistentTopics().updatePartitionedTopic(persistentTopic, numPartitions);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="删除"></a><a href="#删除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除</h3>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>Partitioned topics can be deleted using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#delete-partitioned-topic"><code>delete-partitioned-topic</code></a> command, specifying the topic by name:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-admin topics delete-partitioned-topic \</span>
+  persistent://my-tenant/my-namespace/my-topic
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-4"></a><a href="#rest-api-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/deletePartitionedTopic"><b>DELETE</b> <i>/admin/v2/persistent/:topic/:namespace/:destination/partitions</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-4"></a><a href="#java-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.persistentTopics().delete(persistentTopic);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="列出"></a><a href="#列出" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>列出</h3>
+<p>It provides a list of persistent topics existing under a given namespace.</p>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-5"></a><a href="#pulsar-admin-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics list tenant/namespace</span>
+persistent://tenant/namespace/topic1
+persistent://tenant/namespace/topic2
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-5"></a><a href="#rest-api-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getPartitionedTopicList"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-5"></a><a href="#java-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.persistentTopics().getList(namespace);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="统计信息"></a><a href="#统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>统计信息</h3>
+<p>It shows current statistics of a given partitioned topic. Here's an example payload:</p>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
+  <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">44663039.74947473</span>,
+  <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">1232439.816728665</span>,
+  <span class="hljs-attr">"storageSize"</span>: <span class="hljs-number">135532389160</span>,
+  <span class="hljs-attr">"publishers"</span>: [
+    {
+      <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">57.855383881403576</span>,
+      <span class="hljs-attr">"msgThroughputIn"</span>: <span class="hljs-number">558994.7078932219</span>,
+      <span class="hljs-attr">"averageMsgSize"</span>: <span class="hljs-number">613135</span>,
+      <span class="hljs-attr">"producerId"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"producerName"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"address"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"connectedSince"</span>: <span class="hljs-literal">null</span>
+    }
+  ],
+  <span class="hljs-attr">"subscriptions"</span>: {
+    <span class="hljs-attr">"my-topic_subscription"</span>: {
+      <span class="hljs-attr">"msgRateOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgThroughputOut"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"msgBacklog"</span>: <span class="hljs-number">116632</span>,
+      <span class="hljs-attr">"type"</span>: <span class="hljs-literal">null</span>,
+      <span class="hljs-attr">"msgRateExpired"</span>: <span class="hljs-number">36.98245516804671</span>,
+      <span class="hljs-attr">"consumers"</span>: []
+    }
+  },
+  <span class="hljs-attr">"replication"</span>: {}
+}
+</code></pre>
+<p>The following stats are available:</p>
+<table>
+<thead>
+<tr><th>统计信息</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>msgRateIn</td><td>The sum of all local and replication publishers’ publish rates in messages per second</td></tr>
+<tr><td>msgThroughputIn</td><td>Same as msgRateIn but in bytes per second instead of messages per second</td></tr>
+<tr><td>msgRateOut</td><td>The sum of all local and replication consumers’ dispatch rates in messages per second</td></tr>
+<tr><td>msgThroughputOut</td><td>Same as msgRateOut but in bytes per second instead of messages per second</td></tr>
+<tr><td>averageMsgSize</td><td>Average message size, in bytes, from this publisher within the last interval</td></tr>
+<tr><td>storageSize</td><td>The sum of the ledgers’ storage size for this topic</td></tr>
+<tr><td>publishers</td><td>The list of all local publishers into the topic. There can be anywhere from zero to thousands.</td></tr>
+<tr><td>producerId</td><td>Internal identifier for this producer on this topic</td></tr>
+<tr><td>producerName</td><td>Internal identifier for this producer, generated by the client library</td></tr>
+<tr><td>address</td><td>IP address and source port for the connection of this producer</td></tr>
+<tr><td>connectedSince</td><td>Timestamp this producer was created or last reconnected</td></tr>
+<tr><td>subscriptions</td><td>The list of all local subscriptions to the topic</td></tr>
+<tr><td>my-subscription</td><td>The name of this subscription (client defined)</td></tr>
+<tr><td>msgBacklog</td><td>The count of messages in backlog for this subscription</td></tr>
+<tr><td>msgBacklogNoDelayed</td><td>The count of messages in backlog without delayed messages for this subscription</td></tr>
+<tr><td>type</td><td>This subscription type</td></tr>
+<tr><td>msgRateExpired</td><td>The rate at which messages were discarded instead of dispatched from this subscription due to TTL</td></tr>
+<tr><td>consumers</td><td>The list of connected consumers for this subscription</td></tr>
+<tr><td>consumerName</td><td>Internal identifier for this consumer, generated by the client library</td></tr>
+<tr><td>availablePermits</td><td>The number of messages this consumer has space for in the client library’s listen queue. A value of 0 means the client library’s queue is full and receive() isn’t being called. 非零值意味着该消费者已经准备好接收消息。</td></tr>
+<tr><td>replication</td><td>This section gives the stats for cross-colo replication of this topic</td></tr>
+<tr><td>replicationBacklog</td><td>The outbound replication backlog in messages</td></tr>
+<tr><td>connected</td><td>Whether the outbound replicator is connected</td></tr>
+<tr><td>replicationDelayInSeconds</td><td>How long the oldest message has been waiting to be sent through the connection, if connected is true</td></tr>
+<tr><td>inboundConnection</td><td>The IP and port of the broker in the remote cluster’s publisher connection to this broker</td></tr>
+<tr><td>inboundConnectedSince</td><td>The TCP connection being used to publish messages to the remote cluster. 如果没有连接上的本地发布者，连接将会在一分钟后关闭。</td></tr>
+</tbody>
+</table>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-6"></a><a href="#pulsar-admin-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>The stats for the partitioned topic and its connected producers and consumers can be fetched by using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#partitioned-stats"><code>partitioned-stats</code></a> command, specifying the topic by name:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics partitioned-stats \</span>
+  persistent://test-tenant/namespace/topic \
+  --per-partition
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-6"></a><a href="#rest-api-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getPartitionedStats"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/partitioned-stats</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-6"></a><a href="#java-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.topics().getPartitionedStats(persistentTopic, <span class="hljs-keyword">true</span> <span class="hljs-comment">/* per partition */</span>, <span class="hljs-keyword">false</span> <span class="hljs-comment">/* is precise backlog */</span>);
+</code></pre>
+<h3><a class="anchor" aria-hidden="true" id="internal-stats"></a><a href="#internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Internal stats</h3>
+<p>给出topic的详细统计信息</p>
+<table>
+<thead>
+<tr><th>统计信息</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>entriesAddedCounter</td><td>Messages published since this broker loaded this topic</td></tr>
+<tr><td>numberOfEntries</td><td>Total number of messages being tracked</td></tr>
+<tr><td>totalSize</td><td>Total storage size in bytes of all messages</td></tr>
+<tr><td>currentLedgerEntries</td><td>Count of messages written to the ledger currently open for writing</td></tr>
+<tr><td>currentLedgerSize</td><td>Size in bytes of messages written to ledger currently open for writing</td></tr>
+<tr><td>lastLedgerCreatedTimestamp</td><td>Time when last ledger was created</td></tr>
+<tr><td>lastLedgerCreationFailureTimestamp</td><td>time when last ledger was failed</td></tr>
+<tr><td>waitingCursorsCount</td><td>How many cursors are caught up and waiting for a new message to be published</td></tr>
+<tr><td>pendingAddEntriesCount</td><td>How many messages have (asynchronous) write requests we are waiting on completion</td></tr>
+<tr><td>lastConfirmedEntry</td><td>The ledgerid:entryid of the last message successfully written. 如果entryid为-1，代表ledger已经被打开或者正在被打开，但是还没有entry被写入。</td></tr>
+<tr><td>state</td><td>The state of the cursor ledger. Open means we have a cursor ledger for saving updates of the markDeletePosition.</td></tr>
+<tr><td>ledgers</td><td>The ordered list of all ledgers for this topic holding its messages</td></tr>
+<tr><td>cursors</td><td>The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</td></tr>
+<tr><td>markDeletePosition</td><td>The ack position: the last message the subscriber acknowledged receiving</td></tr>
+<tr><td>readPosition</td><td>The latest position of subscriber for reading message</td></tr>
+<tr><td>waitingReadOp</td><td>This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.</td></tr>
+<tr><td>pendingReadOps</td><td>The counter for how many outstanding read requests to the BookKeepers we have in progress</td></tr>
+<tr><td>messagesConsumedCounter</td><td>Number of messages this cursor has acked since this broker loaded this topic</td></tr>
+<tr><td>cursorLedger</td><td>The ledger being used to persistently store the current markDeletePosition</td></tr>
+<tr><td>cursorLedgerLastEntry</td><td>The last entryid used to persistently store the current markDeletePosition</td></tr>
+<tr><td>individuallyDeletedMessages</td><td>If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position</td></tr>
+<tr><td>lastLedgerSwitchTimestamp</td><td>The last time the cursor ledger was rolled over</td></tr>
+</tbody>
+</table>
+<pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"entriesAddedCounter"</span>: <span class="hljs-number">20449518</span>,
+  <span class="hljs-attr">"numberOfEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"totalSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"currentLedgerEntries"</span>: <span class="hljs-number">3233</span>,
+  <span class="hljs-attr">"currentLedgerSize"</span>: <span class="hljs-number">331482</span>,
+  <span class="hljs-attr">"lastLedgerCreatedTimestamp"</span>: <span class="hljs-string">"2016-06-29 03:00:23.825"</span>,
+  <span class="hljs-attr">"lastLedgerCreationFailureTimestamp"</span>: <span class="hljs-literal">null</span>,
+  <span class="hljs-attr">"waitingCursorsCount"</span>: <span class="hljs-number">1</span>,
+  <span class="hljs-attr">"pendingAddEntriesCount"</span>: <span class="hljs-number">0</span>,
+  <span class="hljs-attr">"lastConfirmedEntry"</span>: <span class="hljs-string">"324711539:3232"</span>,
+  <span class="hljs-attr">"state"</span>: <span class="hljs-string">"LedgerOpened"</span>,
+  <span class="hljs-attr">"ledgers"</span>: [
+    {
+      <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
+      <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>
+    }
+  ],
+  <span class="hljs-attr">"cursors"</span>: {
+    <span class="hljs-attr">"my-subscription"</span>: {
+      <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
+      <span class="hljs-attr">"readPosition"</span>: <span class="hljs-string">"324711539:3233"</span>,
+      <span class="hljs-attr">"waitingReadOp"</span>: <span class="hljs-literal">true</span>,
+      <span class="hljs-attr">"pendingReadOps"</span>: <span class="hljs-number">0</span>,
+      <span class="hljs-attr">"messagesConsumedCounter"</span>: <span class="hljs-number">20449501</span>,
+      <span class="hljs-attr">"cursorLedger"</span>: <span class="hljs-number">324702104</span>,
+      <span class="hljs-attr">"cursorLedgerLastEntry"</span>: <span class="hljs-number">21</span>,
+      <span class="hljs-attr">"individuallyDeletedMessages"</span>: <span class="hljs-string">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span>,
+      <span class="hljs-attr">"lastLedgerSwitchTimestamp"</span>: <span class="hljs-string">"2016-06-29 01:30:19.313"</span>,
+      <span class="hljs-attr">"state"</span>: <span class="hljs-string">"Open"</span>
+    }
+  }
+}
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="pulsar-admin-7"></a><a href="#pulsar-admin-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
+<p>The internal stats for the partitioned topic can be fetched by using the <a href="/docs/zh-CN/2.6.0/pulsar-admin#stats-internal"><code>stats-internal</code></a> command, specifying the topic by name:</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin topics stats-internal \</span>
+  persistent://test-tenant/namespace/topic
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="rest-api-7"></a><a href="#rest-api-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
+<p><a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getInternalStats"><b>GET</b> <i>/admin/v2/persistent/:tenant/:namespace/:topic/internalStats</i></a>
+</p>
+<h4><a class="anchor" aria-hidden="true" id="java-7"></a><a href="#java-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
+<pre><code class="hljs css language-java">admin.persistentTopics().getInternalStats(persistentTopic);
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.0/admin-api-non-persistent-topics"><span class="arrow-prev">← </span><span>非持久topic</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.0/admin-api-non-partitioned-topics"><span>非分区主题</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#分区主题资源">分区主题资源</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除">删除</a></li><li><a href="#列出">列出</a></li><li><a href="#统计信息">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.6.0"]}
+              });
+            </script></body></html>

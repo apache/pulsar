@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to connect Pulsar to database · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="How to connect Pulsar to database · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>How to connect Pulsar to database · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="docsearch:version" content="2.5.2"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="How to connect Pulsar to database · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.6.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-quickstart">English</a></li><li><a href="/docs/ja/io-quickstart">日本語</a></li><li><a href="/docs/fr/io-quickstart">Français</a></li><li><a href="/docs/ko/io-quickstart">한국어</a></li><li><a href="/docs/zh-CN/io-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-TW"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-TW/versions"><h3>2.5.2</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-TW/standalone" target="_self">Docs</a></li><li class=""><a href="/zh-TW/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/zh-TW/client-libraries" target="_self">客戶端</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>繁體中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/io-quickstart">English</a></li><li><a href="/docs/ja/io-quickstart">日本語</a></li><li><a href="/docs/fr/io-quickstart">Français</a></li><li><a href="/docs/ko/io-quickstart">한국어</a></li><li><a href="/docs/zh-CN/io-quickstart">中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">Help Translate</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -18,7 +18,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar IO</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">開始</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Pulsar IO</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">開始</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-overview">Overview</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-TW/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/client-libraries-websocket">WebSocket</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-TW/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
             var coll = document.getElementsByClassName('collapsible');
             var checkActiveCategory = true;
             for (var i = 0; i < coll.length; i++) {
@@ -79,7 +79,7 @@
 <p>在本教程的最後，你可以：</p>
 <ul>
 <li><p><a href="#Connect-Pulsar-to-Cassandra">將 Pulsar 連接到 Cassandra</a></p></li>
-<li><p><a href="#Connect-Pulsar-to-PostgreSQL">Connect Pulsar to PostgreSQL</a></p></li>
+<li><p><a href="#Connect-Pulsar-to-MySQL">將 Pulsar 連接到 MySQL</a></p></li>
 </ul>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示"></a><a href="#提示" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -122,7 +122,7 @@
 <p>If an error occurs when starting Pulsar service, you may see an exception at the terminal running <code>pulsar/standalone</code>, or you can navigate to the <code>logs</code> directory under the Pulsar directory to view the logs.</p></li>
 </ol>
 <h2><a class="anchor" aria-hidden="true" id="將-pulsar-連接到-cassandra"></a><a href="#將-pulsar-連接到-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>將 Pulsar 連接到 Cassandra</h2>
-<p>This section demonstrates how to connect Pulsar to Cassandra.</p>
+<p>本節示範如何將 Pulsar 連接到 Cassandra。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
@@ -336,28 +336,29 @@ key    | col
     --namespace default \
     --name cassandra-test-sink
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-postgresql"></a><a href="#connect-pulsar-to-postgresql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to PostgreSQL</h2>
-<p>This section demonstrates how to connect Pulsar to PostgreSQL.</p>
+<h2><a class="anchor" aria-hidden="true" id="將-pulsar-連接到-mysql"></a><a href="#將-pulsar-連接到-mysql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>將 Pulsar 連接到 MySQL</h2>
+<p>本節示範如何將 Pulsar 連接到 MySQL。</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-2"></a><a href="#提示-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <ul>
 <li><p>Make sure you have Docker installed. If you do not have one, see <a href="https://docs.docker.com/docker-for-mac/install/">install Docker</a>.</p></li>
-<li><p>The JDBC sink connector pulls messages from Pulsar topics and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. For more information, see <a href="/docs/zh-TW/io-jdbc-sink">JDBC sink connector</a>.</p></li>
+<li><p>The JDBC sink connector pulls messages from Pulsar topics and persists the messages to MySQL or SQlite. For more information, see <a href="/docs/zh-TW/io-jdbc-sink">JDBC sink connector</a>.</p></li>
 </ul>
 </blockquote>
-<h3><a class="anchor" aria-hidden="true" id="setup-a-postgresql-cluster"></a><a href="#setup-a-postgresql-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Setup a PostgreSQL cluster</h3>
-<p>This example uses the PostgreSQL 12 docker image to start a single-node PostgreSQL cluster in Docker.</p>
+<h3><a class="anchor" aria-hidden="true" id="設置一個-mysql-集群"></a><a href="#設置一個-mysql-集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>設置一個 MySQL 集群</h3>
+<p>本範例使用 MySQL 5.7 docker 鏡像在 Docker 中啟動單節點 MySQL 集群。</p>
 <ol>
-<li><p>Pull the PostgreSQL 12 image from Docker.</p>
-<pre><code class="hljs css language-bash">$ docker pull postgres:12
+<li><p>從 Docker Hub 拉取 MySQL 5.7 鏡像檔。</p>
+<pre><code class="hljs css language-bash">$ docker pull mysql:5.7
 </code></pre></li>
-<li><p>Start PostgreSQL.</p>
+<li><p>Start MySQL.</p>
 <pre><code class="hljs css language-bash">$ docker run -d -it --rm \
---name pulsar-postgres \
--p 5432:5432 \
--e POSTGRES_PASSWORD=password \
--e POSTGRES_USER=postgres \    
-postgres:12
+--name pulsar-mysql \
+-p 3306:3306 \
+-e MYSQL_ROOT_PASSWORD=jdbc \
+-e MYSQL_USER=mysqluser \
+-e MYSQL_PASSWORD=mysqlpw \
+mysql:5.7
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="提示-3"></a><a href="#提示-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <table>
@@ -368,52 +369,61 @@ postgres:12
 <tr><td><code>-d</code></td><td>以分離模式啟動容器。</td><td>/</td></tr>
 <tr><td><code>-it</code></td><td>保持打開 STDIN 狀態，並分配一個互動終端。</td><td>/</td></tr>
 <tr><td><code>--rm</code></td><td>退出容器時自動將其消滅移除。</td><td>/</td></tr>
-<tr><td><code>-name</code></td><td>為容器分配一個名稱。</td><td>This example specifies <em>pulsar-postgres</em> for the container.</td></tr>
-<tr><td><code>-p</code></td><td>將容器的端口對應到主機端口。</td><td>This example publishes the port <em>5432</em> of the container to the host.</td></tr>
-<tr><td><code>-e</code></td><td>設定環境變數</td><td>This example sets the following variables:<br>- The password for the user is <em>password</em>.<br>- The name for the user is <em>postgres</em>.</td></tr>
+<tr><td><code>-name</code></td><td>為容器分配一個名稱。</td><td>This example specifies <em>pulsar-mysql</em> for the container.</td></tr>
+<tr><td><code>-p</code></td><td>將容器的端口對應到主機端口。</td><td>This example publishes the port <em>3306</em> of the container to the host.</td></tr>
+<tr><td><code>-e</code></td><td>設定環境變數</td><td>This example sets the following variables:<br>- The password for the root user is <em>jdbc</em>.<br>- The name for the normal user is <em>mysqluser</em>.<br>- The password for the normal user is <em>mysqlpw</em>.</td></tr>
 </tbody>
 </table>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-4"></a><a href="#提示-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <p>有關 Docker 命令的更多訊息，請參見 <a href="https://docs.docker.com/engine/reference/commandline/run/">Docker CLI</a>。</p>
 </blockquote></li>
-<li><p>Check if PostgreSQL has been started successfully.</p>
-<pre><code class="hljs css language-bash">$ docker logs -f pulsar-postgres
+<li><p>Check if MySQL has been started successfully.</p>
+<pre><code class="hljs css language-bash">$ docker logs -f pulsar-mysql
 </code></pre>
-<p>PostgreSQL has been started successfully if the following message appears.</p>
-<pre><code class="hljs css language-text">2020-05-11 20:09:24.492 UTC [1] LOG:  starting PostgreSQL 12.2 (Debian 12.2-2.pgdg100+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 8.3.0-6) 8.3.0, 64-bit
-2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
-2020-05-11 20:09:24.492 UTC [1] LOG:  listening on IPv6 address "::", port 5432
-2020-05-11 20:09:24.499 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
-2020-05-11 20:09:24.523 UTC [55] LOG:  database system was shut down at 2020-05-11 20:09:24 UTC
-2020-05-11 20:09:24.533 UTC [1] LOG:  database system is ready to accept connections
+<p>MySQL has been started successfully if the following message appears.</p>
+<pre><code class="hljs css language-text">2019-05-11T10:40:58.709964Z 0 [Note] Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+2019-05-11T10:40:58.710155Z 0 [Warning] CA certificate ca.pem is self signed.
+2019-05-11T10:40:58.711921Z 0 [Note] Server hostname (bind-address): '*'; port: 3306
+2019-05-11T10:40:58.711985Z 0 [Note] IPv6 is available.
+2019-05-11T10:40:58.712695Z 0 [Note]   - '::' resolves to '::';
+2019-05-11T10:40:58.712742Z 0 [Note] Server socket created on IP: '::'.
+2019-05-11T10:40:58.714334Z 0 [Warning] Insecure configuration for --pid-file: Location '/var/run/mysqld' in the path is accessible to all OS users. Consider choosing a different directory.
+2019-05-11T10:40:58.723802Z 0 [Note] Event Scheduler: Loaded 0 events
+2019-05-11T10:40:58.724200Z 0 [Note] mysqld: ready for connections.
+Version: '5.7.26'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server (GPL)
 </code></pre></li>
-<li><p>Access to PostgreSQL.</p>
-<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-postgres /bin/bash     
+<li><p>Access to MySQL.</p>
+<pre><code class="hljs css language-bash">$ docker <span class="hljs-built_in">exec</span> -it pulsar-mysql /bin/bash
+mysql -h localhost -uroot -pjdbc 
 </code></pre></li>
-<li><p>Create a PostgreSQL table <em>pulsar_postgres_jdbc_sink</em>.</p>
-<pre><code class="hljs css language-bash">$ psql -U postgres postgres
+<li><p>Create a MySQL table <em>pulsar_mysql_jdbc_sink</em>.</p>
+<pre><code class="hljs css language-bash">$ create database pulsar_mysql_jdbc_sink;
 
-postgres=<span class="hljs-comment"># create table if not exists pulsar_postgres_jdbc_sink</span>
+$ use pulsar_mysql_jdbc_sink;
+
+$ create table <span class="hljs-keyword">if</span> not exists pulsar_mysql_jdbc_sink
 (
-id serial PRIMARY KEY,
-name VARCHAR(255) NOT NULL    
-);
+id INT AUTO_INCREMENT,
+name VARCHAR(255) NOT NULL,
+primary key (id)
+)
+engine=innodb;
 </code></pre></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="配置-jdbc-sink"></a><a href="#配置-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 JDBC sink</h3>
-<p>Now we have a PostgreSQL running locally.</p>
+<p>Now that we have a MySQL running locally.</p>
 <p>在此部分中，你需要配置 jdbc sink 連接器。</p>
 <ol>
 <li><p>Add a configuration file.</p>
 <p>要運行 JDBC sink 連接器，需要準備一個 YAML 配置文件，其中包括P ulsar 連接器運行時需要知道的資訊。</p>
-<p>For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.</p>
-<p>Create a <em>pulsar-postgres-jdbc-sink.yaml</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
+<p>例如，Pulsar 連接器如何找到 MySQL 群集，JDBC URL 是什麼以及 Pulsar連接器用於向其寫入信息數據的資料表。</p>
+<p>Create a <em>pulsar-mysql-jdbc-sink.yaml</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">configs:</span>
-  <span class="hljs-attr">userName:</span> <span class="hljs-string">"postgres"</span>
-  <span class="hljs-attr">password:</span> <span class="hljs-string">"password"</span>
-  <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"</span>
-  <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_postgres_jdbc_sink"</span>
+  <span class="hljs-attr">userName:</span> <span class="hljs-string">"root"</span>
+  <span class="hljs-attr">password:</span> <span class="hljs-string">"jdbc"</span>
+  <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink"</span>
+  <span class="hljs-attr">tableName:</span> <span class="hljs-string">"pulsar_mysql_jdbc_sink"</span>
 </code></pre></li>
 <li><p>Create a schema.</p>
 <p>Create a <em>avro-schema</em> file, copy the following contents to this file, and place the file in the <code>pulsar/connectors</code> folder.</p>
@@ -430,38 +440,38 @@ name VARCHAR(255) NOT NULL
 </ol>
 <ol start="3">
 <li><p>Upload a schema to a topic.</p>
-<p>This example uploads the <em>avro-schema</em> schema to the <em>pulsar-postgres-jdbc-sink-topic</em> topic.</p>
-<pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas upload pulsar-postgres-jdbc-sink-topic -f ./connectors/avro-schema
+<p>This example uploads the <em>avro-schema</em> schema to the <em>pulsar-mysql-jdbc-sink-topic</em> topic.</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas upload pulsar-mysql-jdbc-sink-topic -f ./connectors/avro-schema
 </code></pre></li>
 <li><p>Check if the schema has been uploaded successfully.</p>
-<pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas get pulsar-postgres-jdbc-sink-topic
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin schemas get pulsar-mysql-jdbc-sink-topic
 </code></pre>
 <p>The schema has been uploaded successfully if the following message appears.</p>
-<pre><code class="hljs css language-json">{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"pulsar-postgres-jdbc-sink-topic"</span>,<span class="hljs-attr">"schema"</span>:<span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,<span class="hljs-attr">"type"</span>:<span class="hljs-string">"AVRO"</span>,<span class="hljs-attr">"properties"</span>:{}}
+<pre><code class="hljs css language-json">{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"pulsar-mysql-jdbc-sink-topic"</span>,<span class="hljs-attr">"schema"</span>:<span class="hljs-string">"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}"</span>,<span class="hljs-attr">"type"</span>:<span class="hljs-string">"AVRO"</span>,<span class="hljs-attr">"properties"</span>:{}}
 </code></pre></li>
 </ol>
 <h3><a class="anchor" aria-hidden="true" id="創建一個-jdbc-sink"></a><a href="#創建一個-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>創建一個 JDBC sink</h3>
 <p>你可以使用 <a href="/docs/zh-TW/io-cli">Connector Admin CLI</a> 創建 sink 連接器並對其執行其它操作。</p>
 <p>This example creates a sink connector and specifies the desired information.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-postgres-2.6.0.nar \
---inputs pulsar-postgres-jdbc-sink-topic \
---name pulsar-postgres-jdbc-sink \
---sink-config-file ./connectors/pulsar-postgres-jdbc-sink.yaml \
+--archive ./connectors/pulsar-io-jdbc-2.5.2.nar \
+--inputs pulsar-mysql-jdbc-sink-topic \
+--name pulsar-mysql-jdbc-sink \
+--sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
 --parallelism 1
 </code></pre>
-<p>Once the command is executed, Pulsar creates a sink connector <em>pulsar-postgres-jdbc-sink</em>.</p>
-<p>This sink connector runs as a Pulsar Function and writes the messages produced in the topic <em>pulsar-postgres-jdbc-sink-topic</em> to the PostgreSQL table <em>pulsar_postgres_jdbc_sink</em>.</p>
+<p>Once the command is executed, Pulsar creates a sink connector <em>pulsar-mysql-jdbc-sink</em>.</p>
+<p>This sink connector runs as a Pulsar Function and writes the messages produced in the topic <em>pulsar-mysql-jdbc-sink-topic</em> to the MySQL table <em>pulsar_mysql_jdbc_sink</em>.</p>
 <h4><a class="anchor" aria-hidden="true" id="提示-6"></a><a href="#提示-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <table>
 <thead>
 <tr><th>Flag</th><th>Description</th><th>This example</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-postgres-2.6.0.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.5.2.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>The input topic(s) of the sink. <br><br> Multiple topics can be specified as a comma-separated list.</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The name of the sink.</td><td><em>pulsar-postgres-jdbc-sink</em></td></tr>
-<tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the configuration of the sink.</td><td><em>pulsar-postgres-jdbc-sink.yaml</em></td></tr>
+<tr><td><code>--name</code></td><td>The name of the sink.</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>
+<tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the configuration of the sink.</td><td><em>pulsar-mysql-jdbc-sink.yaml</em></td></tr>
 <tr><td><code>--parallelism</code></td><td>The parallelism factor of the sink. <br><br> For example, the number of sink instances to run.</td><td><em>1</em></td></tr>
 </tbody>
 </table>
@@ -484,16 +494,16 @@ name VARCHAR(255) NOT NULL
 <h4><a class="anchor" aria-hidden="true" id="提示-8"></a><a href="#提示-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
 <p>了解更多關於 <code>pulsar-admin sinks list</code> 的訊息，參閱 <a href="/docs/zh-TW/io-cli/#list-1">here</a>。</p>
 </blockquote>
-<p>The result shows that only the <em>postgres-jdbc-sink</em> sink is running.</p>
+<p>The result shows that only the <em>mysql-jdbc-sink</em> sink is running.</p>
 <pre><code class="hljs css language-json">[
-<span class="hljs-string">"pulsar-postgres-jdbc-sink"</span>
+<span class="hljs-string">"pulsar-mysql-jdbc-sink"</span>
 ]
 </code></pre></li>
 <li><p>獲取 jdbc sink 的相關資訊。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-9"></a><a href="#提示-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -503,18 +513,18 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
-  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"pulsar-postgres-jdbc-sink"</span>,
-  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.io.jdbc.PostgresJdbcAutoSchemaSink"</span>,
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"pulsar-mysql-jdbc-sink"</span>,
+  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink"</span>,
   <span class="hljs-attr">"inputSpecs"</span>: {
-    <span class="hljs-attr">"pulsar-postgres-jdbc-sink-topic"</span>: {
+    <span class="hljs-attr">"pulsar-mysql-jdbc-sink-topic"</span>: {
       <span class="hljs-attr">"isRegexPattern"</span>: <span class="hljs-literal">false</span>
     }
   },
   <span class="hljs-attr">"configs"</span>: {
-    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"password"</span>,
-    <span class="hljs-attr">"jdbcUrl"</span>: <span class="hljs-string">"jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"</span>,
-    <span class="hljs-attr">"userName"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_postgres_jdbc_sink"</span>
+    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"jdbc"</span>,
+    <span class="hljs-attr">"jdbcUrl"</span>: <span class="hljs-string">"jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink"</span>,
+    <span class="hljs-attr">"userName"</span>: <span class="hljs-string">"root"</span>,
+    <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_mysql_jdbc_sink"</span>
   },
   <span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">1</span>,
   <span class="hljs-attr">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,
@@ -526,7 +536,7 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks status \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-10"></a><a href="#提示-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -560,7 +570,8 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks stop \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink \
+--instance-id 0
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-11"></a><a href="#提示-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -574,7 +585,8 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks restart \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink 
+--name pulsar-mysql-jdbc-sink \
+--instance-id 0
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-12"></a><a href="#提示-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -593,9 +605,9 @@ name VARCHAR(255) NOT NULL
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="更新一個-jdbc-sink"></a><a href="#更新一個-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>更新一個 JDBC sink</h3>
 <p>可以使用 <a href="/docs/zh-TW/io-cli">Connector Admin CLI</a> 來更新一個連接器並對其執行其它操作。</p>
-<p>This example updates the parallelism of the <em>pulsar-postgres-jdbc-sink</em> sink connector to 2.</p>
+<p>This example updates the parallelism of the <em>pulsar-mysql-jdbc-sink</em> sink connector to 2.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks update \
---name pulsar-postgres-jdbc-sink \
+--name pulsar-mysql-jdbc-sink \
 --parallelism 2
 </code></pre>
 <blockquote>
@@ -609,24 +621,24 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink
 </code></pre>
 <p>The result shows that the parallelism is 2.</p>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"public"</span>,
   <span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"default"</span>,
-  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"pulsar-postgres-jdbc-sink"</span>,
-  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.io.jdbc.PostgresJdbcAutoSchemaSink"</span>,
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"pulsar-mysql-jdbc-sink"</span>,
+  <span class="hljs-attr">"className"</span>: <span class="hljs-string">"org.apache.pulsar.io.jdbc.JdbcAutoSchemaSink"</span>,
   <span class="hljs-attr">"inputSpecs"</span>: {
-    <span class="hljs-attr">"pulsar-postgres-jdbc-sink-topic"</span>: {
+    <span class="hljs-attr">"pulsar-mysql-jdbc-sink-topic"</span>: {
       <span class="hljs-attr">"isRegexPattern"</span>: <span class="hljs-literal">false</span>
     }
   },
   <span class="hljs-attr">"configs"</span>: {
-    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"password"</span>,
-    <span class="hljs-attr">"jdbcUrl"</span>: <span class="hljs-string">"jdbc:postgresql://localhost:5432/pulsar_postgres_jdbc_sink"</span>,
-    <span class="hljs-attr">"userName"</span>: <span class="hljs-string">"postgres"</span>,
-    <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_postgres_jdbc_sink"</span>
+    <span class="hljs-attr">"password"</span>: <span class="hljs-string">"jdbc"</span>,
+    <span class="hljs-attr">"jdbcUrl"</span>: <span class="hljs-string">"jdbc:mysql://127.0.0.1:3306/pulsar_mysql_jdbc_sink"</span>,
+    <span class="hljs-attr">"userName"</span>: <span class="hljs-string">"root"</span>,
+    <span class="hljs-attr">"tableName"</span>: <span class="hljs-string">"pulsar_mysql_jdbc_sink"</span>
   },
   <span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">2</span>,
   <span class="hljs-attr">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,
@@ -636,11 +648,11 @@ name VARCHAR(255) NOT NULL
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="移除一個-jdbc-sink"></a><a href="#移除一個-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>移除一個 JDBC sink</h3>
 <p>可以使用 <a href="/docs/zh-TW/io-cli">Connector Admin CLI</a> 刪除連接器並對其執行其它操作。</p>
-<p>This example deletes the <em>pulsar-postgres-jdbc-sink</em> sink connector.</p>
+<p>This example deletes the <em>pulsar-mysql-jdbc-sink</em> sink connector.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks delete \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-15"></a><a href="#提示-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
@@ -653,14 +665,14 @@ name VARCHAR(255) NOT NULL
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks get \
 --tenant public \
 --namespace default \
---name pulsar-postgres-jdbc-sink
+--name pulsar-mysql-jdbc-sink
 </code></pre>
-<p>The result shows that the sink connector does not exist.</p>
+<p>The results shows that the sink connector does not exist.</p>
 <pre><code class="hljs css language-text">HTTP 404 Not Found
 
-Reason: Sink pulsar-postgres-jdbc-sink doesn't exist
+Reason: Sink pulsar-mysql-jdbc-sink doesn't exist
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/io-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/io-use"><span>使用方式</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安裝-pulsar-built-in-connectors。">安裝 Pulsar built-in connectors。</a></li><li><a href="#啟動-pulsar-單機模式">啟動 Pulsar 單機模式</a></li><li><a href="#將-pulsar-連接到-cassandra">將 Pulsar 連接到 Cassandra</a><ul class="toc-headings"><li><a href="#設置-cassandra-集群">設置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#創建-cassandra-sink">創建 Cassandra sink</a></li><li><a href="#檢查-cassandra-sink">檢查 Cassandra sink</a></li><li><a href="#驗證-cassandra-sink-的功能">驗證 Cassandra sink 的功能</a></li><li><a href="#刪除-cassandra-sink">刪除 Cassandra Sink</a></li></ul></li><li><a href="#connect-pulsar-to-postgresql">Connect Pulsar to PostgreSQL</a><ul class="toc-headings"><li><a href="#setup-a-postgresql-cluster">Setup a PostgreSQL cluster</a></li><li><a href="#配置-jdbc-sink">配置 JDBC sink</a></li><li><a href="#創建一個-jdbc-sink">創建一個 JDBC sink</a></li><li><a href="#驗證-jdbc-sink">驗證 JDBC sink</a></li><li><a href="#停止-jdbc-sink">停止 JDBC sink</a></li><li><a href="#重新啟動-jdbc-sink">重新啟動 JDBC sink</a></li><li><a href="#更新一個-jdbc-sink">更新一個 JDBC sink</a></li><li><a href="#移除一個-jdbc-sink">移除一個 JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/io-overview"><span class="arrow-prev">← </span><span>Overview</span></a><a class="docs-next button" href="/docs/zh-TW/io-use"><span>使用方式</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安裝-pulsar-built-in-connectors。">安裝 Pulsar built-in connectors。</a></li><li><a href="#啟動-pulsar-單機模式">啟動 Pulsar 單機模式</a></li><li><a href="#將-pulsar-連接到-cassandra">將 Pulsar 連接到 Cassandra</a><ul class="toc-headings"><li><a href="#設置-cassandra-集群">設置 Cassandra 集群</a></li><li><a href="#配置-cassandra-sink">配置 Cassandra sink</a></li><li><a href="#創建-cassandra-sink">創建 Cassandra sink</a></li><li><a href="#檢查-cassandra-sink">檢查 Cassandra sink</a></li><li><a href="#驗證-cassandra-sink-的功能">驗證 Cassandra sink 的功能</a></li><li><a href="#刪除-cassandra-sink">刪除 Cassandra Sink</a></li></ul></li><li><a href="#將-pulsar-連接到-mysql">將 Pulsar 連接到 MySQL</a><ul class="toc-headings"><li><a href="#設置一個-mysql-集群">設置一個 MySQL 集群</a></li><li><a href="#配置-jdbc-sink">配置 JDBC sink</a></li><li><a href="#創建一個-jdbc-sink">創建一個 JDBC sink</a></li><li><a href="#驗證-jdbc-sink">驗證 JDBC sink</a></li><li><a href="#停止-jdbc-sink">停止 JDBC sink</a></li><li><a href="#重新啟動-jdbc-sink">重新啟動 JDBC sink</a></li><li><a href="#更新一個-jdbc-sink">更新一個 JDBC sink</a></li><li><a href="#移除一個-jdbc-sink">移除一個 JDBC sink</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -712,6 +724,6 @@ Reason: Sink pulsar-postgres-jdbc-sink doesn't exist
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.6.0"]}
+                algoliaOptions: {"facetFilters":["language:zh-TW","version:2.5.2"]}
               });
             </script></body></html>
