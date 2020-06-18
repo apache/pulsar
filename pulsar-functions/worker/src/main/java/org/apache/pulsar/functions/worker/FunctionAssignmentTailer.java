@@ -70,11 +70,9 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         this.workerConfig = workerConfig;
         this.errorNotifier = errorNotifier;
         this.reader = createReader();
-        
-        this.tailerThread = getTailerThread();
     }
 
-    public CompletableFuture<Void> triggerReadToTheEndAndExit() {
+    public synchronized CompletableFuture<Void> triggerReadToTheEndAndExit() {
         exitOnEndOfTopic = true;
         return this.hasExited;
     }
@@ -88,6 +86,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             if (tailerThread == null || !tailerThread.isAlive()) {
                 tailerThread = getTailerThread();
             }
+            hasExited = new CompletableFuture<>();
             tailerThread.start();
         }
     }
@@ -122,7 +121,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 reader = null;
             }
 
-            hasExited = new CompletableFuture<>();
+            hasExited = null;
             exitOnEndOfTopic = false;
             
         } catch (IOException e) {

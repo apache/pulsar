@@ -80,7 +80,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void becameActive(Consumer<?> consumer, int partitionId) {
+    public synchronized void becameActive(Consumer<?> consumer, int partitionId) {
         if (isLeader.compareAndSet(false, true)) {
             log.info("Worker {} became the leader.", consumerName);
             try {
@@ -99,7 +99,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void becameInactive(Consumer<?> consumer, int partitionId) {
+    public synchronized void becameInactive(Consumer<?> consumer, int partitionId) {
         if (isLeader.compareAndSet(true, false)) {
             log.info("Worker {} lost the leadership.", consumerName);
             // when a worker has lost leadership it needs to start reading from the assignment topic again

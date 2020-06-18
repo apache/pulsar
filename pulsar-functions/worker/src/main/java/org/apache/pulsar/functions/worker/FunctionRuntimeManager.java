@@ -250,7 +250,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionAssignmentTailer.start();
     }
 
-    public void stopReadingAssignments() throws ExecutionException, InterruptedException {
+    public synchronized void stopReadingAssignments() throws ExecutionException, InterruptedException {
         this.functionAssignmentTailer.triggerReadToTheEndAndExit().get();
         this.functionAssignmentTailer.close();
     }
