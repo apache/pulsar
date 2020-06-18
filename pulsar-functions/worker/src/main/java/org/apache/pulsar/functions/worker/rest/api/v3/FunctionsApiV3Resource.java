@@ -369,7 +369,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     @PUT
-    @ApiOperation(value = "Updates a Pulsar Function on the worker leader")
+    @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have super-user permissions"),
             @ApiResponse(code = 404, message = "The function does not exist"),
