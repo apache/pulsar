@@ -89,7 +89,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * 1. Consume all existing function meta data upon start to establish existing state
      */
     public void initialize() {
-        log.info("/** Initializing Function Metadata Manager **/");
         try {
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
                     pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
@@ -99,15 +98,19 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
             }
             this.setInitializePhase(false);
-            // schedule functions if necessary
-            this.schedulerManager.schedule();
-            // start function metadata tailer
-            this.functionMetaDataTopicTailer.start();
+            
 
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
             throw new RuntimeException(e);
         }
+    }
+    
+    public void start() {
+        // schedule functions if necessary
+        this.schedulerManager.schedule();
+        // start function metadata tailer
+        this.functionMetaDataTopicTailer.start();
     }
 
     /**
