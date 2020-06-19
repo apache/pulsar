@@ -28,9 +28,9 @@ For more information about PIP-37, see [here](https://github.com/apache/pulsar/w
 
 ### [PIP-39] Namespace change events (system topic)
 
-This PIP introduces the system topic to store namespace change events. Previously, Pulsar only allowed you to set the namespace policy, all topics under the namespace followed the namespace policy. Many users want to set the policy for topics. The main reason for not using the same way as namespace level policy is avoiding introducing more workload on ZooKeeper. 
+This PIP introduces the system topic to store namespace change events. Previously, Pulsar only allowed you to set the namespace policy, all topics under the namespace followed the namespace policy. Many users want to set the policy for topics. The main reason for not using the same way as namespace level policy is to avoid introducing more workload on the ZooKeeper. 
 
-The original intention of the system topic is able to store topic policy in a topic rather than ZooKeeper. So this is the first step to achieve topic level policy. And we can easily add support for the topic level policy with this feature.
+The original intention of the system topic is to be able to store topic policy in a topic rather than ZooKeeper. So this is the first step to achieve topic level policy. And we can easily add support for the topic level policy with this feature.
 
 For more information about PIP-39, see [here](https://github.com/apache/pulsar/wiki/PIP-39%3A-Namespace-Change-Events).<br> For more information about implementation details, see  [PR-4955](https://github.com/apache/pulsar/pull/4955).
 
@@ -39,12 +39,6 @@ For more information about PIP-39, see [here](https://github.com/apache/pulsar/w
 We have been advancing to enable Pulsar to use other metastore services rather than ZooKeeper. This PIP converts `ManagedLedger` to use the `MetadataStore` interface. This facilitates the metadata server plug-in process. Through the `MetadataStore` interface, it is easy to add other metadata servers into Pulsar such as [etcd](https://github.com/etcd-io/etcd).
 
 For more information about PIP-45, see [here](https://github.com/apache/pulsar/wiki/PIP-45%3A-Pluggable-metadata-interface). <br> For more information about implementation details, see [PR-5358](https://github.com/apache/pulsar/pull/5358).
-
-### [PIP 53] Contribute DotPulsar to Apache Pulsar
-
-Previously, there were no official client libraries for .NET To optimize developer experience and performance. Consequently, a client library in C# for .NET - [DotPulsar](https://github.com/apache/pulsar-dotpulsar) has been developed. 
-
-For more information about PIP-53, see [here](https://github.com/apache/pulsar/wiki/PIP-53:-Contribute-DotPulsar-to-Apache-Pulsar)
 
 ### [PIP-54] Support acknowledgment at the batch index level
 
@@ -110,7 +104,7 @@ For more information about PIP-65, see [here](https://github.com/apache/pulsar/w
 
 ### [Load balancer] Add `ThresholdShedder` strategy for the load balancer
 
-The `ThresholdShedder` strategy is more flexible than ` LoadSheddingStrategy` for Pulsar. The `ThresholdShedder` calculates the average resource usage of the brokers, and individual broker resource usage compares with the average value. If it is greater than the average value plus threshold, the overload shedder is triggered. You can enable it in `broker.conf` as below.
+The `ThresholdShedder` strategy is more flexible than `LoadSheddingStrategy` for Pulsar. The `ThresholdShedder` calculates the average resource usage of the brokers, and individual broker resource usage compares with the average value. If it is greater than the average value plus threshold, the overload shedder is triggered. You can enable it in `broker.conf` as below.
 
 ```
 loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder
@@ -239,13 +233,13 @@ For more information about implementation details, see [PR-6077](https://github.
 
 ### Add a flag to skip broker shutdown on transient OOM
 
-A high dispatch rate on one of the topics may cause a broker to go OOM  temporarily. It is a transient error and the broker can recover within a few seconds as soon as some memory gets released. However, in 2.4 release ([#4196](https://github.com/apache/pulsar/pull/4196)), the “restarted broker on OOM” feature can cause huge instability in a cluster, where a topic moves from one broker to another and restarts multiple brokers and disrupt other topics as well. So this PR provides a dynamic flag to skip broker shutdown on OOM to avoid instability in a cluster.
+A high dispatch rate on one of the topics may cause a broker to go OOM temporarily. It is a transient error and the broker can recover within a few seconds as soon as some memory gets released. However, in 2.4 release ([#4196](https://github.com/apache/pulsar/pull/4196)), the “restarted broker on OOM” feature can cause huge instability in a cluster, where a topic moves from one broker to another and restarts multiple brokers and disrupts other topics as well. So this PR provides a dynamic flag to skip broker shutdown on OOM to avoid instability in a cluster.
 
 For more information about implementation details, see [PR-6634](https://github.com/apache/pulsar/pull/6634).
 
 ### Make ZooKeeper cache expiry time configurable
 
-Previously, ZooKeeper cache expiry time was hardcoded and it needed to be configurable to refresh value based on various requirements, for example, refreshing value quickly in case of zk-watch miss, avoiding frequent cache refresh to avoid zk-read or avoiding issue due to zk read timeout, and so on. Now you can configure ZooKeeper cache expiry time in `broker.conf` as below.
+Previously, ZooKeeper cache expiry time was hardcoded and it needed to be configurable to refresh the value based on various requirements, for example, refreshing the value quickly in case of zk-watch miss, avoiding frequent cache refresh to avoid zk-read or avoiding issue due to zk read timeout, and so on. Now you can configure ZooKeeper cache expiry time in `broker.conf` as below.
 
 ```
 # ZooKeeper cache expiry time in seconds
@@ -297,7 +291,7 @@ This PR implements a monitoring thread to check if the current topic ledger meet
 
 For more information about implementation details, see  [PR-7116](https://github.com/apache/pulsar/pull/7111).
 
-# Proxy
+## Proxy
 
 ### Add REST API to get connection and topic stats
 
@@ -305,7 +299,7 @@ Previously, Pulsar proxy did not have useful stats to get internal information a
 
 For more information about implementation details, see [PR-6473](https://github.com/apache/pulsar/pull/6473).
 
-# Admin
+## Admin
 
 ### Support getting a message by message ID in pulsar-admin
 
@@ -319,7 +313,7 @@ This PR adds the method `deleteForcefully` to support force deleting subscriptio
 
 For more information about implementation details, see [PR-6383](https://github.com/apache/pulsar/pull/6383).
 
-# Functions
+## Functions
 
 ### Built-in functions
 
@@ -347,7 +341,7 @@ Previously, function and source context give their writers an ability to create 
 
 For more information about implementation details, see [PR-6954](https://github.com/apache/pulsar/pull/6954).
 
-# Pulsar SQL
+## Pulsar SQL
 
 ### Support KeyValue schema
 
@@ -359,21 +353,22 @@ For more information about implementation details, see [PR-6325](https://github.
 
 ### Support multiple Avro schema versions
 
-Previously, if you have multiple Avro schema versions for a topic, use Pulsar SQL to query data from this topic will introduce some problems. With this change, You can evolve the schema of the topic and keep transitive backward compatibility of all schemas of the topic if you want to query data from this topic. 
+Previously, if you have multiple Avro schema versions for a topic, using the Pulsar SQL to query data from this topic will introduce some problems. With this change, You can evolve the schema of the topic and keep transitive backward compatibility of all schemas of the topic if you want to query data from this topic. 
   
 For more information about implementation details, see [PR-4847](https://github.com/apache/pulsar/pull/4847).
 
-# Java client
+## Java client
 
 ### Support waiting for inflight messages while closing a producer
 
-Previously, when you closed a producer, pulsar-client immediately failed inflight messages even if they persisted successfully at the broker. Most of the time, users want to wait for those inflight messages rather than fail them. While pulsar-client lib did not provide a way to wait for inflight messages before closing the producer. This PR supports closing API with the flag where you can control waiting for inflight messages. With this change, you can close a producer by waiting for inflight messages and pulsar-client does not fail those messages immediately.
+Previously, when you closed a producer, the pulsar-client immediately failed inflight messages even if it persisted successfully at the broker. Most of the time, users want to wait for those inflight messages rather than fail them. While the pulsar-client library did not provide a way to wait for inflight messages before closing the producer. This PR supports closing API with a flag where you can control waiting for inflight messages. With this change, you can close a producer by waiting for inflight messages and the pulsar-client does not fail those messages immediately.
+Previously, when you closed a producer, the pulsar-client immediately failed inflight messages even if it persisted successfully at the broker. Most of the time, users want to wait for those inflight messages rather than fail them. While the pulsar-client library did not provide a way to wait for inflight messages before closing the producer. This PR supports closing API with a flag where you can control waiting for inflight messages. With this change, you can close a producer by waiting for inflight messages and the pulsar-client does not fail those messages immediately.
 
 For more information about implementation details, see [PR-6648](https://github.com/apache/pulsar/pull/6648).
 
 ### Support loading TLS certs/key dynamically from input stream
 
-Previously, pulsar-client provided TLS authentication support and default TLS provider `AuthenticationTls` expects file path of cert and key files. However, there were use cases where it was difficult for user applications to store certs/key files locally for TLS authentication. This PR adds stream support in `AuthenticationTls` to provide X509Certs and PrivateKey which also performs auto-refresh when streaming changes in a given provider.
+Previously, the pulsar-client provided TLS authentication support and the default TLS provider `AuthenticationTls` expected file path of cert and key files. However, there were use cases where it was difficult for user applications to store certs/key files locally for TLS authentication. This PR adds stream support in `AuthenticationTls` to provide X509Certs and PrivateKey which also perform auto-refresh when streaming changes in a given provider.
 
 For more information about implementation details, see [PR-6760](https://github.com/apache/pulsar/pull/6760).
 
@@ -384,7 +379,7 @@ Previously, when sending messages asynchronously failed, an exception was thrown
 For more information about implementation details, see [PR-6825](https://github.com/apache/pulsar/pull/6825).
 
 
-# More information
+## More information
 
 - To download Apache Pulsar 2.6.0, click [here](https://pulsar.apache.org/en/download/).
 - For more information about Apache Pulsar 2.6.0, see [2.6.0 release notes](https://pulsar.apache.org/release-notes/#2.6.0) and [2.6.0 PR list](https://github.com/apache/pulsar/pulls?q=milestone%3A2.6.0+-label%3Arelease%2F2.5.2+-label%3Arelease%2F2.5.1+).
