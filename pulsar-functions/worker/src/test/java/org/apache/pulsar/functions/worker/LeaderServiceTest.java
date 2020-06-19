@@ -20,18 +20,21 @@ package org.apache.pulsar.functions.worker;
 
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -47,6 +50,12 @@ import static org.testng.Assert.assertTrue;
 public class LeaderServiceTest {
 
     private final WorkerConfig workerConfig;
+    private LeaderService leaderService;
+    private PulsarClientImpl mockClient;
+    AtomicReference<ConsumerEventListener> listenerHolder;
+    private ConsumerImpl mockConsumer;
+    private FunctionAssignmentTailer functionAssignmentTailer;
+    private SchedulerManager schedulerManager;
 
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
@@ -57,13 +66,14 @@ public class LeaderServiceTest {
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setWorkerPort(1234);
     }
 
-    @Test
-    public void testConsumerEventListener() throws Exception {
-        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+    @BeforeMethod
+    public void setup() throws PulsarClientException {
+        mockClient = mock(PulsarClientImpl.class);
 
-        ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
+        mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
 
         when(mockConsumerBuilder.topic(anyString())).thenReturn(mockConsumerBuilder);
@@ -76,7 +86,7 @@ public class LeaderServiceTest {
         WorkerService workerService = mock(WorkerService.class);
         doReturn(workerConfig).when(workerService).getWorkerConfig();
 
-        AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
+        listenerHolder = new AtomicReference<>();
         when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenAnswer(invocationOnMock -> {
 
             ConsumerEventListener listener = invocationOnMock.getArgument(0);
@@ -87,29 +97,56 @@ public class LeaderServiceTest {
 
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
-        SchedulerManager schedulerManager = mock(SchedulerManager.class);
-        Lock lock = mock(Lock.class);
-        when(schedulerManager.getSchedulerLock()).thenReturn(lock);
+        schedulerManager = mock(SchedulerManager.class);
 
-        FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
 
-        LeaderService leaderService = spy(new LeaderService(workerService, mockClient, functionRuntimeManager, schedulerManager, ErrorNotifier.getDefaultImpl()));
+        functionAssignmentTailer = mock(FunctionAssignmentTailer.class);
+        when(functionAssignmentTailer.triggerReadToTheEndAndExit()).thenReturn(CompletableFuture.completedFuture(null));
+
+        leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager, ErrorNotifier.getDefaultImpl()));
         leaderService.start();
+    }
+
+    @Test
+    public void testLeaderService() throws Exception {
+        MessageId messageId = new MessageIdImpl(1, 2, -1);
+        when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);
+
         assertFalse(leaderService.isLeader());
         verify(mockClient, times(1)).newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(leaderService.isLeader());
 
-        verify(functionRuntimeManager, times(1)).stopReadingAssignments();
+        verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
+        verify(functionAssignmentTailer, times(1)).close();
         verify(schedulerManager, times((1))).initialize();
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
         assertFalse(leaderService.isLeader());
 
-        verify(lock, times(1)).lock();
-        verify(functionRuntimeManager, times(1)).start();
+        verify(functionAssignmentTailer, times(1)).startFromMessage(messageId);
         verify(schedulerManager, times(1)).close();
-        verify(lock, times(1)).unlock();
+    }
+
+    @Test
+    public void testLeaderServiceNoNewScheduling() throws Exception {
+        when(schedulerManager.getLastMessageProduced()).thenReturn(null);
+
+        assertFalse(leaderService.isLeader());
+        verify(mockClient, times(1)).newConsumer();
+
+        listenerHolder.get().becameActive(mockConsumer, 0);
+        assertTrue(leaderService.isLeader());
+
+        verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
+        verify(functionAssignmentTailer, times(1)).close();
+        verify(schedulerManager, times((1))).initialize();
+
+        listenerHolder.get().becameInactive(mockConsumer, 0);
+        assertFalse(leaderService.isLeader());
+
+        verify(functionAssignmentTailer, times(1)).start();
+        verify(schedulerManager, times(1)).close();
     }
 }

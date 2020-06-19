@@ -73,6 +73,7 @@ public class WorkerService {
     @VisibleForTesting
     private URI dlogUri;
     private LeaderService leaderService;
+    private FunctionAssignmentTailer functionAssignmentTailer;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -178,6 +179,7 @@ public class WorkerService {
             }
             this.membershipManager = new MembershipManager(this, client, brokerAdmin);
 
+
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(
                     workerConfig,
@@ -187,6 +189,14 @@ public class WorkerService {
                     connectorsManager,
                     functionsManager,
                     functionMetaDataManager,
+                    errorNotifier);
+
+
+            // initialize function assignment tailer that reads from the assignment topic
+            this.functionAssignmentTailer = new FunctionAssignmentTailer(
+                    functionRuntimeManager,
+                    client.newReader(),
+                    workerConfig,
                     errorNotifier);
 
             // initialize function metadata manager
@@ -199,7 +209,7 @@ public class WorkerService {
 
             this.leaderService = new LeaderService(this,
                     client,
-                    functionRuntimeManager,
+                    functionAssignmentTailer,
                     schedulerManager,
                     errorNotifier);
 
@@ -213,9 +223,9 @@ public class WorkerService {
 
             this.authorizationService = authorizationService;
 
-            // Start function runtime manager
-            log.info("/** Starting Function Runtime Manager **/");
-            functionRuntimeManager.start();
+            // Start function assignment tailer
+            log.info("/** Starting Function Assignment Tailer **/");
+            functionAssignmentTailer.start();
 
             log.info("/** Start Leader Service **/");
             leaderService.start();
@@ -262,6 +272,14 @@ public class WorkerService {
                 functionMetaDataManager.close();
             } catch (Exception e) {
                 log.warn("Failed to close function metadata manager", e);
+            }
+        }
+
+        if (null != functionAssignmentTailer) {
+            try {
+                functionAssignmentTailer.close();
+            } catch (Exception e) {
+                log.warn("Failed to close function assignment tailer", e);
             }
         }
 

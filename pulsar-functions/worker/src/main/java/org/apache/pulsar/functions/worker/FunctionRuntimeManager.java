@@ -26,8 +26,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
@@ -53,11 +54,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -110,9 +111,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     final WorkerConfig workerConfig;
 
-    @Getter
-    private FunctionAssignmentTailer functionAssignmentTailer;
-
     @Setter
     @Getter
     private FunctionActioner functionActioner;
@@ -132,7 +130,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final FunctionMetaDataManager functionMetaDataManager;
 
     private final ErrorNotifier errorNotifier;
-    
+
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
                                   FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
@@ -213,19 +211,24 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void initialize() {
         try {
-            this.functionAssignmentTailer = new FunctionAssignmentTailer(
-                    this,
-                    this.getWorkerService().getClient().newReader(),
-                    this.workerConfig,
-                    this.errorNotifier);
+
+            Reader<byte[]> reader = workerService.getClient().newReader()
+                    .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-assignment-initialize")
+                    .readerName(workerConfig.getWorkerId() + "-function-assignment-initialize")
+                    .topic(workerConfig.getFunctionAssignmentTopic())
+                    .readCompacted(true)
+                    .startMessageId(MessageId.earliest)
+                    .create();
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages
-            while (this.functionAssignmentTailer.getReader().hasMessageAvailable()) {
-                this.functionAssignmentTailer.processAssignment(this.functionAssignmentTailer.getReader().readNext());
+            while (reader.hasMessageAvailable()) {
+                processAssignmentMessage(reader.readNext());
             }
             // init phase is done
             this.isInitializePhase = false;
+            // close reader
+            reader.close();
             // realize existing assignments
             Map<String, Assignment> assignmentMap = workerIdToAssignments.get(this.workerConfig.getWorkerId());
             if (assignmentMap != null) {
@@ -244,23 +247,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     /**
      * Starts the function runtime manager
      */
-    public void start() throws PulsarClientException {
-        this.functionAssignmentTailer.start();
-    }
-
-    public synchronized void stopReadingAssignments() throws ExecutionException, InterruptedException {
-        this.functionAssignmentTailer.triggerReadToTheEndAndExit().get();
-        this.functionAssignmentTailer.close();
-    }
-
-    /**
-     * Public methods
-     */
-
-    //Todo add comment
-    public void setMessageId(MessageId messageId) {
-        functionAssignmentTailer.setLastMessageId(messageId);
-    }
 
     /**
      * Get current assignments
@@ -621,6 +607,25 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStats.calculateOverall();
     }
 
+
+    public synchronized void processAssignmentMessage(Message<byte[]> msg) {
+
+        if(msg.getData()==null || (msg.getData().length==0)) {
+            log.info("Received assignment delete: {}", msg.getKey());
+            deleteAssignment(msg.getKey());
+        } else {
+            Assignment assignment;
+            try {
+                assignment = Assignment.parseFrom(msg.getData());
+            } catch (IOException e) {
+                log.error("[{}] Received bad assignment update at message {}", msg.getMessageId(), e);
+                throw new RuntimeException(e);
+            }
+            log.info("Received assignment update: {}", assignment);
+            processAssignment(assignment);
+        }
+    }
+
     /**
      * Process an assignment update from the assignment topic
      * @param newAssignment the assignment
@@ -845,7 +850,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
-        this.functionAssignmentTailer.close();
 
         stopAllOwnedFunctions();
 

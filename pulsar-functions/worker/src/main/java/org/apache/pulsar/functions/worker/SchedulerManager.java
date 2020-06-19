@@ -95,7 +95,6 @@ public class SchedulerManager implements AutoCloseable {
 
     private Producer<byte[]> producer;
 
-
     private ScheduledExecutorService scheduledExecutorService;
     
     private final PulsarAdmin admin;
@@ -109,6 +108,9 @@ public class SchedulerManager implements AutoCloseable {
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60; 
     public static final String HEARTBEAT_TENANT = "pulsar-function";
     public static final String HEARTBEAT_NAMESPACE = "heartbeat";
+
+    @Getter
+    private MessageId lastMessageProduced = null;
 
     public SchedulerManager(WorkerConfig workerConfig,
                             PulsarClient pulsarClient,
@@ -174,8 +176,9 @@ public class SchedulerManager implements AutoCloseable {
             scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
             scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
 
-            this.producer = createProducer(pulsarClient, workerConfig);
+            producer = createProducer(pulsarClient, workerConfig);
             isRunning = true;
+            lastMessageProduced = null;
         }
     }
 
@@ -253,7 +256,7 @@ public class SchedulerManager implements AutoCloseable {
                     log.info("Deleting assignment: {}", assignment);
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
                     // update message id associated with current view of assignments map
-                    functionRuntimeManager.setMessageId(messageId);
+                    lastMessageProduced = messageId;
                 }
                 return deleted;
             });
@@ -273,7 +276,7 @@ public class SchedulerManager implements AutoCloseable {
                     log.info("Updating assignment: {}", assignment);
                     functionRuntimeManager.processAssignment(newAssignment);
                     // update message id associated with current view of assignments map
-                    functionRuntimeManager.setMessageId(messageId);
+                    lastMessageProduced = messageId;
                 }
                 if (functionMap.isEmpty()) {
                     it.remove();
@@ -316,7 +319,7 @@ public class SchedulerManager implements AutoCloseable {
             log.info("Adding assignment: {}", assignment);
             functionRuntimeManager.processAssignment(assignment);
             // update message id associated with current view of assignments map
-            functionRuntimeManager.setMessageId(messageId);
+            lastMessageProduced = messageId;
         }
         
     }
@@ -406,22 +409,29 @@ public class SchedulerManager implements AutoCloseable {
     @Override
     public synchronized void close() {
         log.info("Closing scheduler manager");
-        isRunning = false;
+        try {
+            // make sure we are not closing while a scheduling is being calculated
+            schedulerLock.lock();
 
-        if (scheduledExecutorService != null) {
-            scheduledExecutorService.shutdown();
-        }
+            isRunning = false;
 
-        if (executorService != null) {
-            executorService.shutdown();
-        }
-
-        if (producer != null) {
-            try {
-                producer.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to shutdown scheduler manager assignment producer", e);
+            if (scheduledExecutorService != null) {
+                scheduledExecutorService.shutdown();
             }
+
+            if (executorService != null) {
+                executorService.shutdown();
+            }
+
+            if (producer != null) {
+                try {
+                    producer.close();
+                } catch (PulsarClientException e) {
+                    log.warn("Failed to shutdown scheduler manager assignment producer", e);
+                }
+            }
+        } finally {
+            schedulerLock.unlock();
         }
     }
     

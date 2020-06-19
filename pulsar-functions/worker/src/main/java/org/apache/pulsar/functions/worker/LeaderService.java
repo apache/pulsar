@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
     private final String consumerName;
-    private final FunctionRuntimeManager functionRuntimeManager;
+    private final FunctionAssignmentTailer functionAssignmentTailer;
     private final ErrorNotifier errorNotifier;
     private final SchedulerManager schedulerManager;
     private ConsumerImpl<byte[]> consumer;
@@ -46,12 +46,12 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     
     public LeaderService(WorkerService workerService,
                          PulsarClient pulsarClient,
-                         FunctionRuntimeManager functionRuntimeManager,
+                         FunctionAssignmentTailer functionAssignmentTailer,
                          SchedulerManager schedulerManager,
                          ErrorNotifier errorNotifier) {
         this.workerConfig = workerService.getWorkerConfig();
         this.pulsarClient = pulsarClient;
-        this.functionRuntimeManager = functionRuntimeManager;
+        this.functionAssignmentTailer = functionAssignmentTailer;
         this.schedulerManager = schedulerManager;
         this.errorNotifier = errorNotifier;
         consumerName = String.format(
@@ -76,7 +76,6 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 .property(WORKER_IDENTIFIER, consumerName)
                 .consumerName(consumerName)
                 .subscribe();
-
     }
 
     @Override
@@ -86,7 +85,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
             try {
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
-                functionRuntimeManager.stopReadingAssignments();
+                functionAssignmentTailer.triggerReadToTheEndAndExit().get();
+                functionAssignmentTailer.close();
 
                 // make sure scheduler is initialized because this worker
                 // is the leader and may need to start computing and writing assignments
@@ -104,19 +104,19 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
             log.info("Worker {} lost the leadership.", consumerName);
             // when a worker has lost leadership it needs to start reading from the assignment topic again
             try {
-                // acquire scheduler lock to make sure a scheduling is not in process
-                schedulerManager.getSchedulerLock().lock();
-
-                // starting reading from assignment topic
-                functionRuntimeManager.start();
-
                 // stop scheduler manager since we are not the leader anymore
+                // will block if a schedule invocation is in process
                 schedulerManager.close();
+
+                // starting reading from assignment topic from the last published message of the scheduler
+                if (schedulerManager.getLastMessageProduced() == null) {
+                    functionAssignmentTailer.start();
+                } else {
+                    functionAssignmentTailer.startFromMessage(schedulerManager.getLastMessageProduced());
+                }
             } catch (Throwable th) {
                 log.error("Encountered error in routine when worker lost leadership", th);
                 errorNotifier.triggerError(th);
-            } finally {
-                schedulerManager.getSchedulerLock().unlock();
             }
         }
     }

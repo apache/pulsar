@@ -19,14 +19,12 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.proto.Function.Assignment;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
@@ -47,29 +45,25 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private final ReaderBuilder readerBuilder;
     private final WorkerConfig workerConfig;
     private final ErrorNotifier errorNotifier;
-    @Getter
     private Reader<byte[]> reader;
     private volatile boolean isRunning = false;
     private volatile boolean exitOnEndOfTopic = false;
     private CompletableFuture<Void> hasExited;
-
     private Thread tailerThread;
 
     @Getter
-    @Setter
     private MessageId lastMessageId = null;
     
     public FunctionAssignmentTailer(
             FunctionRuntimeManager functionRuntimeManager,
             ReaderBuilder readerBuilder,
             WorkerConfig workerConfig,
-            ErrorNotifier errorNotifier) throws PulsarClientException {
+            ErrorNotifier errorNotifier) {
         this.functionRuntimeManager = functionRuntimeManager;
         this.hasExited = new CompletableFuture<>();
         this.readerBuilder = readerBuilder;
         this.workerConfig = workerConfig;
         this.errorNotifier = errorNotifier;
-        this.reader = createReader();
     }
 
     public synchronized CompletableFuture<Void> triggerReadToTheEndAndExit() {
@@ -77,11 +71,13 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         return this.hasExited;
     }
 
-    public synchronized void start() throws PulsarClientException {
+    public void startFromMessage(MessageId startMessageId) throws PulsarClientException {
+        log.info("Function assignment tailer start reading from topic {} at {}",
+                workerConfig.getFunctionAssignmentTopic(), startMessageId);
         if (!isRunning) {
             isRunning = true;
             if (reader == null) {
-                reader = createReader();
+                reader = createReader(startMessageId);
             }
             if (tailerThread == null || !tailerThread.isAlive()) {
                 tailerThread = getTailerThread();
@@ -90,7 +86,11 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             tailerThread.start();
         }
     }
-    
+
+    public synchronized void start() throws PulsarClientException {
+        MessageId startMessageId = lastMessageId == null ? MessageId.earliest : lastMessageId;
+        startFromMessage(startMessageId);
+    }
 
     @Override
     public synchronized void close() {
@@ -128,27 +128,8 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             log.error("Failed to stop function assignment tailer", e);
         }
     }
-
-    public void processAssignment(Message<byte[]> msg) {
-
-        if(msg.getData()==null || (msg.getData().length==0)) {
-            log.info("Received assignment delete: {}", msg.getKey());
-            this.functionRuntimeManager.deleteAssignment(msg.getKey());
-        } else {
-            Assignment assignment;
-            try {
-                assignment = Assignment.parseFrom(msg.getData());
-            } catch (IOException e) {
-                log.error("[{}] Received bad assignment update at message {}", reader.getTopic(), msg.getMessageId(), e);
-                throw new RuntimeException(e);
-            }
-            log.info("Received assignment update: {}", assignment);
-            this.functionRuntimeManager.processAssignment(assignment);
-        }
-    }
     
-    private Reader<byte[]> createReader() throws PulsarClientException {
-        MessageId startMessageId = lastMessageId == null ? MessageId.earliest : lastMessageId;
+    private Reader<byte[]> createReader(MessageId startMessageId) throws PulsarClientException {
         log.info("Assignment tailer will start reading from message id {}", startMessageId);
 
         return readerBuilder
@@ -170,8 +151,8 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                             break;
                         }
                     } else {
-                        processAssignment(msg);
-                        // keep track of the last message read
+                        functionRuntimeManager.processAssignmentMessage(msg);
+                        // keep track of last message id
                         lastMessageId = msg.getMessageId();
                     }
                 } catch (Throwable th) {
@@ -192,5 +173,9 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         });
         t.setName("assignment-tailer-thread");
         return t;
+    }
+
+    Thread getThread() {
+        return tailerThread;
     }
 }
