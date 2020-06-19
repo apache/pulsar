@@ -180,7 +180,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
                 .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
-                        PolicyName.REPLICATION, PolicyOperation.WRITE);
+                        PolicyName.RETENTION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();
     }
