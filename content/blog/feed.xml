@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Tue, 19 May 2020 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Thu, 18 Jun 2020 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -13,6 +13,15 @@
             <link>https://pulsar.incubator.apache.org/blog</link>
         </image>
         <copyright>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
+        <item>
+            <title><![CDATA[Apache Pulsar 2.6.0]]></title>
+            <link>https://pulsar.incubator.apache.org/blog/2020/06/18/Apache-Pulsar-2-6-0.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2020/06/18/Apache-Pulsar-2-6-0.html</guid>
+            <pubDate>Thu, 18 Jun 2020 06:00:00 GMT</pubDate>
+            <description><![CDATA[<p>We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.6.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes.</p>
+<p>Here is a selection of some of the most interesting and major features added to Pulsar 2.6.0.</p>
+]]></description>
+        </item>
         <item>
             <title><![CDATA[Apache Pulsar 2.5.2]]></title>
             <link>https://pulsar.incubator.apache.org/blog/2020/05/19/Apache-Pulsar-2-5-2.html</link>
