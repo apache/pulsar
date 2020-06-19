@@ -43,7 +43,7 @@ brokerWebServiceURLTLS=https://brokers.example.com:8443
 functionWorkerWebServiceURL=https://function-workers.example.com:8443
 ```
 
-The hostname in the URLs provided should be a DNS entry which points to multiple brokers or a Virtual IP, which is backed by multiple broker IP addresses, so that the proxy does not lose connectivity to Pulsar cluster if a single broker becomes unavailable.
+The hostname in the URLs provided should be a DNS entry which points to multiple brokers or a virtual IP address, which is backed by multiple broker IP addresses, so that the proxy does not lose connectivity to Pulsar cluster if a single broker becomes unavailable.
 
 The ports to connect to the brokers (6650 and 8080, or in the case of TLS, 6651 and 8443) should be open in the network ACLs.
 
