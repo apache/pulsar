@@ -211,14 +211,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public void initialize() {
         try {
+            Reader<byte[]> reader = WorkerUtils.createReader(
+                    workerService.getClient().newReader(),
+                    workerConfig.getWorkerId() + "-function-assignment-initialize",
+                    workerConfig.getFunctionAssignmentTopic(),
+                    MessageId.earliest);
 
-            Reader<byte[]> reader = workerService.getClient().newReader()
-                    .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-assignment-initialize")
-                    .readerName(workerConfig.getWorkerId() + "-function-assignment-initialize")
-                    .topic(workerConfig.getFunctionAssignmentTopic())
-                    .readCompacted(true)
-                    .startMessageId(MessageId.earliest)
-                    .create();
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages

@@ -48,7 +48,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private Reader<byte[]> reader;
     private volatile boolean isRunning = false;
     private volatile boolean exitOnEndOfTopic = false;
-    private CompletableFuture<Void> hasExited;
+    private CompletableFuture<Void> exitFuture;
     private Thread tailerThread;
 
     @Getter
@@ -60,7 +60,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             WorkerConfig workerConfig,
             ErrorNotifier errorNotifier) {
         this.functionRuntimeManager = functionRuntimeManager;
-        this.hasExited = new CompletableFuture<>();
+        this.exitFuture = new CompletableFuture<>();
         this.readerBuilder = readerBuilder;
         this.workerConfig = workerConfig;
         this.errorNotifier = errorNotifier;
@@ -68,12 +68,10 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     public synchronized CompletableFuture<Void> triggerReadToTheEndAndExit() {
         exitOnEndOfTopic = true;
-        return this.hasExited;
+        return this.exitFuture;
     }
 
     public void startFromMessage(MessageId startMessageId) throws PulsarClientException {
-        log.info("Function assignment tailer start reading from topic {} at {}",
-                workerConfig.getFunctionAssignmentTopic(), startMessageId);
         if (!isRunning) {
             isRunning = true;
             if (reader == null) {
@@ -82,7 +80,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             if (tailerThread == null || !tailerThread.isAlive()) {
                 tailerThread = getTailerThread();
             }
-            hasExited = new CompletableFuture<>();
+            exitFuture = new CompletableFuture<>();
             tailerThread.start();
         }
     }
@@ -121,7 +119,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 reader = null;
             }
 
-            hasExited = null;
+            exitFuture = null;
             exitOnEndOfTopic = false;
             
         } catch (IOException e) {
@@ -132,13 +130,11 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private Reader<byte[]> createReader(MessageId startMessageId) throws PulsarClientException {
         log.info("Assignment tailer will start reading from message id {}", startMessageId);
 
-        return readerBuilder
-                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-assignment-tailer")
-                .readerName(workerConfig.getWorkerId() + "-function-assignment-tailer")
-                .topic(workerConfig.getFunctionAssignmentTopic())
-                .readCompacted(true)
-                .startMessageId(startMessageId)
-                .create();
+        return WorkerUtils.createReader(
+                readerBuilder,
+                workerConfig.getWorkerId() + "-function-assignment-tailer",
+                workerConfig.getFunctionAssignmentTopic(),
+                startMessageId);
     }
 
     private Thread getTailerThread() {
@@ -169,7 +165,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 }
             }
             log.info("tailer thread exiting");
-            hasExited.complete(null);
+            exitFuture.complete(null);
         });
         t.setName("assignment-tailer-thread");
         return t;

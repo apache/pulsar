@@ -318,4 +318,17 @@ public final class WorkerUtils {
 
         return false;
     }
+
+    public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
+                                              String readerName,
+                                              String topic,
+                                              MessageId startMessageId) throws PulsarClientException {
+        return readerBuilder
+                .subscriptionRolePrefix(readerName)
+                .readerName(readerName)
+                .topic(topic)
+                .readCompacted(true)
+                .startMessageId(startMessageId)
+                .create();
+    }
 }

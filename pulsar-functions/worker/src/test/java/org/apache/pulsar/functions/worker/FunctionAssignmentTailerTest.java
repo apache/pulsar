@@ -270,24 +270,26 @@ public class FunctionAssignmentTailerTest {
         for (int i = 0; i < 10; i++) {
             try {
                 verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
-                Thread.sleep(100);
+                break;
             } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
                 if (i == 9) {
                     throw e;
                 }
             }
+            Thread.sleep(200);
         }
 
         messageList.add(message2);
         for (int i = 0; i < 10; i++) {
             try {
                 verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2));
-                Thread.sleep(100);
+                break;
             } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
                 if (i == 9) {
                     throw e;
                 }
             }
+            Thread.sleep(200);
         }
 
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message2.getMessageId());
@@ -391,12 +393,13 @@ public class FunctionAssignmentTailerTest {
         for (int i = 0; i < 10; i++) {
             try {
                 verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
-                Thread.sleep(100);
+                break;
             } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
                 if (i == 9) {
                     throw e;
                 }
             }
+            Thread.sleep(200);
         }
 
         functionAssignmentTailer.triggerReadToTheEndAndExit().get();
@@ -408,6 +411,7 @@ public class FunctionAssignmentTailerTest {
             if (i == 9) {
                 Assert.assertFalse(functionAssignmentTailer.getThread().isAlive());
             }
+            Thread.sleep(200);
         }
 
         messageList.add(message2);
