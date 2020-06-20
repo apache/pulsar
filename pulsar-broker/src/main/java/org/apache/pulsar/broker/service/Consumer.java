@@ -306,8 +306,8 @@ public class Consumer {
                 if (redeliveryTracker.contains(position)) {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
-                ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
-                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
+                ctx.write(cnx.newMessageAndIntercept(consumerId, messageId, redeliveryCount, metadataAndPayload,
+                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i), topicName), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();

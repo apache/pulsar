@@ -16,36 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.ServerCnx;
+package org.apache.pulsar.common.intercept;
+
+import lombok.Getter;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.intercept.InterceptException;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+/**
+ * Base exception for the broker interceptor.
+ */
+@Getter
+public class InterceptException extends Exception {
 
-public class MockBrokerInterceptor implements BrokerInterceptor {
+    private final PulsarApi.ServerError error;
 
-    @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
-        // no-op
-    }
-
-    @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
-        // no-op
-    }
-
-    @Override
-    public void initialize(PulsarService pulsarService) throws Exception {
-        // no-op
-    }
-
-    @Override
-    public void close() {
-        // no-op
+    public InterceptException(PulsarApi.ServerError error, String message) {
+        super(message);
+        this.error = error;
     }
 }
