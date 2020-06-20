@@ -108,7 +108,7 @@ public class PerformanceReader {
         public String tlsTrustCertsFilePath = "";
 
         @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure tls connection")
+                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
         public Boolean tlsAllowInsecureConnection = null;
 
         @Parameter(names = { "-time",
