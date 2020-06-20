@@ -35,6 +35,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private final FunctionAssignmentTailer functionAssignmentTailer;
     private final ErrorNotifier errorNotifier;
     private final SchedulerManager schedulerManager;
+    private final FunctionMetaDataManager functionMetaDataManager;
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
@@ -48,11 +49,13 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                          PulsarClient pulsarClient,
                          FunctionAssignmentTailer functionAssignmentTailer,
                          SchedulerManager schedulerManager,
+                         FunctionMetaDataManager functionMetaDataManager,
                          ErrorNotifier errorNotifier) {
         this.workerConfig = workerService.getWorkerConfig();
         this.pulsarClient = pulsarClient;
         this.functionAssignmentTailer = functionAssignmentTailer;
         this.schedulerManager = schedulerManager;
+        this.functionMetaDataManager = functionMetaDataManager;
         this.errorNotifier = errorNotifier;
         consumerName = String.format(
                 "%s:%s:%d",
@@ -91,6 +94,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // make sure scheduler is initialized because this worker
                 // is the leader and may need to start computing and writing assignments
                 schedulerManager.initialize();
+
+                functionMetaDataManager.acquireLeadership();
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);
@@ -114,6 +119,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 } else {
                     functionAssignmentTailer.startFromMessage(schedulerManager.getLastMessageProduced());
                 }
+                functionMetaDataManager.giveupLeadership();
             } catch (Throwable th) {
                 log.error("Encountered error in routine when worker lost leadership", th);
                 errorNotifier.triggerError(th);

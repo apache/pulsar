@@ -55,6 +55,7 @@ public class LeaderServiceTest {
     AtomicReference<ConsumerEventListener> listenerHolder;
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
+    private FunctionMetaDataManager mockFunctionMetaDataManager;
     private SchedulerManager schedulerManager;
 
     public LeaderServiceTest() {
@@ -98,12 +99,14 @@ public class LeaderServiceTest {
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
         schedulerManager = mock(SchedulerManager.class);
+        mockFunctionMetaDataManager = mock(FunctionMetaDataManager.class);
 
 
         functionAssignmentTailer = mock(FunctionAssignmentTailer.class);
         when(functionAssignmentTailer.triggerReadToTheEndAndExit()).thenReturn(CompletableFuture.completedFuture(null));
 
-        leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager, ErrorNotifier.getDefaultImpl()));
+        leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager,
+                mockFunctionMetaDataManager, ErrorNotifier.getDefaultImpl()));
         leaderService.start();
     }
 

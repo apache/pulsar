@@ -211,6 +211,7 @@ public class WorkerService {
                     client,
                     functionAssignmentTailer,
                     schedulerManager,
+                    functionMetaDataManager,
                     errorNotifier);
 
             // Setting references to managers in scheduler
