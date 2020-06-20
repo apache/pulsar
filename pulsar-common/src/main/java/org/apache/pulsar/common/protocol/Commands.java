@@ -443,6 +443,25 @@ public class Commands {
         buffer.skipBytes(metadataSize);
     }
 
+    public static BaseCommand newMessageCommand(long consumerId, MessageIdData messageId, int redeliveryCount,
+            long[] ackSet) {
+        CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
+        msgBuilder.setConsumerId(consumerId);
+        msgBuilder.setMessageId(messageId);
+        if (redeliveryCount > 0) {
+            msgBuilder.setRedeliveryCount(redeliveryCount);
+        }
+        if (ackSet != null) {
+            msgBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
+        }
+        CommandMessage msg = msgBuilder.build();
+        BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
+        BaseCommand cmd = cmdBuilder.setType(Type.MESSAGE).setMessage(msg).build();
+        msgBuilder.recycle();
+        cmdBuilder.recycle();
+        return cmd;
+    }
+
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
         ByteBuf metadataAndPayload, long[] ackSet) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
@@ -1765,7 +1784,7 @@ public class Commands {
         return singleMessagePayload;
     }
 
-    private static ByteBufPair serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
+    public static ByteBufPair serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
         //

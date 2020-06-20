@@ -81,6 +81,13 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
+import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.apache.pulsar.common.protocol.CommandUtils;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthResponse;
@@ -1847,12 +1854,12 @@ public class ServerCnx extends PulsarHandler {
         return state == State.Connected;
     }
 
-    ChannelHandlerContext ctx() {
+    public ChannelHandlerContext ctx() {
         return ctx;
     }
 
     @Override
-    protected void onCommand(PulsarApi.BaseCommand command) throws Exception {
+    protected void interceptCommand(PulsarApi.BaseCommand command) throws InterceptException {
         if (getBrokerService().getInterceptor() != null) {
             getBrokerService().getInterceptor().onPulsarCommand(command, this);
         }
@@ -2044,6 +2051,21 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    public ByteBufPair newMessageAndIntercept(long consumerId, MessageIdData messageId, int redeliveryCount,
+          ByteBuf metadataAndPayload, long[] ackSet, String topic) {
+        PulsarApi.BaseCommand command = Commands.newMessageCommand(consumerId, messageId, redeliveryCount, ackSet);
+        ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
+        try {
+            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+        } catch (Exception e) {
+            log.error("Exception occur when intercept messages.", e);
+        } finally {
+            command.getMessage().recycle();
+            command.recycle();
+        }
+        return res;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ServerCnx.class);
 
     /**
@@ -2123,5 +2145,13 @@ public class ServerCnx extends PulsarHandler {
 
     public String getAuthMethod() {
         return authMethod;
+    }
+
+    public ConcurrentLongHashMap<CompletableFuture<Consumer>> getConsumers() {
+        return consumers;
+    }
+
+    public ConcurrentLongHashMap<CompletableFuture<Producer>> getProducers() {
+        return producers;
     }
 }
