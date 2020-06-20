@@ -78,7 +78,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * 1. Consume all existing function meta data upon start to establish existing state
      */
     public void initialize() {
-        log.info("/** Initializing Function Metadata Manager **/");
         try {
             initializeTailer();
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
