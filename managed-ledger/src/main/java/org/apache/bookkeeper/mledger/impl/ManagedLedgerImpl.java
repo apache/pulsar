@@ -3177,8 +3177,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 digestType, config.getPassword(), cb, ledgerCreated, finalMetadata);
         scheduledExecutor.schedule(() -> {
             if (!ledgerCreated.get()) {
-                ledgerCreated.set(true);
-                cb.createComplete(BKException.Code.TimeoutException, null, null);
+                cb.createComplete(BKException.Code.TimeoutException, null, ledgerCreated);
             }
         }, config.getMetadataOperationsTimeoutSeconds(), TimeUnit.SECONDS);
     }
