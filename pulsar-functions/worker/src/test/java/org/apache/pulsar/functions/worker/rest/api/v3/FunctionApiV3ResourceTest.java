@@ -74,12 +74,7 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.MembershipManager;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -148,7 +143,7 @@ public class FunctionApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetadata;
-    private MembershipManager mockedMembershipManager;
+    private LeaderService mockedLeaderService;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -164,14 +159,14 @@ public class FunctionApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
-        this.mockedMembershipManager = mock(MembershipManager.class);
+        this.mockedLeaderService = mock(LeaderService.class);
         this.mockedFunctionMetadata = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
-        when(mockedWorkerService.getMembershipManager()).thenReturn(mockedMembershipManager);
+        when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
@@ -182,7 +177,7 @@ public class FunctionApiV3ResourceTest {
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
-        when(mockedMembershipManager.isLeader()).thenReturn(true);
+        when(mockedLeaderService.isLeader()).thenReturn(true);
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
 
         // worker config

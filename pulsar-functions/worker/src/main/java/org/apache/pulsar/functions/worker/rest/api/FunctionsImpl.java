@@ -686,7 +686,7 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         // Redirect if we are not the leader
-        if (!worker().getMembershipManager().isLeader()) {
+        if (!worker().getLeaderService().isLeader()) {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
             URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());

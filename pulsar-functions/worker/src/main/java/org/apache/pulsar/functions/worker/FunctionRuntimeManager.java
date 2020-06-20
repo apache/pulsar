@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -53,6 +54,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 import java.util.Map.Entry;
@@ -109,8 +111,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     final WorkerConfig workerConfig;
 
-    private FunctionAssignmentTailer functionAssignmentTailer;
-
     @Setter
     @Getter
     private FunctionActioner functionActioner;
@@ -130,7 +130,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private final FunctionMetaDataManager functionMetaDataManager;
 
     private final ErrorNotifier errorNotifier;
-    
+
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
                                   FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
@@ -210,21 +210,23 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * 2. After current assignments are read, assignments belonging to this worker will be processed
      */
     public void initialize() {
-        log.info("/** Initializing Runtime Manager **/");
         try {
-            this.functionAssignmentTailer = new FunctionAssignmentTailer(
-                    this,
-                    this.getWorkerService().getClient().newReader(),
-                    this.workerConfig,
-                    this.errorNotifier);
+            Reader<byte[]> reader = WorkerUtils.createReader(
+                    workerService.getClient().newReader(),
+                    workerConfig.getWorkerId() + "-function-assignment-initialize",
+                    workerConfig.getFunctionAssignmentTopic(),
+                    MessageId.earliest);
+
             // start init phase
             this.isInitializePhase = true;
             // read all existing messages
-            while (this.functionAssignmentTailer.getReader().hasMessageAvailable()) {
-                this.functionAssignmentTailer.processAssignment(this.functionAssignmentTailer.getReader().readNext());
+            while (reader.hasMessageAvailable()) {
+                processAssignmentMessage(reader.readNext());
             }
             // init phase is done
             this.isInitializePhase = false;
+            // close reader
+            reader.close();
             // realize existing assignments
             Map<String, Assignment> assignmentMap = workerIdToAssignments.get(this.workerConfig.getWorkerId());
             if (assignmentMap != null) {
@@ -242,14 +244,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     /**
      * Starts the function runtime manager
-     */
-    public void start() {
-        log.info("/** Starting Function Runtime Manager **/");
-        this.functionAssignmentTailer.start();
-    }
-
-    /**
-     * Public methods
      */
 
     /**
@@ -611,6 +605,25 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStats.calculateOverall();
     }
 
+
+    public synchronized void processAssignmentMessage(Message<byte[]> msg) {
+
+        if(msg.getData()==null || (msg.getData().length==0)) {
+            log.info("Received assignment delete: {}", msg.getKey());
+            deleteAssignment(msg.getKey());
+        } else {
+            Assignment assignment;
+            try {
+                assignment = Assignment.parseFrom(msg.getData());
+            } catch (IOException e) {
+                log.error("[{}] Received bad assignment update at message {}", msg.getMessageId(), e);
+                throw new RuntimeException(e);
+            }
+            log.info("Received assignment update: {}", assignment);
+            processAssignment(assignment);
+        }
+    }
+
     /**
      * Process an assignment update from the assignment topic
      * @param newAssignment the assignment
@@ -835,7 +848,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
-        this.functionAssignmentTailer.close();
 
         stopAllOwnedFunctions();
 

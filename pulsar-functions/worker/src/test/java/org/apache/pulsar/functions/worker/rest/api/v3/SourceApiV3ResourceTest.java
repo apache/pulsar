@@ -68,12 +68,7 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.MembershipManager;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -125,7 +120,7 @@ public class SourceApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
-    private MembershipManager mockedMemberShipManager;
+    private LeaderService mockedLeaderService;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -141,12 +136,12 @@ public class SourceApiV3ResourceTest {
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
         this.mockedFunctions = mock(Functions.class);
-        this.mockedMemberShipManager = mock(MembershipManager.class);
+        this.mockedLeaderService = mock(LeaderService.class);
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
-        when(mockedWorkerService.getMembershipManager()).thenReturn(mockedMemberShipManager);
+        when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
@@ -158,7 +153,7 @@ public class SourceApiV3ResourceTest {
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
-        when(mockedMemberShipManager.isLeader()).thenReturn(true);
+        when(mockedLeaderService.isLeader()).thenReturn(true);
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {

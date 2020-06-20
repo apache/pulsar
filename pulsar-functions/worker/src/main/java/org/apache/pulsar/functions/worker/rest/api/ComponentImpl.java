@@ -1534,7 +1534,7 @@ public abstract class ComponentImpl {
     private void processFunctionUpdate(final String tenant, final String namespace, final String functionName,
                                   final FunctionMetaData functionMetadata, boolean delete, String errorMsg) {
         try {
-            if (worker().getMembershipManager().isLeader()) {
+            if (worker().getLeaderService().isLeader()) {
                 worker().getFunctionMetaDataManager().updateFunctionOnLeader(functionMetadata, delete);
             } else {
                 FunctionsImpl functions = (FunctionsImpl) worker().getFunctionAdmin().functions();

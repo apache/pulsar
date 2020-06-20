@@ -79,19 +79,28 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public void initialize() {
         log.info("/** Initializing Function Metadata Manager **/");
-        initializeTailer();
-    }
-
-    private void initializeTailer() {
         try {
+            initializeTailer();
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
-                    pulsarClient.newReader().startMessageId(lastMessageSeen), this.workerConfig, this.errorNotifier);
-            // start function metadata tailer
-            this.functionMetaDataTopicTailer.start();
+                    pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
+            // read all existing messages
+            while (this.functionMetaDataTopicTailer.getReader().hasMessageAvailable()) {
+                this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
+            }
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
             errorNotifier.triggerError(e);
         }
+    }
+
+    private void initializeTailer() throws PulsarClientException {
+        this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
+                pulsarClient.newReader().startMessageId(lastMessageSeen), this.workerConfig, this.errorNotifier);
+    }
+
+    public void start() {
+        // start function metadata tailer
+        this.functionMetaDataTopicTailer.start();
     }
 
     /**
@@ -223,12 +232,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
         log.info("FunctionMetaDataManager giving up leadership by closing exclusive producer");
         try {
             exclusiveLeaderProducer.close();
+            exclusiveLeaderProducer = null;
+            initializeTailer();
         } catch (PulsarClientException e) {
             log.error("Error closing exclusive producer", e);
             errorNotifier.triggerError(e);
         }
-        exclusiveLeaderProducer = null;
-        initializeTailer();
     }
 
     /**
