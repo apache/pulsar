@@ -127,7 +127,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         }
     }
 
-    public boolean isLeader() {
+    public synchronized boolean isLeader() {
         return isLeader.get();
     }
 
