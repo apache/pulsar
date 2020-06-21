@@ -21,6 +21,7 @@ package org.apache.pulsar.io.elasticsearch;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -39,6 +40,8 @@ import org.elasticsearch.action.DocWriteResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.Requests;
@@ -66,6 +69,11 @@ public class ElasticSearchSink implements Sink<byte[]> {
     private CredentialsProvider credentialsProvider;
     private ElasticSearchConfig elasticSearchConfig;
 
+    protected static final String ACTION = "ACTION";
+    protected static final String UPSERT = "UPSERT";
+    protected static final String DELETE = "DELETE";
+    protected static final String ID = "ID";
+
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
         elasticSearchConfig = ElasticSearchConfig.load(config);
@@ -81,13 +89,64 @@ public class ElasticSearchSink implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> record) {
         KeyValue<String, byte[]> keyValue = extractKeyValue(record);
+        String action = record.getProperties().get(ACTION);
+
+        if (action == null) {
+            action = UPSERT;
+        }
+
+        switch (action) {
+            case UPSERT:
+                processUpsert(record, keyValue);
+                break;
+            case DELETE:
+                processDelete(record);
+                break;
+            default:
+                String msg = String.format("Unsupported action %s, can be one of %s, or not set which indicate %s",
+                        action, Arrays.asList(UPSERT, DELETE), UPSERT);
+                throw new IllegalArgumentException(msg);
+        }
+    }
+
+    private void processUpsert(Record<byte[]> record, KeyValue<String, byte[]> keyValue) {
+        String id = record.getProperties().get(ID);
+
         IndexRequest indexRequest = Requests.indexRequest(elasticSearchConfig.getIndexName());
         indexRequest.type(elasticSearchConfig.getTypeName());
+        if (id != null) {
+            indexRequest.id(id);
+        }
         indexRequest.source(keyValue.getValue(), XContentType.JSON);
 
         try {
-        IndexResponse indexResponse = getClient().index(indexRequest);
-            if (indexResponse.getResult().equals(DocWriteResponse.Result.CREATED)) {
+            IndexResponse indexResponse = getClient().index(indexRequest);
+            DocWriteResponse.Result response = indexResponse.getResult();
+
+            if (response.equals(DocWriteResponse.Result.UPDATED)
+                || response.equals(DocWriteResponse.Result.CREATED)) {
+                record.ack();
+            } else {
+                record.fail();
+            }
+        } catch (final IOException ex) {
+            record.fail();
+        }
+    }
+
+    private void processDelete(Record<byte[]> record) {
+        String id = record.getProperties().get(ID);
+        if (id == null) {
+            String msg = String.format("%s request must have '%s' property",
+                    DELETE, ID);
+            throw new IllegalArgumentException(msg);
+        }
+        DeleteRequest deleteRequest = Requests.deleteRequest(elasticSearchConfig.getIndexName());
+        deleteRequest.type(elasticSearchConfig.getTypeName());
+        deleteRequest.id(id);
+        try {
+            DeleteResponse indexResponse = getClient().delete(deleteRequest);
+            if (indexResponse.getResult().equals(DocWriteResponse.Result.DELETED)) {
                 record.ack();
             } else {
                 record.fail();

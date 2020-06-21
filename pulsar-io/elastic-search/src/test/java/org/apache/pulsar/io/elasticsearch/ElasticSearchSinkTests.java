@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
@@ -49,7 +50,7 @@ public class ElasticSearchSinkTests {
 
     protected static MockNeat mockNeat;
     protected static Gson gson;
-    
+
     @Mock
     protected Record<byte[]> mockRecord;
     
@@ -106,13 +107,65 @@ public class ElasticSearchSinkTests {
     }
     
     @Test(enabled = false)
-    public final void singleRecordTest() throws Exception {
+    public final void insertSingleRecordTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
-        send(1);       
+        send(1);
         verify(mockRecord, times(1)).ack();
     }
-    
+
+    @Test(enabled = false)
+    public final void updateSingleRecordTest() throws Exception {
+        map.put("indexName", "test-index");
+        sink.open(map, mockSinkContext);
+
+        // First let's create record with specific id
+        String id = UUID.randomUUID().toString();
+        Map<String, String> properties = new HashMap<String, String>();
+        properties.put("ID", id);
+        when(mockRecord.getProperties()).thenReturn(properties);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+
+        // Refresh mock record
+        setUp();
+        map.put("indexName", "test-index");
+        sink.open(map, mockSinkContext);
+
+        // Then let's try to update the record
+        when(mockRecord.getProperties()).thenReturn(properties);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+    }
+
+    @Test(enabled = false)
+    public final void deleteSingleRecordTest() throws Exception {
+        map.put("indexName", "test-index");
+        sink.open(map, mockSinkContext);
+
+        // First let's create record with specific id
+        String id = UUID.randomUUID().toString();
+        Map<String, String> properties = new HashMap<String, String>();
+        properties.put("ID", id);
+        when(mockRecord.getProperties()).thenReturn(properties);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+
+        // Refresh mock record
+        setUp();
+        map.put("indexName", "test-index");
+        sink.open(map, mockSinkContext);
+        when(mockRecord.getValue()).thenReturn(null);
+
+        // Then let's try to delete the record
+        Map<String, String> deleteProperties = new HashMap<String, String>();
+        deleteProperties.put("ACTION", "DELETE");
+        deleteProperties.put("ID", id);
+        when(mockRecord.getProperties()).thenReturn(deleteProperties);
+        send(1);
+        verify(mockRecord, times(1)).ack();
+    }
+
     @Test(enabled = false)
     public final void send100Test() throws Exception {
         map.put("indexName", "test-index");
@@ -120,7 +173,7 @@ public class ElasticSearchSinkTests {
         send(100);    
         verify(mockRecord, times(100)).ack();
     }
-    
+
     protected final void send(int numRecords) throws Exception {
         for (int idx = 0; idx < numRecords; idx++) {
             sink.write(mockRecord);
