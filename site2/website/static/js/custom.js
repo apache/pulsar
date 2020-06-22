@@ -3,7 +3,7 @@
 
 window.addEventListener('load', function () {
     let restApiVersions = null;
-    var url = "../../../swagger/restApiVersions.json";
+    var url = "../../../../swagger/restApiVersions.json";
     var request = new XMLHttpRequest();
     request.open("get", url, false);
     request.send(null);
@@ -46,17 +46,41 @@ window.addEventListener('load', function () {
         version = 'master'
     }
 
+    let adminApiVersion = ''
+    if (restApiVersions[version][0]['fileName'].indexOf('swagger') == 0) {
+        adminApiVersion = restApiVersions[version][0]['version']
+    } else {
+        adminApiVersion = restApiVersions[version][1]['version']
+    }
+    let functionApiVersion = ''
+    if (restApiVersions[version][0]['fileName'].indexOf('swaggerfunctions') >= 0) {
+        functionApiVersion = restApiVersions[version][0]['version']
+    } else {
+        functionApiVersion = restApiVersions[version][1]['version']
+    }
+    let sourceApiVersion = ''
+    if (restApiVersions[version][0]['fileName'].indexOf('swaggersource') >= 0) {
+        sourceApiVersion = restApiVersions[version][0]['version']
+    } else {
+        sourceApiVersion = restApiVersions[version][1]['version']
+    }
+    let sinkApiVersion = ''
+    if (restApiVersions[version][0]['fileName'].indexOf('swaggersink') >= 0) {
+        sinkApiVersion = restApiVersions[version][0]['version']
+    } else {
+        sinkApiVersion = restApiVersions[version][1]['version']
+    }
     // setup rest api menu items in nav bar
     const restapis = document.querySelector("a[href='#restapis']").parentNode;
     const restapisMenu =
         '<li>' +
-        '<a id="restapis-menu" href="#">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<a id="restapis-menu" href="#restapis">REST APIs <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
         '<div id="restapis-dropdown" class="hide">' +
         '<ul id="restapis-dropdown-items">' +
-        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=">Admin REST API </a></li>' +
-        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=">Functions </a></li>' +
-        '<li><a href="/source-rest-api?version=' + version + '&apiversion=">Sources </a></li>' +
-        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=">Sinks </a></li>' +
+        '<li><a href="/admin-rest-api?version=' + version + '&apiversion=' + adminApiVersion + '">Admin REST API </a></li>' +
+        '<li><a href="/functions-rest-api?version=' + version + '&apiversion=' + functionApiVersion + '">Functions </a></li>' +
+        '<li><a href="/source-rest-api?version=' + version + '&apiversion=' + sourceApiVersion + '">Sources </a></li>' +
+        '<li><a href="/sink-rest-api?version=' + version + '&apiversion=' + sinkApiVersion + '">Sinks </a></li>' +
         '</ul>' +
         '</div>' +
         '</li>';
@@ -154,27 +178,26 @@ window.addEventListener('load', function () {
         let hasSink = ele.fileName.find(h => h == 'swaggersink');
         let hasSource = ele.fileName.find(h => h == 'swaggersource');
 
-        if ( pathName === '/admin-rest-api' && hasRestApi ) {
+        if ( pathName.indexOf('/admin-rest-api') >= 0 && hasRestApi ) {
             apiVersionList.push(ele);
         }
-        if ( pathName === '/functions-rest-api' && hasFunctions ) {
+        if ( pathName.indexOf('/functions-rest-api') >= 0 && hasFunctions ) {
             apiVersionList.push(ele);
         }
-        if ( pathName === '/sink-rest-api' && hasSink ) {
+        if ( pathName.indexOf('/sink-rest-api') >= 0 && hasSink ) {
             apiVersionList.push(ele);
         }
-        if ( pathName === '/source-rest-api' && hasSource ) {
+        if ( pathName.indexOf('/source-rest-api') >= 0 && hasSource ) {
             apiVersionList.push(ele);
         }
     });
-    
 
     const wrapperDiv = document.querySelectorAll('.wrapper')[1];
     
-    if (pathName === '/admin-rest-api'
-        || pathName === '/functions-rest-api'
-        || pathName === '/source-rest-api'
-        || pathName === '/sink-rest-api') {
+    if (pathName.indexOf('/admin-rest-api') >= 0
+        || pathName.indexOf('/functions-rest-api') >= 0
+        || pathName.indexOf('/source-rest-api') >= 0
+        || pathName.indexOf('/sink-rest-api') >= 0) {
         wrapperDiv.innerHTML = `<select name="apiVersion" class="version_select" id="version_select">
                                     ${apiVersionList.map(v => `<option value="${v.version}">${v.version}</option>`).join("")}
                                 </select>`;
