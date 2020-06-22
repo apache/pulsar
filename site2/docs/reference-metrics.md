@@ -17,7 +17,7 @@ Pulsar exposes the following metrics in Prometheus format. You can monitor your 
 * [Broker](#broker)
 * [Pulsar Functions](#pulsar-functions)
 * [Proxy](#proxy)
-* [Pulsar SQL Worker](#Pulsar-SQL-Worker)
+* [Pulsar SQL Worker](#pulsar-sql-worker)
 
 The following types of metrics are available:
 
@@ -50,7 +50,7 @@ The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a
 ## BookKeeper
 
 The BookKeeper metrics are exposed under "/metrics" at port `8000`. You can change the port by updating `prometheusStatsHttpPort`
-in `bookkeeper.conf` configuration file.
+in the `bookkeeper.conf` configuration file.
 
 ### Server metrics
 
@@ -89,7 +89,7 @@ in `bookkeeper.conf` configuration file.
 ## Broker
 
 The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
-in `broker.conf` configuration file.
+in the `broker.conf` configuration file.
 
 All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
@@ -152,7 +152,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 ### Topic metrics
 
-> Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
+> Topic metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
 All the topic metrics are labelled with the following labels:
 
@@ -220,7 +220,7 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 
 ### ManagedLedger metrics
 All the managedLedger metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.
 - quantile: quantile=${quantile}. Quantile is only for `Histogram` type metric, and represents the threshold for given Buckets.
 
@@ -246,8 +246,8 @@ All the managedLedger metrics are labelled with the following labels:
 
 ### LoadBalancing metrics
 All the loadbalancing metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
-- broker: broker=${broker}. ${broker} is the ip address of the broker
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+- broker: broker=${broker}. ${broker} is the IP address of the broker
 - metric: metric="loadBalancing". 
 
 | Name | Type | Description |
@@ -260,7 +260,7 @@ All the loadbalancing metrics are labelled with the following labels:
 
 #### BundleUnloading metrics
 All the bundleUnloading metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundleUnloading". 
 
 | Name | Type | Description |
@@ -270,7 +270,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 
 #### BundleSplit metrics
 All the bundleUnloading metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 - metric: metric="bundlesSplit". 
 
 | Name | Type | Description |
@@ -283,7 +283,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 
 All the subscription metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 - *topic*: `topic=${pulsar_topic}`. `${pulsar_topic}` is the topic name.
 - *subscription*: `subscription=${subscription}`. `${subscription}` is the topic subscription name.
@@ -304,7 +304,7 @@ All the subscription metrics are labelled with the following labels:
 
 All the consumer metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 - *topic*: `topic=${pulsar_topic}`. `${pulsar_topic}` is the topic name.
 - *subscription*: `subscription=${subscription}`. `${subscription}` is the topic subscription name.
@@ -324,7 +324,7 @@ All the consumer metrics are labelled with the following labels:
 
 All the managed ledger bookie client metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -343,7 +343,7 @@ All the managed ledger bookie client metrics are labelled with the following lab
 
 All the Pulsar Functions metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *namespace*: `namespace=${pulsar_namespace}`. `${pulsar_namespace}` is the namespace name.
 
 | Name | Type | Description |
@@ -364,7 +364,7 @@ All the Pulsar Functions metrics are labelled with the following labels:
 
 All the proxy metrics are labelled with the following labels:
 
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *kubernetes_pod_name*: `kubernetes_pod_name=${kubernetes_pod_name}`. `${kubernetes_pod_name}` is the kubernetes pod name.
 
 | Name | Type | Description |
@@ -409,5 +409,5 @@ You can [set up a Prometheus instance](https://prometheus.io/) to collect all th
 
 The following are some Grafana dashboards examples:
 
-- [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
-- [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
+- [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
+- [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
