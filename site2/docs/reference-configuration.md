@@ -107,6 +107,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |---|---|---|
 |advertisedListeners|Specify multiple advertised listeners for the broker.<br><br>The format is `<listener_name>:pulsar://<host>:<port>`.<br><br>If there are multiple listeners, separate them with commas.<br><br>**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
 internalListenerName|Specify the internal listener name for the broker.<br><br>**Note**: the listener name must be contained in `advertisedListeners`.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
+|authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true|
 |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true|
 |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false|
@@ -313,7 +314,6 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 ## Log4j
 
-
 |Name|Default|
 |---|---|
 |pulsar.root.logger|  WARN,CONSOLE|
@@ -335,6 +335,9 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 |log4j.appender.TRACEFILE.layout| org.apache.log4j.PatternLayout|
 |log4j.appender.TRACEFILE.layout.ConversionPattern| %d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n|
 
+> Note: 'topic' in log4j2.appender is configurable. 
+> - If you want to append all logs to a single topic, set the same topic name.
+> - If you want to append logs to different topics, you can set different topic names. 
 
 ## Log4j shell
 
@@ -355,6 +358,7 @@ The [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool can be used
 
 |Name|Description|Default|
 |---|---|---|
+|authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
 |zookeeperServers|  The quorum connection string for local ZooKeeper  ||
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
@@ -484,6 +488,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 
 |Name|Description|Default|
 |---|---|---|
+|forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
 |zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
 |configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
 |zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
