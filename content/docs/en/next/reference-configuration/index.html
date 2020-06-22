@@ -176,6 +176,7 @@
 <tbody>
 <tr><td>advertisedListeners</td><td>Specify multiple advertised listeners for the broker.<br><br>The format is <code>&lt;listener_name&gt;:pulsar://&lt;host&gt;:&lt;port&gt;</code>.<br><br>If there are multiple listeners, separate them with commas.<br><br><strong>Note</strong>: do not use this configuration with <code>advertisedAddress</code> and <code>brokerServicePort</code>. If the value of this configuration is empty, the broker uses <code>advertisedAddress</code> and <code>brokerServicePort</code></td><td>/</td></tr>
 <tr><td>internalListenerName</td><td>Specify the internal listener name for the broker.<br><br><strong>Note</strong>: the listener name must be contained in <code>advertisedListeners</code>.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.</td><td>/</td></tr>
+<tr><td>authenticateOriginalAuthData</td><td>If this flag is set to <code>true</code>, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
 <tr><td>enablePersistentTopics</td><td>Whether persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>enableNonPersistentTopics</td><td>Whether non-persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>functionsWorkerEnabled</td><td>Whether the Pulsar Functions worker service is enabled in the broker</td><td>false</td></tr>
@@ -406,6 +407,13 @@
 <tr><td>log4j.appender.TRACEFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n</td></tr>
 </tbody>
 </table>
+<blockquote>
+<p>Note: 'topic' in log4j2.appender is configurable.</p>
+<ul>
+<li>If you want to append all logs to a single topic, set the same topic name.</li>
+<li>If you want to append logs to different topics, you can set different topic names.</li>
+</ul>
+</blockquote>
 <h2><a class="anchor" aria-hidden="true" id="log4j-shell"></a><a href="#log4j-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j shell</h2>
 <table>
 <thead>
@@ -429,6 +437,7 @@
 <tr><th>Name</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
+<tr><td>authenticateOriginalAuthData</td><td>If this flag is set to <code>true</code>, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required).</td><td>false</td></tr>
 <tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
@@ -557,6 +566,7 @@
 <tr><th>Name</th><th>Description</th><th>Default</th></tr>
 </thead>
 <tbody>
+<tr><td>forwardAuthorizationCredentials</td><td>Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect.</td><td>false</td></tr>
 <tr><td>zookeeperServers</td><td>The ZooKeeper quorum connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
 <tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
@@ -633,6 +643,7 @@ a <code>server.N</code> line to the <code>conf/zookeeper.conf</code> file for ea
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/en/resources">Resources</a></li>' +
             '<li><a href="/en/team">Team</a></li>' +

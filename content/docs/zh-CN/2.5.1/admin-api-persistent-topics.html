@@ -82,7 +82,7 @@
 <h3><a class="anchor" aria-hidden="true" id="列出-topic"></a><a href="#列出-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>列出 topic</h3>
 <p>以列表的形式列出指定命名空间下所有持久 topic。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用 <a href="../../reference/CliTools#list"><code>list</code></a> 命令来获取 topic 列表</p>
+<p>可以使用 <a href="../../reference/CliTools#list"><code>list</code></a> 命令获取 topic 列表。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent list \</span>
   my-tenant/my-namespace
 </code></pre>
@@ -94,9 +94,9 @@
 admin.persistentTopics().getList(namespace);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="授权"></a><a href="#授权" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>授权</h3>
-<p>授权给客户端角色，允许它在指定的topic上执行指定动作。</p>
+<p>授权给客户端用户，允许其在指定的 topic 上执行某些操作。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#grant-permission"><code>grant-permission</code></a>命令来授权。</p>
+<p>可以使用 <a href="../../reference/CliTools#grant-permission"><code>grant-permission</code></a> 命令授权。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent grant-permission \</span>
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
@@ -111,8 +111,8 @@ String role = <span class="hljs-string">"test-role"</span>;
 Set&lt;AuthAction&gt; actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.persistentTopics().grantPermission(topic, role, actions);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="查询权限"></a><a href="#查询权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询权限</h3>
-<p>可以使用<a href="../../reference/CliTools#permissions"><code>permissions</code></a>命令来查询权限</p>
+<h3><a class="anchor" aria-hidden="true" id="获取权限"></a><a href="#获取权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取权限</h3>
+<p>可以使用 <a href="../../reference/CliTools#permissions"><code>permissions</code></a> 命令获取权限。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent permissions \</span>
   persistent://test-tenant/ns1/tp1 \
@@ -131,10 +131,10 @@ admin.persistentTopics().grantPermission(topic, role, actions);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getPermissions(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="撤回权限"></a><a href="#撤回权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>撤回权限</h3>
-<p>撤回已经授予给客户端角色的权限。</p>
+<h3><a class="anchor" aria-hidden="true" id="取消权限"></a><a href="#取消权限" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>取消权限</h3>
+<p>取消已经授予客户端用户的权限。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#revoke-permission"><code>revoke-permission</code></a>命令来撤回权限。</p>
+<p>可以使用 <a href="../../reference/CliTools#revoke-permission"><code>revoke-permission</code></a> 命令取消权限。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent revoke-permission \</span>
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
@@ -154,10 +154,10 @@ admin.persistentTopics().getPermissions(topic);
 String role = <span class="hljs-string">"test-role"</span>;
 admin.persistentTopics().revokePermissions(topic, role);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="删除topic"></a><a href="#删除topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除topic</h3>
+<h3><a class="anchor" aria-hidden="true" id="删除-topic"></a><a href="#删除-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>删除 topic</h3>
 <p>It deletes a topic. The topic cannot be deleted if there's any active subscription or producers connected to it.</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#delete"><code>delete</code></a>命令删除主题。</p>
+<p>可以使用 <a href="../../reference/CliTools#delete"><code>delete</code></a> 命令删除 topic。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent delete \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -171,7 +171,7 @@ admin.persistentTopics().delete(topic);
 <h3><a class="anchor" aria-hidden="true" id="卸载topic"></a><a href="#卸载topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载topic</h3>
 <p>可以卸载topic</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-5"></a><a href="#pulsar-admin-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#unload"><code>unload</code></a>命令卸载主题。</p>
+<p>可以使用 <a href="../../reference/CliTools#unload"><code>unload</code></a> 命令卸载 topic。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unload \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -275,7 +275,7 @@ admin.persistentTopics().unload(topic);
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-6"></a><a href="#pulsar-admin-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#stats"><code>stats</code></a>命令来获取topic的统计信息。</p>
+<p>可以使用 <a href="../../reference/CliTools#stats"><code>stats</code></a> 命令获取 topic 的统计信息。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -298,7 +298,7 @@ admin.persistentTopics().getStats(topic);
 <li><p><strong>lastLedgerCreationFailureTimestamp:</strong> time when last ledger was failed</p></li>
 <li><p><strong>waitingCursorsCount</strong>: How many cursors are &quot;caught up&quot; and waiting for a new message to be published</p></li>
 <li><p><strong>pendingAddEntriesCount</strong>: How many messages have (asynchronous) write requests we are waiting on completion</p></li>
-<li><p><strong>lastConfirmedEntry</strong>: The ledgerid:entryid of the last message successfully written. 如果entryid为-1，代表ledger已经被打开或者正在被打开，但是还没有entry被写入。</p></li>
+<li><p><strong>lastConfirmedEntry</strong>: The ledgerid:entryid of the last message successfully written. 如果 entryid 为 -1，则 ledger 已经允许写入或正在开放写入权限，但还没有写入 entry。</p></li>
 <li><p><strong>state</strong>: The state of this ledger for writing. LedgerOpened means we have a ledger open for saving published messages.</p></li>
 <li><p><strong>ledgers</strong>: The ordered list of all ledgers for this topic holding its messages</p>
 <ul>
@@ -357,7 +357,7 @@ admin.persistentTopics().getStats(topic);
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-7"></a><a href="#pulsar-admin-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="../../reference/CliTools#stats-internal"><code>stats-internal</code></a>命令来获取topic内部统计信息</p>
+<p>可以使用 <a href="../../reference/CliTools#stats-internal"><code>stats-internal</code></a> 命令获取 topic 中数据的统计信息。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent stats-internal \</span>
   persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -368,8 +368,8 @@ admin.persistentTopics().getStats(topic);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getInternalStats(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="偷窥消息"></a><a href="#偷窥消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>偷窥消息</h3>
-<p>偷窥指定topic的某个订阅的N条消息。</p>
+<h3><a class="anchor" aria-hidden="true" id="查看消息"></a><a href="#查看消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查看消息</h3>
+<p>查看指定 topic 中某个订阅的 N 条消息。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-8"></a><a href="#pulsar-admin-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent peek-messages \</span>
   --count 10 --subscription my-subscription \
@@ -506,7 +506,7 @@ admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 <pre><code class="hljs css language-Java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getLastMessage(topic);
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/admin-api-permissions"><span class="arrow-prev">← </span><span>Permissions</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/admin-api-non-persistent-topics"><span>非持久topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#持久-topic-资源">持久 topic 资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#查询权限">查询权限</a></li><li><a href="#撤回权限">撤回权限</a></li><li><a href="#删除topic">删除topic</a></li><li><a href="#卸载topic">卸载topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计">获取内部统计</a></li><li><a href="#偷窥消息">偷窥消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#取消订阅">取消订阅</a></li><li><a href="#最后一条消息id">最后一条消息Id</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.1/admin-api-permissions"><span class="arrow-prev">← </span><span>Permissions</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.1/admin-api-non-persistent-topics"><span>非持久topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#持久-topic-资源">持久 topic 资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载topic">卸载topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计">获取内部统计</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#取消订阅">取消订阅</a></li><li><a href="#最后一条消息id">最后一条消息Id</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -520,6 +520,7 @@ admin.persistentTopics().getLastMessage(topic);
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

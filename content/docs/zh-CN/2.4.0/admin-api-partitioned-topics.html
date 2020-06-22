@@ -269,7 +269,7 @@ persistent://tenant/namespace/topic2
 <tr><td>lastLedgerCreationFailureTimestamp</td><td>time when last ledger was failed</td></tr>
 <tr><td>waitingCursorsCount</td><td>How many cursors are caught up and waiting for a new message to be published</td></tr>
 <tr><td>pendingAddEntriesCount</td><td>How many messages have (asynchronous) write requests we are waiting on completion</td></tr>
-<tr><td>lastConfirmedEntry</td><td>The ledgerid:entryid of the last message successfully written. 如果entryid为-1，代表ledger已经被打开或者正在被打开，但是还没有entry被写入。</td></tr>
+<tr><td>lastConfirmedEntry</td><td>The ledgerid:entryid of the last message successfully written. 如果 entryid 为 -1，则 ledger 已经允许写入或正在开放写入权限，但还没有写入 entry。</td></tr>
 <tr><td>state</td><td>The state of the cursor ledger. Open means we have a cursor ledger for saving updates of the markDeletePosition.</td></tr>
 <tr><td>ledgers</td><td>The ordered list of all ledgers for this topic holding its messages</td></tr>
 <tr><td>cursors</td><td>The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</td></tr>
@@ -344,6 +344,7 @@ persistent://tenant/namespace/topic2
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

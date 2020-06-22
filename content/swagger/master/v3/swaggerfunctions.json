@@ -1602,12 +1602,18 @@
         "Message": {
             "type": "object",
             "properties": {
+                "topicName": {
+                    "type": "string"
+                },
                 "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
@@ -1619,8 +1625,9 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1629,8 +1636,18 @@
                         "format": "byte"
                     }
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1639,23 +1656,6 @@
                 "eventTime": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "data": {
                     "type": "array",
