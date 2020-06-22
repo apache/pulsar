@@ -10,28 +10,25 @@ sidebar_label: Pulsar Metrics
   }
 </style>
 
-Pulsar exposes metrics in Prometheus format that can be collected and used for monitoring the health of the cluster.
+Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.
 
 * [ZooKeeper](#zookeeper)
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)
-* [Pulsar Functions](#pulsar functions)
+* [Pulsar Functions](#pulsar-functions)
 * [Proxy](#proxy)
-* [Pulsar SQL Worker](#Pulsar SQL Worker)
+* [Pulsar SQL Worker](#Pulsar-SQL-Worker)
 
-## Overview
+The following types of metrics are available:
 
-The metrics exposed by Pulsar are in Prometheus format. The types of metrics are:
-
-- [Counter](https://prometheus.io/docs/concepts/metric_types/#counter): a cumulative metric that represents a single monotonically increasing counter whose value can only increase or be reset to zero on restart.
-- [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge): a *gauge* is a metric that represents a single numerical value that can arbitrarily go up and down.
+- [Counter](https://prometheus.io/docs/concepts/metric_types/#counter): a cumulative metric that represents a single monotonically increasing counter. The value increases by default. You can reset the value to zero or restart your cluster.
+- [Gauge](https://prometheus.io/docs/concepts/metric_types/#gauge): a metric that represents a single numerical value that can arbitrarily go up and down.
 - [Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram): a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.
 - [Summary](https://prometheus.io/docs/concepts/metric_types/#summary): similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.
 
 ## ZooKeeper
 
-The ZooKeeper metrics are exposed under "/metrics" at port 8000. You can use a different port
-by configuring the `stats_server_port` system property. 
+The ZooKeeper metrics are exposed under "/metrics" at port `8000`. You can use a different port by configuring the `stats_server_port` system property. 
 
 ### Server metrics
 
@@ -52,7 +49,7 @@ by configuring the `stats_server_port` system property.
 
 ## BookKeeper
 
-The BookKeeper metrics are exposed under "/metrics" at port 8000. You can change the port by updating `prometheusStatsHttpPort`
+The BookKeeper metrics are exposed under "/metrics" at port `8000`. You can change the port by updating `prometheusStatsHttpPort`
 in `bookkeeper.conf` configuration file.
 
 ### Server metrics
@@ -91,13 +88,12 @@ in `bookkeeper.conf` configuration file.
 
 ## Broker
 
-The broker metrics are exposed under "/metrics" at port 8080. You can change the port by updating `webServicePort` to a different port
+The broker metrics are exposed under "/metrics" at port `8080`. You can change the port by updating `webServicePort` to a different port
 in `broker.conf` configuration file.
 
-All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The value of `${pulsar_cluster}` is the pulsar cluster
-name you configured in `broker.conf`.
+All the metrics exposed by a broker are labelled with `cluster=${pulsar_cluster}`. The name of Pulsar cluster is the value of `${pulsar_cluster}`, which you have configured in the `broker.conf` file.
 
-Broker has the following kinds of metrics:
+The following metrics are available for broker:
 
 * [Namespace metrics](#namespace-metrics)
     * [Replication metrics](#replication-metrics)
@@ -189,9 +185,9 @@ All the topic metrics are labelled with the following labels:
 
 #### Replication metrics
 
-If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when `replicationMetricsEnabled` is enabled.
+If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics will also be labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -203,7 +199,7 @@ All the replication metrics will also be labelled with `remoteCluster=${pulsar_r
 
 ### ManagedLedgerCache metrics
 All the ManagedLedgerCache metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
 
 | Name | Type | Description |
 | --- | --- | --- |
@@ -283,7 +279,7 @@ All the bundleUnloading metrics are labelled with the following labels:
 
 ### Subscription metrics
 
-> Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to true.
+> Subscription metrics are only exposed when `exposeTopicLevelMetricsInPrometheus` is set to `true`.
 
 All the subscription metrics are labelled with the following labels:
 
@@ -304,8 +300,7 @@ All the subscription metrics are labelled with the following labels:
 
 ### Consumer metrics
 
-> Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus`
-> are set to true.
+> Consumer metrics are only exposed when both `exposeTopicLevelMetricsInPrometheus` and `exposeConsumerLevelMetricsInPrometheus` are set to `true`.
 
 All the consumer metrics are labelled with the following labels:
 
@@ -327,7 +322,7 @@ All the consumer metrics are labelled with the following labels:
 
 ### Managed ledger bookie client metrics
 
-All the managed ledger bookie client metrics labelled with the following labels:
+All the managed ledger bookie client metrics are labelled with the following labels:
 
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you configured in `broker.conf`.
 
@@ -409,7 +404,7 @@ All the proxy metrics are labelled with the following labels:
 
 ## Monitor
 
-You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed at Pulsar components and set up
+You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed for Pulsar components and set up
 [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster.
 
 The following are some Grafana dashboards examples:
