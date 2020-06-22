@@ -23,6 +23,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.intercept.ResponseHandler;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -37,15 +38,22 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     int count = 0;
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
-        log.info("[{}] On [{}] Pulsar command", count, command.getType().name());
+    public void onPulsarCommand(PulsarApi.BaseCommand request, ResponseHandler responseHandler, ServerCnx cnx) throws InterceptException {
+        log.info("[{}] On [{}] Pulsar command", count, request.getType().name());
         count ++;
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         count ++;
         log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
+        chain.doFilter(request, response);
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        count ++;
+        log.info("[{}] On [{}] Webservice response", count, ((HttpServletRequest)request).getRequestURL().toString());
         chain.doFilter(request, response);
     }
 

@@ -62,6 +62,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.intercept.ResponseHandler;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -620,7 +621,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleCloseProducer(CommandCloseProducer closeProducer) {
+    protected void handleCloseProducer(CommandCloseProducer closeProducer, ResponseHandler responseHandler) {
         log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
         ProducerImpl<?> producer = producers.get(producerId);
@@ -632,7 +633,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
+    protected void handleCloseConsumer(CommandCloseConsumer closeConsumer, ResponseHandler responseHandler) {
         log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
         ConsumerImpl<?> consumer = consumers.get(consumerId);
