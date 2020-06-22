@@ -29,6 +29,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.intercept.ResponseHandler;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -107,7 +108,8 @@ public class ServerConnection extends PulsarHandler {
     }
 
     @Override
-    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata,
+        ResponseHandler responseHandler) {
         checkArgument(state == State.Connected);
         if (LOG.isDebugEnabled()) {
             LOG.debug("Received PartitionMetadataLookup from {}", remoteAddress);

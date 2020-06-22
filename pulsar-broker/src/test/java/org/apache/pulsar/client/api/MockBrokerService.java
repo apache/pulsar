@@ -55,6 +55,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
+import org.apache.pulsar.common.intercept.ResponseHandler;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -138,7 +139,8 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata request) {
+        protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata request,
+            ResponseHandler responseHandler) {
             if (handlePartitionlookup != null) {
                 handlePartitionlookup.apply(ctx, request);
                 return;
@@ -159,7 +161,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleSubscribe(PulsarApi.CommandSubscribe subscribe) {
+        protected void handleSubscribe(PulsarApi.CommandSubscribe subscribe, ResponseHandler responseHandler) {
             if (handleSubscribe != null) {
                 handleSubscribe.apply(ctx, subscribe);
                 return;
@@ -169,7 +171,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleProducer(PulsarApi.CommandProducer producer) {
+        protected void handleProducer(PulsarApi.CommandProducer producer, ResponseHandler responseHandler) {
             producerId = producer.getProducerId();
             if (handleProducer != null) {
                 handleProducer.apply(ctx, producer);
@@ -180,7 +182,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
+        protected void handleSend(CommandSend send, ByteBuf headersAndPayload, ResponseHandler responseHandler) {
             if (handleSend != null) {
                 handleSend.apply(ctx, send, headersAndPayload);
                 return;
@@ -206,7 +208,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleUnsubscribe(PulsarApi.CommandUnsubscribe unsubscribe) {
+        protected void handleUnsubscribe(PulsarApi.CommandUnsubscribe unsubscribe, ResponseHandler responseHandler) {
             if (handleUnsubscribe != null) {
                 handleUnsubscribe.apply(ctx, unsubscribe);
                 return;
@@ -216,7 +218,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleCloseProducer(PulsarApi.CommandCloseProducer closeProducer) {
+        protected void handleCloseProducer(PulsarApi.CommandCloseProducer closeProducer, ResponseHandler responseHandler) {
             if (handleCloseProducer != null) {
                 handleCloseProducer.apply(ctx, closeProducer);
                 return;
@@ -226,7 +228,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void handleCloseConsumer(PulsarApi.CommandCloseConsumer closeConsumer) {
+        protected void handleCloseConsumer(PulsarApi.CommandCloseConsumer closeConsumer, ResponseHandler responseHandler) {
             if (handleCloseConsumer != null) {
                 handleCloseConsumer.apply(ctx, closeConsumer);
                 return;
