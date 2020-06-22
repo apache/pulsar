@@ -54,6 +54,10 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar Core](https://github.com/apache/pulsar)
 
+### Helm Chart
+
+- [Pulsar Helm Chart](https://github.com/apache/pulsar-helm-chart)
+
 ### Ecosystem
 
 - [Pulsar Adapters](https://github.com/apache/pulsar-adapters)

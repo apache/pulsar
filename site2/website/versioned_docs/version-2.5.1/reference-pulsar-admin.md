@@ -22,10 +22,10 @@ Commands
 * `ns-isolation-policy`
 * `sources`
 
-    For more information, see [here](reference-connector-admin.md#sources)
+  For more information, see [here](io-cli.md#sources)
 * `sinks`
   
-  For more information, see [here](reference-connector-admin.md#sinks)
+  For more information, see [here](io-cli.md#sinks)
 * `topics`
 * `tenants`
 * `resource-quotas`

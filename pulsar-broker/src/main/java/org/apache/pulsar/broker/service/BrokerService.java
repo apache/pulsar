@@ -97,6 +97,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -203,6 +204,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final ScheduledExecutorService compactionMonitor;
     private final ScheduledExecutorService messagePublishBufferMonitor;
     private final ScheduledExecutorService consumedLedgersMonitor;
+    private final ScheduledExecutorService ledgerFullMonitor;
     private ScheduledExecutorService topicPublishRateLimiterMonitor;
     private ScheduledExecutorService brokerPublishRateLimiterMonitor;
     protected volatile PublishRateLimiter brokerPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
@@ -238,6 +240,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final long maxMessagePublishBufferBytes;
     private final long resumeProducerReadMessagePublishBufferBytes;
     private volatile boolean reachMessagePublishBufferThreshold;
+    private BrokerInterceptor interceptor;
 
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
@@ -285,6 +288,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-publish-buffer-monitor"));
         this.consumedLedgersMonitor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
+        this.ledgerFullMonitor =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("ledger-full-monitor"));
 
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = Executors
@@ -416,6 +421,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.startCompactionMonitor();
         this.startMessagePublishBufferMonitor();
         this.startConsumedLedgersMonitor();
+        this.startLedgerFullMonitor();
         this.startBacklogQuotaChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.startCheckReplicationPolicies();
@@ -491,6 +497,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             consumedLedgersMonitor.scheduleAtFixedRate(safeRun(this::checkConsumedLedgers),
                                                             interval, interval, TimeUnit.SECONDS);
         }
+    }
+
+    protected void startLedgerFullMonitor() {
+        int interval = pulsar().getConfiguration().getManagedLedgerMaxLedgerRolloverTimeMinutes();
+        ledgerFullMonitor.scheduleAtFixedRate(safeRun(this::checkLedgerFull),
+                interval, interval, TimeUnit.MINUTES);
     }
 
     protected void startBacklogQuotaChecker() {
@@ -619,12 +631,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             listenChannelTls.close();
         }
 
+        if (interceptor != null) {
+            interceptor.close();
+            interceptor = null;
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         statsUpdater.shutdown();
         inactivityMonitor.shutdown();
         messageExpiryMonitor.shutdown();
         compactionMonitor.shutdown();
+        ledgerFullMonitor.shutdown();
+        messagePublishBufferMonitor.shutdown();
+        consumedLedgersMonitor.shutdown();
         backlogQuotaChecker.shutdown();
         authenticationService.close();
         pulsarStats.close();
@@ -891,9 +911,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                 boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
                 String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication( //
-                                conf.getBrokerClientAuthenticationPlugin(), //
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl)
+                        .authentication(
+                                conf.getBrokerClientAuthenticationPlugin(),
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
@@ -1250,6 +1270,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
                         managedLedger -> {
                             managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+                        }
+                );
+            }
+        });
+    }
+
+    private void checkLedgerFull() {
+        forEachTopic((t) -> {
+            if (t instanceof PersistentTopic) {
+                Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
+                        managedLedger -> {
+                            managedLedger.rollCurrentLedgerIfFull();
                         }
                 );
             }
@@ -1918,6 +1950,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName topicName) {
+        if(pulsar.getNamespaceService() == null){
+            return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
+        }
         return pulsar.getNamespaceService().checkTopicExists(topicName)
                 .thenCompose(topicExists -> {
                     return fetchPartitionedTopicMetadataAsync(topicName)
@@ -2256,5 +2291,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
+    }
+
+    public void setInterceptor(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 }

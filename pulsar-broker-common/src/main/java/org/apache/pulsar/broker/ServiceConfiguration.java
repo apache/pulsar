@@ -604,7 +604,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();;
+    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -706,6 +706,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
     private int maxNumPartitionsPerPartitionedTopic = 0;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory to locate broker interceptors"
+    )
+    private String brokerInterceptorsDirectory = "./interceptors";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of broker interceptor to load, which is a list of broker interceptor names"
+    )
+    private Set<String> brokerInterceptors = Sets.newTreeSet();
+
+    @FieldContext(
+        doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
+        + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
+        + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
+    )
+    private String zookeeperSessionExpiredPolicy = "shutdown";
 
     /**** --- Messaging Protocols --- ****/
 
@@ -1022,6 +1041,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
     private int bookkeeperExplicitLacIntervalInMills = 0;
 
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "whether expose managed ledger client stats to prometheus"
+    )
+    private boolean bookkeeperClientExposeStatsToPrometheus = false;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
@@ -1223,6 +1248,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
     private long managedLedgerAddEntryTimeoutSeconds = 0;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Managed ledger prometheus stats latency rollover seconds"
+    )
+    private int managedLedgerPrometheusStatsLatencyRolloverSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Whether trace managed ledger task execution time"
+    )
+    private boolean managedLedgerTraceTaskExecution = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "New entries check delay for the cursor under the managed ledger. \n"

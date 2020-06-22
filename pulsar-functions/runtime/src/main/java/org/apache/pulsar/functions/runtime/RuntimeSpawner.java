@@ -45,7 +45,6 @@ public class RuntimeSpawner implements AutoCloseable {
     private final InstanceConfig instanceConfig;
     @Getter
     private final RuntimeFactory runtimeFactory;
-    private final String codeFile;
     private final String originalCodeFileName;
 
     @Getter
@@ -62,7 +61,6 @@ public class RuntimeSpawner implements AutoCloseable {
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
-        this.codeFile = codeFile;
         this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;

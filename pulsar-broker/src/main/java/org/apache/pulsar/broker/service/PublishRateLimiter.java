@@ -204,18 +204,7 @@ class PublishRateLimiterImpl implements PublishRateLimiter {
         final PublishRate maxPublishRate = policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
                 : null;
-        if (maxPublishRate != null
-                && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-            resetPublishCount();
-        } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
-            resetPublishCount();
-        }
+        update(maxPublishRate);
     }
 
     public void update(PublishRate maxPublishRate) {
@@ -224,13 +213,12 @@ class PublishRateLimiterImpl implements PublishRateLimiter {
             this.publishThrottlingEnabled = true;
             this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
             this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-            resetPublishCount();
         } else {
             this.publishMaxMessageRate = 0;
             this.publishMaxByteRate = 0;
             this.publishThrottlingEnabled = false;
-            resetPublishCount();
         }
+        resetPublishCount();
     }
 
     @Override

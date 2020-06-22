@@ -33,7 +33,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.6.0-SNAPSHOT</version>
+  <version>2.7.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -202,7 +202,7 @@ flexible messaging model and an intuitive client API.</description>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
     <elasticsearch.version>6.3.2</elasticsearch.version>
-    <presto.version>0.206</presto.version>
+    <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>1.0.0.Final</debezium.version>
@@ -581,7 +581,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.4</version>
+        <version>3.6</version>
       </dependency>
 
       <dependency>
@@ -1394,13 +1394,15 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-go/go.sum</exclude>
             <exclude>pulsar-function-go/go.mod</exclude>
             <exclude>pulsar-function-go/go.sum</exclude>
+            <exclude>pulsar-function-go/examples/go.mod</exclude>
+            <exclude>pulsar-function-go/examples/go.sum</exclude>
 
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/com.facebook.presto.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -1426,6 +1428,7 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+            <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>

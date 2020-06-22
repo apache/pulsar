@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.Plugin;
-import com.facebook.presto.spi.connector.ConnectorFactory;
 import com.google.common.collect.ImmutableList;
+import io.prestosql.spi.Plugin;
+import io.prestosql.spi.connector.ConnectorFactory;
 
 /**
  * Implementation of the Pulsar plugin for Pesto.

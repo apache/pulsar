@@ -358,13 +358,13 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), path2,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(ld), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.EPHEMERAL);
-        LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1).get();
+        LookupResult result1 = pulsar.getNamespaceService().createLookupResult(candidateBroker1, false).get();
 
         // update to new load manager
         LoadManager oldLoadManager = pulsar.getLoadManager()
                 .getAndSet(new ModularLoadManagerWrapper(new ModularLoadManagerImpl()));
         oldLoadManager.stop();
-        LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2).get();
+        LookupResult result2 = pulsar.getNamespaceService().createLookupResult(candidateBroker2, false).get();
         Assert.assertEquals(result1.getLookupData().getBrokerUrl(), candidateBroker1);
         Assert.assertEquals(result2.getLookupData().getBrokerUrl(), candidateBroker2);
         System.out.println(result2);

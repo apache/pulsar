@@ -105,9 +105,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received cmd {}", ctx.channel().remoteAddress(), cmd.getType());
             }
-
+            onCommand(cmd);
             messageReceived();
-
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
                 checkArgument(cmd.hasPartitionMetadata());
@@ -428,6 +427,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected abstract void messageReceived();
+
+    protected void onCommand(BaseCommand command) throws Exception {
+        //No-op
+    }
 
     protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata response) {
         throw new UnsupportedOperationException();

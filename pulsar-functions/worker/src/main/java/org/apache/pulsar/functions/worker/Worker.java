@@ -57,19 +57,28 @@ public class Worker {
             new DefaultThreadFactory("zk-cache-callback"));
     private GlobalZooKeeperCache globalZkCache;
     private ConfigurationCacheService configurationCacheService;
+    private final ErrorNotifier errorNotifier;
 
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.workerService = new WorkerService(workerConfig);
+        this.errorNotifier = ErrorNotifier.getDefaultImpl();
     }
 
     protected void start() throws Exception {
-        URI dlogUri = initialize(this.workerConfig);
+        URI dlogUri = initialize(workerConfig);
 
-        workerService.start(dlogUri, getAuthenticationService(), getAuthorizationService());
-        this.server = new WorkerServer(workerService);
-        this.server.start();
-        log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
+        workerService.start(dlogUri, getAuthenticationService(), getAuthorizationService(), errorNotifier);
+        server = new WorkerServer(workerService);
+        server.start();
+        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        
+        try {
+            errorNotifier.waitForError();
+        } catch (Throwable th) {
+            log.error("!-- Fatal error encountered. Worker will exit now. --!", th);
+            throw th;
+        }
     }
 
     private static URI initialize(WorkerConfig workerConfig)

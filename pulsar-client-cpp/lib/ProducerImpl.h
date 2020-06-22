@@ -90,6 +90,8 @@ class ProducerImpl : public HandlerBase,
 
     uint64_t getProducerId() const;
 
+    int32_t partition() const noexcept { return partition_; }
+
     virtual void start();
 
     virtual void shutdown();

@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -1404,11 +1404,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                checkNotNull(repl);
+                Preconditions.checkNotNull(repl);
                 repl.skipMessages(numMessages).get();
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
+                Preconditions.checkNotNull(sub);
                 sub.skipMessages(numMessages).get();
             }
             log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages, topicName, subName);
@@ -1798,7 +1798,7 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
+                Preconditions.checkNotNull(sub);
                 sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
                         topicName, subName, messageId);
@@ -1907,7 +1907,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private Response generateResponseWithEntry(Entry entry) throws IOException {
-        checkNotNull(entry);
+        Preconditions.checkNotNull(entry);
         PositionImpl pos = (PositionImpl) entry.getPosition();
         ByteBuf metadataAndPayload = entry.getDataBuffer();
 
@@ -2151,11 +2151,11 @@ public class PersistentTopicsBase extends AdminResource {
             if (subName.startsWith(topic.getReplicatorPrefix())) {
                 String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
                 PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-                checkNotNull(repl);
+                Preconditions.checkNotNull(repl);
                 repl.expireMessages(expireTimeInSeconds);
             } else {
                 PersistentSubscription sub = topic.getSubscription(subName);
-                checkNotNull(sub);
+                Preconditions.checkNotNull(sub);
                 sub.expireMessages(expireTimeInSeconds);
             }
             log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), expireTimeInSeconds, topicName,
@@ -2374,7 +2374,7 @@ public class PersistentTopicsBase extends AdminResource {
     private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
         try {
             Subscription sub = topic.getSubscription(subName);
-            return checkNotNull(sub);
+            return Preconditions.checkNotNull(sub);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Subscription not found");
         }
@@ -2387,7 +2387,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
-            return checkNotNull(repl);
+            return Preconditions.checkNotNull(repl);
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Replicator not found");
         }
@@ -2624,6 +2624,11 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             validateReadOperationOnTopic(authoritative);
             topic = getTopicReference(topicName);
+        } catch (WebApplicationException wae) {
+            log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
+                    clientAppId(), topicName, wae);
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to get last messageId {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
