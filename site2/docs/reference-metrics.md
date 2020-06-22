@@ -138,9 +138,9 @@ All the namespace metrics are labelled with the following labels:
 
 #### Replication metrics
 
-If a namespace is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when `replicationMetricsEnabled` is enabled.
+If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
-All the replication metrics will also be labelled with `remoteCluster=${pulsar_remote_cluster}`.
+All the replication metrics are also labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
 | Name | Type | Description |
 |---|---|---|
@@ -185,7 +185,7 @@ All the topic metrics are labelled with the following labels:
 
 #### Replication metrics
 
-If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
+If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when `replicationMetricsEnabled` is enabled.
 
 All the replication metrics are labelled with `remoteCluster=${pulsar_remote_cluster}`.
 
