@@ -1768,6 +1768,9 @@ public class PersistentTopicsBase extends AdminResource {
                     "Unable to find position for position specified: " + t.getMessage()));
             } else if (e instanceof WebApplicationException) {
                 asyncResponse.resume(e);
+            } else if (t instanceof SubscriptionBusyException) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Failed for Subscription Busy: " + t.getMessage()));
             } else {
                 asyncResponse.resume(new RestException(e));
             }
@@ -1811,6 +1814,9 @@ public class PersistentTopicsBase extends AdminResource {
                 } else if (t instanceof SubscriptionInvalidCursorPosition) {
                     throw new RestException(Status.PRECONDITION_FAILED,
                             "Unable to find position for position specified: " + t.getMessage());
+                } else if (t instanceof SubscriptionBusyException) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            "Failed for SubscriptionBusy: " + t.getMessage());
                 } else {
                     throw new RestException(e);
                 }
