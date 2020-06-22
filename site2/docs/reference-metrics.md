@@ -339,7 +339,7 @@ All the managed ledger bookie client metrics are labelled with the following lab
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
 
-# Pulsar Functions
+## Pulsar Functions
 
 All the Pulsar Functions metrics are labelled with the following labels:
 
@@ -360,7 +360,7 @@ All the Pulsar Functions metrics are labelled with the following labels:
 | pulsar_function_received_total | Counter | Total number of messages received from source. |
 | pulsar_function_received_total_1min | Counter | Total number of messages received from source in the last 1 minute. |
 
-# Proxy
+## Proxy
 
 All the proxy metrics are labelled with the following labels:
 
@@ -375,7 +375,7 @@ All the proxy metrics are labelled with the following labels:
 | pulsar_proxy_binary_ops | Counter | Counter of proxy operations. |
 | pulsar_proxy_binary_bytes | Counter | Counter of proxy bytes. |
 
-# Pulsar SQL Worker
+## Pulsar SQL Worker
 
 | Name | Type | Description |
 |---|---|---|
