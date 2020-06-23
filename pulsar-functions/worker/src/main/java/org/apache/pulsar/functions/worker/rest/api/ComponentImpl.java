@@ -391,7 +391,7 @@ public abstract class ComponentImpl {
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
-        FunctionMetaData newVersionedMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, functionMetaData);
+        FunctionMetaData newVersionedMetaData = FunctionMetaDataUtils.incrMetadataVersion(functionMetaData, functionMetaData);
         internalProcessFunctionRequest(newVersionedMetaData.getFunctionDetails().getTenant(),
                 newVersionedMetaData.getFunctionDetails().getNamespace(),
                 newVersionedMetaData.getFunctionDetails().getName(),
@@ -859,7 +859,7 @@ public abstract class ComponentImpl {
     }
 
     void updateRequest(FunctionMetaData existingFunctionMetaData, final FunctionMetaData functionMetaData) {
-        FunctionMetaData updatedVersionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetaData, functionMetaData);
+        FunctionMetaData updatedVersionMetaData = FunctionMetaDataUtils.incrMetadataVersion(existingFunctionMetaData, functionMetaData);
         internalProcessFunctionRequest(updatedVersionMetaData.getFunctionDetails().getTenant(),
                 updatedVersionMetaData.getFunctionDetails().getNamespace(),
                 updatedVersionMetaData.getFunctionDetails().getName(),
