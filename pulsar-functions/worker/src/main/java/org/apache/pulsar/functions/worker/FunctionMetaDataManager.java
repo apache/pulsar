@@ -210,6 +210,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         } catch (Exception e) {
             log.error("Could not write into Function Metadata topic", e);
             errorNotifier.triggerError(e);
+            throw new IllegalStateException("Internal Error updating function at the leader", e);
         }
         if (needsScheduling) {
             this.schedulerManager.schedule();
