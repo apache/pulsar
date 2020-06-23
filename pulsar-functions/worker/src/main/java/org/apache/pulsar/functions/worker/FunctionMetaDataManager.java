@@ -37,7 +37,20 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * This class maintains a global state of all function metadata and is responsible for serving function metadata
+ * FunctionMetaDataManager maintains a global state of all function metadata.
+ * It is the system of record for the worker for function metadata.
+ * FunctionMetaDataManager operates in either the leader mode or worker mode.
+ * By default, when you initialize and start manager, it starts in the worker mode.
+ * In the worker mode, the FunctionMetaDataTailer tails the function metadata topic
+ * and updates the in-memory metadata cache.
+ * When the worker becomes a leader, it calls the acquireLeadaership thru which
+ * the FunctionMetaData Manager switches to a leader mode. In the leader mode
+ * the manager first captures an exclusive producer on the the metadata topic.
+ * Then it drains the MetaDataTailer to ensure that it has caught up to the last record.
+ * After this point, the worker can update the in-memory state of function metadata
+ * by calling processUpdate/processDeregister methods.
+ * If a worker loses its leadership, it calls giveupLeaderShip at which time the
+ * manager closes its exclusive producer and starts its tailer again.
  */
 @Slf4j
 public class FunctionMetaDataManager implements AutoCloseable {
@@ -74,8 +87,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
 
     /**
-     * Initializes the FunctionMetaDataManager.  Does the following:
-     * 1. Consume all existing function meta data upon start to establish existing state
+     * Initializes the FunctionMetaDataManager. By default we start in the worker mode.
+     * We consume all existing function meta data to establish existing state
      */
     public void initialize() {
         try {
@@ -160,6 +173,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return containsFunctionMetaData(tenant, namespace, functionName);
     }
 
+    /**
+     * Called by the worker when we are in the leader mode.  In this state, we update our in-memory
+     * data structures and then write to the metadata topic.
+     * @param functionMetaData The function metadata in question
+     * @param delete Is this a delete operation
+     * @throws IllegalStateException if we are not the leader
+     * @throws IllegalArgumentException if the request is out of date.
+     */
     public synchronized void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
             throws IllegalStateException, IllegalArgumentException {
         if (exclusiveLeaderProducer == null) {
@@ -188,7 +209,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    // Note that this method cannot be syncrhonized because the tailer might still be processing messages
+    /**
+     * Called by the leader service when this worker becomes the leader.
+     * We first get exclusive producer on the metadata topic. Next we drain the tailer
+     * to ensure that we have caught up to metadata topic. After which we close the tailer.
+     * Note that this method cannot be syncrhonized because the tailer might still be processing messages
+     */
     public void acquireLeadership() {
         log.info("FunctionMetaDataManager becoming leader by creating exclusive producer");
         FunctionMetaDataTopicTailer tailer = internalAcquireLeadership();
@@ -227,6 +253,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return tailer;
     }
 
+    /**
+     * called by the leader service when we lose leadership. We close the exclusive producer
+     * and start the tailer.
+     */
     public synchronized void giveupLeadership() {
         log.info("FunctionMetaDataManager giving up leadership by closing exclusive producer");
         try {
@@ -240,7 +270,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     /**
-     * Processes a request received from the FMT (Function Metadata Topic)
+     * This is called by the MetaData tailer. It updates the in-memory cache.
+     * It eats up any exception thrown by processUpdate/processDeregister since
+     * that's just part of the state machine
      * @param messageId The message id of the request
      * @param serviceRequest The request
      */
