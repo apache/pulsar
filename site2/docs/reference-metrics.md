@@ -401,13 +401,3 @@ All the proxy metrics are labelled with the following labels:
 | split_record_deserialize_time | Summary | Time spent on deserializing message to record. For example, Avro, JSON, and so on. |
 | split_record_deserialize_time_per_query | Summary | Time spent on deserializing message to record per query. |
 | split_total_execution_time | Summary | Total execution time . |
-
-## Monitor
-
-You can [set up a Prometheus instance](https://prometheus.io/) to collect all the metrics exposed for Pulsar components and set up
-[Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster.
-
-The following are some Grafana dashboards examples:
-
-- [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
-- [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
