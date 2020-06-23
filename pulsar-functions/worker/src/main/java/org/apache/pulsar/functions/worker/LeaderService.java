@@ -35,24 +35,31 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private final FunctionAssignmentTailer functionAssignmentTailer;
     private final ErrorNotifier errorNotifier;
     private final SchedulerManager schedulerManager;
+    private final FunctionRuntimeManager functionRuntimeManager;
+    private final FunctionMetaDataManager functionMetaDataManager;
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
     private final AtomicBoolean isLeader = new AtomicBoolean(false);
+    private final AtomicBoolean leaderInitComplete = new AtomicBoolean(false);
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
     private static String WORKER_IDENTIFIER = "id";
-    
+
     public LeaderService(WorkerService workerService,
                          PulsarClient pulsarClient,
                          FunctionAssignmentTailer functionAssignmentTailer,
                          SchedulerManager schedulerManager,
+                         FunctionRuntimeManager functionRuntimeManager,
+                         FunctionMetaDataManager functionMetaDataManager,
                          ErrorNotifier errorNotifier) {
         this.workerConfig = workerService.getWorkerConfig();
         this.pulsarClient = pulsarClient;
         this.functionAssignmentTailer = functionAssignmentTailer;
         this.schedulerManager = schedulerManager;
+        this.functionRuntimeManager = functionRuntimeManager;
+        this.functionMetaDataManager = functionMetaDataManager;
         this.errorNotifier = errorNotifier;
         consumerName = String.format(
                 "%s:%s:%d",
@@ -83,6 +90,13 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         if (isLeader.compareAndSet(false, true)) {
             log.info("Worker {} became the leader.", consumerName);
             try {
+
+                // Wait for worker to be initialized.
+                // We need to do this because LeaderService is started
+                // before FunctionMetadataManager and FunctionRuntimeManager is done initializing
+                functionMetaDataManager.getIsInitialized().get();
+                functionRuntimeManager.getIsInitialized().get();
+
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
                 functionAssignmentTailer.triggerReadToTheEndAndExit().get();
@@ -91,6 +105,9 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // make sure scheduler is initialized because this worker
                 // is the leader and may need to start computing and writing assignments
                 schedulerManager.initialize();
+
+                // indicate leader initialization is complete
+                leaderInitComplete.set(true);
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);
@@ -114,6 +131,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 } else {
                     functionAssignmentTailer.startFromMessage(schedulerManager.getLastMessageProduced());
                 }
+
+                leaderInitComplete.set(false);
             } catch (Throwable th) {
                 log.error("Encountered error in routine when worker lost leadership", th);
                 errorNotifier.triggerError(th);
@@ -123,6 +142,16 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
     public boolean isLeader() {
         return isLeader.get();
+    }
+
+    public void waitLeaderInit() {
+        while (!leaderInitComplete.get()) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     @Override
