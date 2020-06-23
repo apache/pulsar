@@ -79,25 +79,24 @@
     font-size: 80%;
   }
 </style>
-<p>Pulsar exposes metrics in Prometheus format that can be collected and used for monitoring the health of the cluster.</p>
+<p>Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.</p>
 <ul>
 <li><a href="#zookeeper">ZooKeeper</a></li>
 <li><a href="#bookkeeper">BookKeeper</a></li>
 <li><a href="#broker">Broker</a></li>
-<li>[Pulsar Functions](#pulsar functions)</li>
+<li><a href="#pulsar-functions">Pulsar Functions</a></li>
 <li><a href="#proxy">Proxy</a></li>
-<li>[Pulsar SQL Worker](#Pulsar SQL Worker)</li>
+<li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="overview"></a><a href="#overview" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Overview</h2>
-<p>The metrics exposed by Pulsar are in Prometheus format. The types of metrics are:</p>
+<p>The following types of metrics are available:</p>
 <ul>
-<li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: a cumulative metric that represents a single monotonically increasing counter whose value can only increase or be reset to zero on restart.</li>
-<li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: a <em>gauge</em> is a metric that represents a single numerical value that can arbitrarily go up and down.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#counter">Counter</a>: a cumulative metric that represents a single monotonically increasing counter. The value increases by default. You can reset the value to zero or restart your cluster.</li>
+<li><a href="https://prometheus.io/docs/concepts/metric_types/#gauge">Gauge</a>: a metric that represents a single numerical value that can arbitrarily go up and down.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#histogram">Histogram</a>: a histogram samples observations (usually things like request durations or response sizes) and counts them in configurable buckets.</li>
 <li><a href="https://prometheus.io/docs/concepts/metric_types/#summary">Summary</a>: similar to a histogram, a summary samples observations (usually things like request durations and response sizes). While it also provides a total count of observations and a sum of all observed values, it calculates configurable quantiles over a sliding time window.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
-<p>The ZooKeeper metrics are exposed under &quot;/metrics&quot; at port 8000. You can use a different port by configuring the <code>stats_server_port</code> system property.</p>
+<p>The ZooKeeper metrics are exposed under &quot;/metrics&quot; at port <code>8000</code>. You can use a different port by configuring the <code>stats_server_port</code> system property.</p>
 <h3><a class="anchor" aria-hidden="true" id="server-metrics"></a><a href="#server-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Server metrics</h3>
 <table>
 <thead>
@@ -128,7 +127,7 @@
 </ul>
 <p>|</p>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>The BookKeeper metrics are exposed under &quot;/metrics&quot; at port 8000. You can change the port by updating <code>prometheusStatsHttpPort</code> in <code>bookkeeper.conf</code> configuration file.</p>
+<p>The BookKeeper metrics are exposed under &quot;/metrics&quot; at port <code>8000</code>. You can change the port by updating <code>prometheusStatsHttpPort</code> in the <code>bookkeeper.conf</code> configuration file.</p>
 <h3><a class="anchor" aria-hidden="true" id="server-metrics-1"></a><a href="#server-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Server metrics</h3>
 <table>
 <thead>
@@ -172,9 +171,9 @@
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
-<p>The broker metrics are exposed under &quot;/metrics&quot; at port 8080. You can change the port by updating <code>webServicePort</code> to a different port in <code>broker.conf</code> configuration file.</p>
-<p>All the metrics exposed by a broker are labelled with <code>cluster=${pulsar_cluster}</code>. The value of <code>${pulsar_cluster}</code> is the pulsar cluster name you configured in <code>broker.conf</code>.</p>
-<p>Broker has the following kinds of metrics:</p>
+<p>The broker metrics are exposed under &quot;/metrics&quot; at port <code>8080</code>. You can change the port by updating <code>webServicePort</code> to a different port in the <code>broker.conf</code> configuration file.</p>
+<p>All the metrics exposed by a broker are labelled with <code>cluster=${pulsar_cluster}</code>. The name of Pulsar cluster is the value of <code>${pulsar_cluster}</code>, which you have configured in the <code>broker.conf</code> file.</p>
+<p>The following metrics are available for broker:</p>
 <ul>
 <li><a href="#namespace-metrics">Namespace metrics</a>
 <ul>
@@ -254,8 +253,8 @@ Available thresholds:</p>
 </ul>
 <p>|</p>
 <h4><a class="anchor" aria-hidden="true" id="replication-metrics"></a><a href="#replication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
-<p>If a namespace is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
-<p>All the replication metrics will also be labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
+<p>If a namespace is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
+<p>All the replication metrics are also labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
 <table>
 <thead>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
@@ -270,7 +269,7 @@ Available thresholds:</p>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="topic-metrics"></a><a href="#topic-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Topic metrics</h3>
 <blockquote>
-<p>Topic metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to true.</p>
+<p>Topic metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to <code>true</code>.</p>
 </blockquote>
 <p>All the topic metrics are labelled with the following labels:</p>
 <ul>
@@ -328,8 +327,8 @@ Available thresholds:</p>
 </ul>
 <p>| | pulsar_in_bytes_total | Counter | The total number of bytes received for this topic | | pulsar_in_messages_total | Counter | The total number of messages received for this topic | | pulsar_out_bytes_total | Counter | The total number of bytes read from this topic | | pulsar_out_messages_total | Counter | The total number of messages read from this topic |</p>
 <h4><a class="anchor" aria-hidden="true" id="replication-metrics-1"></a><a href="#replication-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
-<p>If a namespace that a topic belongs to is configured to be replicated between multiple Pulsar clusters, the corresponding replication metrics will also be exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
-<p>All the replication metrics will also be labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
+<p>If a namespace that a topic belongs to is configured to be replicated among multiple Pulsar clusters, the corresponding replication metrics is also exposed when <code>replicationMetricsEnabled</code> is enabled.</p>
+<p>All the replication metrics are labelled with <code>remoteCluster=${pulsar_remote_cluster}</code>.</p>
 <table>
 <thead>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
@@ -345,7 +344,7 @@ Available thresholds:</p>
 <h3><a class="anchor" aria-hidden="true" id="managedledgercache-metrics"></a><a href="#managedledgercache-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedgerCache metrics</h3>
 <p>All the ManagedLedgerCache metrics are labelled with the following labels:</p>
 <ul>
-<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 </ul>
 <table>
 <thead>
@@ -371,7 +370,7 @@ Available thresholds:</p>
 <h3><a class="anchor" aria-hidden="true" id="managedledger-metrics"></a><a href="#managedledger-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ManagedLedger metrics</h3>
 <p>All the managedLedger metrics are labelled with the following labels:</p>
 <ul>
-<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li>namespace: namespace=${pulsar_namespace}. ${pulsar_namespace} is the namespace name.</li>
 <li>quantile: quantile=${quantile}. Quantile is only for <code>Histogram</code> type metric, and represents the threshold for given Buckets.</li>
 </ul>
@@ -426,8 +425,8 @@ Available quantile:</p>
 <h3><a class="anchor" aria-hidden="true" id="loadbalancing-metrics"></a><a href="#loadbalancing-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>LoadBalancing metrics</h3>
 <p>All the loadbalancing metrics are labelled with the following labels:</p>
 <ul>
-<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
-<li>broker: broker=${broker}. ${broker} is the ip address of the broker</li>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
+<li>broker: broker=${broker}. ${broker} is the IP address of the broker</li>
 <li>metric: metric=&quot;loadBalancing&quot;.</li>
 </ul>
 <table>
@@ -445,7 +444,7 @@ Available quantile:</p>
 <h4><a class="anchor" aria-hidden="true" id="bundleunloading-metrics"></a><a href="#bundleunloading-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleUnloading metrics</h4>
 <p>All the bundleUnloading metrics are labelled with the following labels:</p>
 <ul>
-<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li>metric: metric=&quot;bundleUnloading&quot;.</li>
 </ul>
 <table>
@@ -460,7 +459,7 @@ Available quantile:</p>
 <h4><a class="anchor" aria-hidden="true" id="bundlesplit-metrics"></a><a href="#bundlesplit-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BundleSplit metrics</h4>
 <p>All the bundleUnloading metrics are labelled with the following labels:</p>
 <ul>
-<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you configured in broker.conf.</li>
+<li>cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li>metric: metric=&quot;bundlesSplit&quot;.</li>
 </ul>
 <table>
@@ -473,11 +472,11 @@ Available quantile:</p>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="subscription-metrics"></a><a href="#subscription-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription metrics</h3>
 <blockquote>
-<p>Subscription metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to true.</p>
+<p>Subscription metrics are only exposed when <code>exposeTopicLevelMetricsInPrometheus</code> is set to <code>true</code>.</p>
 </blockquote>
 <p>All the subscription metrics are labelled with the following labels:</p>
 <ul>
-<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
 <li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
 <li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
@@ -501,11 +500,11 @@ Available quantile:</p>
 <p>| | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (messages/second). | | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (bytes/second). |</p>
 <h3><a class="anchor" aria-hidden="true" id="consumer-metrics"></a><a href="#consumer-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer metrics</h3>
 <blockquote>
-<p>Consumer metrics are only exposed when both <code>exposeTopicLevelMetricsInPrometheus</code> and <code>exposeConsumerLevelMetricsInPrometheus</code> are set to true.</p>
+<p>Consumer metrics are only exposed when both <code>exposeTopicLevelMetricsInPrometheus</code> and <code>exposeConsumerLevelMetricsInPrometheus</code> are set to <code>true</code>.</p>
 </blockquote>
 <p>All the consumer metrics are labelled with the following labels:</p>
 <ul>
-<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
 <li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
 <li><em>subscription</em>: <code>subscription=${subscription}</code>. <code>${subscription}</code> is the topic subscription name.</li>
@@ -528,9 +527,9 @@ Available quantile:</p>
 </ul>
 <p>| | pulsar_consumer_msg_rate_out | Gauge | The total message dispatch rate for a consumer (messages/second). | | pulsar_consumer_msg_throughput_out | Gauge | The total message dispatch throughput for a consumer (bytes/second). | | pulsar_consumer_available_permits | Gauge | The available permits for for a consumer. |</p>
 <h3><a class="anchor" aria-hidden="true" id="managed-ledger-bookie-client-metrics"></a><a href="#managed-ledger-bookie-client-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managed ledger bookie client metrics</h3>
-<p>All the managed ledger bookie client metrics labelled with the following labels:</p>
+<p>All the managed ledger bookie client metrics are labelled with the following labels:</p>
 <ul>
-<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 </ul>
 <table>
 <thead>
@@ -555,10 +554,10 @@ Available quantile:</p>
 <tr><td>pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued</td><td>Summary</td><td>The worker task queued latency calculated in milliseconds.</td></tr>
 </tbody>
 </table>
-<h1><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h1>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h2>
 <p>All the Pulsar Functions metrics are labelled with the following labels:</p>
 <ul>
-<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
 </ul>
 <table>
@@ -579,10 +578,10 @@ Available quantile:</p>
 <tr><td>pulsar_function_received_total_1min</td><td>Counter</td><td>Total number of messages received from source in the last 1 minute.</td></tr>
 </tbody>
 </table>
-<h1><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h1>
+<h2><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Proxy</h2>
 <p>All the proxy metrics are labelled with the following labels:</p>
 <ul>
-<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you have configured in the <code>broker.conf</code> file.</li>
 <li><em>kubernetes_pod_name</em>: <code>kubernetes_pod_name=${kubernetes_pod_name}</code>. <code>${kubernetes_pod_name}</code> is the kubernetes pod name.</li>
 </ul>
 <table>
@@ -597,7 +596,7 @@ Available quantile:</p>
 <tr><td>pulsar_proxy_binary_bytes</td><td>Counter</td><td>Counter of proxy bytes.</td></tr>
 </tbody>
 </table>
-<h1><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h1>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-sql-worker"></a><a href="#pulsar-sql-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar SQL Worker</h2>
 <table>
 <thead>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
@@ -628,13 +627,13 @@ Available quantile:</p>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="monitor"></a><a href="#monitor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitor</h2>
-<p>You can <a href="https://prometheus.io/">set up a Prometheus instance</a> to collect all the metrics exposed at Pulsar components and set up <a href="https://grafana.com/">Grafana</a> dashboards to display the metrics and monitor your Pulsar cluster.</p>
+<p>You can <a href="https://prometheus.io/">set up a Prometheus instance</a> to collect all the metrics exposed for Pulsar components and set up <a href="https://grafana.com/">Grafana</a> dashboards to display the metrics and monitor your Pulsar cluster.</p>
 <p>The following are some Grafana dashboards examples:</p>
 <ul>
-<li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: A grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
-<li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: A collection of grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
+<li><a href="http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana">pulsar-grafana</a>: a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.</li>
+<li><a href="https://github.com/streamnative/apache-pulsar-grafana-dashboard">apache-pulsar-grafana-dashboard</a>: a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.</li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#overview">Overview</a></li><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li></ul></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#request-metrics">Request metrics</a></li></ul></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics-1">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#proxy">Proxy</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#monitor">Monitor</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
