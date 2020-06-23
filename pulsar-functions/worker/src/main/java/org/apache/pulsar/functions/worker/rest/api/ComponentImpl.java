@@ -94,7 +94,6 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -393,7 +392,7 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newVersionedMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(functionMetaData, functionMetaData);
-        processFunctionUpdate(newVersionedMetaData.getFunctionDetails().getTenant(),
+        internalProcessFunctionRequest(newVersionedMetaData.getFunctionDetails().getTenant(),
                 newVersionedMetaData.getFunctionDetails().getNamespace(),
                 newVersionedMetaData.getFunctionDetails().getName(),
                 newVersionedMetaData, true,
@@ -524,7 +523,7 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, Integer.parseInt(instanceId), start);
-        processFunctionUpdate(tenant, namespace, componentName, newFunctionMetaData, false,
+        internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
                 String.format("Failed to start/stop {}: {}/{}/{}/{}", ComponentTypeUtils.toString(componentType),
                         tenant, namespace, componentName, instanceId));
     }
@@ -647,7 +646,7 @@ public abstract class ComponentImpl {
         }
 
         FunctionMetaData newFunctionMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(functionMetaData, -1, start);
-        processFunctionUpdate(tenant, namespace, componentName, newFunctionMetaData, false,
+        internalProcessFunctionRequest(tenant, namespace, componentName, newFunctionMetaData, false,
                 String.format("Failed to start/stop {}: {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName));
     }
 
@@ -861,7 +860,7 @@ public abstract class ComponentImpl {
 
     void updateRequest(FunctionMetaData existingFunctionMetaData, final FunctionMetaData functionMetaData) {
         FunctionMetaData updatedVersionMetaData = FunctionMetaDataUtils.generateUpdatedMetadata(existingFunctionMetaData, functionMetaData);
-        processFunctionUpdate(updatedVersionMetaData.getFunctionDetails().getTenant(),
+        internalProcessFunctionRequest(updatedVersionMetaData.getFunctionDetails().getTenant(),
                 updatedVersionMetaData.getFunctionDetails().getNamespace(),
                 updatedVersionMetaData.getFunctionDetails().getName(),
                 updatedVersionMetaData, false, "Update Failed");
@@ -1531,8 +1530,8 @@ public abstract class ComponentImpl {
         }
     }
 
-    private void processFunctionUpdate(final String tenant, final String namespace, final String functionName,
-                                  final FunctionMetaData functionMetadata, boolean delete, String errorMsg) {
+    private void internalProcessFunctionRequest(final String tenant, final String namespace, final String functionName,
+                                                final FunctionMetaData functionMetadata, boolean delete, String errorMsg) {
         try {
             if (worker().getLeaderService().isLeader()) {
                 worker().getFunctionMetaDataManager().updateFunctionOnLeader(functionMetadata, delete);
