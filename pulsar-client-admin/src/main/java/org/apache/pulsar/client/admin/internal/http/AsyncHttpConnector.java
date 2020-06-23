@@ -241,7 +241,7 @@ public class AsyncHttpConnector implements Connector {
                                 } else {
                                     resultFuture.completeExceptionally(
                                             new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted.", throwable));
+                                            + "has been exhausted. Failed reason: " + throwable.getMessage(), throwable));
                                 }
                             }
                         } else {
