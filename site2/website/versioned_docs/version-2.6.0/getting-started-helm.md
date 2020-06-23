@@ -56,8 +56,8 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 1. Clone the Pulsar Helm chart repository.
 
     ```bash
-    git clone https://github.com/apache/pulsar
-    cd deployment/kubernetes/helm/
+    git clone https://github.com/apache/pulsar-helm-chart
+    cd pulsar-helm-chart
     ```
 
 2. Run the script `prepare_helm_release.sh` to create secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
@@ -76,7 +76,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ```bash
     helm install \
         --values examples/values-minikube.yaml \
-        pulsar-mini pulsar
+        pulsar-mini charts/pulsar
     ```
 
 4. Check the status of all pods.

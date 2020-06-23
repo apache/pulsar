@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageId;
@@ -36,17 +47,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 public class LeaderServiceTest {
 
     private final WorkerConfig workerConfig;
@@ -55,8 +55,12 @@ public class LeaderServiceTest {
     AtomicReference<ConsumerEventListener> listenerHolder;
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
-    private FunctionMetaDataManager mockFunctionMetaDataManager;
     private SchedulerManager schedulerManager;
+    private FunctionRuntimeManager functionRuntimeManager;
+    private FunctionMetaDataManager functionMetadataManager;
+    private CompletableFuture metadataManagerInitFuture;
+    private CompletableFuture runtimeManagerInitFuture;
+    private CompletableFuture readToTheEndAndExitFuture;
 
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
@@ -99,14 +103,22 @@ public class LeaderServiceTest {
         when(mockClient.newConsumer()).thenReturn(mockConsumerBuilder);
 
         schedulerManager = mock(SchedulerManager.class);
-        mockFunctionMetaDataManager = mock(FunctionMetaDataManager.class);
-
 
         functionAssignmentTailer = mock(FunctionAssignmentTailer.class);
-        when(functionAssignmentTailer.triggerReadToTheEndAndExit()).thenReturn(CompletableFuture.completedFuture(null));
+        readToTheEndAndExitFuture = mock(CompletableFuture.class);
+        when(functionAssignmentTailer.triggerReadToTheEndAndExit()).thenReturn(readToTheEndAndExitFuture);
+
+        functionRuntimeManager = mock(FunctionRuntimeManager.class);
+        functionMetadataManager = mock(FunctionMetaDataManager.class);
+
+        metadataManagerInitFuture = mock(CompletableFuture.class);
+        runtimeManagerInitFuture = mock(CompletableFuture.class);
+
+        when(functionMetadataManager.getIsInitialized()).thenReturn(metadataManagerInitFuture);
+        when(functionRuntimeManager.getIsInitialized()).thenReturn(runtimeManagerInitFuture);
 
         leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager,
-                mockFunctionMetaDataManager, ErrorNotifier.getDefaultImpl()));
+          functionRuntimeManager, functionMetadataManager,  ErrorNotifier.getDefaultImpl()));
         leaderService.start();
     }
 
@@ -120,6 +132,11 @@ public class LeaderServiceTest {
 
         listenerHolder.get().becameActive(mockConsumer, 0);
         assertTrue(leaderService.isLeader());
+
+        verify(functionMetadataManager, times(1)).getIsInitialized();
+        verify(metadataManagerInitFuture, times(1)).get();
+        verify(functionRuntimeManager, times(1)).getIsInitialized();
+        verify(runtimeManagerInitFuture, times(1)).get();
 
         verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
         verify(functionAssignmentTailer, times(1)).close();
@@ -143,6 +160,7 @@ public class LeaderServiceTest {
         assertTrue(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).triggerReadToTheEndAndExit();
+        verify(readToTheEndAndExitFuture, times(1)).get();
         verify(functionAssignmentTailer, times(1)).close();
         verify(schedulerManager, times((1))).initialize();
 

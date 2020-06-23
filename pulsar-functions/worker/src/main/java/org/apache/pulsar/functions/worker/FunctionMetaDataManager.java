@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -34,6 +35,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -69,6 +71,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private Producer exclusiveLeaderProducer;
     private MessageId lastMessageSeen = MessageId.earliest;
 
+    @Getter
+    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
                                    PulsarClient pulsarClient,
@@ -99,6 +104,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
             while (this.functionMetaDataTopicTailer.getReader().hasMessageAvailable()) {
                 this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
             }
+            
+            this.isInitialized.complete(null);
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
             errorNotifier.triggerError(e);

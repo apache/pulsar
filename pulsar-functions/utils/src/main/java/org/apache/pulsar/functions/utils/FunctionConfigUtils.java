@@ -152,6 +152,8 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            // We use negative acks for fast tracking failures
+            sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(functionConfig.getTimeoutMs());
         }
         if (functionConfig.getCleanupSubscription() != null) {
             sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
