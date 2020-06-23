@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -68,6 +67,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @Getter
     boolean isInitializePhase = false;
 
+    @Getter
+    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
                                    PulsarClient pulsarClient,
@@ -99,7 +101,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             }
             this.setInitializePhase(false);
             
-
+            this.isInitialized.complete(null);
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
             throw new RuntimeException(e);

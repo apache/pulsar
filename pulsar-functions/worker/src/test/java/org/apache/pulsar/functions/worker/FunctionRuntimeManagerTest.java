@@ -18,42 +18,11 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import io.netty.buffer.Unpooled;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -66,6 +35,38 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+
+import io.netty.buffer.Unpooled;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntime;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
+import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.testng.annotations.Test;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class FunctionRuntimeManagerTest {
@@ -519,16 +520,20 @@ public class FunctionRuntimeManagerTest {
 
         List<Message<byte[]>> messageList = new LinkedList<>();
         PulsarApi.MessageMetadata.Builder msgMetadataBuilder = PulsarApi.MessageMetadata.newBuilder();
-        Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
+
+        MessageId messageId1 = new MessageIdImpl(0, 1, -1);
+        Message message1 = spy(new MessageImpl("foo", messageId1.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance())).when(message1).getKey();
 
-        Message message2 = spy(new MessageImpl("foo", MessageId.latest.toString(),
+        MessageId messageId2 = new MessageIdImpl(0, 2, -1);
+        Message message2 = spy(new MessageImpl("foo", messageId2.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment2.toByteArray()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())).when(message2).getKey();
 
         // delete function2
-        Message message3 = spy(new MessageImpl("foo", MessageId.latest.toString(),
+        MessageId messageId3 = new MessageIdImpl(0, 3, -1);
+        Message message3 = spy(new MessageImpl("foo", messageId3.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer("".getBytes()), null, msgMetadataBuilder));
         doReturn(FunctionCommon.getFullyQualifiedInstanceId(assignment3.getInstance())).when(message3).getKey();
 
@@ -595,7 +600,7 @@ public class FunctionRuntimeManagerTest {
         doNothing().when(functionActioner).terminateFunction(any(FunctionRuntimeInfo.class));
         functionRuntimeManager.setFunctionActioner(functionActioner);
 
-        functionRuntimeManager.initialize();
+        assertEquals(functionRuntimeManager.initialize(), messageId3);
 
         assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         verify(functionActioner, times(1)).startFunction(any(FunctionRuntimeInfo.class));

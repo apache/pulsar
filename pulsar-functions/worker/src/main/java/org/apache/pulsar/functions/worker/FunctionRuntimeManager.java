@@ -33,6 +33,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -47,19 +48,27 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsPro
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionInstanceId;
-import org.apache.pulsar.common.util.Reflections;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-import java.io.IOException;
-import java.net.URI;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -126,6 +135,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     private WorkerService workerService;
 
     boolean isInitializePhase = false;
+
+    @Getter
+    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
 
     private final FunctionMetaDataManager functionMetaDataManager;
 
@@ -208,8 +220,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * Initializes the FunctionRuntimeManager.  Does the following:
      * 1. Consume all existing assignments to establish existing/latest set of assignments
      * 2. After current assignments are read, assignments belonging to this worker will be processed
+     *
+     * @return the message id of the message processed during init phase
      */
-    public void initialize() {
+    public MessageId initialize() {
         try {
             Reader<byte[]> reader = WorkerUtils.createReader(
                     workerService.getClient().newReader(),
@@ -219,9 +233,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
             // start init phase
             this.isInitializePhase = true;
+            // keep track of the last message read
+            MessageId lastMessageRead = MessageId.earliest;
             // read all existing messages
             while (reader.hasMessageAvailable()) {
-                processAssignmentMessage(reader.readNext());
+                Message<byte[]> message = reader.readNext();
+                lastMessageRead = message.getMessageId();
+                processAssignmentMessage(message);
             }
             // init phase is done
             this.isInitializePhase = false;
@@ -236,6 +254,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                 }
             }
+            // complete future to indicate initialization is complete
+            isInitialized.complete(null);
+            return lastMessageRead;
         } catch (Exception e) {
             log.error("Failed to initialize function runtime manager: {}", e.getMessage(), e);
             throw new RuntimeException(e);
@@ -630,12 +651,14 @@ public class FunctionRuntimeManager implements AutoCloseable{
      */
     public synchronized void processAssignment(Assignment newAssignment) {
 
-        Map<String, Assignment> existingAssignmentMap = new HashMap<>();
+        boolean exists = false;
         for (Map<String, Assignment> entry : this.workerIdToAssignments.values()) {
-            existingAssignmentMap.putAll(entry);
+            if (entry.containsKey(FunctionCommon.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
+                exists = true;
+            }
         }
 
-        if (existingAssignmentMap.containsKey(FunctionCommon.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
+        if (exists) {
             updateAssignment(newAssignment);
         } else {
             addAssignment(newAssignment);
