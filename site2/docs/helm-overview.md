@@ -22,7 +22,6 @@ This chart includes all the components for a complete experience, but each part 
     - Pulsar Manager
     - Prometheus
     - Grafana
-    - Alert Manager
 
 It includes support for:
 
