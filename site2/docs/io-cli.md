@@ -575,7 +575,7 @@ $ pulsar-admin sinks localrun options
 |`--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 |`--tenant`|The sink’s tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
-| --negative-ack-redelivery-delay-ms | The negatively-acknowledged message redelivery delay in milliseconds. |
+| `--negative-ack-rede` livery-delay-ms | The negatively-acknowledged message redelivery delay in milliseconds. |
 |`--tls-allow-insecure`|Allow insecure tls connection.<br>**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
 | `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).
