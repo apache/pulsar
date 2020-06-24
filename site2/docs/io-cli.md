@@ -558,8 +558,8 @@ $ pulsar-admin sinks localrun options
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime).
 | `--custom-schema-inputs` | The map of input topics to Schema types or class names (as a JSON string).
 | `--max-redeliver-count` | Maximum number of times that a message is redelivered before being sent to the dead letter queue.
-| --dead-letter-topic | Name of the dead letter topic where the failing messages are sent.
-|| `--custom-serde-inputs` | The map of input topics to SerDe class names (as a JSON string).
+| `--dead-letter-topic` | Name of the dead letter topic where the failing messages are sent.
+| `--custom-serde-inputs` | The map of input topics to SerDe class names (as a JSON string).
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).|
 |`--hostname-verification-enabled`|Enable hostname verification.<br>**Default value: false**.
 | `-i`, `--inputs` | The sink's input topic or topics (multiple topics can be specified as a comma-separated list).
