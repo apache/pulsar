@@ -37,7 +37,9 @@ import java.util.function.Supplier;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 @Slf4j
 @Path("/worker")
@@ -127,6 +129,9 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/initialized")
     public boolean isInitialized() {
-        return worker.isWorkerServiceInitialized();
+        if (!worker.isWorkerServiceInitialized()) {
+            throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+        }
+        return true;
     }
 }
