@@ -16,6 +16,9 @@ The easiest way to use the Pulsar Manager is to run it inside a [Docker](https:/
 
 ```
 docker pull apachepulsar/pulsar-manager:v0.1.0
+mkdir temp-data
+chmod 777 temp-data
+cd temp-data
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.0.104 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -v $PWD:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
@@ -107,6 +110,9 @@ jwt.broker.secret.key=file:///path/broker-secret.key
 
 ```
 export JWT_TOKEN="your-token"
+mkdir temp-data
+chmod 777 temp-data
+cd temp-data
 docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -v $PWD:/data apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
@@ -124,7 +130,10 @@ docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_P
 ```
 export JWT_TOKEN="your-token"
 export SECRET_KEY="file:///secret-key-path"
-docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e PUBLIC_KEY=$PUBLIC_KEY -v $PWD:/data -v $PWD/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
+mkdir temp-data
+chmod 777 temp-data
+cd temp-data
+docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_PORT=9527 -e DRIVER_CLASS_NAME=org.postgresql.Driver -e URL='jdbc:postgresql://127.0.0.1:5432/pulsar_manager' -e USERNAME=pulsar -e PASSWORD=pulsar -e LOG_LEVEL=DEBUG -e JWT_TOKEN=$JWT_TOKEN -e PRIVATE_KEY=$PRIVATE_KEY -e SECRET_KEY=$SECRET_KEY -v $PWD:/data -v $PWD/secret-key-path:/pulsar-manager/secret-key-path apachepulsar/pulsar-manager:v0.1.0 /bin/sh
 ```
 
 * For more information about backend configurations, see [here](https://github.com/apache/pulsar-manager/blob/8b1f26f7d7c725e6d056c41b98235fbc5deb9f49/src/README.md).
