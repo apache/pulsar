@@ -147,15 +147,15 @@ public class FunctionMetaDataManagerTest {
 
         // become leader
         functionMetaDataManager.acquireLeadership();
-        verify(mockedScheduler, times(1)).schedule();
+        verify(mockedScheduler, times(0)).schedule();
         // Now try deleting
         functionMetaDataManager.updateFunctionOnLeader(m1, true);
         // make sure schedule was not called because function didn't exist.
-        verify(mockedScheduler, times(1)).schedule();
+        verify(mockedScheduler, times(0)).schedule();
 
         // insert function
         functionMetaDataManager.updateFunctionOnLeader(m1, false);
-        verify(mockedScheduler, times(2)).schedule();
+        verify(mockedScheduler, times(1)).schedule();
 
         // outdated request
         try {
@@ -164,12 +164,12 @@ public class FunctionMetaDataManagerTest {
         } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "Delete request ignored because it is out of date. Please try again.");
         }
-        verify(mockedScheduler, times(2)).schedule();
+        verify(mockedScheduler, times(1)).schedule();
 
         // udpate with new version
         m1 = m1.toBuilder().setVersion(2).build();
         functionMetaDataManager.updateFunctionOnLeader(m1, true);
-        verify(mockedScheduler, times(3)).schedule();
+        verify(mockedScheduler, times(2)).schedule();
     }
 
     @Test
