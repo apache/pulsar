@@ -109,6 +109,7 @@ jwt.broker.secret.key=file:///path/broker-secret.key
 * Method 3: use Docker and turn on token authentication.
 
 ```
+docker pull apachepulsar/pulsar-manager
 export JWT_TOKEN="your-token"
 mkdir temp-data
 chmod 777 temp-data
@@ -119,6 +120,7 @@ docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_P
 * Method 4: use Docker and turn on **token authentication** and **token management** by private key and public key.
 
 ```
+docker pull apachepulsar/pulsar-manager
 export JWT_TOKEN="your-token"
 export PRIVATE_KEY="file:///private-key-path"
 export PUBLIC_KEY="file:///public-key-path"
@@ -128,6 +130,7 @@ docker run -it -p 9527:9527 -e REDIRECT_HOST=http://192.168.55.182 -e REDIRECT_P
 * Method 5: use Docker and turn on **token authentication** and **token management** by secret key.
 
 ```
+docker pull apachepulsar/pulsar-manager
 export JWT_TOKEN="your-token"
 export SECRET_KEY="file:///secret-key-path"
 mkdir temp-data
