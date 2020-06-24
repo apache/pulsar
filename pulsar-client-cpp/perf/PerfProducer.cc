@@ -359,6 +359,9 @@ int main(int argc, char** argv) {
         producerConf.setCryptoKeyReader(keyReader);
     }
 
+    // Enable round robin message routing if it is a partitioned topic
+    producerConf.setPartitionsRoutingMode(ProducerConfiguration::RoundRobinDistribution);
+
     pulsar::ClientConfiguration conf;
     conf.setUseTls(args.isUseTls);
     conf.setTlsAllowInsecureConnection(args.isTlsAllowInsecureConnection);
