@@ -199,8 +199,4 @@ public class WorkerImpl {
 
         return this.worker().getConnectorsManager().getConnectors();
     }
-
-    public boolean isWorkerServiceInitialized() {
-        return worker().isInitialized();
-    }
 }
