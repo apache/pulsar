@@ -80,7 +80,6 @@ public class FunctionAssignmentTailer implements AutoCloseable {
             if (tailerThread == null || !tailerThread.isAlive()) {
                 tailerThread = getTailerThread();
             }
-            exitFuture = new CompletableFuture<>();
             tailerThread.start();
         }
     }
@@ -113,6 +112,11 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                     }
                 }
                 tailerThread = null;
+
+                // complete exit future to be safe
+                exitFuture.complete(null);
+                // reset the future
+                exitFuture = new CompletableFuture<>();
             }
             if (reader != null) {
                 reader.close();
