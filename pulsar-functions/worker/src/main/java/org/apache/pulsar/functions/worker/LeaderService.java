@@ -109,6 +109,9 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 functionMetaDataManager.acquireLeadership();
                 // indicate leader initialization is complete
                 leaderInitComplete.set(true);
+                // Once we become leader we need to schedule
+                // This is done after leaderInitComplete because schedule waits on that becoming true
+                schedulerManager.schedule();
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);

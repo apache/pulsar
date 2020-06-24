@@ -104,6 +104,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             log.error("Failed to initialize meta data store", e);
             throw new RuntimeException("Failed to initialize Metadata Manager", e);
         }
+        log.info("FunctionMetaData Manager initialization complete");
     }
 
     // Starts the tailer if we are in non-leader mode
@@ -242,7 +243,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
             }
             tailer.close();
         }
-        this.schedulerManager.schedule();
         log.info("FunctionMetaDataManager done becoming leader");
     }
 
@@ -418,5 +418,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
         this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
                 pulsarClient.newReader(), this.workerConfig, lastMessageSeen, this.errorNotifier);
         this.functionMetaDataTopicTailer.start();
+        log.info("MetaData Manager Tailer started");
     }
 }
