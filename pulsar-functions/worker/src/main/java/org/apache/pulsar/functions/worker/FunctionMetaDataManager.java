@@ -21,14 +21,12 @@ package org.apache.pulsar.functions.worker;
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Getter;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -66,11 +64,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private final ErrorNotifier errorNotifier;
 
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
+    // The producer of the metadata topic when we are the leader.
+    // Note that this variable serves a double duty. A non-null value
+    // implies we are the leader, while a null value means we are not the leader
     private Producer exclusiveLeaderProducer;
     private MessageId lastMessageSeen = MessageId.earliest;
 
     @Getter
-    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+    private CompletableFuture<Void> isInitialized = new CompletableFuture<>();
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
@@ -88,34 +89,43 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
 
     /**
-     * Initializes the FunctionMetaDataManager. By default we start in the worker mode.
-     * We consume all existing function meta data to establish existing state
+     * Initializes the FunctionMetaDataManager.
+     * We create a new reader
      */
-    public void initialize() {
+    public synchronized void initialize() {
         try {
-            initializeTailer();
-            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
-                    pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
             // read all existing messages
-            while (this.functionMetaDataTopicTailer.getReader().hasMessageAvailable()) {
-                this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
+            Reader reader = FunctionMetaDataTopicTailer.createReader(workerConfig, pulsarClient.newReader(), MessageId.earliest);
+            while (reader.hasMessageAvailable()) {
+                processMetaDataTopicMessage(reader.readNext());
             }
-            
             this.isInitialized.complete(null);
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
-            errorNotifier.triggerError(e);
+            throw new RuntimeException("Failed to initialize Metadata Manager", e);
         }
     }
 
-    private void initializeTailer() throws PulsarClientException {
-        this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
-                pulsarClient.newReader().startMessageId(lastMessageSeen), this.workerConfig, this.errorNotifier);
+    // Starts the tailer if we are in non-leader mode
+    public synchronized void start() {
+        if (exclusiveLeaderProducer == null) {
+            try {
+                // This means that we are in non-leader mode. start function metadata tailer
+                initializeTailer();
+            } catch (PulsarClientException e) {
+                throw new RuntimeException("Could not start MetaData topic tailer", e);
+            }
+        }
     }
 
-    public void start() {
-        // start function metadata tailer
-        this.functionMetaDataTopicTailer.start();
+    @Override
+    public void close() throws Exception {
+        if (this.functionMetaDataTopicTailer != null) {
+            this.functionMetaDataTopicTailer.close();
+        }
+        if (this.exclusiveLeaderProducer != null) {
+            this.exclusiveLeaderProducer.close();
+        }
     }
 
     /**
@@ -233,7 +243,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             tailer.close();
         }
         this.schedulerManager.schedule();
-        log.info("FunctionMetaDataManager done becoming leader by doing its first schedule");
+        log.info("FunctionMetaDataManager done becoming leader");
     }
 
     private synchronized FunctionMetaDataTopicTailer internalAcquireLeadership() {
@@ -277,11 +287,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * This is called by the MetaData tailer. It updates the in-memory cache.
      * It eats up any exception thrown by processUpdate/processDeregister since
      * that's just part of the state machine
-     * @param messageId The message id of the request
-     * @param serviceRequest The request
+     * @param message The message read from metadata topic that needs to be processed
      */
-    public void processRequest(MessageId messageId, Request.ServiceRequest serviceRequest) {
+    public void processMetaDataTopicMessage(Message<byte[]> message) throws IOException {
         try {
+            Request.ServiceRequest serviceRequest = Request.ServiceRequest.parseFrom(message.getData());
+            if (log.isDebugEnabled()) {
+                log.debug("Received Service Request: {}", serviceRequest);
+            }
             switch (serviceRequest.getServiceRequestType()) {
                 case UPDATE:
                     this.processUpdate(serviceRequest.getFunctionMetaData());
@@ -295,7 +308,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         } catch (IllegalArgumentException e) {
             // Its ok. Nothing much we can do about it
         }
-        lastMessageSeen = messageId;
+        lastMessageSeen = message.getMessageId();
     }
 
     /**
@@ -401,10 +414,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 .get(functionDetails.getNamespace()).put(functionDetails.getName(), functionMetaData);
     }
 
-    @Override
-    public void close() throws Exception {
-        if (this.functionMetaDataTopicTailer != null) {
-            this.functionMetaDataTopicTailer.close();
-        }
+    private void initializeTailer() throws PulsarClientException {
+        this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
+                pulsarClient.newReader(), this.workerConfig, lastMessageSeen, this.errorNotifier);
+        this.functionMetaDataTopicTailer.start();
     }
 }

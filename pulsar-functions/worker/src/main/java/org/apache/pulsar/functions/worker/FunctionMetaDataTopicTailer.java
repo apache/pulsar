@@ -42,19 +42,15 @@ public class FunctionMetaDataTopicTailer
     private volatile boolean running;
     private ErrorNotifier errorNotifier;
     private volatile boolean stopOnNoMessageAvailable;
-    private CompletableFuture<Void> exitFuture;
+    private CompletableFuture<Void> exitFuture = new CompletableFuture<>();
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
                                        ReaderBuilder readerBuilder, WorkerConfig workerConfig,
+                                       MessageId lastMessageSeen,
                                        ErrorNotifier errorNotifier)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
-        this.reader = readerBuilder
-                .topic(workerConfig.getFunctionMetadataTopic())
-                .startMessageId(MessageId.earliest)
-                .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")
-                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-tailer")
-                .create();
+        this.reader = createReader(workerConfig, readerBuilder, lastMessageSeen);
         readerThread = new Thread(this);
         readerThread.setName("function-metadata-tailer-thread");
         this.errorNotifier = errorNotifier;
@@ -63,7 +59,6 @@ public class FunctionMetaDataTopicTailer
 
     public void start() {
         running = true;
-        exitFuture = new CompletableFuture<>();
         readerThread.start();
     }
 
@@ -83,7 +78,7 @@ public class FunctionMetaDataTopicTailer
             try {
                 Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
                 if (msg != null) {
-                    processRequest(msg);
+                    this.functionMetaDataManager.processMetaDataTopicMessage(msg);
                 }
             } catch (Throwable th) {
                 if (running) {
@@ -134,11 +129,13 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function metadata tailer");
     }
 
-    public void processRequest(Message<byte[]> msg) throws IOException {
-        ServiceRequest serviceRequest = ServiceRequest.parseFrom(msg.getData());
-        if (log.isDebugEnabled()) {
-            log.debug("Received Service Request: {}", serviceRequest);
-        }
-        this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
+    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
+                                      MessageId startMessageId) throws PulsarClientException {
+        return readerBuilder
+                .topic(workerConfig.getFunctionMetadataTopic())
+                .startMessageId(startMessageId)
+                .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-tailer")
+                .create();
     }
 }

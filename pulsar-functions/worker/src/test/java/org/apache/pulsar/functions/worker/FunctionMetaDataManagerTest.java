@@ -22,14 +22,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Request;
 import org.testng.Assert;
@@ -176,7 +173,7 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
-    public void testProcessRequest() throws PulsarClientException {
+    public void testProcessRequest() throws PulsarClientException, IOException {
         WorkerConfig workerConfig = new WorkerConfig();
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
@@ -189,7 +186,9 @@ public class FunctionMetaDataManagerTest {
         Request.ServiceRequest serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
                         Request.ServiceRequest.ServiceRequestType.UPDATE).build();
-        functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
+        Message msg = mock(Message.class);
+        doReturn(serviceRequest.toByteArray()).when(msg).getData();
+        functionMetaDataManager.processMetaDataTopicMessage(msg);
 
         verify(functionMetaDataManager, times(1)).processUpdate
                 (any(Function.FunctionMetaData.class));
@@ -198,12 +197,14 @@ public class FunctionMetaDataManagerTest {
         serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.INITIALIZE).build();
-        functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
+        doReturn(serviceRequest.toByteArray()).when(msg).getData();
+        functionMetaDataManager.processMetaDataTopicMessage(msg);
 
         serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.DELETE).build();
-        functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
+        doReturn(serviceRequest.toByteArray()).when(msg).getData();
+        functionMetaDataManager.processMetaDataTopicMessage(msg);
 
         verify(functionMetaDataManager, times(1)).proccessDeregister(
                 any(Function.FunctionMetaData.class));

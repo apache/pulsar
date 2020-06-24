@@ -63,7 +63,7 @@ public class FunctionMetaDataTopicTailerTest {
         when(readerBuilder.subscriptionRolePrefix(anyString())).thenReturn(readerBuilder);
         when(readerBuilder.create()).thenReturn(reader);
         this.fsm = mock(FunctionMetaDataManager.class);
-        this.fsc = new FunctionMetaDataTopicTailer(fsm, readerBuilder, new WorkerConfig(), ErrorNotifier.getDefaultImpl() );
+        this.fsc = new FunctionMetaDataTopicTailer(fsm, readerBuilder, new WorkerConfig(), MessageId.earliest, ErrorNotifier.getDefaultImpl() );
     }
 
     @AfterMethod
@@ -98,6 +98,6 @@ public class FunctionMetaDataTopicTailerTest {
         readLatch.await();
 
         verify(reader, times(2)).readNext(anyInt(), any(TimeUnit.class));
-        verify(fsm, times(1)).processRequest(any(), any(ServiceRequest.class));
+        verify(fsm, times(1)).processMetaDataTopicMessage(any(Message.class));
     }
 }
