@@ -123,9 +123,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 reader = null;
             }
 
-            exitFuture = null;
             exitOnEndOfTopic = false;
-            
         } catch (IOException e) {
             log.error("Failed to stop function assignment tailer", e);
         }
