@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -32,7 +35,6 @@ import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 
-import javax.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,8 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import javax.ws.rs.core.Response.Status;
 
 @Slf4j
 public class WorkerImpl {
@@ -197,5 +198,9 @@ public class WorkerImpl {
         }
 
         return this.worker().getConnectorsManager().getConnectors();
+    }
+
+    public boolean isWorkerServiceInitialized() {
+        return worker().isInitialized();
     }
 }

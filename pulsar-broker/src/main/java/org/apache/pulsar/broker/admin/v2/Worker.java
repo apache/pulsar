@@ -28,15 +28,16 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
 @Slf4j
 @Path("/worker")
@@ -113,5 +114,19 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return worker.getListOfConnectors(clientAppId());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Determines whether the worker service is initialized and ready for use",
+            response = Boolean.class
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/initialized")
+    public boolean isInitialized() {
+        return worker.isWorkerServiceInitialized();
     }
 }
