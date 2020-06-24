@@ -28,7 +28,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Request;
-import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -61,7 +60,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @VisibleForTesting
     final Map<String, Map<String, Map<String, FunctionMetaData>>> functionMetaDataMap = new ConcurrentHashMap<>();
 
-    private final ServiceRequestManager serviceRequestManager;
     private final SchedulerManager schedulerManager;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
@@ -80,8 +78,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
                                    ErrorNotifier errorNotifier) throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
-        this.serviceRequestManager = getServiceRequestManager(
-                this.pulsarClient, this.workerConfig.getFunctionMetadataTopic());
         this.schedulerManager = schedulerManager;
         this.errorNotifier = errorNotifier;
         exclusiveLeaderProducer = null;
@@ -410,15 +406,5 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (this.functionMetaDataTopicTailer != null) {
             this.functionMetaDataTopicTailer.close();
         }
-        if (this.serviceRequestManager != null) {
-            this.serviceRequestManager.close();
-        }
-    }
-
-    private ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
-        return new ServiceRequestManager(pulsarClient.newProducer()
-                .topic(functionMetadataTopic)
-                .producerName(workerConfig.getWorkerId() + "-function-metadata-manager")
-                .create());
     }
 }
