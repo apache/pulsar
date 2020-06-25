@@ -216,7 +216,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
             lastMessageSeen = exclusiveLeaderProducer.send(serviceRequest.toByteArray());
         } catch (Exception e) {
             log.error("Could not write into Function Metadata topic", e);
-            errorNotifier.triggerError(e);
             throw new IllegalStateException("Internal Error updating function at the leader", e);
         }
         if (needsScheduling) {
