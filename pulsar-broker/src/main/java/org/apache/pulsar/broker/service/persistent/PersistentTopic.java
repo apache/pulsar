@@ -692,7 +692,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         synchronized (ledger) {
             // Create a new non-durable cursor only for the first consumer that connects
-            Subscription subscription = subscriptions.get(subscriptionName);
+            PersistentSubscription subscription = subscriptions.get(subscriptionName);
 
             if (subscription == null) {
                 MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
@@ -718,19 +718,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscriptions.put(subscriptionName, new PersistentSubscription(this, subscriptionName, cursor, false));
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
+                subscriptions.put(subscriptionName, subscription);
             }
 
             if (startMessageRollbackDurationSec > 0) {
                 long timestamp = System.currentTimeMillis()
                         - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
                 CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+                final Subscription finalSubscription = subscription;
                 subscription.resetCursor(timestamp).handle((s, ex) -> {
                     if (ex != null) {
                         log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
                                 startMessageRollbackDurationSec);
                     }
-                    subscriptionFuture.complete(subscription);
+                    subscriptionFuture.complete(finalSubscription);
                     return null;
                 });
                 return subscriptionFuture;
