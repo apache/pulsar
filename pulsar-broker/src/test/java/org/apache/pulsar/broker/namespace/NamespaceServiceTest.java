@@ -242,7 +242,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ManagedLedger ledger = mock(ManagedLedger.class);
         when(ledger.getCursors()).thenReturn(Lists.newArrayList());
 
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), ownershipCache);
@@ -437,7 +437,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @Test
     public void testRemoveOwnershipAndSplitBundle() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
 
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
