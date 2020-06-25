@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -499,20 +500,25 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     private CompletableFuture<LedgerHandle> createLedger(String schemaId) {
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForSchema(schemaId);
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncCreateLedger(
-            config.getManagedLedgerDefaultEnsembleSize(),
-            config.getManagedLedgerDefaultWriteQuorum(),
-            config.getManagedLedgerDefaultAckQuorum(),
-            BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-            LedgerPassword,
-            (rc, handle, ctx) -> {
-                if (rc != BKException.Code.OK) {
-                    future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1));
-                } else {
-                    future.complete(handle);
-                }
-            }, null, metadata
-        );
+        try {
+            bookKeeper.asyncCreateLedger(
+                config.getManagedLedgerDefaultEnsembleSize(),
+                config.getManagedLedgerDefaultWriteQuorum(),
+                config.getManagedLedgerDefaultAckQuorum(),
+                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
+                LedgerPassword,
+                (rc, handle, ctx) -> {
+                    if (rc != BKException.Code.OK) {
+                        future.completeExceptionally(bkException("Failed to create ledger", rc, -1, -1));
+                    } else {
+                        future.complete(handle);
+                    }
+                }, null, metadata
+            );
+        } catch (Throwable t) {
+            log.error("[{}] Encountered unexpected error when creating schema ledger", schemaId, t);
+            return FutureUtil.failedFuture(t);
+        }
         return future;
     }
 
