@@ -176,10 +176,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private ScheduledFuture<?> timeoutTask;
 
     /**
-     * This lock is held while the ledgers list is updated asynchronously on the metadata store. Since we use the store
+     * This lock is held while the ledgers list or propertiesMap is updated asynchronously on the metadata store. Since we use the store
      * version, we cannot have multiple concurrent updates.
      */
-    private final CallbackMutex ledgersListMutex = new CallbackMutex();
+    private final CallbackMutex metadataMutex = new CallbackMutex();
     private final CallbackMutex trimmerMutex = new CallbackMutex();
 
     private final CallbackMutex offloadMutex = new CallbackMutex();
@@ -1230,7 +1230,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    ledgersListMutex.unlock();
+                    metadataMutex.unlock();
                     updateLedgersIdsComplete(stat);
                     synchronized (ManagedLedgerImpl.this) {
                         mbean.addLedgerSwitchLatencySample(System.nanoTime() - lastLedgerCreationInitiationTimestamp,
@@ -1267,7 +1267,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         }
                     }, null);
 
-                    ledgersListMutex.unlock();
+                    metadataMutex.unlock();
 
                     synchronized (ManagedLedgerImpl.this) {
                         lastLedgerCreationFailureTimestamp = clock.millis();
@@ -1282,7 +1282,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback) {
-        if (!ledgersListMutex.tryLock()) {
+        if (!metadataMutex.tryLock()) {
             // Defer update for later
             scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback), 100, TimeUnit.MILLISECONDS);
             return;
@@ -2062,7 +2062,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
 
             if (STATE_UPDATER.get(this) == State.CreatingLedger // Give up now and schedule a new trimming
-                    || !ledgersListMutex.tryLock()) { // Avoid deadlocks with other operations updating the ledgers list
+                    || !metadataMutex.tryLock()) { // Avoid deadlocks with other operations updating the ledgers list
                 scheduleDeferredTrimming(promise);
                 trimmerMutex.unlock();
                 return;
@@ -2101,7 +2101,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
                             TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
                     ledgersStat = stat;
-                    ledgersListMutex.unlock();
+                    metadataMutex.unlock();
                     trimmerMutex.unlock();
 
                     for (LedgerInfo ls : ledgersToDelete) {
@@ -2119,7 +2119,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 @Override
                 public void operationFailed(MetaStoreException e) {
                     log.warn("[{}] Failed to update the list of ledgers after trimming", name, e);
-                    ledgersListMutex.unlock();
+                    metadataMutex.unlock();
                     trimmerMutex.unlock();
 
                     promise.completeExceptionally(e);
@@ -2531,7 +2531,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void tryTransformLedgerInfo(long ledgerId, LedgerInfoTransformation transformation,
             CompletableFuture<Void> finalPromise) {
         synchronized (this) {
-            if (!ledgersListMutex.tryLock()) {
+            if (!metadataMutex.tryLock()) {
                 // retry in 100 milliseconds
                 scheduledExecutor.schedule(
                         safeRun(() -> tryTransformLedgerInfo(ledgerId, transformation, finalPromise)), 100,
@@ -2539,7 +2539,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else { // lock acquired
                 CompletableFuture<Void> unlockingPromise = new CompletableFuture<>();
                 unlockingPromise.whenComplete((res, ex) -> {
-                    ledgersListMutex.unlock();
+                    metadataMutex.unlock();
                     if (ex != null) {
                         finalPromise.completeExceptionally(ex);
                     } else {
@@ -3020,6 +3020,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             mlInfo.setTerminatedPosition(NestedPositionInfo.newBuilder().setLedgerId(lastConfirmedEntry.getLedgerId())
                     .setEntryId(lastConfirmedEntry.getEntryId()));
         }
+        for (Map.Entry<String, String> property : propertiesMap.entrySet()) {
+            mlInfo.addProperties(MLDataFormats.KeyValue.newBuilder()
+                    .setKey(property.getKey()).setValue(property.getValue()));
+        }
 
         return mlInfo.build();
     }
@@ -3271,9 +3275,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void setProperties(Map<String, String> properties) throws InterruptedException {
+    public void setProperties(Map<String, String> properties, boolean isOverwrite) throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
-        this.asyncSetProperties(properties, new SetPropertiesCallback() {
+        this.asyncSetProperties(properties, isOverwrite, new SetPropertiesCallback() {
             @Override
             public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
                 latch.countDown();
@@ -3290,38 +3294,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void asyncSetProperties(Map<String, String> properties, final SetPropertiesCallback callback, Object ctx) {
-        store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
+    public void asyncSetProperties(Map<String, String> properties, boolean isOverwrite,
+        final SetPropertiesCallback callback, Object ctx) {
+        if (!metadataMutex.tryLock()) {
+            // Defer update for later
+            scheduledExecutor.schedule(() -> asyncSetProperties(properties, isOverwrite, callback, ctx),
+                100, TimeUnit.MILLISECONDS);
+            return;
+        }
+        if (isOverwrite) {
+            propertiesMap = properties;
+        } else {
+            propertiesMap.putAll(properties);
+        }
+        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
             @Override
-            public void operationComplete(ManagedLedgerInfo result, Stat version) {
+            public void operationComplete(Void result, Stat version) {
                 ledgersStat = version;
-                // Update manageLedger's  properties.
-                ManagedLedgerInfo.Builder info = ManagedLedgerInfo.newBuilder(result);
-                info.clearProperties();
-                for (Map.Entry<String, String> property : properties.entrySet()) {
-                    info.addProperties(MLDataFormats.KeyValue.newBuilder().setKey(property.getKey()).setValue(property.getValue()));
-                }
-                store.asyncUpdateLedgerIds(name, info.build(), version, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat version) {
-                        ledgersStat = version;
-                        propertiesMap.clear();
-                        propertiesMap.putAll(properties);
-                        callback.setPropertiesComplete(properties, ctx);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error("[{}] Update manageLedger's info failed:{}", name, e.getMessage());
-                        callback.setPropertiesFailed(e, ctx);
-                    }
-                });
+                callback.setPropertiesComplete(propertiesMap, ctx);
+                metadataMutex.unlock();
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Get manageLedger's info failed:{}", name, e.getMessage());
+                log.error("[{}] Update managedLedger's properties failed:{}", name, e.getMessage());
                 callback.setPropertiesFailed(e, ctx);
+                metadataMutex.unlock();
             }
         });
     }

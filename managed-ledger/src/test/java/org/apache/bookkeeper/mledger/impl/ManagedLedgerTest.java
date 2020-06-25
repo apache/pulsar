@@ -1174,43 +1174,49 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         properties.put("key1", "value1");
         properties.put("key2", "value2");
         properties.put("key3", "value3");
-        ledger.setProperties(properties);
+        ledger.setProperties(properties, true);
         assertEquals(ledger.getProperties(), properties);
 
         Map<String, String> newProperties = new HashMap<>();
         newProperties.put("key4", "value4");
         newProperties.put("key5", "value5");
         newProperties.put("key6", "value6");
-        ledger.setProperties(newProperties);
+        ledger.setProperties(newProperties, true);
+        assertEquals(ledger.getProperties(), newProperties);
+
+        ledger.setProperties(properties, false);
+        newProperties.putAll(properties);
         assertEquals(ledger.getProperties(), newProperties);
     }
 
     @Test
-    public void testAsyncSetProperties() throws Exception {
-        final CountDownLatch latch = new CountDownLatch(1);
+    public void testConcurrentAsyncSetProperties() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1000);
         ManagedLedger ledger = factory.open("my_test_ledger");
-        Map<String, String> properties = new HashMap<>();
-        properties.put("key1", "value1");
-        properties.put("key2", "value2");
-        properties.put("key3", "value3");
-        ledger.setProperties(properties);
-        Map<String, String> newProperties = new HashMap<>();
-        newProperties.put("key4", "value4");
-        newProperties.put("key5", "value5");
-        newProperties.put("key6", "value6");
-        ledger.asyncSetProperties(newProperties, new AsyncCallbacks.SetPropertiesCallback() {
-            @Override
-            public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
-                latch.countDown();
-            }
+        Executor executor = Executors.newCachedThreadPool();
+        for (int i = 0; i < 1000; i++) {
+            final int finalI = i;
+            executor.execute(() -> {
+                Map<String, String> newProperties = new HashMap<>();
+                newProperties.put("key0", String.valueOf(finalI));
+                newProperties.put("key1", "value1");
+                newProperties.put("key2", "value2");
+                newProperties.put("key3", "value3");
+                ledger.asyncSetProperties(newProperties, true, new AsyncCallbacks.SetPropertiesCallback() {
+                    @Override
+                    public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
+                        assertEquals(properties, newProperties);
+                        latch.countDown();
+                    }
 
-            @Override
-            public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                fail("should have succeeded");
-            }
-        }, null);
+                    @Override
+                    public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        fail("should have succeeded");
+                    }
+                }, null);
+            });
+        }
         latch.await();
-        assertEquals(ledger.getProperties(), newProperties);
     }
 
     @Test
