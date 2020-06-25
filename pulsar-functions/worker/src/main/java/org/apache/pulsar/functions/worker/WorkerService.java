@@ -61,7 +61,7 @@ public class WorkerService {
     private StorageAdminClient stateStoreAdminClient;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
-    private boolean isInitialized = false;
+    private volatile boolean isInitialized = false;
     private final ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
