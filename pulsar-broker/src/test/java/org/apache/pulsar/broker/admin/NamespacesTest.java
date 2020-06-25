@@ -911,7 +911,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // make one bundle owned
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testBundle, false, true, false);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
-        doNothing().when(nsSvc).unloadNamespaceBundle(testBundle);
+        doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
                 false);
