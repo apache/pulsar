@@ -174,7 +174,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // default to use MessageCryptoBc;
                 MessageCrypto msgCryptoBc;
                 try {
-                    msgCryptoBc = new MessageCryptoBc(logCtx, true);;
+                    msgCryptoBc = new MessageCryptoBc(logCtx, true);
                 } catch (Exception e) {
                     log.error("MessageCryptoBc may not included in the jar in Producer. e:", e);
                     msgCryptoBc = null;

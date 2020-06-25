@@ -25,7 +25,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -60,6 +59,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private final SchedulerManager schedulerManager;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
+    private final ErrorNotifier errorNotifier;
 
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
 
@@ -67,14 +67,19 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @Getter
     boolean isInitializePhase = false;
 
+    @Getter
+    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
-                                   PulsarClient pulsarClient) throws PulsarClientException {
+                                   PulsarClient pulsarClient,
+                                   ErrorNotifier errorNotifier) throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
         this.serviceRequestManager = getServiceRequestManager(
                 this.pulsarClient, this.workerConfig.getFunctionMetadataTopic());
         this.schedulerManager = schedulerManager;
+        this.errorNotifier = errorNotifier;
     }
 
     /**
@@ -86,30 +91,28 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * 1. Consume all existing function meta data upon start to establish existing state
      */
     public void initialize() {
-        log.info("/** Initializing Function Metadata Manager **/");
         try {
-            Reader<byte[]> reader = pulsarClient.newReader()
-                    .topic(this.workerConfig.getFunctionMetadataTopic())
-                    .startMessageId(MessageId.earliest)
-                    .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
-                    .create();
-
-            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this, reader);
+            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(this,
+                    pulsarClient.newReader(), this.workerConfig, this.errorNotifier);
             // read all existing messages
             this.setInitializePhase(true);
-            while (reader.hasMessageAvailable()) {
-                this.functionMetaDataTopicTailer.processRequest(reader.readNext());
+            while (this.functionMetaDataTopicTailer.getReader().hasMessageAvailable()) {
+                this.functionMetaDataTopicTailer.processRequest(this.functionMetaDataTopicTailer.getReader().readNext());
             }
             this.setInitializePhase(false);
-            // schedule functions if necessary
-            this.schedulerManager.schedule();
-            // start function metadata tailer
-            this.functionMetaDataTopicTailer.start();
-
+            
+            this.isInitialized.complete(null);
         } catch (Exception e) {
             log.error("Failed to initialize meta data store", e);
             throw new RuntimeException(e);
         }
+    }
+    
+    public void start() {
+        // schedule functions if necessary
+        this.schedulerManager.schedule();
+        // start function metadata tailer
+        this.functionMetaDataTopicTailer.start();
     }
 
     /**

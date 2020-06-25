@@ -59,6 +59,32 @@ To avoid redelivering acknowledged messages in a batch to the consumer, Pulsar i
 
 By default, batch index acknowledgement is disabled (`batchIndexAcknowledgeEnable=false`). You can enable batch index acknowledgement by setting the `batchIndexAcknowledgeEnable` parameter to `true` at the broker side. Enabling batch index acknowledgement may bring more memory overheads. So, perform this operation with caution.
 
+### Chunking
+
+#### Note
+
+> - Batching and chunking cannot be enabled simultaneously. To enable chunking, you must disable batching in advance.
+> - Chunking is only supported for persisted topics.
+> - Chunking is only supported for the exclusive and failover subscription modes.
+
+When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to 0ne hour.
+
+The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. Finally, the consumer stitches chunked messages together and places them into the receiver-queue . Therefore, the client can consume messages from there. Once the consumer consumes entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChuckedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
+
+ The broker does not require any changes to support chunking for non-shared subscription. The broker only use the `chuckedMessageRate` to record chunked message rate on the topic.
+
+#### Handle chunked messages with one producer and one ordered consumer
+
+As shown in the following figure, when a topic has one producer which publishes large message payload in chunked messages along with regular non-chunked messages. the producer publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. The broker stores all 3 chunked messages in the managed-ledger and dispatches to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, combines them to one real message and then hands over the original message M1 to the client.
+
+![](assets/chunking-01.png)
+
+#### Handle chunked messages with multiple producers and one ordered consumer
+
+When multiple publishers publishes chunked messages into the single topic. The broker stores all the chunked messages coming from different publishers in the same managed-ledger. As shown below, Producer 1 publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. Producer 2 publishes message M2 in three chunks M2-C1, M2-C2 and M2-C3. All chunked messages of the specific message are still in the order but might not be consecutive in the managed-ledger. This brings some memory pressure to the consumer because the consumer has to keep separate buffer for each large message to aggregate all chunks of the large message and combine them to one real message.
+
+![](assets/chunking-02.png)
+
 ## Consumers
 
 A consumer is a process that attaches to a topic via a subscription and then receives messages.
@@ -160,6 +186,29 @@ Dead letter topic depends on message re-delivery. Messages are redelivered eithe
 > Note    
 > Currently, dead letter topic is enabled only in the shared subscription mode.
 
+### Retry letter topic
+
+For many online business systems, a message needs to be re-consumed because any exception occurs in the business logic processing. Generally, users hope that they can flexibly configure the delay time for re-consuming the failed messages. In this case, you can configure the producer to send messages to both the business topic and the retry letter topic and you can enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages fail to be consumed and therefore the consumer can automatically consume failed messages from the retry letter topic after a specified delay time.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+This example shows how to consumer messages from a retry letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
+                        .build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+```
+
 ## Topics
 
 As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from [producers](reference-terminology.md#producer) to [consumers](reference-terminology.md#consumer). Topic names are URLs that have a well-defined structure:
@@ -178,6 +227,7 @@ Topic name component | Description
 
 > #### No need to explicitly create new topics
 > You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces) provided in the [topic name](#topics).
+> If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as `persistent://my-tenant/my-namespace/my-topic`. `persistent://my-tenant/my-namespace/my-topic` means the `my-topic` topic is created in the `my-namespace` namespace of the `my-tenant` tenant.
 
 ## Namespaces
 

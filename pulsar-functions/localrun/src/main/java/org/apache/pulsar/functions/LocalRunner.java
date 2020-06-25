@@ -288,7 +288,7 @@ public class LocalRunner {
                             .getProtectionDomain().getCodeSource().getLocation().getFile();
                 }
 
-                String builtInSink = isBuiltInSource(userCodeFile);
+                String builtInSink = isBuiltInSink(userCodeFile);
                 if (builtInSink != null) {
                     sinkConfig.setArchive(builtInSink);
                 }

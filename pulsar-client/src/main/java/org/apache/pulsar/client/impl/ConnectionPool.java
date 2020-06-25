@@ -40,6 +40,7 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -316,6 +317,18 @@ public class ConnectionPool implements Closeable {
         return future;
     }
 
+    public void releaseConnection(ClientCnx cnx) {
+        if (maxConnectionsPerHosts == 0) {
+            //Disable pooling
+            if (cnx.channel().isActive()) {
+                if(log.isDebugEnabled()) {
+                    log.debug("close connection due to pooling disabled.");
+                }
+                cnx.close();
+            }
+        }
+    }
+
     @Override
     public void close() throws IOException {
         try {
@@ -333,6 +346,11 @@ public class ConnectionPool implements Closeable {
         if (map != null) {
             map.remove(connectionKey, connectionFuture);
         }
+    }
+
+    @VisibleForTesting
+    int getPoolSize() {
+        return pool.values().stream().mapToInt(Map::size).sum();
     }
 
     public static int signSafeMod(long dividend, int divisor) {

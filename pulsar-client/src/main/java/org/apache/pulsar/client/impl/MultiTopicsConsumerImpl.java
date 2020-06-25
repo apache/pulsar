@@ -394,6 +394,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 pendingBatchReceives.add(OpBatchReceive.of(result));
             }
+            resumeReceivingFromPausedConsumersIfNeeded();
         } finally {
             lock.writeLock().unlock();
         }
@@ -786,7 +787,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(((Throwable) e).getCause(), String.format("Failed to subscribe %s with %d partitions", topicName, numPartitions)));
                 return null;
-            });;
+            });
         return consumer;
     }
 

@@ -491,3 +491,48 @@ opts := pulsar.ClientOptions{
     Authentication: NewAuthenticationTLS("my-cert.pem", "my-key.pem"),
 }
 ```
+
+## Schema
+
+This example shows how to create a producer and consumer with schema.
+
+```go
+var exampleSchemaDef = "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\"," +
+    		"\"fields\":[{\"name\":\"ID\",\"type\":\"int\"},{\"name\":\"Name\",\"type\":\"string\"}]}"
+jsonSchema := NewJsonSchema(exampleSchemaDef, nil)
+// create producer
+producer, err := client.CreateProducerWithSchema(ProducerOptions{
+	Topic: "jsonTopic",
+}, jsonSchema)
+err = producer.Send(context.Background(), ProducerMessage{
+	Value: &testJson{
+		ID:   100,
+		Name: "pulsar",
+	},
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer producer.Close()
+//create consumer
+var s testJson
+consumerJS := NewJsonSchema(exampleSchemaDef, nil)
+consumer, err := client.SubscribeWithSchema(ConsumerOptions{
+	Topic:            "jsonTopic",
+	SubscriptionName: "sub-2",
+}, consumerJS)
+if err != nil {
+	log.Fatal(err)
+}
+msg, err := consumer.Receive(context.Background())
+if err != nil {
+	log.Fatal(err)
+}
+err = msg.GetValue(&s)
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Println(s.ID) // output: 100
+fmt.Println(s.Name) // output: pulsar
+defer consumer.Close()
+```
