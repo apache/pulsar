@@ -223,7 +223,7 @@ public class SinksImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (sinkPkgUrl == null || !sinkPkgUrl.startsWith(Utils.FILE)) {
@@ -417,7 +417,7 @@ public class SinksImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sinkPkgUrl != null && !sinkPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
