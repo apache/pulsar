@@ -47,17 +47,6 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Check if specified role is a super user
      * @param role the role to check
-     * @return a CompletableFuture containing a boolean in which true means the role is a super user
-     * and false if it is not
-     */
-    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
-        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
-    }
-
-    /**
-     * Check if specified role is a super user
-     * @param role the role to check
      * @param authenticationData authentication data related to the role
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
      * and false if it is not
@@ -65,7 +54,20 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> isSuperUser(String role,
                                                    AuthenticationDataSource authenticationData,
                                                    ServiceConfiguration serviceConfiguration) {
-        return isSuperUser(role, serviceConfiguration);
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+    }
+
+    /**
+     * @deprecated Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
     }
 
     /**

@@ -322,7 +322,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             String role, String authDataJson) {
         return updateSubscriptionPermissionAsync(namespace, subscriptionName, Collections.singleton(role), true);
     }
-    
+
     private CompletableFuture<Void> updateSubscriptionPermissionAsync(NamespaceName namespace, String subscriptionName, Set<String> roles,
             boolean remove) {
         CompletableFuture<Void> result = new CompletableFuture<>();
@@ -549,7 +549,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     new IllegalStateException("TopicOperation is not supported."));
         }
 
-        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, conf);
+        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
 
         return isSuperUserFuture
                 .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> isSuperUser || isAuthorized);
@@ -573,14 +573,14 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
             if (role != null && conf.getProxyRoles().contains(role)) {
                 // role check
-                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, conf);
+                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
                 CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
                 CompletableFuture<Boolean> isRoleAuthorizedFuture = isRoleSuperUserFuture
                         .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->
                                 isRoleSuperUser || isRoleTenantAdmin);
 
                 // originalRole check
-                CompletableFuture<Boolean> isOriginalRoleSuperUserFuture = isSuperUser(originalRole, conf);
+                CompletableFuture<Boolean> isOriginalRoleSuperUserFuture = isSuperUser(originalRole, authData, conf);
                 CompletableFuture<Boolean> isOriginalRoleTenantAdminFuture = isTenantAdmin(tenantName, originalRole,
                         tenantInfo, authData);
                 CompletableFuture<Boolean> isOriginalRoleAuthorizedFuture = isOriginalRoleSuperUserFuture
@@ -593,7 +593,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                 isRoleAuthorized && isOriginalRoleAuthorized);
             } else {
                 // role check
-                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, conf);
+                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
                 CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
                 return isRoleSuperUserFuture
                         .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->

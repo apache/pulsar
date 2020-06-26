@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
 
-import com.facebook.presto.spi.PrestoException;
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+
+import io.prestosql.spi.PrestoException;
 import java.util.List;
 
 import org.apache.pulsar.client.api.PulsarClientException;

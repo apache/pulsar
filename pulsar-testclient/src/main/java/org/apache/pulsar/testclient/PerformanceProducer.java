@@ -558,7 +558,7 @@ public class PerformanceProducer {
     }
 
     private static void printAggregatedThroughput(long start) {
-        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
         log.info(

@@ -118,7 +118,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sources reload
 ```
 
-For more information, see [`here`](io-cli#reload).
+For more information, see [`here`](io-cli.md#reload).
 
 #### Sink
 
@@ -128,7 +128,7 @@ Use the `reload` subcommand.
 $ pulsar-admin sinks reload
 ```
 
-For more information, see [`here`](io-cli#reload-1).
+For more information, see [`here`](io-cli.md#reload-1).
 
 ### `available`
 
