@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.utils;
 
 import java.util.Queue;
 
-import org.apache.pulsar.common.intercept.ResponseHandler;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
@@ -80,17 +79,17 @@ public class ClientChannelHelper {
         }
 
         @Override
-        protected void handleSubscribe(CommandSubscribe subscribe, ResponseHandler responseHandler) {
+        protected void handleSubscribe(CommandSubscribe subscribe) {
             queue.offer(CommandSubscribe.newBuilder(subscribe).build());
         }
 
         @Override
-        protected void handleProducer(CommandProducer producer, ResponseHandler responseHandler) {
+        protected void handleProducer(CommandProducer producer) {
             queue.offer(CommandProducer.newBuilder(producer).build());
         }
 
         @Override
-        protected void handleSend(CommandSend send, ByteBuf headersAndPayload, ResponseHandler responseHandler) {
+        protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
             queue.offer(CommandSend.newBuilder(send).build());
         }
 
@@ -120,7 +119,7 @@ public class ClientChannelHelper {
         }
 
         @Override
-        protected void handleUnsubscribe(CommandUnsubscribe unsubscribe, ResponseHandler responseHandler) {
+        protected void handleUnsubscribe(CommandUnsubscribe unsubscribe) {
             queue.offer(CommandUnsubscribe.newBuilder(unsubscribe));
         }
 
@@ -135,12 +134,12 @@ public class ClientChannelHelper {
         }
 
         @Override
-        protected void handleCloseProducer(CommandCloseProducer closeProducer, ResponseHandler responseHandler) {
+        protected void handleCloseProducer(CommandCloseProducer closeProducer) {
             queue.offer(CommandCloseProducer.newBuilder(closeProducer).build());
         }
 
         @Override
-        protected void handleCloseConsumer(CommandCloseConsumer closeConsumer, ResponseHandler responseHandler) {
+        protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
             queue.offer(CommandCloseConsumer.newBuilder(closeConsumer).build());
         }
 

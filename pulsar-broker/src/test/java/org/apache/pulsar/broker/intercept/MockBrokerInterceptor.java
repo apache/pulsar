@@ -22,7 +22,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.intercept.ResponseHandler;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -33,7 +32,12 @@ import java.io.IOException;
 public class MockBrokerInterceptor implements BrokerInterceptor {
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand request, ResponseHandler responseHandler, ServerCnx cnx) throws InterceptException {
+    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws InterceptException {
+        // no-op
+    }
+
+    @Override
+    public void onConnectionClosed(ServerCnx cnx) {
         // no-op
     }
 
