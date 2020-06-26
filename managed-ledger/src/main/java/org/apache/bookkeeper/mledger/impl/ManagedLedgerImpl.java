@@ -3275,9 +3275,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void setProperties(Map<String, String> properties, boolean isOverwrite) throws InterruptedException {
+    public void setProperty(String key, String value) throws InterruptedException {
+        Map<String, String> map = new HashMap<>();
+        map.put(key, value);
+        updateProperties(map, false, false, null);
+    }
+
+    @Override
+    public void deleteProperty(String key) throws InterruptedException {
+        updateProperties(null, false, true, key);
+    }
+
+    @Override
+    public void setProperties(Map<String, String> properties) throws InterruptedException {
+        updateProperties(properties, true, false, null);
+    }
+
+    @Override
+    public void asyncSetProperties(Map<String, String> properties, final SetPropertiesCallback callback, Object ctx) {
+        asyncUpdateProperties(properties, true, false, null, callback, ctx);
+    }
+
+    private void updateProperties(Map<String, String> properties, boolean isOverwrite, boolean isDelete,
+        String deleteKey) throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1);
-        this.asyncSetProperties(properties, isOverwrite, new SetPropertiesCallback() {
+        this.asyncUpdateProperties(properties, isOverwrite, isDelete, deleteKey, new SetPropertiesCallback() {
             @Override
             public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
                 latch.countDown();
@@ -3293,16 +3315,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         latch.await();
     }
 
-    @Override
-    public void asyncSetProperties(Map<String, String> properties, boolean isOverwrite,
-        final SetPropertiesCallback callback, Object ctx) {
+    private void asyncUpdateProperties(Map<String, String> properties, boolean isOverwrite, boolean isDelete,
+        String deleteKey, final SetPropertiesCallback callback, Object ctx) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> asyncSetProperties(properties, isOverwrite, callback, ctx),
-                100, TimeUnit.MILLISECONDS);
+            scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isOverwrite, isDelete, deleteKey,
+                callback, ctx), 100, TimeUnit.MILLISECONDS);
             return;
         }
-        if (isOverwrite) {
+        if (isDelete) {
+            propertiesMap.remove(deleteKey);
+        } else if (isOverwrite) {
             propertiesMap = properties;
         } else {
             propertiesMap.putAll(properties);

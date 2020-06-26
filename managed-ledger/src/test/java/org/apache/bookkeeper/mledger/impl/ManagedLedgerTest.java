@@ -1168,32 +1168,45 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testSetProperties() throws Exception {
+    public void testProperties() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         Map<String, String> properties = new HashMap<>();
         properties.put("key1", "value1");
         properties.put("key2", "value2");
         properties.put("key3", "value3");
-        ledger.setProperties(properties, true);
+        ledger.setProperties(properties);
+        assertEquals(ledger.getProperties(), properties);
+
+        properties.put("key4", "value4");
+        ledger.setProperty("key4", "value4");
+        assertEquals(ledger.getProperties(), properties);
+
+        ledger.deleteProperty("key4");
+        properties.remove("key4");
         assertEquals(ledger.getProperties(), properties);
 
         Map<String, String> newProperties = new HashMap<>();
-        newProperties.put("key4", "value4");
         newProperties.put("key5", "value5");
         newProperties.put("key6", "value6");
-        ledger.setProperties(newProperties, true);
-        assertEquals(ledger.getProperties(), newProperties);
-
-        ledger.setProperties(properties, false);
-        newProperties.putAll(properties);
+        ledger.setProperties(newProperties);
         assertEquals(ledger.getProperties(), newProperties);
     }
 
     @Test
     public void testConcurrentAsyncSetProperties() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1000);
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
         Executor executor = Executors.newCachedThreadPool();
+        executor.execute(()->{
+            try {
+                for (int i = 0; i < 100; i++) {
+                    ledger.addEntry("data".getBytes(Encoding));
+                    Thread.sleep(300);
+                }
+            } catch (Exception e) {
+                fail(e.getMessage());
+            }
+        });
         for (int i = 0; i < 1000; i++) {
             final int finalI = i;
             executor.execute(() -> {
@@ -1202,7 +1215,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 newProperties.put("key1", "value1");
                 newProperties.put("key2", "value2");
                 newProperties.put("key3", "value3");
-                ledger.asyncSetProperties(newProperties, true, new AsyncCallbacks.SetPropertiesCallback() {
+                ledger.asyncSetProperties(newProperties, new AsyncCallbacks.SetPropertiesCallback() {
                     @Override
                     public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
                         assertEquals(properties, newProperties);
