@@ -40,7 +40,6 @@ import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.intercept.ResponseHandler;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -366,21 +365,20 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     @Override
-    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata,
-        ResponseHandler responseHandler) {
+    protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handlePartitionMetadataResponse(partitionMetadata);
     }
 
     @Override
-    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace, ResponseHandler responseHandler) {
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handleGetTopicsOfNamespace(commandGetTopicsOfNamespace);
     }
     @Override
-    protected void handleGetSchema(CommandGetSchema commandGetSchema, ResponseHandler responseHandler) {
+    protected void handleGetSchema(CommandGetSchema commandGetSchema) {
         checkArgument(state == State.ProxyLookupRequests);
 
         lookupProxyHandler.handleGetSchema(commandGetSchema);
