@@ -280,12 +280,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
             }
         }).when(spyTopic).close(false);
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
-        try {
-            pulsar.getNamespaceService().unloadNamespaceBundle(bundle);
-        } catch (Exception e) {
-            // fail
-            fail(e.getMessage());
-        }
+
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle).join();
+
         try {
             pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
             fail("it should fail as node is not present");
@@ -321,7 +318,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
-        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS);
+        pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS).join();
 
         try {
             pulsar.getLocalZkCache().getZooKeeper().getData(ServiceUnitZkUtils.path(bundle), null, null);
