@@ -217,6 +217,7 @@ public class WorkerService {
 
             // initialize function runtime manager
             log.info("/** Initializing Runtime Manager **/");
+
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
 
             // Setting references to managers in scheduler
