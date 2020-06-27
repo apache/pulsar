@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,12 +35,25 @@ import org.testng.annotations.Test;
 
 public class FunctionMetaDataManagerTest {
 
+    static byte[] producerByteArray;
+
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
         when(builder.producerName(anyString())).thenReturn(builder);
 
-        when(builder.create()).thenReturn(mock(Producer.class));
+        Producer producer = mock(Producer.class);
+        TypedMessageBuilder messageBuilder = mock(TypedMessageBuilder.class);
+        when(messageBuilder.key(anyString())).thenReturn(messageBuilder);
+        doAnswer(invocation -> {
+            Object arg0 = invocation.getArgument(0);
+            FunctionMetaDataManagerTest.producerByteArray = (byte[])arg0;
+            return messageBuilder;
+        }).when(messageBuilder).value(any());
+        when(messageBuilder.property(anyString(), anyString())).thenReturn(messageBuilder);
+        when(producer.newMessage()).thenReturn(messageBuilder);
+
+        when(builder.create()).thenReturn(producer);
 
         PulsarClient client = mock(PulsarClient.class);
         when(client.newProducer()).thenReturn(builder);
@@ -86,10 +100,20 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
-    public void testUpdateIfLeaderFunction() throws PulsarClientException {
+    public void testUpdateIfLeaderFunctionWithoutCompaction() throws PulsarClientException {
+        testUpdateIfLeaderFunction(false);
+    }
+
+    @Test
+    public void testUpdateIfLeaderFunctionWithCompaction() throws PulsarClientException {
+        testUpdateIfLeaderFunction(true);
+    }
+
+    private void testUpdateIfLeaderFunction(boolean compact) throws PulsarClientException {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
+        workerConfig.setCompactMetadataTopic(compact);
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
@@ -110,6 +134,11 @@ public class FunctionMetaDataManagerTest {
         functionMetaDataManager.acquireLeadership();
         // Now w should be able to really update
         functionMetaDataManager.updateFunctionOnLeader(m1, false);
+        if (compact) {
+            Assert.assertTrue(Arrays.equals(m1.toByteArray(), producerByteArray));
+        } else {
+            Assert.assertFalse(Arrays.equals(m1.toByteArray(), producerByteArray));
+        }
 
         // outdated request
         try {
@@ -119,15 +148,30 @@ public class FunctionMetaDataManagerTest {
             Assert.assertEquals(e.getMessage(), "Update request ignored because it is out of date. Please try again.");
         }
         // udpate with new version
-        m1 = m1.toBuilder().setVersion(2).build();
-        functionMetaDataManager.updateFunctionOnLeader(m1, false);
+        Function.FunctionMetaData m2 = m1.toBuilder().setVersion(2).build();
+        functionMetaDataManager.updateFunctionOnLeader(m2, false);
+        if (compact) {
+            Assert.assertTrue(Arrays.equals(m2.toByteArray(), producerByteArray));
+        } else {
+            Assert.assertFalse(Arrays.equals(m2.toByteArray(), producerByteArray));
+        }
     }
 
     @Test
-    public void deregisterFunction() throws PulsarClientException {
+    public void deregisterFunctionWithoutCompaction() throws PulsarClientException {
+        deregisterFunction(false);
+    }
+
+    @Test
+    public void deregisterFunctionWithCompaction() throws PulsarClientException {
+        deregisterFunction(true);
+    }
+
+    private void deregisterFunction(boolean compact) throws PulsarClientException {
         SchedulerManager mockedScheduler = mock(SchedulerManager.class);
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
+        workerConfig.setCompactMetadataTopic(compact);
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mockedScheduler,
@@ -170,6 +214,11 @@ public class FunctionMetaDataManagerTest {
         m1 = m1.toBuilder().setVersion(2).build();
         functionMetaDataManager.updateFunctionOnLeader(m1, true);
         verify(mockedScheduler, times(2)).schedule();
+        if (compact) {
+            Assert.assertTrue(Arrays.equals("".getBytes(), producerByteArray));
+        } else {
+            Assert.assertFalse(Arrays.equals(m1.toByteArray(), producerByteArray));
+        }
     }
 
     @Test

@@ -131,11 +131,14 @@ public class FunctionMetaDataTopicTailer
 
     public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
                                       MessageId startMessageId) throws PulsarClientException {
-        return readerBuilder
+        ReaderBuilder builder = readerBuilder
                 .topic(workerConfig.getFunctionMetadataTopic())
                 .startMessageId(startMessageId)
                 .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")
-                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-tailer")
-                .create();
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-tailer");
+        if (workerConfig.getCompactMetadataTopic()) {
+            builder = builder.readCompacted(true);
+        }
+        return builder.create();
     }
 }

@@ -169,6 +169,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String functionMetadataTopicName;
     @FieldContext(
+            category = CATEGORY_FUNC_METADATA_MNG,
+            doc = "Should the metadata topic be compacted?"
+    )
+    private Boolean compactMetadataTopic = false;
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The web service url for function workers"
     )
