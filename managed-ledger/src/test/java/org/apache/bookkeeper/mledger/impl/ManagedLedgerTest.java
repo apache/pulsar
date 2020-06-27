@@ -1211,12 +1211,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
             }
         }, null);
-        Map<String, String> property = new HashMap<>();
-        property.put("key4", "value4");
+
         ledger.asyncSetProperty("key4", "value4", new AsyncCallbacks.UpdatePropertiesCallback() {
             @Override
             public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
-                assertEquals("value4", property.get("key4"));
+                assertNotNull(properties.get("key4"));
+                assertEquals("value4", properties.get("key4"));
                 latch.countDown();
             }
 
@@ -1224,6 +1224,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
             }
         }, null);
+
         prop.remove("key1");
         ledger.asyncDeleteProperty("key1", new AsyncCallbacks.UpdatePropertiesCallback() {
             @Override
