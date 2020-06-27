@@ -453,26 +453,49 @@ public interface ManagedLedger {
     /**
      * Add key-value to propertiesMap.
      *
-     * @param key
-     * @param value
+     * @param key key of property to add
+     * @param value value of property to add
      * @throws InterruptedException
+     * @throws ManagedLedgerException
      */
-    void setProperty(String key, String value) throws InterruptedException;
+    void setProperty(String key, String value) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Async add key-value to propertiesMap.
+     *
+     * @param key      key of property to add
+     * @param value    value of property to add
+     * @param callback a callback which will be supplied with the newest properties in managedLedger.
+     * @param ctx      a context object which will be passed to the callback on completion.
+     **/
+    void asyncSetProperty(String key, String value, final AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
 
     /**
      * Delete the property by key.
      *
-     * @param key
+     * @param key key of property to delete
      * @throws InterruptedException
+     * @throws ManagedLedgerException
      */
-    void deleteProperty(String key) throws InterruptedException;
+    void deleteProperty(String key) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Async delete the property by key.
+     *
+     * @param key      key of property to delete
+     * @param callback a callback which will be supplied with the newest properties in managedLedger.
+     * @param ctx      a context object which will be passed to the callback on completion.
+     */
+    void asyncDeleteProperty(String key, final AsyncCallbacks.UpdatePropertiesCallback callback, Object ctx);
 
     /**
      * Update managed-ledger's properties.
      *
      * @param properties key-values of properties
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
      */
-    void setProperties(Map<String, String> properties) throws InterruptedException;
+    void setProperties(Map<String, String> properties) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Async update managed-ledger's properties.
@@ -481,7 +504,7 @@ public interface ManagedLedger {
      * @param callback   a callback which will be supplied with the newest properties in managedLedger.
      * @param ctx        a context object which will be passed to the callback on completion.
      */
-    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.SetPropertiesCallback callback,
+    void asyncSetProperties(Map<String, String> properties, final AsyncCallbacks.UpdatePropertiesCallback callback,
         Object ctx);
 
     /**

@@ -90,7 +90,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.SetPropertiesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -3275,58 +3275,73 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void setProperty(String key, String value) throws InterruptedException {
+    public void setProperty(String key, String value) throws InterruptedException, ManagedLedgerException {
         Map<String, String> map = new HashMap<>();
         map.put(key, value);
-        updateProperties(map, false, false, null);
+        updateProperties(map, false, null);
     }
 
     @Override
-    public void deleteProperty(String key) throws InterruptedException {
-        updateProperties(null, false, true, key);
+    public void asyncSetProperty(String key, String value, final UpdatePropertiesCallback callback, Object ctx) {
+        Map<String, String> map = new HashMap<>();
+        map.put(key, value);
+        asyncUpdateProperties(map, false, null, callback, ctx);
     }
 
     @Override
-    public void setProperties(Map<String, String> properties) throws InterruptedException {
-        updateProperties(properties, true, false, null);
+    public void deleteProperty(String key) throws InterruptedException, ManagedLedgerException {
+        updateProperties(null, true, key);
     }
 
     @Override
-    public void asyncSetProperties(Map<String, String> properties, final SetPropertiesCallback callback, Object ctx) {
-        asyncUpdateProperties(properties, true, false, null, callback, ctx);
+    public void asyncDeleteProperty(String key, final UpdatePropertiesCallback callback, Object ctx) {
+        asyncUpdateProperties(null, true, key, callback, ctx);
     }
 
-    private void updateProperties(Map<String, String> properties, boolean isOverwrite, boolean isDelete,
-        String deleteKey) throws InterruptedException {
+    @Override
+    public void setProperties(Map<String, String> properties) throws InterruptedException, ManagedLedgerException {
+        updateProperties(properties, false, null);
+    }
+
+    @Override
+    public void asyncSetProperties(Map<String, String> properties, final UpdatePropertiesCallback callback,
+        Object ctx) {
+        asyncUpdateProperties(properties, false, null, callback, ctx);
+    }
+
+    private void updateProperties(Map<String, String> properties, boolean isDelete,
+        String deleteKey) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch latch = new CountDownLatch(1);
-        this.asyncUpdateProperties(properties, isOverwrite, isDelete, deleteKey, new SetPropertiesCallback() {
+        AtomicBoolean isSucceed = new AtomicBoolean(false);
+        this.asyncUpdateProperties(properties, isDelete, deleteKey, new UpdatePropertiesCallback() {
             @Override
-            public void setPropertiesComplete(Map<String, String> properties, Object ctx) {
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                isSucceed.set(true);
                 latch.countDown();
             }
 
             @Override
-            public void setPropertiesFailed(ManagedLedgerException exception, Object ctx) {
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}] Update manageLedger's info failed:{}", name, exception.getMessage());
                 latch.countDown();
             }
         }, null);
 
-        latch.await();
+        if (!latch.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS) || !isSucceed.get()) {
+            throw new ManagedLedgerException("Update properties failed");
+        }
     }
 
-    private void asyncUpdateProperties(Map<String, String> properties, boolean isOverwrite, boolean isDelete,
-        String deleteKey, final SetPropertiesCallback callback, Object ctx) {
+    private void asyncUpdateProperties(Map<String, String> properties, boolean isDelete,
+        String deleteKey, final UpdatePropertiesCallback callback, Object ctx) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isOverwrite, isDelete, deleteKey,
+            scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isDelete, deleteKey,
                 callback, ctx), 100, TimeUnit.MILLISECONDS);
             return;
         }
         if (isDelete) {
             propertiesMap.remove(deleteKey);
-        } else if (isOverwrite) {
-            propertiesMap = properties;
         } else {
             propertiesMap.putAll(properties);
         }
@@ -3334,14 +3349,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete(Void result, Stat version) {
                 ledgersStat = version;
-                callback.setPropertiesComplete(propertiesMap, ctx);
+                callback.updatePropertiesComplete(propertiesMap, ctx);
                 metadataMutex.unlock();
             }
 
             @Override
             public void operationFailed(MetaStoreException e) {
                 log.error("[{}] Update managedLedger's properties failed:{}", name, e.getMessage());
-                callback.setPropertiesFailed(e, ctx);
+                callback.updatePropertiesFailed(e, ctx);
                 metadataMutex.unlock();
             }
         });
