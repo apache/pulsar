@@ -1,4 +1,4 @@
---
+---
 id: version-2.6.0-io-use
 title: How to use Pulsar connectors
 sidebar_label: Use
