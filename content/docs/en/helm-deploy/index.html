@@ -308,7 +308,6 @@ helm install pulsar-<span class="hljs-keyword">storage</span>-provisioner stream
 <p>The <code>prepare_helm_release</code> creates the following resources:</p>
 <ul>
 <li>A Kubernetes namespace for installing the Pulsar release</li>
-<li>A secret for storing the username and password of the control center administrator. The username and password can be passed to <code>prepare_helm_release.sh</code> through flags <code>--control-center-admin</code> and <code>--control-center-password</code>. The username and password is used for logging into the Grafana dashboard and Pulsar Manager.</li>
 <li>JWT secret keys and tokens for three super users: <code>broker-admin</code>, <code>proxy-admin</code>, and <code>admin</code>. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying <code>--symmetric</code>.
 <ul>
 <li><code>proxy-admin</code> role is used for proxies to communicate to brokers.</li>
