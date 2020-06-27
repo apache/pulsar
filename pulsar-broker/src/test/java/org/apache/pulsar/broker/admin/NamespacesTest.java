@@ -253,6 +253,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(namespaces.getTenantNamespaces(this.testTenant), expectedList);
 
         try {
+            // check the tenant name is valid
+            namespaces.getTenantNamespaces(this.testTenant + "/default");
+            fail("should have failed");
+        } catch (RestException e) {
+        }
+
+        try {
             namespaces.getTenantNamespaces("non-existing-tenant");
             fail("should have failed");
         } catch (RestException e) {
