@@ -66,8 +66,6 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ./scripts/pulsar/prepare_helm_release.sh \
         -n pulsar \
         -k pulsar-mini \
-        --control-center-admin pulsar \
-        --control-center-password pulsar \
         -c
     ```
 
