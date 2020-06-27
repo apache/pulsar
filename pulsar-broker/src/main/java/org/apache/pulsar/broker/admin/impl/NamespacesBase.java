@@ -111,7 +111,7 @@ public abstract class NamespacesBase extends AdminResource {
         try {
             NamedEntity.checkName(tenant);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Tenant name is invalid  {}", clientAppId(), tenant, e);
+            log.warn("[{}] Tenant name is invalid {},{}", clientAppId(), tenant, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
         }
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
