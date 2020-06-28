@@ -602,13 +602,19 @@ public class NamespaceService {
         return Optional.of(lookupAddress);
     }
 
-    public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
         // unload namespace bundle
-        unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
+        return unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
     }
 
-    public void unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) throws Exception {
-        checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar, timeout, timeoutUnit);
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
+        // unload namespace bundle
+        OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
+        if (ob == null) {
+            return FutureUtil.failedFuture(new IllegalStateException("Bundle " + bundle + " is not currently owned"));
+        } else {
+            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit);
+        }
     }
 
     public CompletableFuture<Boolean> isNamespaceBundleOwned(NamespaceBundle bundle) {
@@ -801,35 +807,34 @@ public class NamespaceService {
                 }
 
                 // success updateNamespaceBundles
-                try {
-                    // disable old bundle in memory
-                    getOwnershipCache().updateBundleState(bundle, false);
-
-                    // update bundled_topic cache for load-report-generation
-                    pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                    loadManager.get().setLoadReportForceUpdateFlag();
-
-                    if (unload) {
-                        // unload new split bundles
-                        r.forEach(splitBundle -> {
-                            try {
-                                unloadNamespaceBundle(splitBundle);
-                            } catch (Exception e) {
-                                LOG.warn("Failed to unload split bundle {}", splitBundle, e);
-                                throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+                // disable old bundle in memory
+                getOwnershipCache().updateBundleState(bundle, false)
+                        .thenRun(() -> {
+                            // update bundled_topic cache for load-report-generation
+                            pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
+                            loadManager.get().setLoadReportForceUpdateFlag();
+                        })
+                        .thenCompose((v) -> {
+                            if (!unload) {
+                                // If we don't need to unload, then we're done here
+                                return CompletableFuture.completedFuture(null);
                             }
+                            // unload new split bundles
+                            List<CompletableFuture<Void>> futures = new ArrayList<>();
+                            r.forEach(splitBundle -> futures.add(unloadNamespaceBundle(splitBundle)));
+                            return FutureUtil.waitForAll(futures);
+                        })
+                        .thenRun(() -> {
+                            unloadFuture.complete(null);
+                        })
+                        .exceptionally(e -> {
+                            String msg1 = format(
+                                    "failed to disable bundle %s under namespace [%s] with error %s",
+                                    bundle.getNamespaceObject().toString(), bundle.toString(), ex.getMessage());
+                            LOG.warn(msg1, e);
+                            unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
+                            return null;
                         });
-                    }
-
-                    unloadFuture.complete(null);
-                } catch (Exception e) {
-                    String msg1 = format(
-                        "failed to disable bundle %s under namespace [%s] with error %s",
-                        bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
-                    LOG.warn(msg1, e);
-                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
-                }
-                return;
             }, pulsar.getOrderedExecutor());
         });
     }
