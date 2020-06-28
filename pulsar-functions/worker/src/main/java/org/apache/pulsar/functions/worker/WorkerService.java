@@ -61,7 +61,7 @@ public class WorkerService {
     private StorageAdminClient stateStoreAdminClient;
     private MembershipManager membershipManager;
     private SchedulerManager schedulerManager;
-    private boolean isInitialized = false;
+    private volatile boolean isInitialized = false;
     private final ScheduledExecutorService statsUpdater;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
@@ -217,6 +217,7 @@ public class WorkerService {
 
             // initialize function runtime manager
             log.info("/** Initializing Runtime Manager **/");
+
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
 
             // Setting references to managers in scheduler

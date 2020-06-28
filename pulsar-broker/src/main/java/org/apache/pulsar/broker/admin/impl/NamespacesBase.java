@@ -940,7 +940,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    
+
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         validateSuperUserAccess();
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
@@ -1031,7 +1031,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    public void internalUnloadNamespaceBundle(String bundleRange, boolean authoritative) {
+    public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -1065,18 +1065,23 @@ public abstract class NamespacesBase extends AdminResource {
         if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
             log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
                     bundleRange);
+            asyncResponse.resume(Response.noContent().build());
             return;
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-        try {
-            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
-            log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+
+        pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                            ex);
+                    asyncResponse.resume(new RestException(ex));
+                    return null;
+                });
     }
 
     @SuppressWarnings("deprecation")

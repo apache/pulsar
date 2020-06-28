@@ -66,8 +66,8 @@ public class FunctionMetaDataUtils {
         return builder.build();
     }
 
-    public static Function.FunctionMetaData generateUpdatedMetadata(Function.FunctionMetaData existingMetaData,
-                                                                    Function.FunctionMetaData updatedMetaData) {
+    public static Function.FunctionMetaData incrMetadataVersion(Function.FunctionMetaData existingMetaData,
+                                                                Function.FunctionMetaData updatedMetaData) {
         long version = 0;
         if (existingMetaData != null) {
             version = existingMetaData.getVersion() + 1;

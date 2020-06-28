@@ -695,7 +695,7 @@ public abstract class PulsarWebResource {
                 }
             } else {
                 String msg = String.format("Policies not found for %s namespace", namespace.toString());
-                log.error(msg);
+                log.warn(msg);
                 validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND, msg));
             }
         }).exceptionally(ex -> {

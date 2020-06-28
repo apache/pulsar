@@ -454,11 +454,12 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void unloadNamespaceBundle(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void unloadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
-        internalUnloadNamespaceBundle(bundleRange, authoritative);
+        internalUnloadNamespaceBundle(asyncResponse, bundleRange, authoritative);
     }
 
     @PUT

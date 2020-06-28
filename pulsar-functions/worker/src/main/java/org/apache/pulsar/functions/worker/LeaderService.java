@@ -106,8 +106,12 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 // is the leader and may need to start computing and writing assignments
                 schedulerManager.initialize();
 
+                functionMetaDataManager.acquireLeadership();
                 // indicate leader initialization is complete
                 leaderInitComplete.set(true);
+                // Once we become leader we need to schedule
+                // This is done after leaderInitComplete because schedule waits on that becoming true
+                schedulerManager.schedule();
             } catch (Throwable th) {
                 log.error("Encountered error when initializing to become leader", th);
                 errorNotifier.triggerError(th);
@@ -131,6 +135,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 } else {
                     functionAssignmentTailer.startFromMessage(schedulerManager.getLastMessageProduced());
                 }
+                functionMetaDataManager.giveupLeadership();
 
                 leaderInitComplete.set(false);
             } catch (Throwable th) {
