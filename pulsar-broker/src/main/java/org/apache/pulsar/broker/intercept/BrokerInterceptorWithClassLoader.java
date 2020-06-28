@@ -50,8 +50,18 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        this.interceptor.onWebServiceRequest(request, response, chain);
+    public void onConnectionClosed(ServerCnx cnx) {
+        this.interceptor.onConnectionClosed(cnx);
+    }
+
+    @Override
+    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        this.interceptor.onWebserviceRequest(request, response, chain);
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        this.interceptor.onWebserviceResponse(request, response, chain);
     }
 
     @Override

@@ -46,9 +46,19 @@ public interface BrokerInterceptor extends AutoCloseable {
     void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException;
 
     /**
+     * Called by the broker while connection closed.
+     */
+    void onConnectionClosed(ServerCnx cnx);
+
+    /**
      * Called by the web service while new request incoming.
      */
-    void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+
+    /**
+     * Intercept the webservice response before send to client.
+     */
+    void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
 
     /**
      * Initialize the broker interceptor.
@@ -70,7 +80,17 @@ public interface BrokerInterceptor extends AutoCloseable {
         }
 
         @Override
-        public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        public void onConnectionClosed(ServerCnx cnx) {
+            // no-op
+        }
+
+        @Override
+        public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+            chain.doFilter(request, response);
+        }
+
+        @Override
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
             chain.doFilter(request, response);
         }
 

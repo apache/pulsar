@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +42,11 @@ public class ResponseHandlerFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
 
     private final String brokerAddress;
+    private final BrokerInterceptor interceptor;
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
+        this.interceptor = pulsar.getBrokerInterceptor();
     }
 
     @Override
@@ -60,6 +63,7 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
+        interceptor.onWebserviceResponse(request, response, chain);
 
     }
 

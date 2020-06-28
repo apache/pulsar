@@ -28,12 +28,12 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
 
-public class EventListenerFilter implements Filter {
+public class PreInterceptFilter implements Filter {
 
-    private final BrokerInterceptor eventListener;
+    private final BrokerInterceptor interceptor;
 
-    public EventListenerFilter(BrokerInterceptor eventListener) {
-        this.eventListener = eventListener;
+    public PreInterceptFilter(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 
     @Override
@@ -43,7 +43,7 @@ public class EventListenerFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        eventListener.onWebServiceRequest(servletRequest, servletResponse, filterChain);
+        interceptor.onWebserviceRequest(servletRequest, servletResponse, filterChain);
     }
 
     @Override

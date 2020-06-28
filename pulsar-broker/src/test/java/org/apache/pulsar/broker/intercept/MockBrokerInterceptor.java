@@ -24,8 +24,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.intercept.InterceptException;
 
 import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
+import java.io.IOException;
 
 public class MockBrokerInterceptor implements BrokerInterceptor {
 
@@ -35,7 +37,17 @@ public class MockBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
+    public void onConnectionClosed(ServerCnx cnx) {
+        // no-op
+    }
+
+    @Override
+    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) {
+        // no-op
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         // no-op
     }
 

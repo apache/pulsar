@@ -94,9 +94,23 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onConnectionClosed(ServerCnx cnx) {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.onWebServiceRequest(request, response, chain);
+            value.onConnectionClosed(cnx);
+        }
+    }
+
+    @Override
+    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.onWebserviceRequest(request, response, chain);
+        }
+    }
+
+    @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+        for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
+            value.onWebserviceResponse(request, response, chain);
         }
     }
 
