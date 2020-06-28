@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
@@ -31,12 +30,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Range;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,7 +64,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -90,8 +86,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -3312,23 +3308,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void updateProperties(Map<String, String> properties, boolean isDelete,
         String deleteKey) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch latch = new CountDownLatch(1);
-        AtomicBoolean isSucceed = new AtomicBoolean(false);
+        class Result {
+            ManagedLedgerException exception = null;
+        }
+        final Result result = new Result();
         this.asyncUpdateProperties(properties, isDelete, deleteKey, new UpdatePropertiesCallback() {
             @Override
             public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
-                isSucceed.set(true);
                 latch.countDown();
             }
 
             @Override
             public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}] Update manageLedger's info failed:{}", name, exception.getMessage());
+                result.exception = exception;
                 latch.countDown();
             }
         }, null);
 
-        if (!latch.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS) || !isSucceed.get()) {
-            throw new ManagedLedgerException("Update properties failed");
+        if (!latch.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
+            throw new ManagedLedgerException("Timeout during update managedLedger's properties");
+        }
+
+        if (result.exception != null) {
+            log.error("[{}] Update managedLedger's properties failed", name, result.exception);
+            throw result.exception;
         }
     }
 
@@ -3355,7 +3358,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void operationFailed(MetaStoreException e) {
-                log.error("[{}] Update managedLedger's properties failed:{}", name, e.getMessage());
+                log.error("[{}] Update managedLedger's properties failed", name, e);
                 callback.updatePropertiesFailed(e, ctx);
                 metadataMutex.unlock();
             }
