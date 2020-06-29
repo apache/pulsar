@@ -228,7 +228,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             throw new PulsarClientException("reconsumeLater method not support!");
         }
         try {
@@ -300,7 +300,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
         try {
@@ -331,7 +331,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
