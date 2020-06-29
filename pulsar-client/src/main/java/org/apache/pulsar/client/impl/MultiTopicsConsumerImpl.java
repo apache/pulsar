@@ -787,7 +787,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture.completeExceptionally(
                     PulsarClientException.wrap(((Throwable) e).getCause(), String.format("Failed to subscribe %s with %d partitions", topicName, numPartitions)));
                 return null;
-            });;
+            });
         return consumer;
     }
 
@@ -881,12 +881,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     consumers.values().stream()
                         .filter(consumer1 -> {
                             String consumerTopicName = consumer1.getTopic();
-                            if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
-                                    TopicName.get(topicName).getPartitionedTopicName())) {
-                                return true;
-                            } else {
-                                return false;
-                            }
+                            return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                    TopicName.get(topicName).getPartitionedTopicName());
                         })
                         .collect(Collectors.toList()));
 
@@ -953,11 +949,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<ConsumerImpl<T>> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
 
         List<CompletableFuture<Void>> futureList = consumersToUnsub.stream()
@@ -1005,11 +997,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<ConsumerImpl<T>> consumersToClose = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
 
         List<CompletableFuture<Void>> futureList = consumersToClose.stream()

@@ -54,14 +54,10 @@ import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeat
  * A simple implementation of leader election using a pulsar topic.
  */
 @Slf4j
-public class MembershipManager implements AutoCloseable, ConsumerEventListener {
+public class MembershipManager implements AutoCloseable {
 
-    private final String consumerName;
-    private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdmin;
-    private final CompletableFuture<Void> firstConsumerEventFuture;
-    private final AtomicBoolean isLeader = new AtomicBoolean();
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
@@ -72,50 +68,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerService service, PulsarClient client, PulsarAdmin pulsarAdmin)
-            throws PulsarClientException {
-        this.workerConfig = service.getWorkerConfig();
+    MembershipManager(WorkerService workerService, PulsarClient pulsarClient, PulsarAdmin pulsarAdmin) {
+        this.workerConfig = workerService.getWorkerConfig();
         this.pulsarAdmin = pulsarAdmin;
-        consumerName = String.format(
-            "%s:%s:%d",
-            workerConfig.getWorkerId(),
-            workerConfig.getWorkerHostname(),
-            workerConfig.getWorkerPort()
-        );
-        firstConsumerEventFuture = new CompletableFuture<>();
-        // the membership manager is using a `coordination` topic for leader election.
-        // we don't produce any messages into this topic, we only use the `failover` subscription
-        // to elect an active consumer as the leader worker. The leader worker will be responsible
-        // for scheduling snapshots for FMT and doing task assignment.
-        consumer = (ConsumerImpl<byte[]>) client.newConsumer()
-                .topic(workerConfig.getClusterCoordinationTopic())
-                .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
-                .subscriptionType(SubscriptionType.Failover)
-                .consumerEventListener(this)
-                .property(WORKER_IDENTIFIER, consumerName)
-                .subscribe();
-        
-        isLeader.set(checkLeader(service, consumer.getConsumerName()));
-    }
-
-    @Override
-    public void becameActive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(false, true)) {
-            log.info("Worker {} became the leader.", consumerName);
-        }
-    }
-
-    @Override
-    public void becameInactive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(true, false)) {
-            log.info("Worker {} lost the leadership.", consumerName);
-        }
-    }
-
-    public boolean isLeader() {
-        return isLeader.get();
     }
 
     public List<WorkerInfo> getCurrentMembership() {
@@ -163,8 +118,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void close() throws PulsarClientException {
-        consumer.close();
+    public void close() {
+
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
@@ -274,24 +229,4 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             schedulerManager.schedule();
         }
     }
-
-    /**
-     * Private methods
-     */
-
-    private boolean checkLeader(WorkerService service, String consumerName) {
-        try {
-            TopicStats stats = service.getBrokerAdmin().topics()
-                    .getStats(service.getWorkerConfig().getClusterCoordinationTopic());
-            String activeConsumerName = stats != null
-                    && stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION) != null
-                            ? stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName
-                            : null;
-            return consumerName != null && consumerName.equalsIgnoreCase(activeConsumerName);
-        } catch (Exception e) {
-            log.warn("Failed to check leader {}", e.getMessage());
-        }
-        return false;
-    }
-    
 }

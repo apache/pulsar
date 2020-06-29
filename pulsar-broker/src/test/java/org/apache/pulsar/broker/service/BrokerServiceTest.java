@@ -779,7 +779,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // disable namespace-bundle
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
-        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()

@@ -118,10 +118,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
-        if(conf.isRetryEnable() == true && conf.getTopicNames().size() > 0 ) {
-            TopicName topicFisrt = TopicName.get(conf.getTopicNames().iterator().next());
-            String retryLetterTopic = topicFisrt.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-            String deadLetterTopic = topicFisrt.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+        if(conf.isRetryEnable() && conf.getTopicNames().size() > 0 ) {
+            TopicName topicFirst = TopicName.get(conf.getTopicNames().iterator().next());
+            String retryLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
+            String deadLetterTopic = topicFirst.getNamespace() + "/" + conf.getSubscriptionName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
             if(conf.getDeadLetterPolicy() == null) {
                 conf.setDeadLetterPolicy(DeadLetterPolicy.builder()
                                         .maxRedeliverCount(RetryMessageUtil.MAX_RECONSUMETIMES)
