@@ -343,6 +343,8 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         0
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
         ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/perf
+        ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
         ${CMAKE_SOURCE_DIR}/include)
 
@@ -352,5 +354,7 @@ add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         1
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
         ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/perf
+        ${CMAKE_SOURCE_DIR}/examples
         ${CMAKE_SOURCE_DIR}/tests
         ${CMAKE_SOURCE_DIR}/include)
