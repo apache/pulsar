@@ -69,7 +69,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     private CredentialsProvider credentialsProvider;
     private ElasticSearchConfig elasticSearchConfig;
 
-    protected static final String ACTION = "ACTION";
+    protected static final String ELASTICSEARCH_ACTION = "ACTION";
     protected static final String UPSERT = "UPSERT";
     protected static final String DELETE = "DELETE";
     protected static final String ID = "ID";
@@ -89,7 +89,7 @@ public class ElasticSearchSink implements Sink<byte[]> {
     @Override
     public void write(Record<byte[]> record) {
         KeyValue<String, byte[]> keyValue = extractKeyValue(record);
-        String action = record.getProperties().get(ACTION);
+        String action = record.getProperties().get(ELASTICSEARCH_ACTION);
 
         if (action == null) {
             action = UPSERT;
