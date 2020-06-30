@@ -41,7 +41,7 @@ public class OffloadPolicies {
     public final static String[] DRIVER_NAMES = {"S3", "aws-s3", "google-cloud-storage", "filesystem"};
     public final static String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public final static long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = -1;
-    public final static Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
+    public final static long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = -1;
 
     // common config
     private String offloadersDirectory = DEFAULT_OFFLOADER_DIRECTORY;
