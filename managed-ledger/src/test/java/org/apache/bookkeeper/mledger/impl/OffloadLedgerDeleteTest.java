@@ -210,8 +210,9 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
 
     @Test
     public void isOffloadedNeedsDeleteTest() throws Exception {
+        OffloadPolicies offloadPolicies = new OffloadPolicies();
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
-        Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(new OffloadPolicies());
+        Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         MockClock clock = new MockClock();
@@ -224,11 +225,36 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         method.setAccessible(true);
 
         MLDataFormats.OffloadContext offloadContext = MLDataFormats.OffloadContext.newBuilder()
-                .setTimestamp(System.currentTimeMillis() - 1000)
+                .setTimestamp(config.getClock().millis() - 1000)
                 .setComplete(true)
                 .setBookkeeperDeleted(false)
                 .build();
         Boolean needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
         Assert.assertTrue(needsDelete);
+
+        offloadContext = MLDataFormats.OffloadContext.newBuilder()
+                .setTimestamp(config.getClock().millis() - 1000)
+                .setComplete(false)
+                .setBookkeeperDeleted(false)
+                .build();
+        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        Assert.assertFalse(needsDelete);
+
+        offloadContext = MLDataFormats.OffloadContext.newBuilder()
+                .setTimestamp(config.getClock().millis() - 1000)
+                .setComplete(true)
+                .setBookkeeperDeleted(true)
+                .build();
+        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        Assert.assertFalse(needsDelete);
+
+        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000L * 2);
+        offloadContext = MLDataFormats.OffloadContext.newBuilder()
+                .setTimestamp(config.getClock().millis() - 1000)
+                .setComplete(true)
+                .setBookkeeperDeleted(false)
+                .build();
+        needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
+        Assert.assertFalse(needsDelete);
     }
 }
