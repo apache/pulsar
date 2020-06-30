@@ -574,7 +574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -636,7 +636,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -654,7 +654,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -697,7 +697,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
