@@ -4,13 +4,15 @@ title: Use GCS offloader with Pulsar
 sidebar_label: GCS offloader
 ---
 
-This chapter guides you through every step of installing and configuring GCS offloader and using it with Pulsar.
+This chapter guides you through every step of installing and configuring the GCS offloader and using it with Pulsar.
 
 ## Installation
 
 Follow the steps below to install the GCS offloader.
 
 ### Prerequisite
+
+- Pulsar: 2.4.2 or later versions
   
 - Apache jclouds: 2.2.0 or later versions
 
@@ -199,7 +201,7 @@ bin/pulsarctl namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 ### Configure GCS offloader to run manually
 
-For individual topics, you can trigger GCS offloader manually using the following methods:
+For individual topics, you can trigger GCS offloader manually using one of the following methods:
 
 - Use REST endpoint 
 
@@ -209,7 +211,7 @@ For individual topics, you can trigger GCS offloader manually using the followin
 
 #### Example
 
-- This example triggers GCS offloader to run manually using pulsarctl with the command `pulsarctl topic offload (topic-name) (threshold)`.
+- This example triggers the GCS offloader to run manually using pulsarctl with the command `pulsarctl topic offload (topic-name) (threshold)`.
 
     ```bash
     bin/pulsarctl topics offload persistent://my-tenant/my-namespace/topic1 10M
@@ -225,7 +227,7 @@ For individual topics, you can trigger GCS offloader manually using the followin
     >
     > For more information about the `pulsarctl topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-em-). 
 
-- This example checks GCS offloader status using pulsarctl with the command `pulsarctl topic offload-status options`.
+- This example checks the GCS offloader status using pulsarctl with the command `pulsarctl topic offload-status options`.
 
     ```bash
     bin/pulsarctl topics offload-status persistent://my-tenant/my-namespace/topic1
@@ -270,4 +272,4 @@ For individual topics, you can trigger GCS offloader manually using the followin
 
 ## Tutorial
 
-For the complete and step-by-step instructions on how to use GCS offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/gcs/2.5.1#usage).
+For the complete and step-by-step instructions on how to use the GCS offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/gcs/2.5.1#usage).

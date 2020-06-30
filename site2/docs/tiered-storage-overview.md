@@ -14,9 +14,9 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
     > #### Tip
     > 
-    > For more information about how to use AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
+    > For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
     > 
-    > For more information about how to use GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
+    > For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 
@@ -24,11 +24,13 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
     > #### Tip
     > 
-    > For more information about how to use filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
+    > For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
 
 ## When should I use tiered storage?
 
-Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. For example, if you have a topic containing user actions which you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm, you can rerun it against your full user history.
+Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. 
+
+For example, if you have a topic containing user actions which you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm, you can rerun it against your full user history.
 
 ## How does tiered storage work?
 
@@ -40,21 +42,8 @@ The tiered storage offloading mechanism takes advantage of segment oriented arch
 
 Data written to BookKeeper is replicated to 3 physical machines by default. However, once a segment is sealed in BookKeeper, it becomes immutable and can be copied to long term storage. Long term storage can achieve cost savings by using mechanisms such as [Reed-Solomon error correction](https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction) to require fewer physical copies of data.
 
-Before offloading ledgers to long term storage, you need to configure bucket, credentials, and other properties for the cloud storage service. Additionally, Pulsar uses multi-part objects to upload the segment data and brokers may crash while uploading the data. It is recommended that you add a life cycle rule for your bucket to expire incomplete multi-part upload after a day or two days to avoid getting charged for incomplete uploads. Moreover, you can trigger the offloading operation manually (via REST API or CLI) or automatically (via CLI).  
+Before offloading ledgers to long term storage, you need to configure buckets, credentials, and other properties for the cloud storage service. Additionally, Pulsar uses multi-part objects to upload the segment data and brokers may crash while uploading the data. It is recommended that you add a life cycle rule for your bucket to expire incomplete multi-part upload after a day or two days to avoid getting charged for incomplete uploads. Moreover, you can trigger the offloading operation manually (via REST API or CLI) or automatically (via CLI).  
 
 After offloading ledgers to long term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
 
 For more information about tiered storage for Pulsar topics, see [here](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics).
-
-
-
-
-
-
-
-
-
-
-
-
-

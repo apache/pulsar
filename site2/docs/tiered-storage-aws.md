@@ -4,13 +4,15 @@ title: Use AWS S3 offloader with Pulsar
 sidebar_label: AWS S3 offloader
 ---
 
-This chapter guides you through every step of installing and configuring AWS S3 offloader and using it with Pulsar.
+This chapter guides you through every step of installing and configuring the AWS S3 offloader and using it with Pulsar.
 
 ## Installation
 
 Follow the steps below to install the AWS S3 offloader.
 
 ### Prerequisite
+
+- Pulsar: 2.4.2 or later versions
   
 - Apache jclouds: 2.2.0 or later versions
 
@@ -88,8 +90,8 @@ You can configure the AWS S3 offloader driver in the configuration file `broker.
     `s3ManagedLedgerOffloadRegion` | Bucket region | eu-west-3
     `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
-    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the product environment.|2
-    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the product environment.|5000
+    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
+    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|5000
 
 #### Bucket (required)
 
@@ -105,13 +107,12 @@ s3ManagedLedgerOffloadBucket=pulsar-topic-offload
 
 #### Bucket region 
 
-A bucket region is the region where a bucket is located. If a bucket region is not specified, the **default** region (`US East (N. Virginia)`) is used.
+A bucket region is a region where a bucket is located. If a bucket region is not specified, the **default** region (`US East (N. Virginia)`) is used.
 
 > #### Tip
 >
 > For more information about AWS regions and endpoints, see [here](https://docs.aws.amazon.com/general/latest/gr/rande.html).
  
-
 ##### Example
 
 This example sets the bucket region as _europe-west-3_.
@@ -128,11 +129,11 @@ Pulsar does not provide any direct methods of configuring authentication for AWS
 but relies on the mechanisms supported by the
 [DefaultAWSCredentialsProviderChain](https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/auth/DefaultAWSCredentialsProviderChain.html).
 
-Once you have created a set of credentials in the AWS IAM console, you can configure credentials using the following method.
+Once you have created a set of credentials in the AWS IAM console, you can configure credentials using one of the following methods.
 
 * Use EC2 instance metadata credentials.
 
-    If you are on AWS instance with an instance profile that provides credentials, StreamNative uses these credentials if no other mechanism is provided.
+    If you are on AWS instance with an instance profile that provides credentials, Pulsar uses these credentials if no other mechanism is provided.
 
 * Set the environment variables `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in `conf/pulsar_env.sh`.
 
@@ -207,7 +208,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 ### Configure AWS S3 offloader to run manually
 
-For individual topics, you can trigger AWS S3 offloader manually using the following methods:
+For individual topics, you can trigger AWS S3 offloader manually using one of the following methods:
 
 - Use REST endpoint 
 
@@ -217,7 +218,7 @@ For individual topics, you can trigger AWS S3 offloader manually using the follo
 
 #### Example
 
-- This example triggers AWS S3 offloader to run manually using pulsar-admin.
+- This example triggers the AWS S3 offloader to run manually using pulsar-admin.
 
     ```bash
     bin/pulsar-admin topics offload --size-threshold 10M my-tenant/my-namespace/topic1
@@ -233,7 +234,7 @@ For individual topics, you can trigger AWS S3 offloader manually using the follo
     >
     > For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
 
-- This example checks AWS S3 offloader status using pulsar-admin.
+- This example checks the AWS S3 offloader status using pulsar-admin.
 
     ```bash
     bin/pulsar-admin topics offload-status persistent://my-tenant/my-namespace/topic1
@@ -245,7 +246,7 @@ For individual topics, you can trigger AWS S3 offloader manually using the follo
     Offload is currently running
     ```
 
-    To wait for AWS S3 offloader to complete the job, add the `-w` flag.
+    To wait for the AWS S3 offloader to complete the job, add the `-w` flag.
 
     ```bash
     bin/pulsar-admin topics offload-status -w persistent://my-tenant/my-namespace/topic1
@@ -279,4 +280,4 @@ For individual topics, you can trigger AWS S3 offloader manually using the follo
 
 ## Tutorial
 
-For the complete and step-by-step instructions on how to use AWS S3 offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/aws-s3/2.5.1#usage).
+For the complete and step-by-step instructions on how to use the AWS S3 offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/aws-s3/2.5.1#usage).

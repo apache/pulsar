@@ -4,7 +4,7 @@ title: Use filesystem offloader with Pulsar
 sidebar_label: Filesystem offloader
 ---
 
-This chapter guides you through every step of installing and configuring filesystem offloader and using it with Pulsar.
+This chapter guides you through every step of installing and configuring the filesystem offloader and using it with Pulsar.
 
 ## Installation
 
@@ -91,8 +91,8 @@ You can configure filesystem offloader driver in the configuration file `broker.
 
     Optional configuration| Description | Example value
     |---|---|---
-    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the product environment.|2
-    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the product environment.|5000
+    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
+    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|5000
 
 #### Offloader driver (required)
 
@@ -178,7 +178,7 @@ Threshold value|Action
 
 Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload does not work until the current segment is full.
 
-You can configure the threshold size using CLI tools, such as [pulsarctl](https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/) or puslar-admin.
+You can configure the threshold size using CLI tools, such as [pulsarctl](https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/) or pulsar-admin.
 
 #### Example
 
@@ -194,13 +194,13 @@ bin/pulsarctl namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 ### Configure filesystem offloader to run manually
 
-For individual topics, you can trigger filesystem offloader manually using the following methods:
+For individual topics, you can trigger filesystem offloader manually using one of the following methods:
 
 - Use REST endpoint 
 
 - Use CLI tools (such as pulsarctl or pulsar-admin). 
 
-To trigger via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to filesystem until the threshold is no longer exceeded. Older segments are offloaded first.
+To trigger via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.
 
 #### Example
 
@@ -232,7 +232,7 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
     Offload is currently running
     ```
 
-    To wait for filesystem to complete the job, add the `-w` flag.
+    To wait for the filesystem to complete the job, add the `-w` flag.
 
     ```bash
     bin/pulsarctl topic offload-status -w persistent://my-tenant/my-namespace/topic1
@@ -265,4 +265,4 @@ To trigger via CLI tools, you need to specify the maximum amount of data (thresh
 
 ## Tutorial
 
-For the complete and step-by-step instructions on how to use filesystem offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/filesystem/2.5.1).
+For the complete and step-by-step instructions on how to use the filesystem offloader with Pulsar, see [here](https://hub.streamnative.io/offloaders/filesystem/2.5.1).
