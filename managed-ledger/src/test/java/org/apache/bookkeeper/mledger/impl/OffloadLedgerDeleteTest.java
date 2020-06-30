@@ -54,7 +54,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(300000));
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(300000L);
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
@@ -116,7 +116,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(5, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(600000));
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(600000L);
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
@@ -163,7 +163,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
-        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(new Long(300000));
+        offloader.getOffloadPolicies().setManagedLedgerOffloadDeletionLagInMillis(300000L);
         config.setLedgerOffloader(offloader);
         config.setClock(clock);
 
@@ -248,7 +248,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
         Assert.assertFalse(needsDelete);
 
-        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000L * 2);
+        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000 * 2);
         offloadContext = MLDataFormats.OffloadContext.newBuilder()
                 .setTimestamp(config.getClock().millis() - 1000)
                 .setComplete(true)
