@@ -147,6 +147,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicBoolean duringSeek;
 
     private final BatchMessageIdImpl initialStartMessageId;
+    private volatile boolean canEnqueue = true;
     private final long startMessageRollbackDurationInSec;
 
     private volatile boolean hasReachedEndOfTopic;
@@ -188,7 +189,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -200,6 +200,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist) {
+        return newConsumerImpl(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer, subscribeFuture,
+                startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
+    }
+
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorService listenerExecutor,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist,
+                                               long startMessageRollbackDurationInSec) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
                     subscribeFuture,
@@ -207,7 +223,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     createTopicIfDoesNotExist);
         } else {
             return new ConsumerImpl<>(client, topic, conf, listenerExecutor, partitionIndex, hasParentConsumer,
-                    subscribeFuture, startMessageId, 0 /* rollback time in sec to start msgId */,
+                    subscribeFuture, startMessageId, startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);
         }
     }
@@ -731,7 +747,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
-        log.info("[{}][{}] Subscribing to topic on cnx {}", topic, subscription, cnx.ctx().channel());
+        log.info("[{}][{}] Subscribing to topic on cnx {}, consumerId {}", topic, subscription, cnx.ctx().channel(),consumerId);
 
         long requestId = client.newRequestId();
 
@@ -1409,6 +1425,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      *
      * Periodically, it sends a Flow command to notify the broker that it can push more messages
      */
+    @Override
     protected synchronized void messageProcessed(Message<?> msg) {
         ClientCnx currentCnx = cnx();
         ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
@@ -1927,6 +1944,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         return booleanFuture;
+    }
+
+    @Override
+    protected boolean canEnqueueMessage(Message<T> message) {
+        return canEnqueue;
+    }
+
+    public void pauseReceivingMessage(){
+        canEnqueue = false;
+    }
+
+    public void resumeReceivingMessage() {
+        canEnqueue = true;
     }
 
     private boolean hasMoreMessages(MessageId lastMessageIdInBroker, MessageId messageId, boolean inclusive) {

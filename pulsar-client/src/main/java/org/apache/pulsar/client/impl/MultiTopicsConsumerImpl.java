@@ -98,6 +98,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
+    private volatile BatchMessageIdImpl startMessageId = null;
+    private final long startMessageRollbackDurationInSec;
+
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -105,9 +108,24 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 subscribeFuture, schema, interceptors, createTopicIfDoesNotExist);
     }
 
+    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+                            long startMessageRollbackDurationInSec) {
+        this(client, DUMMY_TOPIC_NAME_PREFIX + ConsumerName.generateRandomName(), conf, listenerExecutor,
+                subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, startMessageId, startMessageRollbackDurationInSec);
+    }
+
     MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
-            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
+        this(client, singleTopic, conf, listenerExecutor, subscribeFuture, schema, interceptors, createTopicIfDoesNotExist, null, 0);
+    }
+
+    MultiTopicsConsumerImpl(PulsarClientImpl client, String singleTopic, ConsumerConfigurationData<T> conf,
+                            ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                            ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist, MessageId startMessageId,
+                            long startMessageRollbackDurationInSec) {
         super(client, singleTopic, conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture,
                 schema, interceptors);
 
@@ -119,6 +137,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
         this.allTopicPartitionsNumber = new AtomicInteger(0);
+        this.startMessageId = startMessageId != null ? new BatchMessageIdImpl(MessageIdImpl.convertToMessageIdImpl(startMessageId)) : null;
+        this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
 
         if (conf.getAckTimeoutMillis() != 0) {
             if (conf.getTickDurationMillis() > 0) {
@@ -297,6 +317,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    @Override
     protected synchronized void messageProcessed(Message<?> msg) {
         unAckedMessageTracker.add(msg.getMessageId());
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -msg.getData().length);
@@ -684,6 +705,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return consumers.values().stream().allMatch(Consumer::hasReachedEndOfTopic);
     }
 
+    public boolean hasMessageAvailable() throws PulsarClientException {
+        boolean available = false;
+        for (ConsumerImpl<T> consumer : consumers.values()) {
+            available = available || consumer.hasMessageAvailable();
+        }
+        return available;
+    }
+
     @Override
     public int numMessagesInQueue() {
         return incomingMessages.size() + consumers.values().stream().mapToInt(ConsumerImpl::numMessagesInQueue).sum();
@@ -844,10 +873,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                            configurationData, client.externalExecutorProvider().getExecutor(),
-                            partitionIndex, true, subFuture,
-                            null, schema, interceptors,
-                            createIfDoesNotExist);
+                                configurationData, client.externalExecutorProvider().getExecutor(),
+                                partitionIndex, true, subFuture,
+                                getCurrentConsumerStartMessageId(partitionIndex), schema, interceptors,
+                                createIfDoesNotExist, startMessageRollbackDurationInSec);
                         consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                         return subFuture;
                     })
@@ -899,6 +928,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 handleSubscribeOneTopicError(topicName, ex, subscribeResult);
                 return null;
             });
+    }
+
+    private BatchMessageIdImpl getCurrentConsumerStartMessageId(int partitionIndex) {
+        if ((startMessageId != null && startMessageId.getPartitionIndex() == partitionIndex)
+                || MessageId.earliest.equals(startMessageId)
+                || MessageId.latest.equals(startMessageId)
+                || startMessageId == null) {
+            return startMessageId;
+        }
+        return new BatchMessageIdImpl((MessageIdImpl) MessageId.latest);
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions

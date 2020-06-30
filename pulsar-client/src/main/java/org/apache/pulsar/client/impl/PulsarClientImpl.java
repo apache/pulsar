@@ -483,20 +483,27 @@ public class PulsarClientImpl implements PulsarClient {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
-
-            if (metadata.partitions > 0) {
+            if (metadata.partitions > 0 && MultiTopicsReaderImpl.isIllegalMultiTopicsReaderMessageId(conf.getStartMessageId())) {
                 readerFuture.completeExceptionally(
-                        new PulsarClientException("Topic reader cannot be created on a partitioned topic"));
+                        new PulsarClientException("The partitioned topic startMessageId is illegal"));
                 return;
             }
-
             CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+            Reader<T> reader;
+            ConsumerBase<T> consumer;
+            if (metadata.partitions > 0) {
+                reader = new MultiTopicsReaderImpl<>(PulsarClientImpl.this,
+                        conf, listenerThread, consumerSubscribedFuture, schema);
+                consumer = ((MultiTopicsReaderImpl<T>) reader).getConsumer();
+            } else {
+                reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
+                consumer = ((ReaderImpl<T>) reader).getConsumer();
+            }
 
             synchronized (consumers) {
-                consumers.put(reader.getConsumer(), Boolean.TRUE);
+                consumers.put(consumer, Boolean.TRUE);
             }
 
             consumerSubscribedFuture.thenRun(() -> {

@@ -77,6 +77,8 @@ public class MessageIdImpl implements MessageId {
         } else if (obj instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) obj;
             return ledgerId == other.ledgerId && entryId == other.entryId && partitionIndex == other.partitionIndex;
+        } else if (obj instanceof TopicMessageIdImpl) {
+            return equals(((TopicMessageIdImpl) obj).getInnerMessageId());
         }
         return false;
     }
@@ -112,6 +114,17 @@ public class MessageIdImpl implements MessageId {
         builder.recycle();
         idData.recycle();
         return messageId;
+    }
+
+    public static MessageIdImpl convertToMessageIdImpl(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            return (BatchMessageIdImpl) messageId;
+        } else if (messageId instanceof MessageIdImpl) {
+            return (MessageIdImpl) messageId;
+        } else if (messageId instanceof TopicMessageIdImpl) {
+            return convertToMessageIdImpl(((TopicMessageIdImpl) messageId).getInnerMessageId());
+        }
+        return null;
     }
 
     public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
