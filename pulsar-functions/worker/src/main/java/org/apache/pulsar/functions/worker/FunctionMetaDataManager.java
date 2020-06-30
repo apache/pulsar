@@ -210,7 +210,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
         } else {
             needsScheduling = processUpdate(functionMetaData);
         }
-        String key = FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails());
         byte[] toWrite;
         if (workerConfig.getUseCompactedMetadataTopic()) {
             if (delete) {
@@ -228,11 +227,13 @@ public class FunctionMetaDataManager implements AutoCloseable {
             toWrite = serviceRequest.toByteArray();
         }
         try {
-            lastMessageSeen = exclusiveLeaderProducer.newMessage()
-                    .key(key)
+            TypedMessageBuilder builder = exclusiveLeaderProducer.newMessage()
                     .value(toWrite)
-                    .property(versionTag, Long.toString(functionMetaData.getVersion()))
-                    .send();
+                    .property(versionTag, Long.toString(functionMetaData.getVersion()));
+            if (workerConfig.getUseCompactedMetadataTopic()) {
+                builder = builder.key(FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()));
+            }
+            lastMessageSeen = builder.send();
         } catch (Exception e) {
             log.error("Could not write into Function Metadata topic", e);
             throw new IllegalStateException("Internal Error updating function at the leader", e);
