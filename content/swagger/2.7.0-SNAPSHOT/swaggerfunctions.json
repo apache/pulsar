@@ -1385,20 +1385,42 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "keyBytes" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "orderingKey" : {
           "type" : "array",
           "items" : {
             "type" : "string",
             "format" : "byte"
           }
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
         },
-        "orderingKey" : {
+        "keyBytes" : {
           "type" : "array",
           "items" : {
             "type" : "string",
@@ -1408,37 +1430,15 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "topicName" : {
+          "type" : "string"
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
+        "producerName" : {
+          "type" : "string"
         },
         "data" : {
           "type" : "array",
