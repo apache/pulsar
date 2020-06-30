@@ -2284,77 +2284,72 @@ public class ManagedCursorImpl implements ManagedCursor {
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
 
-        try {
-            ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
+        ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
-                if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+            if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
+                return;
+            }
+
+            ledger.getExecutor().execute(safeRun(() -> {
+                ledger.mbean.endCursorLedgerCreateOp();
+                if (rc != BKException.Code.OK) {
+                    log.warn("[{}] Error creating ledger for cursor {}: {}", ledger.getName(), name,
+                            BKException.getMessage(rc));
+                    callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
                     return;
                 }
 
-                ledger.getExecutor().execute(safeRun(() -> {
-                    ledger.mbean.endCursorLedgerCreateOp();
-                    if (rc != BKException.Code.OK) {
-                        log.warn("[{}] Error creating ledger for cursor {}: {}", ledger.getName(), name,
-                                BKException.getMessage(rc));
-                        callback.operationFailed(new ManagedLedgerException(BKException.getMessage(rc)));
-                        return;
-                    }
-
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Created ledger {} for cursor {}", ledger.getName(), lh.getId(), name);
-                    }
-                    // Created the ledger, now write the last position
-                    // content
-                    MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
-                    persistPositionToLedger(lh, mdEntry, new VoidCallback() {
-                        @Override
-                        public void operationComplete() {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Persisted position {} for cursor {}", ledger.getName(),
-                                        mdEntry.newPosition, name);
-                            }
-                            switchToNewLedger(lh, new VoidCallback() {
-                                @Override
-                                public void operationComplete() {
-                                    callback.operationComplete();
-                                }
-
-                                @Override
-                                public void operationFailed(ManagedLedgerException exception) {
-                                    // it means it failed to switch the newly created ledger so, it should be
-                                    // deleted to prevent leak
-                                    bookkeeper.asyncDeleteLedger(lh.getId(), (int rc, Object ctx) -> {
-                                        if (rc != BKException.Code.OK) {
-                                            log.warn("[{}] Failed to delete orphan ledger {}", ledger.getName(),
-                                                    lh.getId());
-                                        }
-                                    }, null);
-                                    callback.operationFailed(exception);
-                                }
-                            });
-                        }
-
-                        @Override
-                        public void operationFailed(ManagedLedgerException exception) {
-                            log.warn("[{}] Failed to persist position {} for cursor {}", ledger.getName(),
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Created ledger {} for cursor {}", ledger.getName(), lh.getId(), name);
+                }
+                // Created the ledger, now write the last position
+                // content
+                MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
+                persistPositionToLedger(lh, mdEntry, new VoidCallback() {
+                    @Override
+                    public void operationComplete() {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Persisted position {} for cursor {}", ledger.getName(),
                                     mdEntry.newPosition, name);
-
-                            ledger.mbean.startCursorLedgerDeleteOp();
-                            bookkeeper.asyncDeleteLedger(lh.getId(), new DeleteCallback() {
-                                @Override
-                                public void deleteComplete(int rc, Object ctx) {
-                                    ledger.mbean.endCursorLedgerDeleteOp();
-                                }
-                            }, null);
-                            callback.operationFailed(exception);
                         }
-                    });
-                }));
-            }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
-        } catch (Throwable t) {
-            log.error("[{}] Encountered unexpected error when creating cursor ledger", name, t);
-            callback.operationFailed(new ManagedLedgerException(t));
-        }
+                        switchToNewLedger(lh, new VoidCallback() {
+                            @Override
+                            public void operationComplete() {
+                                callback.operationComplete();
+                            }
+
+                            @Override
+                            public void operationFailed(ManagedLedgerException exception) {
+                                // it means it failed to switch the newly created ledger so, it should be
+                                // deleted to prevent leak
+                                bookkeeper.asyncDeleteLedger(lh.getId(), (int rc, Object ctx) -> {
+                                    if (rc != BKException.Code.OK) {
+                                        log.warn("[{}] Failed to delete orphan ledger {}", ledger.getName(),
+                                                lh.getId());
+                                    }
+                                }, null);
+                                callback.operationFailed(exception);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void operationFailed(ManagedLedgerException exception) {
+                        log.warn("[{}] Failed to persist position {} for cursor {}", ledger.getName(),
+                                mdEntry.newPosition, name);
+
+                        ledger.mbean.startCursorLedgerDeleteOp();
+                        bookkeeper.asyncDeleteLedger(lh.getId(), new DeleteCallback() {
+                            @Override
+                            public void deleteComplete(int rc, Object ctx) {
+                                ledger.mbean.endCursorLedgerDeleteOp();
+                            }
+                        }, null);
+                        callback.operationFailed(exception);
+                    }
+                });
+            }));
+        }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {
