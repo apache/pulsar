@@ -72,6 +72,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
     @Getter
     private volatile MessageId lastMessageSeen = MessageId.earliest;
 
+    private static final String versionTag = "version";
+
     @Getter
     private CompletableFuture<Void> isInitialized = new CompletableFuture<>();
 
@@ -210,7 +212,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
         String key = FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails());
         byte[] toWrite;
-        if (workerConfig.getCompactMetadataTopic()) {
+        if (workerConfig.getUseCompactedMetadataTopic()) {
             if (delete) {
                 toWrite = "".getBytes();
             } else {
@@ -229,7 +231,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             lastMessageSeen = exclusiveLeaderProducer.newMessage()
                     .key(key)
                     .value(toWrite)
-                    .property("version", Long.toString(functionMetaData.getVersion()))
+                    .property(versionTag, Long.toString(functionMetaData.getVersion()))
                     .send();
         } catch (Exception e) {
             log.error("Could not write into Function Metadata topic", e);
@@ -307,7 +309,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public void processMetaDataTopicMessage(Message<byte[]> message) throws IOException {
         try {
-            if (workerConfig.getCompactMetadataTopic()) {
+            if (workerConfig.getUseCompactedMetadataTopic()) {
                 processCompactedMetaDataTopicMessage(message);
             } else {
                 processUncompactedMetaDataTopicMessage(message);
@@ -336,7 +338,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private void processCompactedMetaDataTopicMessage(Message<byte[]> message) throws IOException {
-        long version = Long.valueOf(message.getProperty("version"));
+        long version = Long.valueOf(message.getProperty(versionTag));
         String tenant = FunctionCommon.extractTenantFromFullyQualifiedName(message.getKey());
         String namespace = FunctionCommon.extractNamespaceFromFullyQualifiedName(message.getKey());
         String functionName = FunctionCommon.extractNameFromFullyQualifiedName(message.getKey());

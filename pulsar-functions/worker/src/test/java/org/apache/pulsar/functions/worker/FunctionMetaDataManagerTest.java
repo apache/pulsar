@@ -113,7 +113,7 @@ public class FunctionMetaDataManagerTest {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setCompactMetadataTopic(compact);
+        workerConfig.setUseCompactedMetadataTopic(compact);
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
@@ -171,7 +171,7 @@ public class FunctionMetaDataManagerTest {
         SchedulerManager mockedScheduler = mock(SchedulerManager.class);
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
-        workerConfig.setCompactMetadataTopic(compact);
+        workerConfig.setUseCompactedMetadataTopic(compact);
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(workerConfig,
                         mockedScheduler,
