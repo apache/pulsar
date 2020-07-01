@@ -2283,6 +2283,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
+
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
@@ -2349,7 +2350,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 });
             }));
         }, LedgerMetadataUtils.buildAdditionalMetadataForCursor(name));
-
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {
@@ -2818,7 +2818,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             return null;
         }
     }
-  
+
     void updateReadStats(int readEntriesCount, long readEntriesSize) {
         this.entriesReadCount += readEntriesCount;
         this.entriesReadSize += readEntriesSize;
