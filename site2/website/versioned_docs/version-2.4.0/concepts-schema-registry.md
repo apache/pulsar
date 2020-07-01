@@ -79,7 +79,7 @@ For usage instructions, see the documentation for your preferred client library:
 
 > Support for other schema formats will be added in future releases of Pulsar.
 
-The following example shows how to define an Avro schema using the `GenericSchemaBuilder`, generate a generic Avro schema using `GenericRecordBuilder`, and consume messages into `GenericRecord`.
+The following example shows how to define a Avro schema using the `GenericSchemaBuilder`, generate a generic Avro schema using `GenericRecordBuilder`, and consume messages into `GenericRecord`.
 
 **Example** 
 
