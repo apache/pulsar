@@ -192,7 +192,7 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.2.0</jclouds.version>
+    <jclouds.version>2.2.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
