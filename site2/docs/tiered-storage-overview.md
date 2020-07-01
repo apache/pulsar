@@ -26,7 +26,7 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
     > 
     > For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
 
-## When should I use tiered storage?
+## When to use tiered storage?
 
 Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. 
 

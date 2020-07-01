@@ -14,19 +14,17 @@ Follow the steps below to install the GCS offloader.
 
 - Pulsar: 2.4.2 or later versions
   
-- Apache jclouds: 2.2.0 or later versions
-
 ### Step
 
 This example uses Pulsar 2.5.1.
 
-1. Download Pulsar tarball using one of the following ways:
+1. Download the Pulsar tarball using one of the following ways:
 
-   * download the Pulsar tarball from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
+   * Download from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
 
-   * download from the Pulsar [download page](https://pulsar.apache.org/download)
+   * Download from the Pulsar [download page](https://pulsar.apache.org/download)
 
-   * use [wget](https://www.gnu.org/software/wget)
+   * Use [wget](https://www.gnu.org/software/wget)
 
      ```shell
      wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
@@ -181,7 +179,7 @@ Threshold value|Action
 = 0|It causes a broker to offload data as soon as possible.
 < 0 |It disables automatic offloading operation.
 
-Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offload does not work until the current segment is full.
+Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.
 
 You can configure the threshold size using CLI tools, such as [pulsarctl](https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/) or pulsar-admin.
 
