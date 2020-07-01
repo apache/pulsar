@@ -92,6 +92,9 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.broker.stats.sender.MetricsSender;
+import org.apache.pulsar.broker.stats.sender.MetricsSenderConfiguration;
+import org.apache.pulsar.broker.stats.sender.PulsarMetricsSender;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -197,6 +200,7 @@ public class PulsarService implements AutoCloseable {
     private final ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
+    private MetricsSender metricsSender;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
     private TransactionBufferProvider transactionBufferProvider;
@@ -603,6 +607,11 @@ public class PulsarService implements AutoCloseable {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            if (config.isMetricsSenderEnabled()) {
+                this.metricsSender = new PulsarMetricsSender(this, new MetricsSenderConfiguration(this.config));
+                this.metricsSender.start();
+            }
 
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
