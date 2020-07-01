@@ -341,6 +341,26 @@ public class FunctionCommon {
         return String.format("%s/%s/%s", tenant, namespace, functionName);
     }
 
+    public static String extractTenantFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 0);
+    }
+
+    public static String extractNamespaceFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 1);
+    }
+
+    public static String extractNameFromFullyQualifiedName(String fqfn) {
+        return extractFromFullyQualifiedName(fqfn, 2);
+    }
+
+    private static String extractFromFullyQualifiedName(String fqfn, int index) {
+        String[] parts = fqfn.split("/");
+        if (parts.length >= 3) {
+            return parts[index];
+        }
+        throw new RuntimeException("Invalid Fully Qualified Function Name " + fqfn);
+    }
+
     public static Class<?> getTypeArg(String className, Class<?> funClass, ClassLoader classLoader)
             throws ClassNotFoundException {
         Class<?> loadedClass = classLoader.loadClass(className);
