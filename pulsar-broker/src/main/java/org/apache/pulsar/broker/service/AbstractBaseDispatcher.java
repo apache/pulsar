@@ -33,6 +33,8 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -156,10 +158,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (metadata.hasNumMessagesInBatch()) {
                 // If the message was part of a batch (eg: a batch of 1 message), we need
                 // to read the key from the first single-message-metadata entry
+                PulsarApi.CompressionType compressionType = metadata.getCompression();
+                CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+                int uncompressedSize = metadata.getUncompressedSize();
+                ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, uncompressedSize);
                 PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
                         .newBuilder();
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(metadataAndPayload,
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
                         singleMessageMetadataBuilder, 0, metadata.getNumMessagesInBatch());
+                uncompressedPayload.release();
                 try {
                     if (singleMessageMetadataBuilder.hasOrderingKey()) {
                         return singleMessageMetadataBuilder.getOrderingKey().toByteArray();
