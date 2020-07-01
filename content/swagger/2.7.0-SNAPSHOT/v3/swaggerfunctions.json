@@ -1610,15 +1610,27 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "producerName": {
+                    "type": "string"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1627,6 +1639,10 @@
                         "format": "byte"
                     }
                 },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "schemaVersion": {
                     "type": "array",
                     "items": {
@@ -1634,28 +1650,12 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
                 "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "producerName": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",

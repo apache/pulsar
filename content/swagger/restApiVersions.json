@@ -10,8 +10,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersource",
-                "swaggersink"
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
@@ -32,6 +32,22 @@
         }
     ],
     "2.3.2": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.4.0": [
         {
             "version": "v2",
             "fileName": [
@@ -76,22 +92,6 @@
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        }
-    ],
-    "2.4.0": [
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ],
@@ -159,6 +159,22 @@
             ]
         }
     ],
+    "2.7.0-SNAPSHOT": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
+            ]
+        }
+    ],
     "master": [
         {
             "version": "v2",
@@ -169,25 +185,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersink",
-                "swaggerfunctions",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.7.0-SNAPSHOT": [
-        {
-            "version": "v3",
-            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
-            ]
-        },
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
             ]
         }
     ]
