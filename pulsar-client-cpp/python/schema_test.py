@@ -187,6 +187,128 @@ class SchemaTest(TestCase):
             # Expected
             pass
 
+    def _expectTypeError(self, func):
+        try:
+            func()
+            self.fail('Should have failed')
+        except TypeError:
+            # Expected
+            pass
+
+    def test_field_type_check(self):
+        class Example(Record):
+            a = Integer()
+            b = String(required=False)
+
+        self._expectTypeError(lambda:  Example(a=1, b=2))
+
+        class E2(Record):
+            a = Boolean()
+
+        E2(a=False)  # ok
+        self._expectTypeError(lambda:  E2(a=1))
+
+        class E3(Record):
+            a = Float()
+
+        E3(a=1.0)  # Ok
+        self._expectTypeError(lambda:  E3(a=1))
+
+        class E4(Record):
+            a = Null()
+
+        E4(a=None)  # Ok
+        self._expectTypeError(lambda:  E4(a=1))
+
+        class E5(Record):
+            a = Long()
+
+        E5(a=1234)  # Ok
+        self._expectTypeError(lambda:  E5(a=1.12))
+
+        class E6(Record):
+            a = String()
+
+        E6(a="hello")  # Ok
+        self._expectTypeError(lambda:  E5(a=1.12))
+
+        class E6(Record):
+            a = Bytes()
+
+        E6(a="hello".encode('utf-8'))  # Ok
+        self._expectTypeError(lambda:  E5(a=1.12))
+
+        class E7(Record):
+            a = Double()
+
+        E7(a=1.0)  # Ok
+        self._expectTypeError(lambda:  E3(a=1))
+
+        class Color(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
+        class OtherEnum(Enum):
+            red = 1
+            green = 2
+            blue = 3
+
+        class E8(Record):
+            a = Color
+
+        e = E8(a=Color.red)  # Ok
+        self.assertEqual(e.a, Color.red)
+
+        e = E8(a='red')  # Ok
+        self.assertEqual(e.a, Color.red)
+
+        e = E8(a=1)  # Ok
+        self.assertEqual(e.a, Color.red)
+
+        self._expectTypeError(lambda:  E8(a='redx'))
+        self._expectTypeError(lambda: E8(a=OtherEnum.red))
+        self._expectTypeError(lambda: E8(a=5))
+
+        class E9(Record):
+            a = Array(String())
+
+        E9(a=['a', 'b', 'c'])  # Ok
+        self._expectTypeError(lambda:  E9(a=1))
+        self._expectTypeError(lambda: E9(a=[1, 2, 3]))
+        self._expectTypeError(lambda: E9(a=['1', '2', 3]))
+
+        class E10(Record):
+            a = Map(Integer())
+
+        E10(a={'a': 1, 'b': 2})  # Ok
+        self._expectTypeError(lambda:  E10(a=1))
+        self._expectTypeError(lambda: E10(a={'a': '1', 'b': 2}))
+        self._expectTypeError(lambda: E10(a={1: 1, 'b': 2}))
+
+        class SubRecord1(Record):
+            s = Integer()
+
+        class SubRecord2(Record):
+            s = String()
+
+        class E11(Record):
+            a = SubRecord1
+
+        E11(a=SubRecord1(s=1))  # Ok
+        self._expectTypeError(lambda:  E11(a=1))
+        self._expectTypeError(lambda: E11(a=SubRecord2(s='hello')))
+
+    def test_field_type_check_defaults(self):
+        try:
+            class Example(Record):
+                a = Integer(default="xyz")
+
+            self.fail("Class declaration should have failed")
+        except TypeError:
+            pass # Expected
+
+
     def test_serialize_json(self):
         class Example(Record):
             a = Integer()
@@ -472,7 +594,8 @@ class SchemaTest(TestCase):
         producer.send(r)
 
         msg = consumer.receive()
-        self.assertEqual(MyEnum.C, MyEnum[msg.value().v])
+        msg.value()
+        self.assertEqual(MyEnum.C, msg.value().v)
         client.close()
 
 

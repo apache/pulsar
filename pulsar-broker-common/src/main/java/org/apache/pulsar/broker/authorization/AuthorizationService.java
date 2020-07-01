@@ -55,25 +55,20 @@ public class AuthorizationService {
 
     public AuthorizationService(ServiceConfiguration conf, ConfigurationCacheService configCache)
             throws PulsarServerException {
-
         this.conf = conf;
-        if (this.conf.isAuthorizationEnabled()) {
-            try {
-                final String providerClassname = conf.getAuthorizationProvider();
-                if (StringUtils.isNotBlank(providerClassname)) {
-                    provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
-                    provider.initialize(conf, configCache);
-                    log.info("{} has been loaded.", providerClassname);
-                } else {
-                    throw new PulsarServerException("No authorization providers are present.");
-                }
-            } catch (PulsarServerException e) {
-                throw e;
-            } catch (Throwable e) {
-                throw new PulsarServerException("Failed to load an authorization provider.", e);
+        try {
+            final String providerClassname = conf.getAuthorizationProvider();
+            if (StringUtils.isNotBlank(providerClassname)) {
+                provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
+                provider.initialize(conf, configCache);
+                log.info("{} has been loaded.", providerClassname);
+            } else {
+                throw new PulsarServerException("No authorization providers are present.");
             }
-        } else {
-            log.info("Authorization is disabled");
+        } catch (PulsarServerException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new PulsarServerException("Failed to load an authorization provider.", e);
         }
     }
 
@@ -269,8 +264,18 @@ public class AuthorizationService {
      */
     public boolean canLookup(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
-        return canProduce(topicName, role, authenticationData)
-                || canConsume(topicName, role, authenticationData, null);
+        try {
+            return canLookupAsync(topicName, role, authenticationData)
+                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     /**

@@ -27,7 +27,7 @@ import io.prometheus.client.CollectorRegistry;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import lombok.AccessLevel;
+
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -69,7 +69,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkConfig;
 import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
@@ -682,6 +682,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
+                consumerConfig.setSchemaProperties(conf.getSchemaPropertiesMap());
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
@@ -729,6 +730,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             if (sourceSpec.getTimeoutMs() > 0 ) {
                 pulsarSourceConfig.setTimeoutMs(sourceSpec.getTimeoutMs());
+            }
+            if (sourceSpec.getNegativeAckRedeliveryDelayMs() > 0) {
+                pulsarSourceConfig.setNegativeAckRedeliveryDelayMs(sourceSpec.getNegativeAckRedeliveryDelayMs());
             }
 
             if (this.instanceConfig.getFunctionDetails().hasRetryDetails()) {
@@ -793,6 +797,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
+                pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }

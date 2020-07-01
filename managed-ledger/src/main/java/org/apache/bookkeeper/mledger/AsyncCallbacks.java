@@ -139,9 +139,9 @@ public interface AsyncCallbacks {
         void offloadFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface SetPropertiesCallback {
-        void setPropertiesComplete(Map<String, String> properties, Object ctx);
+    interface UpdatePropertiesCallback {
+        void updatePropertiesComplete(Map<String, String> properties, Object ctx);
 
-        void setPropertiesFailed(ManagedLedgerException exception, Object ctx);
+        void updatePropertiesFailed(ManagedLedgerException exception, Object ctx);
     }
 }

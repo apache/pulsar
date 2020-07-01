@@ -57,7 +57,7 @@ jobs:
 
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn clean install -DskipTests -pl pulsar-broker-auth-sasl -am
 
       - name: run unit tests pulsar auth sasl
         if: steps.docs.outputs.changed_only == 'no'

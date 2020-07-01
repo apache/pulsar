@@ -39,7 +39,8 @@ import java.util.stream.Collectors;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -105,6 +106,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.FeatureFlags;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -117,6 +120,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
@@ -437,12 +443,15 @@ public class Commands {
     }
 
     public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, int redeliveryCount,
-        ByteBuf metadataAndPayload) {
+        ByteBuf metadataAndPayload, long[] ackSet) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
         if (redeliveryCount > 0) {
             msgBuilder.setRedeliveryCount(redeliveryCount);
+        }
+        if (ackSet != null) {
+            msgBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet));
         }
         CommandMessage msg = msgBuilder.build();
         BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
@@ -482,6 +491,9 @@ public class Commands {
         if (txnIdMostBits > 0) {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
+        if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
+            sendBuilder.setIsChunk(true);
+        }
         CommandSend send = sendBuilder.build();
 
         ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
@@ -506,6 +518,9 @@ public class Commands {
         }
         if (txnIdMostBits > 0) {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {
+            sendBuilder.setIsChunk(true);
         }
         CommandSend send = sendBuilder.build();
 
@@ -554,24 +569,21 @@ public class Commands {
         subscribeBuilder.setForceTopicCreation(createTopicIfDoesNotExist);
 
         if (keySharedPolicy != null) {
-            switch (keySharedPolicy.getKeySharedMode()) {
-                case AUTO_SPLIT:
-                    subscribeBuilder.setKeySharedMeta(PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.AUTO_SPLIT));
-                    break;
-                case STICKY:
-                    PulsarApi.KeySharedMeta.Builder builder = PulsarApi.KeySharedMeta.newBuilder()
-                            .setKeySharedMode(PulsarApi.KeySharedMode.STICKY);
-                    List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
-                            .getRanges();
-                    for (Range range : ranges) {
-                        builder.addHashRanges(PulsarApi.IntRange.newBuilder()
-                                .setStart(range.getStart())
-                                .setEnd(range.getEnd()));
-                    }
-                    subscribeBuilder.setKeySharedMeta(builder);
-                    break;
+            KeySharedMeta.Builder keySharedMetaBuilder = PulsarApi.KeySharedMeta.newBuilder();
+            keySharedMetaBuilder.setAllowOutOfOrderDelivery(keySharedPolicy.isAllowOutOfOrderDelivery());
+            keySharedMetaBuilder.setKeySharedMode(convertKeySharedMode(keySharedPolicy.getKeySharedMode()));
+
+            if (keySharedPolicy instanceof KeySharedPolicy.KeySharedPolicySticky) {
+                List<Range> ranges = ((KeySharedPolicy.KeySharedPolicySticky) keySharedPolicy)
+                        .getRanges();
+                for (Range range : ranges) {
+                    keySharedMetaBuilder.addHashRanges(PulsarApi.IntRange.newBuilder()
+                            .setStart(range.getStart())
+                            .setEnd(range.getEnd()));
+                }
             }
+
+            subscribeBuilder.setKeySharedMeta(keySharedMetaBuilder.build());
         }
 
         if (startMessageId != null) {
@@ -596,6 +608,16 @@ public class Commands {
             schema.recycle();
         }
         return res;
+    }
+
+
+    private static KeySharedMode convertKeySharedMode(org.apache.pulsar.client.api.KeySharedMode mode) {
+        switch (mode) {
+        case AUTO_SPLIT: return KeySharedMode.AUTO_SPLIT;
+        case STICKY: return KeySharedMode.STICKY;
+        default:
+            throw new IllegalArgumentException("Unexpected key shared mode: " + mode);
+        }
     }
 
     public static ByteBuf newUnsubscribe(long consumerId, long requestId) {
@@ -811,10 +833,17 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
+        return newLookup(topic, null, authoritative, requestId);
+    }
+
+    public static ByteBuf newLookup(String topic, String listenerName, boolean authoritative, long requestId) {
         CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
         lookupTopicBuilder.setTopic(topic);
         lookupTopicBuilder.setRequestId(requestId);
         lookupTopicBuilder.setAuthoritative(authoritative);
+        if (StringUtils.isNotBlank(listenerName)) {
+            lookupTopicBuilder.setAdvertisedListenerName(listenerName);
+        }
         CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
         lookupTopicBuilder.recycle();
@@ -859,7 +888,8 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiMessageAck(long consumerId, List<Pair<Long, Long>> entries) {
+    public static ByteBuf newMultiMessageAck(long consumerId,
+             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
@@ -867,14 +897,19 @@ public class Commands {
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
-            long entryId = entries.get(i).getRight();
-
+            long entryId = entries.get(i).getMiddle();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
             MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
             messageIdDataBuilder.setLedgerId(ledgerId);
             messageIdDataBuilder.setEntryId(entryId);
+            if (bitSet != null) {
+                messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(bitSet.toLongArray()));
+            }
             MessageIdData messageIdData = messageIdDataBuilder.build();
             ackBuilder.addMessageId(messageIdData);
-
+            if (bitSet != null) {
+                bitSet.recycle();
+            }
             messageIdDataBuilder.recycle();
         }
 
@@ -890,12 +925,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
-        return newAck(consumerId, ledgerId, entryId, ackType, validationError, properties, 0, 0);
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, 0, 0);
     }
 
-    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
+    public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -904,6 +939,9 @@ public class Commands {
         MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
         messageIdDataBuilder.setLedgerId(ledgerId);
         messageIdDataBuilder.setEntryId(entryId);
+        if (ackSet != null) {
+            messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
+        }
         MessageIdData messageIdData = messageIdDataBuilder.build();
         ackBuilder.addMessageId(messageIdData);
         if (validationError != null) {
@@ -923,6 +961,9 @@ public class Commands {
 
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
         ack.recycle();
+        if (ackSet != null) {
+            ackSet.recycle();
+        }
         ackBuilder.recycle();
         messageIdDataBuilder.recycle();
         messageIdData.recycle();
@@ -1644,6 +1685,10 @@ public class Commands {
 
         if (msgBuilder.hasNullValue()) {
             singleMessageMetadataBuilder.setNullValue(msgBuilder.hasNullValue());
+        }
+
+        if (msgBuilder.hasNullPartitionKey()) {
+            singleMessageMetadataBuilder.setNullPartitionKey(msgBuilder.hasNullPartitionKey());
         }
 
         try {

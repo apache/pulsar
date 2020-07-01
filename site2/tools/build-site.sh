@@ -76,3 +76,4 @@ mkdir -p ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
 cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/tools ${ROOT_DIR}/generated-site/content
+cp -R ${ROOT_DIR}/site2/website/static/swagger/* ${ROOT_DIR}/generated-site/content/swagger/

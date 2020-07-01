@@ -81,7 +81,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -93,6 +92,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
@@ -101,10 +101,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
-
+    private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
@@ -179,7 +180,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         doThrow(new RestException(Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
                 .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
-                        PolicyName.REPLICATION, PolicyOperation.WRITE);
+                        PolicyName.RETENTION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();
     }
@@ -227,7 +228,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.CREATE
+                    && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
+            });
         try {
             namespaces.createNamespace(this.testTenant, "use", "my-namespace-3", new BundlesData());
             fail("should have failed");
@@ -263,7 +267,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         // ZK Errors
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/admin/policies/my-tenant");
+            });
         try {
             namespaces.getTenantNamespaces(this.testTenant);
             fail("should have failed");
@@ -271,7 +278,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET_CHILDREN
+                    && path.equals("/admin/policies/my-tenant/use");
+            });
         try {
             namespaces.getNamespacesForCluster(this.testTenant, this.testLocalCluster);
             fail("should have failed");
@@ -347,7 +357,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         NamespaceName testNs = this.testLocalNamespaces.get(1);
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition1: {} {}", op, path);
+                return true;
+            });
+
         try {
             namespaces.getPolicies(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
             fail("should have failed");
@@ -355,7 +372,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition2: {} {}", op, path);
+                return true;
+            });
         try {
             namespaces.getPermissions(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
             fail("should have failed");
@@ -363,7 +386,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition3: {} {}", op, path);
+                return true;
+            });
         try {
             namespaces.grantPermissionOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
                     "other-role", EnumSet.of(AuthAction.consume));
@@ -372,7 +401,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        mockZooKeeper.failNow(Code.BADVERSION);
+        mockZooKeeper.failConditional(Code.BADVERSION, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition4: {} {}", op, path);
+                return true;
+            });
         try {
             namespaces.grantPermissionOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
                     "other-role", EnumSet.of(AuthAction.consume));
@@ -381,7 +416,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
         }
 
-        mockZooKeeper.failNow(Code.BADVERSION);
+        mockZooKeeper.failConditional(Code.BADVERSION, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition5: {} {}", op, path);
+                return true;
+            });
         try {
             namespaces.revokePermissionsOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
                     "other-role");
@@ -390,7 +431,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                // test is disabled and failing so I can't see what paths are needed here
+                // if it ever gets enabled and fixed, first check what is expected and update these
+                // paths
+                log.info("Condition6: {} {}", op, path);
+                return true;
+            });
         try {
             namespaces.revokePermissionsOnNamespace(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(),
                     "other-role");
@@ -470,7 +517,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockZooKeeper.unsetAlwaysFail();
         }
 
-        mockZooKeeper.failNow(Code.BADVERSION);
+        mockZooKeeper.failConditional(Code.BADVERSION, (op, path) -> {
+                return op == MockZooKeeper.Op.SET
+                    && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
+            });
+
         try {
             namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
@@ -494,7 +545,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
-        mockZooKeeper.failNow(Code.SESSIONEXPIRED);
+        mockZooKeeper.failConditional(Code.SESSIONEXPIRED, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/admin/policies/my-tenant/global/test-global-ns1");
+            });
+
         pulsar.getConfigurationCache().policiesCache().clear();
 
         // ensure the ZooKeeper read happens, bypassing the cache
@@ -561,7 +616,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(uri).when(uriInfo).getRequestUri();
 
         try {
-            namespaces.unloadNamespaceBundle(this.testTenant, this.testOtherCluster,
+            namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
                     this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
             fail("Should have raised exception to redirect request");
         } catch (WebApplicationException wae) {
@@ -790,7 +845,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -822,7 +877,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -856,12 +911,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // make one bundle owned
         doReturn(Optional.of(localWebServiceUrl)).when(nsSvc).getWebServiceUrl(testBundle, false, true, false);
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
-        doNothing().when(nsSvc).unloadNamespaceBundle(testBundle);
-        namespaces.unloadNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
+        doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
                 false);
         verify(nsSvc, times(1)).unloadNamespaceBundle(testBundle);
         try {
-            namespaces.unloadNamespaceBundle(testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
+            namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
                     false);
             fail("should have failed");
         } catch (RestException re) {
@@ -914,7 +970,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+            doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -936,7 +992,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-            doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+            doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
             Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
             ownership.setAccessible(true);
             ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
@@ -992,7 +1048,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, bundledNsLocal, bundleData);
         final NamespaceName testNs = NamespaceName.get(this.testTenant, this.testLocalCluster, bundledNsLocal);
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
-        doNothing().when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
+        doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
         Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
         ownership.setAccessible(true);
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);

@@ -149,6 +149,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify multiple advertised listeners for the broker."
+                    + " The value must format as <listener_name>:pulsar://<host>:<port>,"
+                    + "multiple listeners should separate with commas."
+                    + "Do not use this configuration with advertisedAddress and brokerServicePort."
+                    + "The Default value is absent means use advertisedAddress and brokerServicePort.")
+    private String advertisedListeners;
+
+    @FieldContext(category=CATEGORY_SERVER,
+            doc = "Used to specify the internal listener name for the broker."
+                    + "The listener name must contain in the advertisedListeners."
+                    + "The Default value is absent, the broker uses the first listener as the internal listener.")
+    private String internalListenerName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."
@@ -175,6 +189,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
             + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
     private long delayedDeliveryTickTimeMillis = 1000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
+    private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -299,7 +316,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max pending publish requests per connection to avoid keeping large number of pending "
                 + "requests in memory. Default: 1000"
     )
-    private int maxPendingPublishdRequestsPerConnection = 1000;
+    private int maxPendingPublishRequestsPerConnection = 1000;
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "How frequently to proactively check and purge expired messages"
@@ -335,6 +352,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable Key_Shared subscription (default is enabled)"
     )
     private boolean subscriptionKeySharedEnable = true;
+
+    @FieldContext(category = CATEGORY_POLICIES,
+            doc = "On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or " +
+            "consistent hashing to reassign keys to new consumers")
+    private boolean subscriptionKeySharedUseConsistentHashing = false;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "On KeyShared subscriptions, number of points in the consistent-hashing ring. "
+                + "The higher the number, the more equal the assignment of keys to consumers")
+    private int subscriptionKeySharedConsistentHashingReplicaPoints = 100;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -421,7 +449,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "it uses more CPU to perform frequent check. (Disable publish throttling with value 0)"
         )
     private int topicPublisherThrottlingTickTimeMillis = 5;
-
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable precise rate limit for topic publish"
+    )
+    private boolean preciseTopicPublishRateLimiterEnable = false;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -522,6 +554,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int dispatcherMaxReadBatchSize = 100;
 
+    // <-- dispatcher read settings -->
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max size in bytes of entries to read from bookkeeper. By default it is 5MB."
+    )
+    private int dispatcherMaxReadSizeBytes = 5 * 1024 * 1024;
+
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
@@ -537,6 +577,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max number of entries to dispatch for a shared subscription. By default it is 20 entries."
     )
     private int dispatcherMaxRoundRobinBatchSize = 20;
+
+    @FieldContext(
+         dynamic = true,
+         category = CATEGORY_SERVER,
+         doc = "Precise dispatcher flow control according to history message number of each entry"
+    )
+    private boolean preciseDispatcherFlowControl = false;
 
     @FieldContext(
         dynamic = true,
@@ -557,7 +604,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
-    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();;
+    private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -660,6 +707,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int maxNumPartitionsPerPartitionedTopic = 0;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory to locate broker interceptors"
+    )
+    private String brokerInterceptorsDirectory = "./interceptors";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of broker interceptor to load, which is a list of broker interceptor names"
+    )
+    private Set<String> brokerInterceptors = Sets.newTreeSet();
+
+    @FieldContext(
+        doc = "There are two policies when zookeeper session expired happens, \"shutdown\" and \"reconnect\". \n\n"
+        + " If uses \"shutdown\" policy, shutdown the broker when zookeeper session expired happens.\n\n"
+        + " If uses \"reconnect\" policy, try to reconnect to zookeeper server and re-register metadata to zookeeper."
+    )
+    private String zookeeperSessionExpiredPolicy = "shutdown";
+
     /**** --- Messaging Protocols --- ****/
 
     @FieldContext(
@@ -673,6 +739,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "List of messaging protocols to load, which is a list of protocol names"
     )
     private Set<String> messagingProtocols = Sets.newTreeSet();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable or disable system topic.")
+    private boolean systemTopicEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Enable or disable topic level policies, topic level policies depends on the system topic, " +
+                "please enable the system topic first.")
+    private boolean topicLevelPoliciesEnabled = false;
 
     /***** --- TLS --- ****/
     @FieldContext(
@@ -844,7 +921,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bookkeeperClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
-        doc = "BookKeeper auth plugin implementatation specifics parameters name and values"
+        doc = "BookKeeper auth plugin implementation specifics parameters name and values"
     )
     private String bookkeeperClientAuthenticationParametersName;
     @FieldContext(
@@ -963,6 +1040,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_BK, doc = "Set the interval to check the need for sending an explicit LAC")
     private int bookkeeperExplicitLacIntervalInMills = 0;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "whether expose managed ledger client stats to prometheus"
+    )
+    private boolean bookkeeperClientExposeStatsToPrometheus = false;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(
@@ -1096,6 +1179,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int managedLedgerMaxLedgerRolloverTimeMinutes = 240;
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Maximum ledger size before triggering a rollover for a topic (MB)"
+    )
+    private int managedLedgerMaxSizePerLedgerMbytes = 2048;
+    @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
         doc = "Delay between a ledger being successfully offloaded to long term storage,"
             + " and the ledger being deleted from bookkeeper"
@@ -1160,6 +1248,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")
     private long managedLedgerAddEntryTimeoutSeconds = 0;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Managed ledger prometheus stats latency rollover seconds"
+    )
+    private int managedLedgerPrometheusStatsLatencyRolloverSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Whether trace managed ledger task execution time"
+    )
+    private boolean managedLedgerTraceTaskExecution = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "New entries check delay for the cursor under the managed ledger. \n"
+                    + "If no new messages in the topic, the cursor will try to check again after the delay time. \n"
+                    + "For consumption latency sensitive scenario, can set to a smaller value or set to 0.\n"
+                    + "Of course, this may degrade consumption throughput. Default is 10ms.")
+    private int managedLedgerNewEntriesCheckDelayInMillis = 10;
 
     /*** --- Load balancer --- ****/
     @FieldContext(
@@ -1395,7 +1503,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
         )
-    private int replicatioPolicyCheckDurationSeconds = 600;
+    private int replicationPolicyCheckDurationSeconds = 600;
     @Deprecated
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -1492,6 +1600,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Time in milliseconds that idle WebSocket session times out"
     )
     private int webSocketSessionIdleTimeoutMillis = 300000;
+
+    @FieldContext(
+        category = CATEGORY_WEBSOCKET,
+        doc = "The maximum size of a text message during parsing in WebSocket proxy."
+    )
+    private int webSocketMaxTextFrameSize = 1048576;
 
     /**** --- Metrics --- ****/
     @FieldContext(

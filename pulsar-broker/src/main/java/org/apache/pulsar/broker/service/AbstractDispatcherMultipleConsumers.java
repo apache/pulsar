@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.ObjectSet;
 
 import io.netty.buffer.ByteBuf;
 
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -47,6 +48,8 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     protected static final AtomicIntegerFieldUpdater<AbstractDispatcherMultipleConsumers> IS_CLOSED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(AbstractDispatcherMultipleConsumers.class, "isClosed");
     private volatile int isClosed = FALSE;
+
+    private Random random = new Random(42);
 
     protected AbstractDispatcherMultipleConsumers(Subscription subscription) {
         super(subscription);
@@ -141,6 +144,21 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         // couldn't find available consumer
         return null;
     }
+
+    /**
+     * Get random consumer from consumerList.
+     *
+     * @return null if no consumer available, else return random consumer from consumerList
+     */
+    public Consumer getRandomConsumer() {
+        if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
+            // abort read if no consumers are connected of if disconnect is initiated
+            return null;
+        }
+
+        return consumerList.get(random.nextInt(consumerList.size()));
+    }
+
 
     /**
      * Finds index of first available consumer which has higher priority then given targetPriority

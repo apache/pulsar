@@ -119,7 +119,6 @@ import org.testng.annotations.Test;
 
 /**
  */
-@Test
 @SuppressWarnings("unchecked")
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
@@ -447,6 +446,7 @@ public class ServerCnxTest {
         assertTrue(response instanceof CommandError);
         CommandError error = (CommandError) response;
         assertEquals(error.getError(), ServerError.ServiceNotReady);
+        channel.finish();
     }
 
     @Test(timeOut = 30000)
@@ -532,6 +532,7 @@ public class ServerCnxTest {
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */, 0);
         channel.writeInbound(newSubscribeCmd);
         assertTrue(getResponse() instanceof CommandError);
+        channel.finish();
     }
 
     @Test(timeOut = 30000)
@@ -561,6 +562,7 @@ public class ServerCnxTest {
                 "prod-name", Collections.emptyMap());
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandError);
+        channel.finish();
     }
 
     @Test(timeOut = 30000)
@@ -599,8 +601,10 @@ public class ServerCnxTest {
         assertTrue(topicRef.getSubscriptions().containsKey(successSubName));
         assertTrue(topicRef.getSubscription(successSubName).getDispatcher().isConsumerConnected());
         assertTrue(getResponse() instanceof CommandSuccess);
+        channel.finish();
     }
 
+    @Test(timeOut = 30000)
     public void testProducerCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
@@ -752,6 +756,7 @@ public class ServerCnxTest {
         assertTrue(response instanceof CommandError, "Response is not CommandError but " + response);
         CommandError error = (CommandError) response;
         assertEquals(error.getError(), ServerError.ServiceNotReady);
+        channel.finish();
     }
 
     @Test(timeOut = 30000)
@@ -1175,7 +1180,6 @@ public class ServerCnxTest {
 
         PersistentTopic topicRef = (PersistentTopic) brokerService.getTopicReference(successTopicName).get();
         topicRef.markBatchMessagePublished();
-
         // test SUBSCRIBE on topic and cursor creation success
         clientCommand = Commands.newSubscribe(successTopicName, failSubName, 2, 2, SubType.Exclusive, 0 /* priority */,
                 "test" /* consumer name */, 0 /*avoid reseting cursor*/);
@@ -1247,7 +1251,7 @@ public class ServerCnxTest {
 
         PositionImpl pos = new PositionImpl(0, 0);
 
-        clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), AckType.Individual,
+        clientCommand = Commands.newAck(1 /* consumer id */, pos.getLedgerId(), pos.getEntryId(), null, AckType.Individual,
                                         null, Collections.emptyMap());
         channel.writeInbound(clientCommand);
 
@@ -1649,5 +1653,7 @@ public class ServerCnxTest {
 
         Object response = getResponse();
         assertTrue(response instanceof CommandSuccess);
+
+        channel.finish();
     }
 }

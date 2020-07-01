@@ -379,17 +379,32 @@ ConsumerBuilder consumerBuilder = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://public/default/.*");
+Pattern allTopicsInNamespace = Pattern.compile("public/default/.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://public/default/foo.*");
+Pattern someTopicsInNamespace = Pattern.compile("public/default/foo.*");
 Consumer allTopicsConsumer = consumerBuilder
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
 ```
+
+In the above example, the consumer subscribes to the `persistent` topics that can match the topic name pattern. If you want the consumer subscribes to all `persistent` and `non-persistent` topics that can match the topic name pattern, set `subscriptionTopicsMode` to `RegexSubscriptionMode.AllTopics`.
+
+```java
+Pattern pattern = Pattern.compile("public/default/.*");
+pulsarClient.newConsumer()
+        .subscriptionName("my-sub")
+        .topicsPattern(pattern)
+        .subscriptionTopicsMode(RegexSubscriptionMode.AllTopics)
+        .subscribe();
+```
+
+> #### Note
+> 
+> By default, the `subscriptionTopicsMode` of the consumer is `PersistentOnly`. Available options of `subscriptionTopicsMode` are `PersistentOnly`, `NonPersistentOnly`, and `AllTopics`.
 
 You can also subscribe to an explicit list of topics (across namespaces if you wish):
 
@@ -608,6 +623,22 @@ consumer2 receives the follwoing information.
 ("key-4", "message-4-2")
 ```
 
+If batching is enabled at the producer side, messages with different keys are added to a batch by default. The broker will dispatch the batch to the consumer, so the default batch mechanism may break the Key_Shared subscription guaranteed message distribution semantics. The producer needs to use the `KeyBasedBatcher`.
+
+```java
+Producer producer = client.newProducer()
+        .topic("my-topic")
+        .batcherBuilder(BatcherBuilder.KEY_BASED)
+        .create();
+```
+Or the producer can disable batching.
+
+```java
+Producer producer = client.newProducer()
+        .topic("my-topic")
+        .enableBatching(false)
+        .create();
+```
 > Note:
 >
 > If the message key is not specified, messages without key are dispatched to one consumer in order by default.

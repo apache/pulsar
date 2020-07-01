@@ -212,7 +212,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topic2));
 
         // unload ns-bundle:1
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1);
+        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1).join();
         // let server send signal to close-connection and client close the connection
         Thread.sleep(1000);
         // [1] Verify: producer1 must get connectionClosed signal
@@ -237,7 +237,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertEquals(State.Ready, prod2.getState());
 
         // unload ns-bundle2 as well
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
+        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2).join();
         // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
         verify(producer2, atLeastOnce()).connectionClosed(any());

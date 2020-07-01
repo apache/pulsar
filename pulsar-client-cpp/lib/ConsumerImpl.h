@@ -32,6 +32,7 @@
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
 #include "MessageCrypto.h"
+#include "AckGroupingTracker.h"
 
 #include "CompressionCodec.h"
 #include <boost/dynamic_bitset.hpp>
@@ -82,8 +83,22 @@ class ConsumerImpl : public ConsumerImplBase,
     inline proto::CommandSubscribe_InitialPosition getInitialPosition();
     void unsubscribeAsync(ResultCallback callback);
     void handleUnsubscribe(Result result, ResultCallback callback);
-    void doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
-                       ResultCallback callback);
+
+    /**
+     * Send individual ACK request of given message ID to broker.
+     * @param[in] messageId ID of the message to be ACKed.
+     * @param[in] callback call back function, which is called after sending ACK. For now, it's
+     *      always provided with ResultOk.
+     */
+    void doAcknowledgeIndividual(const MessageId& messageId, ResultCallback callback);
+
+    /**
+     * Send cumulative ACK request of given message ID to broker.
+     * @param[in] messageId ID of the message to be ACKed.
+     * @param[in] callback call back function, which is called after sending ACK. For now, it's
+     *      always provided with ResultOk.
+     */
+    void doAcknowledgeCumulative(const MessageId& messageId, ResultCallback callback);
     virtual void disconnectConsumer();
     virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture();
     virtual const std::string& getSubscriptionName() const;
@@ -150,6 +165,7 @@ class ConsumerImpl : public ConsumerImplBase,
     void statsCallback(Result, ResultCallback, proto::CommandAck_AckType);
     void notifyPendingReceivedCallback(Result result, Message& message, const ReceiveCallback& callback);
     void failPendingReceiveCallback();
+    virtual void setNegativeAcknowledgeEnabledForTesting(bool enabled);
 
     Optional<MessageId> clearReceiveQueue();
 
@@ -180,6 +196,7 @@ class ConsumerImpl : public ConsumerImplBase,
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
     NegativeAcksTracker negativeAcksTracker_;
+    AckGroupingTrackerScopedPtr ackGroupingTrackerPtr_;
 
     MessageCryptoPtr msgCrypto_;
     const bool readCompacted_;
@@ -197,6 +214,10 @@ class ConsumerImpl : public ConsumerImplBase,
     }
 
     friend class PulsarFriend;
+
+    // these two declared friend to access setNegativeAcknowledgeEnabledForTesting
+    friend class MultiTopicsConsumerImpl;
+    friend class PartitionedConsumerImpl;
 };
 
 } /* namespace pulsar */

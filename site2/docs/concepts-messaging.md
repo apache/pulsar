@@ -49,14 +49,41 @@ Messages published by producers can be compressed during transportation in order
 
 ### Batching
 
-If batching is enabled, the producer will accumulate and send a batch of messages in a single request. Batch size is defined by the maximum number of messages and maximum publish latency.
+When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the total number of batches instead of the total number of messages.
 
-Batches are tracked and stored by Pulsar as batches rather than as individual messages. Under the hood the consumer unbundles these batches into individual messages. Since the messages are stored as batches, the backlog size will also represent the total number of batches rather than the total number of messages.
+In Pulsar, batches are tracked and stored as single units rather than as individual messages. Under the hood, the consumer unbundles a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even batching is enabled.
 
-Scheduled messages (using `deliverAt` or `deliverAfter`) are always sent as individual messages even when batching is enabled.
+In general, a batch is acknowledged when all its messages are acknowledged by the consumer. This means unexpected failures, negative acknowledgements, or acknowledgement timeouts can result in redelivery of all messages in a batch, even if some of the messages have already been acknowledged.
 
-> Note
-> Since batches are tracked as single units, a batch will only be considered acknowledged when all its messages are acknowledged by the consumer. This means unexpected failures, negative acknowledgements, and acknowledgement timeouts can result in redelivery of all messages in the batch, even if some of the messages have already been acknowledged.
+To avoid redelivering acknowledged messages in a batch to the consumer, Pulsar introduces batch index acknowledgement since Pulsar 2.6.0. When batch index acknowledgement is enabled, the consumer filters out the batch index that has been acknowledged and sends the batch index acknowledgement request to the broker. The broker maintains the batch index acknowledgement status and tracks the acknowledgement status of each batch index to avoid dispatching acknowledged messages to the consumer. When all indexes of the batch message are acknowledged, the batch message is deleted.
+
+By default, batch index acknowledgement is disabled (`batchIndexAcknowledgeEnable=false`). You can enable batch index acknowledgement by setting the `batchIndexAcknowledgeEnable` parameter to `true` at the broker side. Enabling batch index acknowledgement may bring more memory overheads. So, perform this operation with caution.
+
+### Chunking
+
+#### Note
+
+> - Batching and chunking cannot be enabled simultaneously. To enable chunking, you must disable batching in advance.
+> - Chunking is only supported for persisted topics.
+> - Chunking is only supported for the exclusive and failover subscription modes.
+
+When chunking is enabled (`chunkingEnabled=true`), if the message size is greater than the allowed maximum publish-payload size, the producer splits the original message into chunked messages and publishes them with chunked metadata to the broker separately and in order. At the broker, the chunked messages are stored in the managed-ledger in the same way as that of ordinary messages. The only difference is that the consumer needs to buffer the chunked messages and combines them into the real message when all chunked messages have been collected. The chunked messages in the managed-ledger can be interwoven with ordinary messages. If producer fails to publish all the chunks of a message, the consumer can expire incomplete chunks if consumer fail to receive all chunks in expire time. By default, the expire time is set to 0ne hour.
+
+The consumer consumes the chunked messages and buffers them until the consumer receives all the chunks of a message. Finally, the consumer stitches chunked messages together and places them into the receiver-queue . Therefore, the client can consume messages from there. Once the consumer consumes entire large message and acknowledges it, the consumer internally sends acknowledgement of all the chunk messages associated to that large message. You can set the `maxPendingChuckedMessage` parameter on the consumer. When the threshold is reached, the consumer drops the unchunked messages by silently acknowledging them or asking the broker to redeliver them later by marking them unacknowledged.
+
+ The broker does not require any changes to support chunking for non-shared subscription. The broker only use the `chuckedMessageRate` to record chunked message rate on the topic.
+
+#### Handle chunked messages with one producer and one ordered consumer
+
+As shown in the following figure, when a topic has one producer which publishes large message payload in chunked messages along with regular non-chunked messages. the producer publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. The broker stores all 3 chunked messages in the managed-ledger and dispatches to the ordered (exclusive/failover) consumer in the same order. The consumer buffers all the chunked messages in memory until it receives all the chunked messages, combines them to one real message and then hands over the original message M1 to the client.
+
+![](assets/chunking-01.png)
+
+#### Handle chunked messages with multiple producers and one ordered consumer
+
+When multiple publishers publishes chunked messages into the single topic. The broker stores all the chunked messages coming from different publishers in the same managed-ledger. As shown below, Producer 1 publishes message M1 in three chunks M1-C1, M1-C2 and M1-C3. Producer 2 publishes message M2 in three chunks M2-C1, M2-C2 and M2-C3. All chunked messages of the specific message are still in the order but might not be consecutive in the managed-ledger. This brings some memory pressure to the consumer because the consumer has to keep separate buffer for each large message to aggregate all chunks of the large message and combine them to one real message.
+
+![](assets/chunking-02.png)
 
 ## Consumers
 
@@ -81,12 +108,18 @@ Client libraries provide listener implementation for consumers. For example, the
 
 When a consumer has consumed a message successfully, the consumer sends an acknowledgement request to the broker. This message is permanently [stored](concepts-architecture-overview.md#persistent-storage) and then it is deleted only after all the subscriptions have acknowledged it. If you want to store the message that has been acknowledged by a consumer, you need to configure the [message retention policy](concepts-messaging.md#message-retention-and-expiry).
 
+For a batch message, if batch index acknowledgement is enabled, the broker maintains the batch index acknowledgement status and tracks the acknowledgement status of each batch index to avoid dispatching acknowledged messages to the consumer. When all indexes of the batch message are acknowledged, the batch message is deleted. For details about the batch index acknowledgement, see [batching](#batching).
+
 Messages can be acknowledged either one by one or cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message will not be re-delivered to that consumer.
 
+Messages can be acknowledged in the following two ways:
 
-> Cumulative acknowledgement cannot be used with [shared subscription mode](#subscription-modes), because shared mode involves multiple consumers having access to the same subscription.
+- Messages are acknowledged individually. With individual acknowledgement, the consumer needs to acknowledge each message and sends an acknowledgement request to the broker.
+- Messages are acknowledged cumulatively. With cumulative acknowledgement, the consumer only needs to acknowledge the last message it received. All messages in the stream up to (and including) the provided message are not re-delivered to that consumer.
 
-In the shared subscription mode, messages can be acknowledged individually.
+> #### Note
+> 
+> Cumulative acknowledgement cannot be used in the [shared subscription mode](#subscription-modes), because the shared subscription mode involves multiple consumers having access to the same subscription. In the shared subscription mode, messages can be acknowledged individually.
 
 ### Negative acknowledgement
 
@@ -153,6 +186,29 @@ Dead letter topic depends on message re-delivery. Messages are redelivered eithe
 > Note    
 > Currently, dead letter topic is enabled only in the shared subscription mode.
 
+### Retry letter topic
+
+For many online business systems, a message needs to be re-consumed because any exception occurs in the business logic processing. Generally, users hope that they can flexibly configure the delay time for re-consuming the failed messages. In this case, you can configure the producer to send messages to both the business topic and the retry letter topic and you can enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages fail to be consumed and therefore the consumer can automatically consume failed messages from the retry letter topic after a specified delay time.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+This example shows how to consumer messages from a retry letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .receiverQueueSize(100)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
+                        .build())
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+```
+
 ## Topics
 
 As in other pub-sub systems, topics in Pulsar are named channels for transmitting messages from [producers](reference-terminology.md#producer) to [consumers](reference-terminology.md#consumer). Topic names are URLs that have a well-defined structure:
@@ -171,6 +227,7 @@ Topic name component | Description
 
 > #### No need to explicitly create new topics
 > You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces) provided in the [topic name](#topics).
+> If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as `persistent://my-tenant/my-namespace/my-topic`. `persistent://my-tenant/my-namespace/my-topic` means the `my-topic` topic is created in the `my-namespace` namespace of the `my-tenant` tenant.
 
 ## Namespaces
 
@@ -200,11 +257,11 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. The consumers will be lexically sorted by the consumer's name and the first consumer will initially be the only one receiving messages. This consumer is called the *master consumer*.
+In *failover* mode, multiple consumers can attach to the same subscription. In failover mode, the broker selects the master consumer based on the priority level and the lexicographical sorting of a consumer name. If two consumers have an identical priority level, the broker selects the master consumer based on the lexicographical sorting. If these two consumers have different priority levels, the broker selects the consumer with a higher priority level as the master consumer. The master consumer is initially the only one receiving messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-When the master consumer disconnects, all (non-acked and subsequent) messages will be delivered to the next consumer in line.
+For partitioned topics, the broker assigns partitioned topics to the consumer with the highest priority level. If multiple consumers have the highest priority level, the broker evenly assigns topics to consumers with these consumers.
 
-In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next in line to receive messages if **Consumer-B-0** disconnected.
+In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
 ![Failover subscriptions](assets/pulsar-failover-subscriptions.png)
 

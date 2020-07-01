@@ -19,8 +19,9 @@
 package org.apache.pulsar.broker.namespace;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -53,11 +54,14 @@ import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.MockZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class OwnershipCacheTest {
+    private static final Logger log = LoggerFactory.getLogger(OwnershipCacheTest.class);
 
     private PulsarService pulsar;
     private ServiceConfiguration config;
@@ -88,7 +92,7 @@ public class OwnershipCacheTest {
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
-        doReturn(CompletableFuture.completedFuture(1)).when(brokerService).unloadServiceUnit(any(), anyBoolean());
+        doReturn(CompletableFuture.completedFuture(1)).when(brokerService).unloadServiceUnit(any(), anyBoolean(), anyInt(), any());
 
         doReturn(zkCache).when(pulsar).getLocalZkCache();
         doReturn(localCache).when(pulsar).getLocalZkCacheService();
@@ -144,7 +148,7 @@ public class OwnershipCacheTest {
         OwnedBundle nsObj = cache.getOwnedBundle(testFullBundle);
         // this would disable the ownership
         doReturn(cache).when(nsService).getOwnershipCache();
-        nsObj.handleUnloadRequest(pulsar, 5, TimeUnit.SECONDS);
+        nsObj.handleUnloadRequest(pulsar, 5, TimeUnit.SECONDS).join();
         Thread.sleep(1000);
 
         // case 3: some other broker owned the namespace, getOrSetOwner() should return other broker's URL
@@ -183,7 +187,11 @@ public class OwnershipCacheTest {
         assertEquals(data1, readOnlyData);
 
         MockZooKeeper mockZk = (MockZooKeeper) zkCache.getZooKeeper();
-        mockZk.failNow(KeeperException.Code.NONODE);
+        mockZk.failConditional(KeeperException.Code.NONODE, (op, path) -> {
+                return op == MockZooKeeper.Op.GET
+                    && path.equals("/namespace/pulsar/test/ns-none/0x00000000_0xffffffff");
+            });
+
         Optional<NamespaceEphemeralData> res = cache
                 .getOwnerAsync(bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-none"))).get();
         assertFalse(res.isPresent());

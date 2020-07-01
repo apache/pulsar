@@ -29,6 +29,12 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
+import java.io.IOException;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
+
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -37,11 +43,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 
 @Slf4j
 @Path("/worker")
@@ -123,6 +124,11 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
         return worker.getAssignments(clientAppId());
     }
 
+    @GET
+    @ApiOperation(
+            value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
+            response = List.class
+    )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),

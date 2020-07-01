@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -356,6 +356,19 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
+        String completeTopicName = tenant + "/" + namespace + "/" +  Codec.decode(encodedTopic);
+        try {
+            PartitionedTopicMetadata partitionedTopicMetadata =
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(completeTopicName)).get();
+            if (partitionedTopicMetadata.partitions < 1) {
+                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
+            }
+        } catch ( InterruptedException  | ExecutionException e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
+        }
+    }
+
     @Deprecated
     protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
@@ -383,7 +396,7 @@ public abstract class AdminResource extends PulsarWebResource {
         if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
                 && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
             String[] parts = broker.split(":");
-            checkArgument(parts.length == 2, "Invalid broker url %s", broker);
+            checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
             String host = parts[0];
             int port = Integer.parseInt(parts[1]);
 
@@ -828,6 +841,18 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(throwable);
         } else {
             asyncResponse.resume(new RestException(throwable));
+        }
+    }
+
+    protected void checkNotNull(Object o, String errorMessage) {
+        if (o == null) {
+            throw new RestException(Status.BAD_REQUEST, errorMessage);
+        }
+    }
+
+    protected void checkArgument(boolean b, String errorMessage) {
+        if (!b) {
+            throw new RestException(Status.BAD_REQUEST, errorMessage);
         }
     }
 }

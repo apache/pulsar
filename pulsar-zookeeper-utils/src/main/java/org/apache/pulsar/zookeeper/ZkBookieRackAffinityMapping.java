@@ -215,11 +215,6 @@ public class ZkBookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
-    public boolean useHostName() {
-        return false;
-    }
-
-    @Override
     public void onUpdate(String path, BookiesRackConfiguration data, Stat stat) {
         if (rackawarePolicy != null) {
             LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", data.toString());

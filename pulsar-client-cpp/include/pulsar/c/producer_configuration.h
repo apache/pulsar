@@ -39,7 +39,9 @@ typedef enum { pulsar_Murmur3_32Hash, pulsar_BoostHash, pulsar_JavaStringHash } 
 typedef enum {
     pulsar_CompressionNone = 0,
     pulsar_CompressionLZ4 = 1,
-    pulsar_CompressionZLib = 2
+    pulsar_CompressionZLib = 2,
+    pulsar_CompressionZSTD = 3,
+    pulsar_CompressionSNAPPY = 4
 } pulsar_compression_type;
 
 typedef enum {

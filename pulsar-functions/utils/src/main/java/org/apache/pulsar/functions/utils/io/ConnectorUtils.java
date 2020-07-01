@@ -20,22 +20,28 @@ package org.apache.pulsar.functions.utils.io;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.*;
 
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @UtilityClass
 @Slf4j
@@ -108,6 +114,38 @@ public class ConnectorUtils {
         return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
     }
 
+    public static List<ConfigFieldDefinition> getConnectorConfigDefinition(String narPath,
+                                                                           String configClassName,
+                                                                           String narExtractionDirectory) throws Exception {
+        List<ConfigFieldDefinition> retval = new LinkedList<>();
+        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+            Class configClass = ncl.loadClass(configClassName);
+            for (Field field : Reflections.getAllFields(configClass)) {
+                if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+                    // We dont want static fields
+                    continue;
+                }
+                field.setAccessible(true);
+                ConfigFieldDefinition configFieldDefinition = new ConfigFieldDefinition();
+                configFieldDefinition.setFieldName(field.getName());
+                configFieldDefinition.setTypeName(field.getType().getName());
+                Map<String, String> attributes = new HashMap<>();
+                for (Annotation annotation : field.getAnnotations()) {
+                    if (annotation.annotationType().equals(FieldDoc.class)) {
+                        FieldDoc fieldDoc = (FieldDoc) annotation;
+                        for (Method method : FieldDoc.class.getDeclaredMethods()) {
+                            Object value = method.invoke(fieldDoc);
+                            attributes.put(method.getName(), value == null ? "" : value.toString());
+                        }
+                    }
+                }
+                configFieldDefinition.setAttributes(attributes);
+                retval.add(configFieldDefinition);
+            }
+        }
+        return retval;
+    }
+
     public static Connectors searchForConnectors(String connectorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
@@ -127,10 +165,16 @@ public class ConnectorUtils {
 
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
                         connectors.sources.put(cntDef.getName(), archive);
+                        if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
+                            connectors.sourceConfigDefinitions.put(cntDef.getName(), getConnectorConfigDefinition(archive.toString(), cntDef.getSourceConfigClass(), narExtractionDirectory));
+                        }
                     }
 
                     if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
                         connectors.sinks.put(cntDef.getName(), archive);
+                        if (!StringUtils.isEmpty(cntDef.getSinkConfigClass())) {
+                            connectors.sinkConfigDefinitions.put(cntDef.getName(), getConnectorConfigDefinition(archive.toString(), cntDef.getSinkConfigClass(), narExtractionDirectory));
+                        }
                     }
 
                     connectors.connectors.add(cntDef);

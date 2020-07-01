@@ -700,9 +700,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                             .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
                         continue;
                     }
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
-                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                        unloadSplitBundles, null);
+
                     // Make sure the same bundle is not selected again.
                     loadData.getBundleData().remove(bundleName);
                     localData.getLastStats().remove(bundleName);
@@ -710,6 +708,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     this.pulsar.getNamespaceService().getNamespaceBundleFactory()
                             .invalidateBundleCache(NamespaceName.get(namespaceName));
                     deleteBundleDataFromZookeeper(bundleName);
+
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
+                    pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
+                        unloadSplitBundles, null);
+
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);
@@ -849,14 +852,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
 
             lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
             lastData.setProtocols(protocolData);
             // configure broker-topic mode
             lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
             localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
+                    pulsar.getSafeBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
             localData.setProtocols(protocolData);
             localData.setBrokerVersionString(pulsar.getBrokerVersion());
             // configure broker-topic mode

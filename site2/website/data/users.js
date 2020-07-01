@@ -1,5 +1,10 @@
 module.exports = [
     {
+        name: 'Kingsoft Cloud',
+        url: 'https://www.ksyun.com/',
+        logo: 'https://fe.ksyun.com/header/images/pc/logo.png?a048d39f',
+    },
+    {
         name: 'Narvar',
         url: 'https://corp.narvar.com/',
         logo: 'https://assets-global.website-files.com/5d278e4646ba9e55d6c67475/5d49ce69c03a64b2d8466816_Logo%20-%20Colored.svg',

@@ -39,13 +39,13 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import javax.ws.rs.core.Response;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -53,7 +53,7 @@ import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -68,15 +68,11 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.WorkerConfig;
-import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.WorkerUtils;
-import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.functions.worker.*;
 import org.apache.pulsar.functions.worker.rest.api.SourcesImpl;
 import org.apache.pulsar.io.twitter.TwitterFireHose;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -88,7 +84,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link SourcesApiV3Resource}.
  */
-@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, InstanceUtils.class})
+@PrepareForTest({WorkerUtils.class, ConnectorUtils.class, FunctionCommon.class, ClassLoaderUtils.class, InstanceUtils.class})
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*", "org.apache.pulsar.io.*" })
 public class SourceApiV3ResourceTest {
 
@@ -113,6 +109,7 @@ public class SourceApiV3ResourceTest {
     private PulsarAdmin mockedPulsarAdmin;
     private Tenants mockedTenants;
     private Namespaces mockedNamespaces;
+    private Functions mockedFunctions;
     private TenantInfo mockedTenantInfo;
     private List<String> namespaceList = new LinkedList<>();
     private FunctionMetaDataManager mockedManager;
@@ -123,6 +120,7 @@ public class SourceApiV3ResourceTest {
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
     private FunctionMetaData mockedFunctionMetaData;
+    private LeaderService mockedLeaderService;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -137,19 +135,25 @@ public class SourceApiV3ResourceTest {
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
+        this.mockedFunctions = mock(Functions.class);
+        this.mockedLeaderService = mock(LeaderService.class);
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(WorkerService.class);
         when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
+        when(mockedWorkerService.getLeaderService()).thenReturn(mockedLeaderService);
         when(mockedWorkerService.getFunctionRuntimeManager()).thenReturn(mockedFunctionRunTimeManager);
         when(mockedFunctionRunTimeManager.getRuntimeFactory()).thenReturn(mockedRuntimeFactory);
         when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
         when(mockedWorkerService.isInitialized()).thenReturn(true);
         when(mockedWorkerService.getBrokerAdmin()).thenReturn(mockedPulsarAdmin);
+        when(mockedWorkerService.getFunctionAdmin()).thenReturn(mockedPulsarAdmin);
         when(mockedPulsarAdmin.tenants()).thenReturn(mockedTenants);
         when(mockedPulsarAdmin.namespaces()).thenReturn(mockedNamespaces);
+        when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctions);
         when(mockedTenants.getTenantInfo(any())).thenReturn(mockedTenantInfo);
         when(mockedNamespaces.getNamespaces(any())).thenReturn(namespaceList);
+        when(mockedLeaderService.isLeader()).thenReturn(true);
 
         URL file = Thread.currentThread().getContextClassLoader().getResource(JAR_FILE_NAME);
         if (file == null)  {
@@ -502,12 +506,6 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("source registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
         registerDefaultSource();
     }
 
@@ -528,12 +526,6 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         when(mockedManager.containsFunction(eq(actualTenant), eq(actualNamespace), eq(actualName))).thenReturn(false);
-
-        RequestResult rr = new RequestResult()
-                .setSuccess(true)
-                .setMessage("source registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         SourceConfig sourceConfig = new SourceConfig();
         sourceConfig.setTenant(tenant);
@@ -568,11 +560,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(false)
-                .setMessage("source failed to register");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("source failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSource();
         } catch (RestException re){
@@ -581,7 +570,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -595,9 +584,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                new IOException("Function registration interrupted"));
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             registerDefaultSource();
         } catch (RestException re){
@@ -831,6 +819,8 @@ public class SourceApiV3ResourceTest {
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
 
+        mockStatic(ClassLoaderUtils.class);
+
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
         doReturn(String.class).when(FunctionCommon.class);
@@ -867,12 +857,9 @@ public class SourceApiV3ResourceTest {
             sourceConfig.setParallelism(parallelism);
         }
 
-        if (expectedError == null) {
-            RequestResult rr = new RequestResult()
-                    .setSuccess(true)
-                    .setMessage("source registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+        if (expectedError != null) {
+            doThrow(new IllegalArgumentException(expectedError))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
         }
 
         resource.updateSource(
@@ -900,6 +887,8 @@ public class SourceApiV3ResourceTest {
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(ClassLoaderUtils.class);
 
         mockStatic(FunctionCommon.class);
         PowerMockito.when(FunctionCommon.class, "createPkgTempFile").thenCallRealMethod();
@@ -967,12 +956,6 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("source registered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
-
         updateDefaultSource();
     }
 
@@ -991,9 +974,12 @@ public class SourceApiV3ResourceTest {
         sourceConfig.setClassName(className);
         sourceConfig.setParallelism(parallelism);
 
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         mockStatic(ConnectorUtils.class);
         doReturn(TwitterFireHose.class.getName()).when(ConnectorUtils.class);
         ConnectorUtils.getIOSourceClass(any(NarClassLoader.class));
+
+        mockStatic(ClassLoaderUtils.class);
 
         mockStatic(FunctionCommon.class);
         doReturn(String.class).when(FunctionCommon.class);
@@ -1005,14 +991,6 @@ public class SourceApiV3ResourceTest {
 
         this.mockedFunctionMetaData = FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetaData);
-
-
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
-        RequestResult rr = new RequestResult()
-                .setSuccess(true)
-                .setMessage("source registered");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
 
         resource.updateSource(
             tenant,
@@ -1040,11 +1018,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            RequestResult rr = new RequestResult()
-                    .setSuccess(false)
-                    .setMessage("source failed to register");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("source failed to register"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSource();
         } catch (RestException re){
@@ -1053,7 +1028,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "java.io.IOException: Function registration interrupted")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         try {
             mockStatic(WorkerUtils.class);
@@ -1067,9 +1042,8 @@ public class SourceApiV3ResourceTest {
 
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                new IOException("Function registration interrupted"));
-            when(mockedManager.updateFunction(any(FunctionMetaData.class))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function registration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             updateDefaultSource();
         } catch (RestException re){
@@ -1162,27 +1136,18 @@ public class SourceApiV3ResourceTest {
 
         when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-        RequestResult rr = new RequestResult()
-            .setSuccess(true)
-            .setMessage("source deregistered");
-        CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-        when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
-
         deregisterDefaultSource();
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to deregister")
-    public void testDeregisterSourceFailure() {
+    public void testDeregisterSourceFailure() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            RequestResult rr = new RequestResult()
-                .setSuccess(false)
-                .setMessage("source failed to deregister");
-            CompletableFuture<RequestResult> requestResult = CompletableFuture.completedFuture(rr);
-            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
+            doThrow(new IllegalArgumentException("source failed to deregister"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSource();
         } catch (RestException re){
@@ -1192,15 +1157,14 @@ public class SourceApiV3ResourceTest {
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregistration interrupted")
-    public void testDeregisterSourceInterrupted() {
+    public void testDeregisterSourceInterrupted() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
             when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(source))).thenReturn(FunctionMetaData.newBuilder().build());
 
-            CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
-                new IOException("Function deregistration interrupted"));
-            when(mockedManager.deregisterFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(requestResult);
+            doThrow(new IllegalStateException("Function deregistration interrupted"))
+                    .when(mockedManager).updateFunctionOnLeader(any(FunctionMetaData.class), Mockito.anyBoolean());
 
             deregisterDefaultSource();
         } catch (RestException re){
