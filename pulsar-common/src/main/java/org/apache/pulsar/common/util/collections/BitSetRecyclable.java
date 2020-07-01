@@ -27,6 +27,7 @@ import java.nio.ByteOrder;
 import java.nio.LongBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This this copy of {@link BitSet}.
@@ -1183,6 +1184,7 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         return this;
     }
 
+    private final AtomicBoolean recycled = new AtomicBoolean(false);
     private Handle<BitSetRecyclable> recyclerHandle = null;
 
     private static final Recycler<BitSetRecyclable> RECYCLER = new Recycler<BitSetRecyclable>() {
@@ -1197,11 +1199,13 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     }
 
     public static BitSetRecyclable create() {
-        return RECYCLER.get();
+        BitSetRecyclable instance = RECYCLER.get();
+        instance.recycled.set(false);
+        return instance;
     }
 
     public void recycle() {
-        if (recyclerHandle != null) {
+        if (recyclerHandle != null && recycled.compareAndSet(false, true)) {
             this.clear();
             recyclerHandle.recycle(this);
         }
