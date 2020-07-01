@@ -155,7 +155,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
 
         try {
-            if (metadata.hasNumMessagesInBatch()) {
+            if (!metadata.hasOrderingKey() && !metadata.hasPartitionKey() && metadata.hasNumMessagesInBatch()) {
                 // If the message was part of a batch (eg: a batch of 1 message), we need
                 // to read the key from the first single-message-metadata entry
                 PulsarApi.CompressionType compressionType = metadata.getCompression();
