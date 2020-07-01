@@ -112,6 +112,8 @@ public class SchedulerManager implements AutoCloseable {
     @Getter
     private MessageId lastMessageProduced = null;
 
+    private MessageId metadataTopicLastMessage = MessageId.earliest;
+
     public SchedulerManager(WorkerConfig workerConfig,
                             PulsarClient pulsarClient,
                             PulsarAdmin admin,
@@ -224,6 +226,13 @@ public class SchedulerManager implements AutoCloseable {
                     isCompactionNeeded.set(false);
                 }
             }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+
+            executor.scheduleWithFixedDelay(() -> {
+                if (leaderService.isLeader() && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen()) != 0) {
+                    metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
+                    compactFunctionMetadataTopic();
+                }
+            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
         }
     }
     
@@ -332,6 +341,18 @@ public class SchedulerManager implements AutoCloseable {
             } catch (PulsarAdminException e) {
                 log.error("Failed to trigger compaction", e);
                 scheduledExecutorService.schedule(() -> compactAssignmentTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
+                        TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private void compactFunctionMetadataTopic() {
+        if (this.admin != null) {
+            try {
+                this.admin.topics().triggerCompaction(workerConfig.getFunctionMetadataTopic());
+            } catch (PulsarAdminException e) {
+                log.error("Failed to trigger compaction", e);
+                scheduledExecutorService.schedule(() -> compactFunctionMetadataTopic(), DEFAULT_ADMIN_API_BACKOFF_SEC,
                         TimeUnit.SECONDS);
             }
         }

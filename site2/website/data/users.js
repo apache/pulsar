@@ -2,7 +2,7 @@ module.exports = [
     {
         name: 'Kingsoft Cloud',
         url: 'https://www.ksyun.com/',
-        logo: 'https://fe.ksyun.com/header/images/pc/logo.png?a048d39f',
+        logo: 'http://image.baidu.com/search/detail?ct=503316480&z=0&ipn=d&word=%E9%87%91%E5%B1%B1%E4%BA%91%20logo&step_word=&hs=0&pn=4&spn=0&di=54040&pi=0&rn=1&tn=baiduimagedetail&is=0%2C0&istype=0&ie=utf-8&oe=utf-8&in=&cl=2&lm=-1&st=undefined&cs=3066441701%2C2173877771&os=1294857461%2C2251879882&simid=0%2C0&adpicid=0&lpn=0&ln=698&fr=&fmq=1593590871825_R',
     },
     {
         name: 'Narvar',
