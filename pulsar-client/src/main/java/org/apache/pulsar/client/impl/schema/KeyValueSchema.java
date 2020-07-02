@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -252,5 +254,42 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 return "value-schema";
             }
         });
+    }
+
+    /**
+     * Traverse keyvalue recursively and generate schema
+     * @param kvType
+     * @return
+     */
+    public static Schema generateKvSchema(Type[] kvType) {
+        if (kvType == null || kvType.length < 2) {
+            return Schema.KV_BYTES();
+        }
+        if (isInstanceOfKeyValue(kvType[0]) && isInstanceOfKeyValue(kvType[1])) {
+            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments())
+                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+        } else if (isInstanceOfKeyValue(kvType[0])) {
+            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments())
+                    , Schema.getDefaultSchema((Class<?>) kvType[1]));
+        } else if (isInstanceOfKeyValue(kvType[1])) {
+            return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0])
+                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+        } else {
+            return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));
+        }
+    }
+
+    private static Class<?> convertTypeToClass(Type type) {
+        if (type instanceof ParameterizedType) {
+            return (Class<?>) ((ParameterizedType) type).getRawType();
+        }
+        return (Class<?>) type;
+    }
+
+    private static boolean isInstanceOfKeyValue(Type type) {
+        if (!(type instanceof ParameterizedType)) {
+            return false;
+        }
+        return ((ParameterizedType) type).getRawType() == KeyValue.class;
     }
 }

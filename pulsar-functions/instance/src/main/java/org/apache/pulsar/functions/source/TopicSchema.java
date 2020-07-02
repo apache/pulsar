@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
@@ -98,8 +99,13 @@ public class TopicSchema {
         return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input, classLoader));
     }
 
-    public Schema<?> getSchema(String topic, Class<?> clazz, String schemaTypeOrClassName, boolean input, ClassLoader classLoader, Type kvSchemaGenericType) {
-        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input, classLoader, kvSchemaGenericType));
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig conf, boolean input, Type kvSchemaGenericType) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, conf, input,
+                Thread.currentThread().getContextClassLoader(), kvSchemaGenericType));
+    }
+
+    public Schema<?> getSchema(String topic, Class<?> clazz, ConsumerConfig consumerConfig, boolean input, ClassLoader classLoader, Type kvSchemaGenericType) {
+        return cachedSchemas.computeIfAbsent(topic, t -> newSchemaInstance(topic, clazz, consumerConfig, input, classLoader, kvSchemaGenericType));
     }
 
 
@@ -148,37 +154,6 @@ public class TopicSchema {
         }
     }
 
-    public static Schema getDefaultSchema(Class<?> clazz) {
-        if (Byte[].class.equals(clazz)) {
-            return Schema.BYTES;
-        } else if (ByteBuffer.class.equals(clazz)) {
-            return Schema.BYTEBUFFER;
-        } else if (String.class.equals(clazz)) {
-            return Schema.STRING;
-        } else if (Byte.class.equals(clazz)) {
-            return Schema.INT8;
-        } else if (Short.class.equals(clazz)) {
-            return Schema.INT16;
-        } else if (Integer.class.equals(clazz)) {
-            return Schema.INT32;
-        } else if (Long.class.equals(clazz)) {
-            return Schema.INT64;
-        } else if (Boolean.class.equals(clazz)) {
-            return Schema.BOOL;
-        } else if (Float.class.equals(clazz)) {
-            return Schema.FLOAT;
-        } else if (Double.class.equals(clazz)) {
-            return Schema.DOUBLE;
-        } else if (Date.class.equals(clazz)) {
-            return Schema.DATE;
-        } else if (Time.class.equals(clazz)) {
-            return Schema.TIME;
-        } else if (Timestamp.class.equals(clazz)) {
-            return Schema.TIMESTAMP;
-        }
-        throw new IllegalArgumentException("Schema class type is incorrect");
-    }
-
     @SuppressWarnings("unchecked")
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type) {
         return newSchemaInstance(clazz, type, new ConsumerConfig());
@@ -210,7 +185,7 @@ public class TopicSchema {
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return buildKeyValueSchema(kvSchemaGenericType);
+            return getKeyValueSchema(kvSchemaGenericType);
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
@@ -225,45 +200,11 @@ public class TopicSchema {
      * @param kvSchemaGenericType
      * @return
      */
-    private static Schema buildKeyValueSchema(Type kvSchemaGenericType) {
+    private static Schema getKeyValueSchema(Type kvSchemaGenericType) {
         if(!(kvSchemaGenericType instanceof ParameterizedType)){
             return Schema.KV_BYTES();
         }
-        return doBuildKvSchema(((ParameterizedType) kvSchemaGenericType).getActualTypeArguments());
-    }
-
-    /**
-     * Traverse keyvalue recursively and generate schema
-     * @param kvType
-     * @return
-     */
-    private static Schema doBuildKvSchema(Type[] kvType) {
-        if (kvType == null || kvType.length < 2) {
-            return Schema.KV_BYTES();
-        }
-        if (isInstanceOfKeyValue(kvType[0]) && isInstanceOfKeyValue(kvType[1])) {
-            return Schema.KeyValue(doBuildKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments()), doBuildKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
-        } else if (isInstanceOfKeyValue(kvType[0])) {
-            return Schema.KeyValue(doBuildKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments()), getDefaultSchema((Class<?>) kvType[1]));
-        } else if (isInstanceOfKeyValue(kvType[1])) {
-            return Schema.KeyValue(getDefaultSchema((Class<?>) kvType[0]), doBuildKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
-        } else {
-            return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));
-        }
-    }
-
-    private static Class<?> convertTypeToClass(Type type) {
-        if (type instanceof ParameterizedType) {
-            return (Class<?>) ((ParameterizedType) type).getRawType();
-        }
-        return (Class<?>) type;
-    }
-
-    private static boolean isInstanceOfKeyValue(Type type) {
-        if (!(type instanceof ParameterizedType)) {
-            return false;
-        }
-        return ((ParameterizedType) type).getRawType() == KeyValue.class;
+        return KeyValueSchema.generateKvSchema(((ParameterizedType) kvSchemaGenericType).getActualTypeArguments());
     }
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {

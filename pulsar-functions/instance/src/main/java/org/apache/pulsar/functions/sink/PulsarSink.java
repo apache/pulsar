@@ -345,7 +345,7 @@ public class PulsarSink<T> implements Sink<T> {
             return (Schema<T>) Schema.BYTES;
         }
         //Function<T, R> . Sink should base on the type of R，so use the data at position 1
-        Type genericType = context == null ? null
+        Type sinkGenericType = context == null ? null
                 : FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[1];
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSinkConfig.getTypeClassName(), functionClassLoader);
@@ -355,18 +355,14 @@ public class PulsarSink<T> implements Sink<T> {
         }
         ConsumerConfig consumerConfig = new ConsumerConfig();
         consumerConfig.setSchemaProperties(pulsarSinkConfig.getSchemaProperties());
+        consumerConfig.setSchemaType(pulsarSinkConfig.getSerdeClassName());
         if (!StringUtils.isEmpty(pulsarSinkConfig.getSchemaType())) {
             consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
                     consumerConfig, false);
         } else {
-            if (typeArg == KeyValue.class && genericType != null) {
-                return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                        pulsarSinkConfig.getSerdeClassName(), false, functionClassLoader, genericType);
-            }
-            consumerConfig.setSchemaType(pulsarSinkConfig.getSerdeClassName());
             return (Schema<T>) topicSchema.getSchema(pulsarSinkConfig.getTopic(), typeArg,
-                    consumerConfig, false, functionClassLoader);
+                    consumerConfig, false, functionClassLoader, sinkGenericType);
         }
     }
 }

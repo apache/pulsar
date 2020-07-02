@@ -172,7 +172,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
         //Function<T, R> . Source should base on the type of T，so use the data at position 0
-        Type genericType = context == null ? null
+        Type sourceGenericType = context == null ? null
                 : FunctionCommon.getFunctionGenericTypeArg(context.getFunctionClassName(), functionClassLoader)[0];
 
         // Check new config with schema types or classnames
@@ -180,11 +180,8 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             Schema<T> schema;
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
-            } else if (typeArg == KeyValue.class && genericType != null) {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg,
-                        conf.getSchemaType(), true, Thread.currentThread().getContextClassLoader(), genericType);
             } else {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true, sourceGenericType);
             }
             configs.put(topic,
                     ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());

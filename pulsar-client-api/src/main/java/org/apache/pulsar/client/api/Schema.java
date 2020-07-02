@@ -369,4 +369,35 @@ public interface Schema<T> extends Cloneable{
     static GenericSchema<GenericRecord> generic(SchemaInfo schemaInfo) {
         return DefaultImplementation.getGenericSchema(schemaInfo);
     }
+
+    static Schema getDefaultSchema(Class<?> clazz) {
+        if (Byte[].class.equals(clazz)) {
+            return Schema.BYTES;
+        } else if (ByteBuffer.class.equals(clazz)) {
+            return Schema.BYTEBUFFER;
+        } else if (String.class.equals(clazz)) {
+            return Schema.STRING;
+        } else if (Byte.class.equals(clazz)) {
+            return Schema.INT8;
+        } else if (Short.class.equals(clazz)) {
+            return Schema.INT16;
+        } else if (Integer.class.equals(clazz)) {
+            return Schema.INT32;
+        } else if (Long.class.equals(clazz)) {
+            return Schema.INT64;
+        } else if (Boolean.class.equals(clazz)) {
+            return Schema.BOOL;
+        } else if (Float.class.equals(clazz)) {
+            return Schema.FLOAT;
+        } else if (Double.class.equals(clazz)) {
+            return Schema.DOUBLE;
+        } else if (Date.class.equals(clazz)) {
+            return Schema.DATE;
+        } else if (Time.class.equals(clazz)) {
+            return Schema.TIME;
+        } else if (Timestamp.class.equals(clazz)) {
+            return Schema.TIMESTAMP;
+        }
+        throw new IllegalArgumentException("Schema class type is incorrect");
+    }
 }
