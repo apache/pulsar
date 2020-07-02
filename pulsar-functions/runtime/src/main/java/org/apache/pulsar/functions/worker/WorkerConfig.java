@@ -559,4 +559,33 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     @Deprecated
     private KubernetesContainerFactory kubernetesContainerFactory;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationParameters;
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationPlugin;
+
+    String getBrokerClientAuthenticationPlugin() {
+        if (null == brokerClientAuthenticationPlugin) {
+            return clientAuthenticationPlugin;
+        } else {
+            return brokerClientAuthenticationPlugin;
+        }
+    }
+
+    String getBrokerClientAuthenticationParameters() {
+        if (null == brokerClientAuthenticationParameters) {
+            return clientAuthenticationParameters;
+        } else {
+            return brokerClientAuthenticationParameters;
+        }
+    }
 }
