@@ -47,6 +47,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -276,6 +277,9 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema types or class names (as a JSON string)")
         protected String customSchemaInputString;
 
+        @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
+        protected String inputSpecs;
+
         @Parameter(names = "--max-redeliver-count", description = "Maximum number of times that a message will be redelivered before being sent to the dead letter queue")
         protected Integer maxMessageRetries;
         @Parameter(names = "--dead-letter-topic", description = "Name of the dead topic where the failing messages will be sent.")
@@ -384,6 +388,11 @@ public class CmdSinks extends CmdBase {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> customSchemaInputMap = new Gson().fromJson(customSchemaInputString, type);
                 sinkConfig.setTopicToSchemaType(customSchemaInputMap);
+            }
+
+            if(null != inputSpecs){
+                Type type = new TypeToken<Map<String, ConsumerConfig>>(){}.getType();
+                sinkConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
 
             sinkConfig.setMaxMessageRetries(maxMessageRetries);
