@@ -258,12 +258,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationPlugin;
+    private String brokerClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationParameters;
+    private String brokerClientAuthenticationParameters;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -329,7 +329,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_SECURITY,
         doc = "Whether to enable hostname verification on TLS connections"
     )
-    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsEnableHostnameVerification = false;
     @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
