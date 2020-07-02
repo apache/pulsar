@@ -32,13 +32,18 @@ import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -48,6 +53,8 @@ import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailable
 public class WorkerImpl {
 
     private final Supplier<WorkerService> workerServiceSupplier;
+    private Future<?> currentRebalanceFuture;
+
 
     public WorkerImpl(Supplier<WorkerService> workerServiceSupplier) {
         this.workerServiceSupplier = workerServiceSupplier;
@@ -197,5 +204,28 @@ public class WorkerImpl {
         }
 
         return this.worker().getConnectorsManager().getConnectors();
+    }
+
+    public void rebalance(final URI uri, final String clientRole) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
+            log.error("Client [{}] is not authorized rebalance cluster", clientRole);
+            throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
+        }
+
+        if (worker().getLeaderService().isLeader()) {
+            if (currentRebalanceFuture == null || currentRebalanceFuture.isDone()) {
+                currentRebalanceFuture = this.worker().getSchedulerManager().rebalance();
+            } else {
+                throw new RestException(Status.BAD_REQUEST, "Rebalance already in progress");
+            }
+        } else {
+            WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
     }
 }
