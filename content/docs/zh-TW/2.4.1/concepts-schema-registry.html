@@ -105,6 +105,10 @@
 <li>User-defined <strong>properties</strong> as a string/string map. Usage of properties is wholly application specific. Possible properties might be the Git hash associated with a schema, an environment like <code>dev</code> or <code>prod</code>, etc.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="schema-versions"></a><a href="#schema-versions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema versions</h2>
+<p>Each schema stored with a topic has a version. Schema 版本管理一個 topic 的 schema 變動。</p>
+<p>Messages produced with a given schema is tagged with a schema version. Therefore, when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema and deserialize data.</p>
+<p>Schemas are versioned in succession.The schema is stored in a broker that handles the associated topics, so that version assignments can be made.</p>
+<p>Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.</p>
 <p>In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar <a href="/docs/zh-TW/2.4.1/client-libraries-java">Java client</a> created using the code below attempts to connect to Pulsar and begin sending messages:</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
@@ -129,6 +133,12 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <blockquote>
 <p>Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.</p>
 </blockquote>
+<p>If you do not know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.</p>
+<ul>
+<li><code>AUTO_PRODUCE</code> schema 有助於 producer 來驗證要發送的信息 bytes 是否與topic預定義的 schema 相容。</li>
+<li><code>AUTO_CONSUME</code> schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the schema retrieved from broker-side.</li>
+</ul>
+<p>In <code>AUTO_CONSUME</code> mode, you can set the <code>useProvidedSchemaAsReaderSchema</code> flag to <code>false</code>. Therefore, the messages can be decoded based on the schema associated with the messages.</p>
 <h2><a class="anchor" aria-hidden="true" id="supported-schema-formats"></a><a href="#supported-schema-formats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Supported schema formats</h2>
 <p>The following formats are supported by the Pulsar schema registry:</p>
 <ul>
@@ -145,6 +155,22 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <blockquote>
 <p>Support for other schema formats will be added in future releases of Pulsar.</p>
 </blockquote>
+<p>The following example shows how to define an Avro schema using the <code>GenericSchemaBuilder</code>, generate a generic Avro schema using <code>GenericRecordBuilder</code>, and consume messages into <code>GenericRecord</code>.</p>
+<p><strong>Example</strong></p>
+<ol>
+<li><p>Use the <code>RecordSchemaBuilder</code> to build a schema.</p>
+<pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);
+recordSchemaBuilder.field(<span class="hljs-string">"intField"</span>).type(SchemaType.INT32);
+SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schemaInfo)).create();
+</code></pre></li>
+<li><p>Use <code>RecordBuilder</code> to build the generic records.</p>
+<pre><code class="hljs css language-java">producer.newMessage().value(schema.newRecordBuilder()
+            .set(<span class="hljs-string">"intField"</span>, <span class="hljs-number">32</span>)
+            .build()).send();
+</code></pre></li>
+</ol>
 <h2><a class="anchor" aria-hidden="true" id="managing-schemas"></a><a href="#managing-schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Managing Schemas</h2>
 <p>You can use Pulsar's <a href="/docs/zh-TW/2.4.1/admin-api-schemas">admin tools</a> for managing schemas for topics.</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-TW/2.4.1/concepts-tiered-storage"><span class="arrow-prev">← </span><span>Tiered Storage</span></a><a class="docs-next button" href="/docs/zh-TW/2.4.1/schema-get-started"><span>開始</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#basic-architecture">Basic architecture</a></li><li><a href="#how-schemas-work">How schemas work</a></li><li><a href="#schema-versions">Schema versions</a></li><li><a href="#supported-schema-formats">Supported schema formats</a></li><li><a href="#managing-schemas">Managing Schemas</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

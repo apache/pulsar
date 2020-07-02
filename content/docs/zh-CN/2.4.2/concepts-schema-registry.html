@@ -105,6 +105,10 @@
 <li>User-defined <strong>properties</strong> as a string/string map. Properties如何使用，完全由程序指定。 Properties可能是关联到schema的Git hash，例如<code>dev</code>或者<code>prod</code>等环境信息。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="schema版本"></a><a href="#schema版本" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Schema版本</h2>
+<p>Each schema stored with a topic has a version. Schema 版本管理单个 topic 中 schema 的更改。</p>
+<p>Messages produced with a given schema is tagged with a schema version. Therefore, when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema and deserialize data.</p>
+<p>Schema版本是连续的。The schema is stored in a broker that handles the associated topics, so that version assignments can be made.</p>
+<p>一旦分配/提供了schema的版本，后续由该生产者生产的所有消息，都将被恰当的版本所标记。</p>
 <p>我们通过一个例子，来讲解schema版本如何工作。 假设使用以下代码创建Pulsar <a href="/docs/zh-CN/2.4.2/client-libraries-java">Java 客户端</a>，尝试连接到Pulsar，并开始发送消息:</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
@@ -126,9 +130,12 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <tr><td style="text-align:left">Schema已经存在；producer使用兼容的新schema进行连接。</td><td style="text-align:left">The producer transmits the schema to the broker. The broker determines that the schema is compatible and stores the new schema as the current version (with a new version number).</td></tr>
 </tbody>
 </table>
-<blockquote>
-<p>Schema版本是连续的。 Schema被处理关联topic的broker所保存，便于进行版本的分配。 一旦分配/提供了schema的版本，后续由该生产者生产的所有消息，都将被恰当的版本所标记。</p>
-</blockquote>
+<p>If you do not know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.</p>
+<ul>
+<li><code>AUTO_PRODUCE</code> schema 帮助 producer 验证其发送的字节是否与 topic 的 schema 兼容。</li>
+<li><code>AUTO_CONSUME</code> schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the schema retrieved from broker-side.</li>
+</ul>
+<p>In <code>AUTO_CONSUME</code> mode, you can set the <code>useProvidedSchemaAsReaderSchema</code> flag to <code>false</code>. Therefore, the messages can be decoded based on the schema associated with the messages.</p>
 <h2><a class="anchor" aria-hidden="true" id="支持的schema格式"></a><a href="#支持的schema格式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>支持的schema格式</h2>
 <p>以下格式被Pulsar schema注册所支持：</p>
 <ul>
@@ -145,6 +152,22 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <blockquote>
 <p>未来的Pulsar release将会支持其他更多schema格式。</p>
 </blockquote>
+<p>The following example shows how to define an Avro schema using the <code>GenericSchemaBuilder</code>, generate a generic Avro schema using <code>GenericRecordBuilder</code>, and consume messages into <code>GenericRecord</code>.</p>
+<p><strong>Example</strong></p>
+<ol>
+<li><p>Use the <code>RecordSchemaBuilder</code> to build a schema.</p>
+<pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);
+recordSchemaBuilder.field(<span class="hljs-string">"intField"</span>).type(SchemaType.INT32);
+SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schemaInfo)).create();
+</code></pre></li>
+<li><p>Use <code>RecordBuilder</code> to build the generic records.</p>
+<pre><code class="hljs css language-java">producer.newMessage().value(schema.newRecordBuilder()
+            .set(<span class="hljs-string">"intField"</span>, <span class="hljs-number">32</span>)
+            .build()).send();
+</code></pre></li>
+</ol>
 <h2><a class="anchor" aria-hidden="true" id="管理-schema"></a><a href="#管理-schema" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>管理 Schema</h2>
 <p>你可以使用Pulsar的<a href="/docs/zh-CN/2.4.2/admin-api-schemas">admin tools</a>来管理topic的schema</p>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/concepts-tiered-storage"><span class="arrow-prev">← </span><span>Tiered Storage</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/schema-get-started"><span>Get started</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#基础架构">基础架构</a></li><li><a href="#schema是如何工作的">Schema是如何工作的</a></li><li><a href="#schema版本">Schema版本</a></li><li><a href="#支持的schema格式">支持的schema格式</a></li><li><a href="#管理-schema">管理 Schema</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

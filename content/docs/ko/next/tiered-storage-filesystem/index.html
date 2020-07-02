@@ -1,0 +1,309 @@
+<!DOCTYPE html><html lang="ko"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Use filesystem offloader with Pulsar · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="This chapter guides you through every step of installing and configuring the filesystem offloader and using it with Pulsar."/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="ko"/><meta property="og:title" content="Use filesystem offloader with Pulsar · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="This chapter guides you through every step of installing and configuring the filesystem offloader and using it with Pulsar."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/ko"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/ko/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/ko/next/standalone" target="_self">Docs</a></li><li class=""><a href="/ko/download" target="_self">Download</a></li><li class="siteNavGroupActive"><a href="/docs/ko/next/client-libraries" target="_self">Clients</a></li><li class=""><a href="#restapis" target="_self">REST APIs</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">Blog</a></li><li class=""><a href="#community" target="_self">Community</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>한국어</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/tiered-storage-filesystem">English</a></li><li><a href="/docs/ja/next/tiered-storage-filesystem">日本語</a></li><li><a href="/docs/fr/next/tiered-storage-filesystem">Français</a></li><li><a href="/docs/zh-CN/next/tiered-storage-filesystem">中文</a></li><li><a href="/docs/zh-TW/next/tiered-storage-filesystem">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">번역 도와주기</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Tiered storage</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/standalone">로컬 Pulsar 실행</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/standalone-docker">Docker에서 Pulsar 실행</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Concepts and Architecture</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-messaging">메시징</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-replication">지리적 복제(Geo Replication)</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-multi-tenancy">멀티 테넌시</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/concepts-topic-compaction">Topic 압축</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/functions-cli">Reference: CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Tiered storage</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/tiered-storage-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/tiered-storage-aws">AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/ko/next/tiered-storage-filesystem">Filesystem offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Deployment</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Administration</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Security</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Performance</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Client libraries</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-clusters">클러스터</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-brokers">브로커</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-namespaces">네임스페이스</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-non-persistent-topics">비 영속적 topic</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-non-partitioned-topics">파티션 되지 않은 topic</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Adaptors</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Cookbooks</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Development</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Reference</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/ko/next/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/ko/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/ko" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Use filesystem offloader with Pulsar</h1></header><article><div><span><p>This chapter guides you through every step of installing and configuring the filesystem offloader and using it with Pulsar.</p>
+<h2><a class="anchor" aria-hidden="true" id="installation"></a><a href="#installation" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installation</h2>
+<p>Follow the steps below to install the filesystem offloader.</p>
+<h3><a class="anchor" aria-hidden="true" id="prerequisite"></a><a href="#prerequisite" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Prerequisite</h3>
+<ul>
+<li><p>Pulsar: 2.4.2 or later versions</p></li>
+<li><p>Hadoop: 3.x.x</p></li>
+</ul>
+<h3><a class="anchor" aria-hidden="true" id="step"></a><a href="#step" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Step</h3>
+<p>This example uses Pulsar 2.5.1.</p>
+<ol>
+<li><p>Download the Pulsar tarball using one of the following ways:</p>
+<ul>
+<li><p>Download from the <a href="https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz">Apache mirror</a></p></li>
+<li><p>Download from the Pulsar <a href="https://pulsar.apache.org/download">download page</a></p></li>
+<li><p>Use <a href="https://www.gnu.org/software/wget">wget</a></p>
+<pre><code class="hljs css language-shell">wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
+</code></pre></li>
+</ul></li>
+<li><p>Download and untar the Pulsar offloaders package.</p>
+<pre><code class="hljs css language-bash">wget https://downloads.apache.org/pulsar/pulsar-2.5.1/apache-pulsar-offloaders-2.5.1-bin.tar.gz
+
+tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<ul>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's Pulsar directory.</p></li>
+<li><p>If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
+</ul>
+</blockquote></li>
+<li><p>Copy the Pulsar offloaders as <code>offloaders</code> in the Pulsar directory.</p>
+<pre><code class="hljs">mv apache-pulsar-offloaders<span class="hljs-number">-2.5</span><span class="hljs-number">.1</span>/offloaders apache-pulsar<span class="hljs-number">-2.5</span><span class="hljs-number">.1</span>/offloaders
+
+ls offloaders
+</code></pre>
+<p><strong>Output</strong></p>
+<pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+<span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<ul>
+<li><p>If you are running Pulsar in a bare metal cluster, make sure that <code>offloaders</code> tarball is unzipped in every broker's Pulsar directory.</p></li>
+<li><p>If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the <code>apachepulsar/pulsar-all</code> image instead of the <code>apachepulsar/pulsar</code> image. <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</p></li>
+</ul>
+</blockquote></li>
+</ol>
+<h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="note-2"></a><a href="#note-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<p>Before offloading data from BookKeeper to filesystem, you need to configure some properties of the filesystem offloader driver.</p>
+</blockquote>
+<p>Besides, you can also configure the filesystem offloader to run it automatically or trigger it manually.</p>
+<h3><a class="anchor" aria-hidden="true" id="configure-filesystem-offloader-driver"></a><a href="#configure-filesystem-offloader-driver" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure filesystem offloader driver</h3>
+<p>You can configure filesystem offloader driver in the configuration file <code>broker.conf</code> or <code>standalone.conf</code>.</p>
+<ul>
+<li><p><strong>Required</strong> configurations are as below.</p>
+<p>Required configuration | Description | Example value |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader driver name, which is case-insensitive. | filesystem <code>fileSystemURI</code> | Connection address | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Hadoop profile path | ../conf/filesystem_offload_core_site.xml</p></li>
+<li><p><strong>Optional</strong> configurations are as below.</p>
+<p>Optional configuration| Description | Example value |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>|Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|2 <code>managedLedgerMaxEntriesPerLedger</code>|Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.|5000</p></li>
+</ul>
+<h4><a class="anchor" aria-hidden="true" id="offloader-driver-required"></a><a href="#offloader-driver-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Offloader driver (required)</h4>
+<p>Offloader driver name, which is case-insensitive.</p>
+<p>This example sets the offloader driver name as <em>filesystem</em>.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">managedLedgerOffloadDriver</span>=filesystem
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="connection-address-required"></a><a href="#connection-address-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connection address (required)</h4>
+<p>Connection address is the URI to access the default Hadoop distributed file system.</p>
+<h5><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h5>
+<p>This example sets the connection address as <em><a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a></em>.</p>
+<pre><code class="hljs css language-conf">fileSystemURI=<span class="hljs-string">hdfs:</span><span class="hljs-comment">//127.0.0.1:9000</span>
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="hadoop-profile-path-required"></a><a href="#hadoop-profile-path-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Hadoop profile path (required)</h4>
+<p>The configuration file is stored in the Hadoop profile path. It contains various settings for Hadoop performance tuning.</p>
+<h5><a class="anchor" aria-hidden="true" id="example-1"></a><a href="#example-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h5>
+<p>This example sets the Hadoop profile path as <em>../conf/filesystem_offload_core_site.xml</em>.</p>
+<pre><code class="hljs css language-conf"><span class="hljs-attr">fileSystemProfilePath</span>=../conf/filesystem_<span class="hljs-literal">off</span>load_core_site.xml
+</code></pre>
+<p>You can set the following configurations in the <em>filesystem_offload_core_site.xml</em> file.</p>
+<pre><code class="hljs"><span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>hadoop.tmp.dir<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>pulsar<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.file.buffer.size<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>4096<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compress.blocksize<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>1000000<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.seqfile.compression.type<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>BLOCK<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+
+<span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>io.map.index.interval<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
+    <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span>128<span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
+<span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip"></a><a href="#tip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>For more information about the Hadoop HDFS, see <a href="https://hadoop.apache.org/docs/current/">here</a>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="configure-filesystem-offloader-to-run-automatically"></a><a href="#configure-filesystem-offloader-to-run-automatically" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure filesystem offloader to run automatically</h3>
+<p>Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored on a Pulsar cluster. Once the topic reaches the threshold, an offload operation is triggered automatically.</p>
+<p>Threshold value|Action |---|---</p>
+<blockquote>
+<p>0 | It triggers the offloading operation if the topic storage reaches its threshold. = 0|It causes a broker to offload data as soon as possible. &lt; 0 |It disables automatic offloading operation.</p>
+</blockquote>
+<p>Automatic offload runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, offloader does not work until the current segment is full.</p>
+<p>You can configure the threshold size using CLI tools, such as <a href="https://streamnative.io/docs/v1.0.0/manage-and-monitor/pulsarctl/overview/">pulsarctl</a> or pulsar-admin.</p>
+<h4><a class="anchor" aria-hidden="true" id="example-2"></a><a href="#example-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<p>This example sets the filesystem offloader threshold size to 10 MB using pulsarctl.</p>
+<pre><code class="hljs css language-bash">bin/pulsarctl namespaces <span class="hljs-built_in">set</span>-offload-threshold --size 10M my-tenant/my-namespace
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>For more information about the <code>pulsarctl namespaces set-offload-threshold options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-set-offload-threshold-em-">here</a>.</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="configure-filesystem-offloader-to-run-manually"></a><a href="#configure-filesystem-offloader-to-run-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure filesystem offloader to run manually</h3>
+<p>For individual topics, you can trigger filesystem offloader manually using one of the following methods:</p>
+<ul>
+<li><p>Use REST endpoint</p></li>
+<li><p>Use CLI tools (such as pulsarctl or pulsar-admin).</p></li>
+</ul>
+<p>To trigger via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained on a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are offloaded to the filesystem until the threshold is no longer exceeded. Older segments are offloaded first.</p>
+<h4><a class="anchor" aria-hidden="true" id="example-3"></a><a href="#example-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h4>
+<ul>
+<li><p>This example triggers the filesystem offloader to run manually using pulsarctl.</p>
+<pre><code class="hljs css language-bash">bin/pulsarctl topic offload persistent://my-tenant/my-namespace/topic1 10M
+</code></pre>
+<p><strong>Output</strong></p>
+<pre><code class="hljs css language-bash">Offload triggered <span class="hljs-keyword">for</span> persistent://my-tenant/my-namespace/topic1 <span class="hljs-keyword">for</span> messages before 2:0:-1
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-2"></a><a href="#tip-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>For more information about the <code>pulsarctl topic offload options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-em-">here</a>.</p>
+</blockquote></li>
+<li><p>This example checks filesystem offloader status using pulsarctl.</p>
+<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>Output</strong></p>
+<pre><code class="hljs css language-bash">Offload is currently running
+</code></pre>
+<p>To wait for the filesystem to complete the job, add the <code>-w</code> flag.</p>
+<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status -w persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>Output</strong></p>
+<pre><code class="hljs"><span class="hljs-attribute">Offload was a success</span>
+</code></pre>
+<p>If there is an error in the offloading operation, the error is propagated to the <code>pulsarctl topic offload-status</code> command.</p>
+<pre><code class="hljs css language-bash">bin/pulsarctl topic offload-status persistent://my-tenant/my-namespace/topic1
+</code></pre>
+<p><strong>Output</strong></p>
+<pre><code class="hljs"><span class="hljs-builtin-name">Error</span> <span class="hljs-keyword">in</span> offload
+<span class="hljs-literal">null</span>
+
+Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous<span class="hljs-built_in"> users </span>cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; <span class="hljs-builtin-name">Error</span> Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+</code></pre>
+<blockquote>
+<h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
+<p>For more information about the <code>pulsarctl topic offload-status options</code> command, including flags, descriptions, default values, and shorthands, see <a href="https://streamnative.io/docs/pulsarctl/v0.4.0/#-em-offload-status-em-">here</a>.</p>
+</blockquote></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="tutorial"></a><a href="#tutorial" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tutorial</h2>
+<p>For the complete and step-by-step instructions on how to use the filesystem offloader with Pulsar, see <a href="https://hub.streamnative.io/offloaders/filesystem/2.5.1">here</a>.</p>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ko/next/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/ko/next/helm-overview"><span>Overview</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#prerequisite">Prerequisite</a></li><li><a href="#step">Step</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#configure-filesystem-offloader-driver">Configure filesystem offloader driver</a></li><li><a href="#configure-filesystem-offloader-to-run-automatically">Configure filesystem offloader to run automatically</a></li><li><a href="#configure-filesystem-offloader-to-run-manually">Configure filesystem offloader to run manually</a></li></ul></li><li><a href="#tutorial">Tutorial</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/ko/contact">Contact</a></li>' +
+            '<li><a href="/ko/contributing">Contributing</a></li>' +
+            '<li><a href="/ko/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/ko/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/ko/resources">Resources</a></li>' +
+            '<li><a href="/ko/team">Team</a></li>' +
+            '<li><a href="/ko/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:ko","version:next"]}
+              });
+            </script></body></html>

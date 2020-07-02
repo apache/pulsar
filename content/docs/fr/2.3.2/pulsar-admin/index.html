@@ -441,7 +441,7 @@
 <tr><td><code>--schema-type</code></td><td>The builtin schema type or custom schema class name to be used for messages output by the function</td><td></td></tr>
 <tr><td><code>--sliding-interval-count</code></td><td>The number of messages after which the window slides</td><td></td></tr>
 <tr><td><code>--sliding-interval-duration-ms</code></td><td>The time duration after which the window slides</td><td></td></tr>
-<tr><td><code>--state-storage-service-url</code></td><td>The URL for the state storage service (by default Apache BookKeeper)</td><td></td></tr>
+<tr><td><code>--state-storage-service-url</code></td><td>The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The function’s tenant</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)</td><td></td></tr>
 <tr><td><code>--user-config</code></td><td>User-defined config key/values</td><td></td></tr>
