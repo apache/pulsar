@@ -45,7 +45,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     private String certFilePath;
     private String keyFilePath;
-    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider, trustStoreStreamProvider;
 
     public AuthenticationTls() {
     }
@@ -55,9 +55,16 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
         this.keyFilePath = keyFilePath;
     }
 
-    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider) {
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider) {
+        this(certStreamProvider, keyStreamProvider, null);
+    }
+
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider,
+            Supplier<ByteArrayInputStream> keyStreamProvider, Supplier<ByteArrayInputStream> trustStoreStreamProvider) {
         this.certStreamProvider = certStreamProvider;
         this.keyStreamProvider = keyStreamProvider;
+        this.trustStoreStreamProvider = trustStoreStreamProvider;
     }
 
     @Override
@@ -76,7 +83,7 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
             if (certFilePath != null && keyFilePath != null) {
                 return new AuthenticationDataTls(certFilePath, keyFilePath);
             } else if (certStreamProvider != null && keyStreamProvider != null) {
-                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider);
+                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider, trustStoreStreamProvider);
             }
         } catch (Exception e) {
             throw new PulsarClientException(e);
