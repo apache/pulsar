@@ -95,6 +95,7 @@ message ConsumerSpec {
     }
     ReceiverQueueSize receiverQueueSize = 4;
     map<string, string> schemaProperties = 5;
+    map<string, string> consumerProperties = 6;
 }
 
 message SourceSpec {
@@ -149,6 +150,8 @@ message SinkSpec {
     bool forwardSourceMessageProperty = 8;
 
     map<string, string> schemaProperties = 9;
+
+    map<string, string> consumerProperties = 10;
 }
 
 message PackageLocationMetaData {

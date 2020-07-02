@@ -75,8 +75,13 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                     .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
-                    .subscriptionType(pulsarSourceConfig.getSubscriptionType())
-                    .messageListener(this);
+                    .subscriptionType(pulsarSourceConfig.getSubscriptionType());
+
+            if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
+                cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
+            }
+            //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
+            cb.messageListener(this);
 
             if (conf.isRegexPattern) {
                 cb = cb.topicsPattern(topic);
@@ -94,7 +99,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (pulsarSourceConfig.getTimeoutMs() != null) {
                 cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
-
             if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
                 DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
                 deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
@@ -169,7 +173,11 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
             }
             configs.put(topic,
-                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
+                    ConsumerConfig.<T> builder().
+                            schema(schema).
+                            isRegexPattern(conf.isRegexPattern()).
+                            receiverQueueSize(conf.getReceiverQueueSize()).
+                            consumerProperties(conf.getConsumerProperties()).build());
         });
 
         return configs;
@@ -189,6 +197,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         private Schema<T> schema;
         private boolean isRegexPattern;
         private Integer receiverQueueSize;
+        private Map<String, String> consumerProperties;
     }
 
 }

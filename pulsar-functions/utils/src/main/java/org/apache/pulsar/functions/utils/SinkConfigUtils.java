@@ -143,6 +143,7 @@ public class SinkConfigUtils {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(spec.getReceiverQueueSize()).build());
                 }
+                bldr.putAllConsumerProperties(spec.getConsumerProperties());
                 sourceSpecBuilder.putInputSpecs(topic, bldr.build());
             });
         }
@@ -259,6 +260,7 @@ public class SinkConfigUtils {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfig.setConsumerProperties(input.getValue().getConsumerPropertiesMap());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         sinkConfig.setInputSpecs(consumerConfigMap);
