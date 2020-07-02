@@ -302,7 +302,7 @@ When subscribing to multiple topics, the Pulsar client automatically makes a cal
 > #### No ordering guarantees across multiple topics
 > When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
 
-Here are some multi-topic subscription examples for Java:
+The following are multi-topic subscription examples for Java.
 
 ```java
 import java.util.regex.Pattern;
@@ -327,21 +327,19 @@ Consumer<byte[]> someTopicsConsumer = pulsarClient.newConsumer()
                 .subscribe();
 ```
 
-For code examples, see:
-
-* [Java](client-libraries-java.md#multi-topic-subscriptions)
+For code examples, see [Java](client-libraries-java.md#multi-topic-subscriptions).
 
 ## Partitioned topics
 
-Normal topics can be served only by a single broker, which limits the topic's maximum throughput. *Partitioned topics* are a special type of topic that can be handled by multiple brokers, which allows for much higher throughput.
+Normal topics are served only by a single broker, which limits the maximum throughput of the topic. *Partitioned topics* are a special type of topic that are handled by multiple brokers, thus allowing for higher throughput.
 
-Behind the scenes, a partitioned topic is actually implemented as N internal topics, where N is the number of partitions. When publishing messages to a partitioned topic, each message is routed to one of several brokers. The distribution of partitions across brokers is handled automatically by Pulsar.
+A partitioned topic is actually implemented as N internal topics, where N is the number of partitions. When publishing messages to a partitioned topic, each message is routed to one of several brokers. The distribution of partitions across brokers is handled automatically by Pulsar.
 
 The diagram below illustrates this:
 
 ![](assets/partitioning.png)
 
-Here, the topic **Topic1** has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
+The **Topic1** topic has five partitions (**P0** through **P4**) split across three brokers. Because there are more partitions than brokers, two brokers handle two partitions a piece, while the third handles only one (again, Pulsar handles this distribution of partitions automatically).
 
 Messages for this topic are broadcast to two consumers. The [routing mode](#routing-modes) determines each message should be published to which partition, while the [subscription mode](#subscription-modes) determines which messages go to which consumers.
 
@@ -460,7 +458,7 @@ With message expiry, shown at the bottom, some messages are <span style="color: 
 
 ## Message deduplication
 
-Message **duplication** occurs when a message is [persisted](concepts-architecture-overview.md#persistent-storage) by Pulsar more than once. Message ***de*duplication** is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, *even if the message is received more than once*.
+Message duplication occurs when a message is persisted](concepts-architecture-overview.md#persistent-storage) by Pulsar more than once. Message deduplication is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, even if the message is received more than once.
 
 The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
 
@@ -476,19 +474,18 @@ In the second scenario at the bottom, the producer publishes message 1, which is
 
 ### Producer idempotency
 
-The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, which means that you don't need to modify your Pulsar client code. Instead, you only need to make administrative changes (see the [Managing message deduplication](cookbooks-deduplication.md) cookbook for a guide).
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see [Managing message deduplication](cookbooks-deduplication.md).
 
 ### Deduplication and effectively-once semantics
 
 Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide effectively-once processing semantics. Messaging systems that do not offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.
-
 
 > You can find more in-depth information in [this post](https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html).
 
 ## Delayed message delivery
 Delayed message delivery enables you to consume a message later rather than immediately. In this mechanism, a message is stored in BookKeeper, `DelayedDeliveryTracker` maintains the time index(time -> messageId) in memory after published to a broker, and it is delivered to a consumer once the specific delayed time is passed.  
 
-Delayed message delivery only works well in Shared subscription mode. In Exclusive and Failover subscription mode, the delayed message is dispatched immediately.
+Delayed message delivery only works in Shared subscription mode. In Exclusive and Failover subscription modes, the delayed message is dispatched immediately.
 
 The diagram below illustrates the concept of delayed message delivery:
 
