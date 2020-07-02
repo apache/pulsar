@@ -11,7 +11,7 @@ Pulsar Functions support the following methods to run functions.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
 
 #### Note
-> Pulsar supports adding labels to the  Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.
+> Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.
 
 The differences of the thread and process modes are:
 - Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.
