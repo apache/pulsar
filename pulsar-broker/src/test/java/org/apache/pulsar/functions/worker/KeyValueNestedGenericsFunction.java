@@ -25,7 +25,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-import java.util.List;
 import java.util.Map;
 
 public class KeyValueNestedGenericsFunction implements Function<KeyValue<String, KeyValue<String, Map<String, Integer>>>

@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.source;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.TreeMap;
 

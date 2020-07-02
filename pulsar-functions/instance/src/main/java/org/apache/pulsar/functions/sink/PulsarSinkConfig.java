@@ -25,7 +25,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 
 import java.util.Map;
 
-import java.lang.reflect.Type;
 
 @Getter
 @Setter
