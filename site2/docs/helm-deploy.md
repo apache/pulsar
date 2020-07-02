@@ -344,9 +344,9 @@ Once you have finished the following three things, you can install a Helm releas
 In this example, we name our Helm release `pulsar`.
 
 ```bash
-git clone https://github.com/apache/pulsar-helm-chart
-cd pulsar-helm-chart
-helm upgrade --install pulsar charts/pulsar \
+helm repo add apache https://pulsar.apache.org/charts
+helm repo update
+helm upgrade --install pulsar apache/pulsar \
     --timeout 10m \
     --set [your configuration options]
 ```

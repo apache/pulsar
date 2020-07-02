@@ -75,10 +75,10 @@ If you deploy a PoC for testing, we strongly suggest you follow our [Quick Start
 Once the Pulsar Helm chart is installed, use the `helm upgrade` to complete configuration changes and chart updates.
 
 ```bash
-git clone https://github.com/apache/pulsar-helm-chart
-cd pulsar-helm-chart
+helm repo add apache https://pulsar.apache.org/charts
+helm repo update
 helm get values <pulsar-release-name> > pulsar.yaml
-helm upgrade <pulsar-release-name> charts/pulsar -f pulsar.yaml
+helm upgrade <pulsar-release-name> apache/pulsar -f pulsar.yaml
 ```
 
 For more detailed information, see [Upgrading](helm-upgrade.md).

@@ -53,6 +53,16 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 
 ## Step 1: Install Pulsar Helm chart
 
+0. Add Pulsar charts repo.
+
+    ```bash
+    helm repo add apache https://pulsar.apache.org/charts
+    ```
+
+    ```bash
+    helm repo update
+    ```
+
 1. Clone the Pulsar Helm chart repository.
 
     ```bash
@@ -74,7 +84,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
     ```bash
     helm install \
         --values examples/values-minikube.yaml \
-        pulsar-mini charts/pulsar
+        pulsar-mini apache/pulsar
     ```
 
 4. Check the status of all pods.
