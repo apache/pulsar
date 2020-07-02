@@ -15,8 +15,7 @@
       "concepts-replication",
       "concepts-multi-tenancy",
       "concepts-authentication",
-      "concepts-topic-compaction",
-      "concepts-tiered-storage"
+      "concepts-topic-compaction"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -49,6 +48,12 @@
       "sql-deployment-configurations",
       "sql-rest-api"
     ],
+   "Tiered storage": [
+     "tiered-storage-overview",
+     "tiered-storage-aws",
+     "tiered-storage-gcs",
+     "tiered-storage-filesystem"
+  ],
     "Kubernetes (Helm)": [
       "helm-overview",
       "helm-prepare",
@@ -119,7 +124,6 @@
       "adaptors-storm"
     ],
     "Cookbooks": [
-      "cookbooks-tiered-storage",
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",
