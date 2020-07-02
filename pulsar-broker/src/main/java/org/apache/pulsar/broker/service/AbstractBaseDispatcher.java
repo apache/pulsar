@@ -151,48 +151,16 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     public static final String NONE_KEY = "NONE_KEY";
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
-        int readerIndex = metadataAndPayload.readerIndex();
+        metadataAndPayload.markReaderIndex();
         PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
-
-        try {
-            if (!metadata.hasOrderingKey() && !metadata.hasPartitionKey() && metadata.hasNumMessagesInBatch()) {
-                // If the message was part of a batch (eg: a batch of 1 message), we need
-                // to read the key from the first single-message-metadata entry
-                PulsarApi.CompressionType compressionType = metadata.getCompression();
-                CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
-                int uncompressedSize = metadata.getUncompressedSize();
-                ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, uncompressedSize);
-                PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder = PulsarApi.SingleMessageMetadata
-                        .newBuilder();
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        singleMessageMetadataBuilder, 0, metadata.getNumMessagesInBatch());
-                uncompressedPayload.release();
-                try {
-                    if (singleMessageMetadataBuilder.hasOrderingKey()) {
-                        return singleMessageMetadataBuilder.getOrderingKey().toByteArray();
-                    } else if (singleMessageMetadataBuilder.hasPartitionKey()) {
-                        return singleMessageMetadataBuilder.getPartitionKey().getBytes();
-                    }
-                } finally {
-                    singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
-                }
-            } else {
-                // Message was not part of a batch
-                if (metadata.hasOrderingKey()) {
-                    return metadata.getOrderingKey().toByteArray();
-                } else if (metadata.hasPartitionKey()) {
-                    return metadata.getPartitionKey().getBytes();
-                }
-            }
-
-            return NONE_KEY.getBytes();
-        } catch (IOException e) {
-            // If we fail to deserialize medata, return null key
-            return NONE_KEY.getBytes();
-        } finally {
-            metadataAndPayload.readerIndex(readerIndex);
-            metadata.recycle();
+        metadataAndPayload.resetReaderIndex();
+        byte[] key = NONE_KEY.getBytes();
+        if (metadata.hasOrderingKey()) {
+            return metadata.getOrderingKey().toByteArray();
+        } else if (metadata.hasPartitionKey()) {
+            return metadata.getPartitionKey().getBytes();
         }
+        metadata.recycle();
+        return key;
     }
 }

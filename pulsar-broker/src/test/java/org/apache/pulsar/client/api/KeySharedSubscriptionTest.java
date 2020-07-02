@@ -737,6 +737,36 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer.close();
     }
 
+    @Test
+    public void testAttachKeyToMessageMetadata()
+            throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
+    }
+
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {
         return pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
