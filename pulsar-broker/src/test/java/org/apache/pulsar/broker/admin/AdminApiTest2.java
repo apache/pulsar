@@ -62,6 +62,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -1269,4 +1270,17 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testUpdateClusterWithProxyUrl() throws Exception {
+        ClusterData cluster = new ClusterData(pulsar.getWebServiceAddress());
+        String clusterName = "test2";
+        admin.clusters().createCluster(clusterName, cluster);
+        Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
+
+        // update
+        cluster.setProxyServiceUrl("proxy");
+        cluster.setProxyProtocol(ProxyProtocol.SNI);
+        admin.clusters().updateCluster(clusterName, cluster);
+        Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
+    }
 }

@@ -117,6 +117,8 @@ public class ClusterData {
         this.serviceUrlTls = other.serviceUrlTls;
         this.brokerServiceUrl = other.brokerServiceUrl;
         this.brokerServiceUrlTls = other.brokerServiceUrlTls;
+        this.proxyServiceUrl = other.proxyServiceUrl;
+        this.proxyProtocol = other.proxyProtocol;
     }
 
     public String getServiceUrl() {
