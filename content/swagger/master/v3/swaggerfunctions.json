@@ -1145,6 +1145,12 @@
                         "type": "string"
                     }
                 },
+                "consumerProperties": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "receiverQueueSize": {
                     "type": "integer",
                     "format": "int32"
@@ -1602,28 +1608,7 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "orderingKey": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1638,24 +1623,45 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "replicatedFrom": {
+                "topicName": {
                     "type": "string"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "producerName": {
                     "type": "string"
                 },
-                "topicName": {
+                "replicatedFrom": {
                     "type": "string"
                 },
-                "keyBytes": {
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
                 "data": {
                     "type": "array",

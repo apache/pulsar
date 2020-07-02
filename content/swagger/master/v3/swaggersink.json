@@ -982,6 +982,12 @@
                         "type": "string"
                     }
                 },
+                "consumerProperties": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "receiverQueueSize": {
                     "type": "integer",
                     "format": "int32"

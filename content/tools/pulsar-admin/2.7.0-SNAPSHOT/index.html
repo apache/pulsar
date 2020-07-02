@@ -725,6 +725,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--className</code></td>
 <td>The class name of a Pulsar Function</td>
 <td>null</td>
@@ -1030,6 +1035,11 @@
 <tr>
 <td><code>--processing-guarantees</code></td>
 <td>The processing guarantees (aka delivery semantics) applied to the function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -1346,6 +1356,11 @@
 <tr>
 <td><code>--processing-guarantees</code></td>
 <td>The processing guarantees (aka delivery semantics) applied to the function</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -4553,6 +4568,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
 <td><code>--processingGuarantees</code></td>
 <td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
@@ -4743,6 +4763,11 @@
 <tr>
 <td><code>--parallelism</code></td>
 <td>The sink&#39;s parallelism factor (i.e. the number of sink instances to run)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5065,18 +5090,8 @@
 <td>false</td>
 </tr>
 <tr>
-<td><code>--name</code></td>
-<td>The sink&#39;s name</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--topics-pattern</code></td>
 <td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--retainOrdering</code></td>
-<td>Sink consumes and sinks messages in order</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5085,18 +5100,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--sink-config</code></td>
-<td>User defined configs key/values</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--topicsPattern</code></td>
 <td>TopicsPattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topicsPattern] are mutually exclusive. Add SerDe class name for a pattern in --customSerdeInputs  (supported for java fun only)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--sinkConfigFile</code></td>
-<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5130,23 +5135,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--client-auth-params</code></td>
-<td>Client authentication param</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>-i, --inputs</code></td>
 <td>The sink&#39;s input topic or topics (multiple topics can be specified as a comma-separated list)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--clientAuthPlugin</code></td>
-<td>Client authentication plugin using which function-process can connect to broker</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--processing-guarantees</code></td>
-<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5160,34 +5150,14 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--client-auth-plugin</code></td>
-<td>Client authentication plugin using which function-process can connect to broker</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--subs-position</code></td>
 <td>Pulsar source subscription position if user wants to consume messages from the specified location</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--ram</code></td>
-<td>The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--custom-serde-inputs</code></td>
-<td>The map of input topics to SerDe class names (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
 <td><code>--hostname-verification-enabled</code></td>
 <td>Enable hostname verification</td>
 <td>false</td>
-</tr>
-<tr>
-<td><code>-t, --sink-type</code></td>
-<td>The sinks&#39;s connector provider</td>
-<td>null</td>
 </tr>
 <tr>
 <td><code>--clientAuthParams</code></td>
@@ -5200,16 +5170,6 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--custom-schema-inputs</code></td>
-<td>The map of input topics to Schema types or class names (as a JSON string)</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--namespace</code></td>
-<td>The sink&#39;s namespace</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--retain-ordering</code></td>
 <td>Sink consumes and sinks messages in order</td>
 <td>null</td>
@@ -5217,6 +5177,11 @@
 <tr>
 <td><code>--parallelism</code></td>
 <td>The sink&#39;s parallelism factor (i.e. the number of sink instances to run)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--input-specs</code></td>
+<td>The map of inputs to custom configuration (as a JSON string)</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5235,23 +5200,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--custom-runtime-options</code></td>
-<td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--timeout-ms</code></td>
 <td>The message timeout in milliseconds</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--negative-ack-redelivery-delay-ms</code></td>
-<td>The negative ack message redelivery delay in milliseconds</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--broker-service-url</code></td>
-<td>The URL for the Pulsar broker</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5260,18 +5210,8 @@
 <td>null</td>
 </tr>
 <tr>
-<td><code>--tls-trust-cert-path</code></td>
-<td>tls trust cert file path</td>
-<td>null</td>
-</tr>
-<tr>
 <td><code>--brokerServiceUrl</code></td>
 <td>The URL for the Pulsar broker</td>
-<td>null</td>
-</tr>
-<tr>
-<td><code>--auto-ack</code></td>
-<td>Whether or not the framework will automatically acknowledge messages</td>
 <td>null</td>
 </tr>
 <tr>
@@ -5292,6 +5232,96 @@
 <tr>
 <td><code>-a, --archive</code></td>
 <td>Path to the archive file for the sink. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--name</code></td>
+<td>The sink&#39;s name</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--retainOrdering</code></td>
+<td>Sink consumes and sinks messages in order</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sink-config</code></td>
+<td>User defined configs key/values</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--sinkConfigFile</code></td>
+<td>The path to a YAML config file specifying the sink&#39;s configuration</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--client-auth-params</code></td>
+<td>Client authentication param</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--clientAuthPlugin</code></td>
+<td>Client authentication plugin using which function-process can connect to broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--processing-guarantees</code></td>
+<td>The processing guarantees (aka delivery semantics) applied to the sink</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--client-auth-plugin</code></td>
+<td>Client authentication plugin using which function-process can connect to broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--ram</code></td>
+<td>The RAM (in bytes) that need to be allocated per sink instance (applicable only to the process and Docker runtimes)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--custom-serde-inputs</code></td>
+<td>The map of input topics to SerDe class names (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>-t, --sink-type</code></td>
+<td>The sinks&#39;s connector provider</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--custom-schema-inputs</code></td>
+<td>The map of input topics to Schema types or class names (as a JSON string)</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--namespace</code></td>
+<td>The sink&#39;s namespace</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--custom-runtime-options</code></td>
+<td>A string that encodes options to customize the runtime, see docs for configured runtime for details</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--negative-ack-redelivery-delay-ms</code></td>
+<td>The negative ack message redelivery delay in milliseconds</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--broker-service-url</code></td>
+<td>The URL for the Pulsar broker</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--tls-trust-cert-path</code></td>
+<td>tls trust cert file path</td>
+<td>null</td>
+</tr>
+<tr>
+<td><code>--auto-ack</code></td>
+<td>Whether or not the framework will automatically acknowledge messages</td>
 <td>null</td>
 </tr>
 </tbody>
