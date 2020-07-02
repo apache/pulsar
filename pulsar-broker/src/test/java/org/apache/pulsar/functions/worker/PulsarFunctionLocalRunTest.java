@@ -489,7 +489,7 @@ public class PulsarFunctionLocalRunTest {
 
     @Test(timeOut = 30000)
     public void testPulsarFunctionSchema() throws Exception {
-        //testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
+        testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
         testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction$KeyValueStudentFunction");
     }
 
