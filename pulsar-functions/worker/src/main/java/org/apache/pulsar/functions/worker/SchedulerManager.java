@@ -184,7 +184,7 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    public Future<?> schedule() {
+    private Future<?> scheduleInternal(Runnable runnable, String errMsg) {
         if (!leaderService.isLeader()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -201,9 +201,9 @@ public class SchedulerManager implements AutoCloseable {
                     boolean isLeader = leaderService.isLeader();
                     if (isLeader) {
                         try {
-                            invokeScheduler();
+                            runnable.run();
                         } catch (Throwable th) {
-                            log.error("Encountered error when invoking scheduler", th);
+                            log.error("Encountered error when invoking scheduler", errMsg);
                             errorNotifier.triggerError(th);
                         }
                     }
@@ -218,22 +218,12 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
-        if (executor != null) {
-            executor.scheduleWithFixedDelay(() -> {
-                if (leaderService.isLeader() && isCompactionNeeded.get()) {
-                    compactAssignmentTopic();
-                    isCompactionNeeded.set(false);
-                }
-            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+    public Future<?> schedule() {
+        return scheduleInternal(() -> invokeScheduler(), "Encountered error when invoking scheduler");
+    }
 
-            executor.scheduleWithFixedDelay(() -> {
-                if (leaderService.isLeader() && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen()) != 0) {
-                    metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
-                    compactFunctionMetadataTopic();
-                }
-            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
-        }
+    public Future<?> rebalance() {
+        return scheduleInternal(() -> invokeRebalance(), "Encountered error when invoking rebalance");
     }
     
     @VisibleForTesting
@@ -331,7 +321,62 @@ public class SchedulerManager implements AutoCloseable {
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
         }
-        
+    }
+
+    private void invokeRebalance() {
+
+        Set<String> currentMembership = membershipManager.getCurrentMembership()
+                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
+
+        Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager.getCurrentAssignments();
+
+        // filter out assignments of workers that are not currently in the active membership
+        List<Assignment> currentAssignments = workerIdToAssignments
+                .entrySet()
+                .stream()
+                .filter(workerIdToAssignmentEntry -> {
+                    String workerId = workerIdToAssignmentEntry.getKey();
+                    // remove assignments to workers that don't exist / died for now.
+                    // wait for failure detector to unassign them in the future for re-scheduling
+                    if (!currentMembership.contains(workerId)) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
+                .collect(Collectors.toList());
+
+
+        List<Assignment> rebalancedAssignments = scheduler.rebalance(currentAssignments, currentMembership);
+
+        for (Assignment assignment : rebalancedAssignments) {
+            MessageId messageId = publishNewAssignment(assignment, false);
+            // Directly update in memory assignment cache since I am leader
+            log.info("Rebalance - new assignment: {}", assignment);
+            functionRuntimeManager.processAssignment(assignment);
+            // update message id associated with current view of assignments map
+            lastMessageProduced = messageId;
+        }
+        log.info("Total number of new assignments computed for rebalance: {}", rebalancedAssignments.size());
+    }
+
+    private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
+        if (executor != null) {
+            executor.scheduleWithFixedDelay(() -> {
+                if (leaderService.isLeader() && isCompactionNeeded.get()) {
+                    compactAssignmentTopic();
+                    isCompactionNeeded.set(false);
+                }
+            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+
+            executor.scheduleWithFixedDelay(() -> {
+                if (leaderService.isLeader() && metadataTopicLastMessage.compareTo(functionMetaDataManager.getLastMessageSeen()) != 0) {
+                    metadataTopicLastMessage = functionMetaDataManager.getLastMessageSeen();
+                    compactFunctionMetadataTopic();
+                }
+            }, scheduleFrequencySec, scheduleFrequencySec, TimeUnit.SECONDS);
+        }
     }
 
     private void compactAssignmentTopic() {
