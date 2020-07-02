@@ -25,6 +25,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
+import java.util.List;
 import java.util.Map;
 
 public class KeyValueNestedGenericsFunction implements Function<KeyValue<String, KeyValue<String, Map<String, Integer>>>
@@ -34,9 +35,9 @@ public class KeyValueNestedGenericsFunction implements Function<KeyValue<String,
         return input;
     }
 
-    public static class KeyValueStudentFunction implements Function<KeyValue<Student, Student>, KeyValue<Student, Student>>{
+    public static class KeyValueStudentFunction implements Function<KeyValue<KeyValue<String, Integer>, Student>, KeyValue<KeyValue<String, Integer>, Student>>{
         @Override
-        public KeyValue<Student, Student> process(KeyValue<Student, Student> input, Context context) throws Exception {
+        public KeyValue<KeyValue<String, Integer>, Student> process(KeyValue<KeyValue<String, Integer>, Student> input, Context context) throws Exception {
             return input;
         }
     }

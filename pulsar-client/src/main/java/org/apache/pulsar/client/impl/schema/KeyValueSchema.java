@@ -270,9 +270,9 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                     , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
         } else if (isInstanceOfKeyValue(kvType[0])) {
             return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments())
-                    , Schema.getDefaultSchema((Class<?>) kvType[1]));
+                    , Schema.getDefaultSchema((Class<?>) kvType[1], SchemaType.JSON));
         } else if (isInstanceOfKeyValue(kvType[1])) {
-            return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0])
+            return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0], SchemaType.JSON)
                     , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
         } else {
             return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));

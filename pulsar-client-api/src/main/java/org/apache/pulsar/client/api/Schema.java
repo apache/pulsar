@@ -370,7 +370,7 @@ public interface Schema<T> extends Cloneable{
         return DefaultImplementation.getGenericSchema(schemaInfo);
     }
 
-    static Schema getDefaultSchema(Class<?> clazz) {
+    static Schema getDefaultSchema(Class clazz, SchemaType defaultTypeIfNotMatch) {
         if (Byte[].class.equals(clazz)) {
             return Schema.BYTES;
         } else if (ByteBuffer.class.equals(clazz)) {
@@ -397,6 +397,15 @@ public interface Schema<T> extends Cloneable{
             return Schema.TIME;
         } else if (Timestamp.class.equals(clazz)) {
             return Schema.TIMESTAMP;
+        }
+        if (defaultTypeIfNotMatch == SchemaType.JSON) {
+            return Schema.JSON(clazz);
+        }
+        if (defaultTypeIfNotMatch == SchemaType.AVRO) {
+            return Schema.AVRO(clazz);
+        }
+        if (defaultTypeIfNotMatch == SchemaType.PROTOBUF) {
+            return Schema.PROTOBUF(clazz);
         }
         throw new IllegalArgumentException("Schema class type is incorrect");
     }
