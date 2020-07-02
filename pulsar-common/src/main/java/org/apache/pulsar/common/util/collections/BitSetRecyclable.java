@@ -1184,7 +1184,6 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
         return this;
     }
 
-    private final AtomicBoolean recycled = new AtomicBoolean(false);
     private Handle<BitSetRecyclable> recyclerHandle = null;
 
     private static final Recycler<BitSetRecyclable> RECYCLER = new Recycler<BitSetRecyclable>() {
@@ -1199,13 +1198,11 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     }
 
     public static BitSetRecyclable create() {
-        BitSetRecyclable instance = RECYCLER.get();
-        instance.recycled.set(false);
-        return instance;
+        return RECYCLER.get();
     }
 
     public void recycle() {
-        if (recyclerHandle != null && recycled.compareAndSet(false, true)) {
+        if (recyclerHandle != null) {
             this.clear();
             recyclerHandle.recycle(this);
         }

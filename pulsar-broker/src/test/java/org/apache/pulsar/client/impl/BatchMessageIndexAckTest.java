@@ -183,7 +183,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testSafeAckSetRecycle() throws Exception  {
+    public void testDoNotRecycleAckSetMultipleTimes() throws Exception  {
         final String topic = "persistent://my-property/my-ns/testSafeAckSetRecycle";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
