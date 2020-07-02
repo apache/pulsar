@@ -141,6 +141,10 @@ public class PerformanceConsumer {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
 
+        @Parameter(names = {
+                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+        public Boolean tlsAllowInsecureConnection = null;
+
         @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
         public String encKeyName = null;
 
@@ -205,6 +209,11 @@ public class PerformanceConsumer {
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                 arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
             }
+
+            if (arguments.tlsAllowInsecureConnection == null) {
+                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
+                        .getProperty("tlsAllowInsecureConnection", ""));
+            }
         }
 
         // Dump config variables
@@ -252,6 +261,10 @@ public class PerformanceConsumer {
                 .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        if (arguments.tlsAllowInsecureConnection != null) {
+            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
         PulsarClient pulsarClient = clientBuilder.build();
