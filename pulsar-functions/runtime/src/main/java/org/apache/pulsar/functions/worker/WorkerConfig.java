@@ -573,7 +573,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private String clientAuthenticationPlugin;
 
-    String getBrokerClientAuthenticationPlugin() {
+    public String getBrokerClientAuthenticationPlugin() {
         if (null == brokerClientAuthenticationPlugin) {
             return clientAuthenticationPlugin;
         } else {
@@ -581,7 +581,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         }
     }
 
-    String getBrokerClientAuthenticationParameters() {
+    public String getBrokerClientAuthenticationParameters() {
         if (null == brokerClientAuthenticationParameters) {
             return clientAuthenticationParameters;
         } else {
