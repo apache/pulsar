@@ -166,7 +166,9 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public void updateNumMsgsReceived(Message<?> message) {
         if (message != null) {
             numMsgsReceived.increment();
-            numBytesReceived.add(message.getData().length);
+            if(message.getData()!=null) {
+                numBytesReceived.add(message.getData().length);
+            }
         }
     }
 
