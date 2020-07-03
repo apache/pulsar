@@ -155,8 +155,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 
-        consumers.add(consumer);
-
         if (subscriptionType == SubType.Exclusive
                 && consumer.getKeySharedMeta() != null
                 && consumer.getKeySharedMeta().getHashRangesList() != null
@@ -167,6 +165,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         } else {
             isKeyHashRangeFiltered = false;
         }
+
+        consumers.add(consumer);
 
         if (!pickAndScheduleActiveConsumer()) {
             // the active consumer is not changed
