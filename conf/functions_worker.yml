@@ -48,13 +48,25 @@ downloadDirectory: download/pulsar_functions
 
 # Configure the pulsar client used by function metadata management
 #
-# points 
+# points
+# Whether to enable TLS when clients connect to broker
+useTls: false
+# For TLS:
+# brokerServiceUrl=pulsar+ssl://localhost:6651/
 pulsarServiceUrl: pulsar://localhost:6650
+# For TLS:
+# webServiceUrl=https://localhost:8443/
 pulsarWebServiceUrl: http://localhost:8080
+
+############################################
+# security settings for pulsar broker client
+############################################
+# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+# brokerClientTrustCertsFilePath:
 # the authentication plugin to be used by the pulsar client used in worker service
-# clientAuthenticationPlugin:
+# brokerClientAuthenticationPlugin:
 # the authentication parameter to be used by the pulsar client used in worker service
-# clientAuthenticationParameters:
+# brokerClientAuthenticationParameters:
 
 # Bookie Authentication
 #
@@ -193,14 +205,10 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Whether server hostname must match the common name of the certificate
+tlsEnableHostnameVerification: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection) 
 tlsCertRefreshCheckDurationSec: 300
-
-############################################
-# security settings for pulsar broker client
-############################################
-# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
-brokerClientTrustCertsFilePath:
 
 ########################
 # State Management

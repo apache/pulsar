@@ -260,12 +260,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationPlugin;
+    private String brokerClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationParameters;
+    private String brokerClientAuthenticationParameters;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -331,7 +331,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_SECURITY,
         doc = "Whether to enable hostname verification on TLS connections"
     )
-    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsEnableHostnameVerification = false;
     @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
@@ -561,4 +561,33 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     @Deprecated
     private KubernetesContainerFactory kubernetesContainerFactory;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationParameters;
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationPlugin;
+
+    public String getBrokerClientAuthenticationPlugin() {
+        if (null == brokerClientAuthenticationPlugin) {
+            return clientAuthenticationPlugin;
+        } else {
+            return brokerClientAuthenticationPlugin;
+        }
+    }
+
+    public String getBrokerClientAuthenticationParameters() {
+        if (null == brokerClientAuthenticationParameters) {
+            return clientAuthenticationParameters;
+        } else {
+            return brokerClientAuthenticationParameters;
+        }
+    }
 }

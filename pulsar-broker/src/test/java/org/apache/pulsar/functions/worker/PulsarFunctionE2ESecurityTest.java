@@ -177,10 +177,10 @@ public class PulsarFunctionE2ESecurityTest {
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
-        if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
-                && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
-            clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters());
+        if (isNotBlank(workerConfig.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
+            clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
+                    workerConfig.getBrokerClientAuthenticationParameters());
         }
         pulsarClient = clientBuilder.build();
 
@@ -242,8 +242,8 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setWorkerHostname(hostname);
         workerConfig.setWorkerId(workerId);
 
-        workerConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        workerConfig.setClientAuthenticationParameters(
+        workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        workerConfig.setBrokerClientAuthenticationParameters(
                 String.format("token:%s", adminToken));
 
         workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
