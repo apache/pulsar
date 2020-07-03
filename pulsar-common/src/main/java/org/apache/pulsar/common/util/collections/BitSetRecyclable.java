@@ -27,7 +27,6 @@ import java.nio.ByteOrder;
 import java.nio.LongBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This this copy of {@link BitSet}.
