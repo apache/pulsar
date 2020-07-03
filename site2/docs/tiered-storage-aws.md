@@ -49,7 +49,7 @@ This example uses Pulsar 2.5.1.
 
     ```
 
-     //  As shown below, Pulsar uses Apache jclouds to support AWS S3 and GCS for long term storage.
+    //  As shown below, Pulsar uses Apache jclouds to support AWS S3 and GCS for long term storage.
 
     tiered-storage-file-system-2.5.1.nar
     tiered-storage-jcloud-2.5.1.nar
