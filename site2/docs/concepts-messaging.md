@@ -96,7 +96,7 @@ Messages are received from [brokers](reference-terminology.md#broker) either syn
 | Mode          | Description                                                                                                                                                                                                   |
 |:--------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Sync receive  | A sync receive is blocked until a message is available.                                                                                                                                                  |
-| Async receive | An async receive returns immediately with a future value---a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) in Java, for example---that completes once a new message is available. |
+| Async receive | An async receive returns immediately with a future value—for example, a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture) in Java—that completes once a new message is available. |
 
 ### Listeners
 
