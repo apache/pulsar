@@ -137,20 +137,20 @@ public class WorkerService {
                 }
 
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsHostnameVerificationEnable());
+                    workerConfig.isTlsEnableHostnameVerification());
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsHostnameVerificationEnable());
+                    workerConfig.isTlsEnableHostnameVerification());
 
                 this.client = WorkerUtils.getPulsarClient(workerConfig.getPulsarServiceUrl(),
-                        workerConfig.getClientAuthenticationPlugin(),
-                        workerConfig.getClientAuthenticationParameters(),
+                        workerConfig.getBrokerClientAuthenticationPlugin(),
+                        workerConfig.getBrokerClientAuthenticationParameters(),
                         workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
-                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsHostnameVerificationEnable());
+                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsEnableHostnameVerification());
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
 
