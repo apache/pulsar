@@ -186,7 +186,7 @@ Dead letter topic depends on message re-delivery. Messages are redelivered eithe
 
 ### Retry letter topic
 
-For many online business systems, a message is re-consumed due to exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages are not consumed, and therefore the consumer automatically consume the failed messages from the retry letter topic after a specified delay time.
+For many online business systems, a message is re-consumed due to exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. When automatic retry is enabled on the consumer, a message is stored in the retry letter topic if the messages are not consumed, and therefore the consumer automatically consumes the failed messages from the retry letter topic after a specified delay time.
 
 By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
 
