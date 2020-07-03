@@ -26,7 +26,6 @@ import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_PO
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
-
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
@@ -41,15 +40,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-
-import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -63,6 +58,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -70,16 +66,16 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -99,7 +95,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +104,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
         checkNotNull(tenant, "Tenant should not be null");
+        try {
+            NamedEntity.checkName(tenant);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Tenant name is invalid {}", clientAppId(), tenant, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+        }
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
 
         try {
@@ -935,7 +936,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    
+
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         validateSuperUserAccess();
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
@@ -1026,7 +1027,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    public void internalUnloadNamespaceBundle(String bundleRange, boolean authoritative) {
+    public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -1060,18 +1061,23 @@ public abstract class NamespacesBase extends AdminResource {
         if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
             log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
                     bundleRange);
+            asyncResponse.resume(Response.noContent().build());
             return;
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-        try {
-            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
-            log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+
+        pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                            ex);
+                    asyncResponse.resume(new RestException(ex));
+                    return null;
+                });
     }
 
     @SuppressWarnings("deprecation")

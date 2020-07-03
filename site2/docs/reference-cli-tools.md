@@ -431,6 +431,7 @@ Options
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
+|`--tls-allow-insecure`|Allow insecure TLS connection||
 
 
 ### `produce`
@@ -468,6 +469,7 @@ Options
 |`-time`, `--test-duration`|Test duration in secs. If set to 0, it will keep publishing.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--warmup-time`|Warm-up time in seconds|1|
+|`--tls-allow-insecure`|Allow insecure TLS connection||
 
 
 ### `read`
@@ -494,7 +496,7 @@ Options
 |`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--use-tls`|Use TLS encryption on the connection|false|
-
+|`--tls-allow-insecure`|Allow insecure TLS connection||
 
 ### `websocket-producer`
 Run a websocket producer

@@ -223,7 +223,7 @@ public class SourcesImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (sourcePkgUrl == null || !sourcePkgUrl.startsWith(Utils.FILE)) {
@@ -414,7 +414,7 @@ public class SourcesImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sourcePkgUrl != null && !sourcePkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {

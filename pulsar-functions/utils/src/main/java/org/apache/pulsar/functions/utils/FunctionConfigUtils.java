@@ -109,6 +109,7 @@ public class FunctionConfigUtils {
                             Function.ConsumerSpec.newBuilder()
                                     .setSchemaType(consumerConfig.getSchemaType())
                                     .putAllSchemaProperties(consumerConfig.getSchemaProperties())
+                                    .putAllConsumerProperties(consumerConfig.getConsumerProperties())
                                     .setIsRegexPattern(false)
                                     .build());
                 } catch (JsonProcessingException e) {
@@ -132,6 +133,7 @@ public class FunctionConfigUtils {
                 if (consumerConf.getSchemaProperties() != null) {
                     bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
                 }
+                bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -152,6 +154,8 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            // We use negative acks for fast tracking failures
+            sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(functionConfig.getTimeoutMs());
         }
         if (functionConfig.getCleanupSubscription() != null) {
             sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
@@ -180,6 +184,7 @@ public class FunctionConfigUtils {
                 if (StringUtils.isNotEmpty(conf)) {
                     ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
                     sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getSchemaProperties());
+                    sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
                 }
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));

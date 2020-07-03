@@ -90,10 +90,28 @@ module.exports = [
         link: 'https://www.influxdata.com/'
     },
     {
-        name: 'jdbc',
-        longName: 'JDBC sink',
+        name: 'jdbc-clickhouse',
+        longName: 'JDBC ClickHouse sink',
         type: 'Sink',
-        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/jdbc'
+        link: 'https://clickhouse.tech/'
+    },
+    {
+        name: 'jdbc-mariadb',
+        longName: 'JDBC MariaDB sink',
+        type: 'Sink',
+        link: 'https://mariadb.org/'
+    },
+    {
+        name: 'jdbc-postgres',
+        longName: 'JDBC PostgresSQL sink',
+        type: 'Sink',
+        link: 'https://www.postgresql.org/'
+    },
+    {
+        name: 'jdbc-sqlite',
+        longName: 'JDBC SQLite sink',
+        type: 'Sink',
+        link: 'https://www.sqlite.org/'
     },
     {
         name: 'kafka-connect-adaptor',

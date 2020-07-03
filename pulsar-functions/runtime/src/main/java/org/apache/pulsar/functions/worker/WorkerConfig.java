@@ -70,6 +70,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Category
     private static final String CATEGORY_FUNC_RUNTIME_MNG = "Function Runtime Management";
     @Category
+    private static final String CATEGORY_FUNC_SCHEDULE_MNG = "Function Scheduling Management";
+    @Category
     private static final String CATEGORY_SECURITY = "Common Security Settings (applied for both worker and client)";
     @Category
     private static final String CATEGORY_WORKER_SECURITY = "Worker Security Settings";
@@ -169,6 +171,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String functionMetadataTopicName;
     @FieldContext(
+            category = CATEGORY_FUNC_METADATA_MNG,
+            doc = "Should the metadata topic be compacted?"
+    )
+    private Boolean useCompactedMetadataTopic = false;
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The web service url for function workers"
     )
@@ -214,33 +221,33 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String stateStorageServiceUrl;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The pulsar topic used for storing function assignment informations"
     )
     private String functionAssignmentTopicName;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_SCHEDULE_MNG,
         doc = "The scheduler class used by assigning functions to workers"
     )
     private String schedulerClassName;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The frequency of failure checks, in milliseconds"
     )
     private long failureCheckFreqMs;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The reschedule timeout of function assignment, in milliseconds"
     )
     private long rescheduleTimeoutMs;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for initial broker reconnects when function metadata manager"
             + " tries to create producer on metadata topics"
     )
     private int initialBrokerReconnectMaxRetries;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for writing assignment to assignment topic"
     )
     private int assignmentWriteMaxRetries;
@@ -493,7 +500,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public static String unsafeLocalhostResolve() {
         try {
-            return InetAddress.getLocalHost().getHostName();
+            // Get the fully qualified hostname
+            return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
