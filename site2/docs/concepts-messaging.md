@@ -35,7 +35,7 @@ Producers send messages to brokers synchronously (sync) or asynchronously (async
 
 | Mode       | Description |            
 |:-----------|-----------|
-| Sync send  | The producer waits for acknowledgement from the broker after sending every message. If acknowledgment is not received, the producer renders the send operation a failure.                                                                                                                                                                                    |
+| Sync send  | The producer waits for an acknowledgement from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.                                                                                                                                                                                    |
 | Async send | The producer puts a message in a blocking queue and returns immediately. The client library sends the message to the broker in the background. If the queue is full (you can [configure](reference-configuration.md#broker) the maximum size), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer. |
 
 ### Compression
