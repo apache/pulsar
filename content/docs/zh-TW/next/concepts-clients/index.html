@@ -95,7 +95,7 @@
 <li>主題中的 **最新的 (latest) ** 可用信息</li>
 <li>除最早的和最新的之外的可用信息點位。 如果你使用該選項，你需要顯式的提供一個信息 ID。 你的應用程序需要自己管理信息 ID，例如從持久化的數據存儲或緩存中獲取。</li>
 </ul>
-<p>使用 Pulsar 的 <strong>reader 介面接口</strong>, 應用程序可以手動管理 cursor。 在許多的使用情境，一個信息系統能否提供 topic 讀取倒帶 (rewind) 到指定的點位並且從那個位置開始重讀信息至為關鍵。 Reader 界面接口讓 Pulsar 客戶端在信息系統提供了一種底層抽象“手動管理點位”的實現。</p>
+<p>The reader interface is helpful for use cases like using Pulsar to provide effectively-once processing semantics for a stream processing system. 在許多的使用情境，一個信息系統能否提供 topic 讀取倒帶 (rewind) 到指定的點位並且從那個位置開始重讀信息至為關鍵。 Reader 界面接口讓 Pulsar 客戶端在信息系統提供了一種底層抽象“手動管理點位”的實現。</p>
 <p>在 Pulsar 內部，reader 介面接口透過使用專有的、非持久的、具有隨機分配名稱 topic subscription 的 consumer 來實現。</p>
 <p>[ <strong>IMPORTANT</strong> ]</p>
 <p>Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is <strong><em>strongly</em></strong> advised that <a href="/docs/zh-TW/next/cookbooks-retention-expiry">data retention</a> be configured. If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted . This will cause readers to essentially skip messages. Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.</p>
