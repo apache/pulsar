@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -44,6 +45,7 @@ import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
+import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -113,6 +115,8 @@ public class SchedulerManager implements AutoCloseable {
     private MessageId lastMessageProduced = null;
 
     private MessageId metadataTopicLastMessage = MessageId.earliest;
+    private Future<?> currentRebalanceFuture;
+    private AtomicBoolean rebalanceInProgess = new AtomicBoolean(false);
 
     public SchedulerManager(WorkerConfig workerConfig,
                             PulsarClient pulsarClient,
@@ -222,8 +226,17 @@ public class SchedulerManager implements AutoCloseable {
         return scheduleInternal(() -> invokeScheduler(), "Encountered error when invoking scheduler");
     }
 
-    public Future<?> rebalance() {
+    private Future<?> rebalance() {
         return scheduleInternal(() -> invokeRebalance(), "Encountered error when invoking rebalance");
+    }
+
+    public Future<?> rebalanceIfNotInprogress() {
+        if (rebalanceInProgess.compareAndSet(false, true)) {
+            currentRebalanceFuture = rebalance();
+            return currentRebalanceFuture;
+        } else {
+            throw new RebalanceInProgressException();
+        }
     }
     
     @VisibleForTesting
@@ -273,7 +286,7 @@ public class SchedulerManager implements AutoCloseable {
                     MessageId messageId = publishNewAssignment(newAssignment, false);
 
                     // Directly update in memory assignment cache since I am leader
-                    log.info("Updating assignment: {}", assignment);
+                    log.info("Updating assignment: {}", newAssignment);
                     functionRuntimeManager.processAssignment(newAssignment);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
@@ -358,7 +371,8 @@ public class SchedulerManager implements AutoCloseable {
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
         }
-        log.info("Total number of new assignments computed for rebalance: {}", rebalancedAssignments.size());
+        log.info("Rebalance - Total number of new assignments computed: {}", rebalancedAssignments.size());
+        rebalanceInProgess.set(false);
     }
 
     private void scheduleCompaction(ScheduledExecutorService executor, long scheduleFrequencySec) {
@@ -510,5 +524,8 @@ public class SchedulerManager implements AutoCloseable {
                     && HEARTBEAT_NAMESPACE.equals(funDetails.getNamespace()) ? funDetails.getName() : null;
         }
         return null;
+    }
+
+    public static class RebalanceInProgressException extends RuntimeException {
     }
 }
