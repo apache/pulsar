@@ -35,7 +35,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -45,7 +44,6 @@ import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
-import javax.ws.rs.core.Response;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
