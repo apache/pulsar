@@ -25,7 +25,7 @@ import java.util.Objects;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * A simple KeyValue class.key and value can be modified at any time
+ * A simple KeyValue class.key and value can be modified at any time.
  */
 public class MutableKeyValue<K, V> {
     private K key;
