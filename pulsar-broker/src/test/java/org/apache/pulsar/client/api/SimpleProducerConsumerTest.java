@@ -2441,6 +2441,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(groups = "encryption")
     public void testECDSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myecdsa-topic1-" + System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2484,15 +2485,15 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
 
         Consumer<byte[]> cryptoConsumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").subscriptionName("my-subscriber-name")
+                .topic(topicName).subscriptionName("my-subscriber-name")
                 .cryptoKeyReader(new EncKeyReader()).subscribe();
 
         Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").subscriptionName("my-subscriber-name-normal")
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
                 .subscribe();
 
         Producer<byte[]> cryptoProducer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/myecdsa-topic1").addEncryptionKey("client-ecdsa.pem")
+                .topic(topicName).addEncryptionKey("client-ecdsa.pem")
                 .cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -2501,7 +2502,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
 
-        msg = normalConsumer.receive(5, TimeUnit.SECONDS);
+        msg = normalConsumer.receive(500, TimeUnit.MILLISECONDS);
         // should not able to read message using normal message.
         assertNull(msg);
 
@@ -2522,6 +2523,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     @Test(groups = "encryption")
     public void testRSAEncryption() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/my-ns/myrsa-topic1-"+ System.currentTimeMillis();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -2565,6 +2567,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Set<String> messageSet = Sets.newHashSet();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader()).subscribe();
+        Consumer<byte[]> normalConsumer = pulsarClient.newConsumer()
+                .topic(topicName).subscriptionName("my-subscriber-name-normal")
+                .subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/myrsa-topic1")
                 .addEncryptionKey("client-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
@@ -2581,6 +2586,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         MessageImpl<byte[]> msg = null;
+
+        msg = (MessageImpl<byte[]>) normalConsumer.receive(500, TimeUnit.MILLISECONDS);
+        // should not able to read message using normal message.
+        assertNull(msg);
 
         for (int i = 0; i < totalMsg * 2; i++) {
             msg = (MessageImpl<byte[]>) consumer.receive(5, TimeUnit.SECONDS);
