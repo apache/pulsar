@@ -23,6 +23,7 @@ var searchData=
   ['setlogger',['setLogger',['../classpulsar_1_1_client_configuration.html#a659d381af7aa84fc90189e3d728cf7e0',1,'pulsar::ClientConfiguration']]],
   ['setmaxpendingmessagesacrosspartitions',['setMaxPendingMessagesAcrossPartitions',['../classpulsar_1_1_producer_configuration.html#a158f3061d38b91b3c9ccf81545278a61',1,'pulsar::ProducerConfiguration']]],
   ['setmaxtotalreceiverqueuesizeacrosspartitions',['setMaxTotalReceiverQueueSizeAcrossPartitions',['../classpulsar_1_1_consumer_configuration.html#a9c07888abe996b80c2fd168278a24de3',1,'pulsar::ConsumerConfiguration']]],
+  ['setmessageid',['setMessageId',['../classpulsar_1_1_message.html#a6c7fdb24e403a61be70a3f8d7944596c',1,'pulsar::Message']]],
   ['setmessagelistener',['setMessageListener',['../classpulsar_1_1_consumer_configuration.html#aeb4301821f8f471c6c542f486df9639d',1,'pulsar::ConsumerConfiguration']]],
   ['setmessagelistenerthreads',['setMessageListenerThreads',['../classpulsar_1_1_client_configuration.html#a1c85175f7b3694565b4bfe029c66f49f',1,'pulsar::ClientConfiguration']]],
   ['setnegativeackredeliverydelayms',['setNegativeAckRedeliveryDelayMs',['../classpulsar_1_1_consumer_configuration.html#aef99f71cd13324351864dd1e376d8788',1,'pulsar::ConsumerConfiguration']]],
