@@ -248,7 +248,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         needsDelete = (Boolean) method.invoke(managedLedger, offloadContext);
         Assert.assertFalse(needsDelete);
 
-        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000 * 2);
+        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(1000L * 2);
         offloadContext = MLDataFormats.OffloadContext.newBuilder()
                 .setTimestamp(config.getClock().millis() - 1000)
                 .setComplete(true)
