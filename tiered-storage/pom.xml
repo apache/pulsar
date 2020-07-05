@@ -32,6 +32,10 @@
   <artifactId>tiered-storage-parent</artifactId>
   <name>Apache Pulsar :: Tiered Storage :: Parent</name>
 
+  <properties>
+    <pulsar.jclouds.shaded.version>${project.version}</pulsar.jclouds.shaded.version>
+  </properties>
+
   <modules>
     <module>jcloud</module>
     <module>file-system</module>
