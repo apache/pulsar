@@ -55,7 +55,7 @@ public class FunctionConfigUtils {
 	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = Integer.valueOf(1000);
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
 
-    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
+    public static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
 
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {

@@ -43,6 +43,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -73,6 +74,8 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.MutableKeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
@@ -488,6 +491,7 @@ public class PulsarFunctionLocalRunTest {
     public void testPulsarFunctionSchema() throws Exception {
         testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction");
         testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction$KeyValueStudentFunction");
+        testFunctionSchema("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction$KeyValueStudentWithAvroFunction");
     }
 
     public void testFunctionSchema(String classPath) throws Exception {
@@ -503,6 +507,8 @@ public class PulsarFunctionLocalRunTest {
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
         admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        Map<String, String> inputSchemaProperties = new HashMap<>();
+        Map<String, String> outputSchemaProperties = new HashMap<>();
 
         // 1）create producer and consumer
         Producer producer;
@@ -513,7 +519,7 @@ public class PulsarFunctionLocalRunTest {
             consumer = pulsarClient
                     .newConsumer(KeyValueSchema.of(Schema.STRING, Schema.KeyValue(String.class, Map.class)))
                     .topic(sinkTopic).subscriptionName("sub").subscribe();
-        }else {
+        } else if(classPath.contains("$KeyValueStudentFunction")){
             producer = pulsarClient
                     .newProducer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
                             , Schema.JSON(KeyValueNestedGenericsFunction.Student.class)))
@@ -521,13 +527,40 @@ public class PulsarFunctionLocalRunTest {
             consumer = pulsarClient
                     .newConsumer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
                             , Schema.JSON(KeyValueNestedGenericsFunction.Student.class)))
-                    .topic(sinkTopic).subscriptionName("sub").subscribe();
+                    .topic(sinkTopic).subscriptionName("sub2").subscribe();
+        } else {
+            producer = pulsarClient
+                    .newProducer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
+                            , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class)))
+                    .topic(sourceTopic).create();
+            consumer = pulsarClient
+                    .newConsumer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
+                            , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class)))
+                    .topic(sinkTopic).subscriptionName("sub3").subscribe();
+            //Customize the schema type
+            MutableKeyValue keyValue = new MutableKeyValue(new MutableKeyValue(SchemaType.JSON, SchemaType.AVRO), SchemaType.AVRO);
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String,String> inputSpecsMap = new HashMap<>();
+            Map<String,String> outputSpecsMap = new HashMap<>();
+            inputSpecsMap.put(KeyValueSchema.KEY_SCHEMA_SPECS, objectMapper.writeValueAsString(keyValue));
+            outputSpecsMap.put(KeyValueSchema.VALUE_SCHEMA_SPECS, objectMapper.writeValueAsString(keyValue));
+
+            ConsumerConfig inputConsumerConfig = new ConsumerConfig();
+            inputConsumerConfig.setSchemaProperties(inputSpecsMap);
+            inputConsumerConfig.setSchemaType(SchemaType.KEY_VALUE.name());
+
+            ConsumerConfig outputConsumerConfig = new ConsumerConfig();
+            outputConsumerConfig.setSchemaProperties(outputSpecsMap);
+            outputConsumerConfig.setSchemaType(SchemaType.KEY_VALUE.name());
+
+            inputSchemaProperties.put(sourceTopic, objectMapper.writeValueAsString(inputConsumerConfig));
+            outputSchemaProperties.put(sinkTopic, objectMapper.writeValueAsString(outputConsumerConfig));
         }
 
-
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                sourceTopic, sinkTopic, subscriptionName);
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        functionConfig.setCustomSchemaInputs(inputSchemaProperties);
+        functionConfig.setCustomSchemaOutputs(outputSchemaProperties);
 
         // 2） set nested generics function class
         functionConfig.setClassName(classPath);

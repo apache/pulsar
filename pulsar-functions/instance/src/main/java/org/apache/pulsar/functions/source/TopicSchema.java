@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.functions.source;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.netty.buffer.ByteBuf;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -43,10 +41,12 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.MutableKeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 @Slf4j
 public class TopicSchema {
@@ -185,7 +185,7 @@ public class TopicSchema {
             return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(clazz).build());
 
         case KEY_VALUE:
-            return getKeyValueSchema(kvSchemaGenericType);
+            return getKeyValueSchema(kvSchemaGenericType, conf.getSchemaProperties());
 
         case PROTOBUF:
             return ProtobufSchema.ofGenericClass(clazz, new HashMap<>());
@@ -200,11 +200,21 @@ public class TopicSchema {
      * @param kvSchemaGenericType
      * @return
      */
-    private static Schema getKeyValueSchema(Type kvSchemaGenericType) {
+    private static Schema getKeyValueSchema(Type kvSchemaGenericType, Map<String, String> schemaProperties) {
         if(!(kvSchemaGenericType instanceof ParameterizedType)){
             return Schema.KV_BYTES();
         }
-        return KeyValueSchema.generateKvSchema(((ParameterizedType) kvSchemaGenericType).getActualTypeArguments());
+        MutableKeyValue nestedSchemaType = null;
+        try {
+            if (schemaProperties.containsKey(KeyValueSchema.KEY_SCHEMA_SPECS)) {
+                nestedSchemaType = FunctionConfigUtils.OBJECT_MAPPER.readValue(schemaProperties.get(KeyValueSchema.KEY_SCHEMA_SPECS), MutableKeyValue.class);
+            } else if (schemaProperties.containsKey(KeyValueSchema.VALUE_SCHEMA_SPECS)) {
+                nestedSchemaType = FunctionConfigUtils.OBJECT_MAPPER.readValue(schemaProperties.get(KeyValueSchema.VALUE_SCHEMA_SPECS), MutableKeyValue.class);
+            }
+        } catch (JsonProcessingException jsonProcessingException) {
+            throw new RuntimeException(jsonProcessingException);
+        }
+        return KeyValueSchema.generateKvSchema(((ParameterizedType) kvSchemaGenericType).getActualTypeArguments(), nestedSchemaType);
     }
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
@@ -232,9 +242,10 @@ public class TopicSchema {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
-        if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
+        if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)
+                || SchemaType.valueOf(schemaTypeOrClassName.toUpperCase()) == SchemaType.KEY_VALUE) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
-            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz), kvSchemaGenericType, classLoader, null);
+            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz), kvSchemaGenericType, classLoader, conf);
         }
 
         SchemaType schemaType = null;

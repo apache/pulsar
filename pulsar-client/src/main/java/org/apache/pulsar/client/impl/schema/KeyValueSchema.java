@@ -22,7 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
@@ -30,6 +34,7 @@ import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.MutableKeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -38,6 +43,9 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @Slf4j
 public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
+    public static final String KEY_SCHEMA_SPECS = "keySchemaSpecs";
+    public static final String VALUE_SCHEMA_SPECS = "valueSchemaSpecs";
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Getter
     private final Schema<K> keySchema;
@@ -257,26 +265,54 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
     }
 
     /**
-     * Traverse keyvalue recursively and generate schema
+     * Traverse keyValue recursively and generate schema
+     * Users can specify the schema of each key and value through MutableKeyValue.
+     * If not specified, the POJO defaults to JSON
      * @param kvType
      * @return
      */
-    public static Schema generateKvSchema(Type[] kvType) {
+    public static Schema generateKvSchema(Type[] kvType, MutableKeyValue nestedSchemaType) {
         if (kvType == null || kvType.length < 2) {
             return Schema.KV_BYTES();
         }
         if (isInstanceOfKeyValue(kvType[0]) && isInstanceOfKeyValue(kvType[1])) {
-            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments())
-                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+            if (nestedSchemaType != null) {
+                return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments(), convertToKeyValue(nestedSchemaType.getKey()))
+                        , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments(), convertToKeyValue(nestedSchemaType.getValue())));
+            }
+            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments(), null)
+                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments(), null));
         } else if (isInstanceOfKeyValue(kvType[0])) {
-            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments())
+            if (nestedSchemaType != null) {
+                return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments(), convertToKeyValue(nestedSchemaType.getKey()))
+                        , Schema.getDefaultSchema((Class<?>) kvType[1], SchemaType.valueOf((String) nestedSchemaType.getValue())));
+            }
+            return Schema.KeyValue(generateKvSchema(((ParameterizedType) kvType[0]).getActualTypeArguments(), null)
                     , Schema.getDefaultSchema((Class<?>) kvType[1], SchemaType.JSON));
         } else if (isInstanceOfKeyValue(kvType[1])) {
+            if (nestedSchemaType != null) {
+                return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0], SchemaType.valueOf((String) nestedSchemaType.getKey()))
+                        , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments(), convertToKeyValue(nestedSchemaType.getValue())));
+            }
             return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0], SchemaType.JSON)
-                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments()));
+                    , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments(), null));
         } else {
             return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));
         }
+    }
+
+    private static MutableKeyValue convertToKeyValue(Object object) {
+        if (object instanceof MutableKeyValue) {
+            return (MutableKeyValue) object;
+        }
+        if (object instanceof Map) {
+            try {
+                OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(object), MutableKeyValue.class);
+            } catch (JsonProcessingException jsonProcessingException) {
+                throw new RuntimeException(jsonProcessingException);
+            }
+        }
+        return null;
     }
 
     private static Class<?> convertTypeToClass(Type type) {
