@@ -104,6 +104,12 @@ class PULSAR_PUBLIC Message {
     const MessageId& getMessageId() const;
 
     /**
+     * Set the unique message ID.
+     *
+     */
+    void setMessageId(const MessageId& messageID) const;
+
+    /**
      * Get the partition key for this message
      * @return key string that is hashed to determine message's topic partition
      */
