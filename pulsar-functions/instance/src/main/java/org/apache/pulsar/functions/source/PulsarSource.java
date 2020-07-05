@@ -177,7 +177,12 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
 
         // Check new config with schema types or classnames
         pulsarSourceConfig.getTopicSchema().forEach((topic, conf) -> {
-            Schema<T> schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true, sourceGenericType);
+            Schema<T> schema;
+            if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
+            } else {
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true, sourceGenericType);
+            }
             configs.put(topic,
                     ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
         });

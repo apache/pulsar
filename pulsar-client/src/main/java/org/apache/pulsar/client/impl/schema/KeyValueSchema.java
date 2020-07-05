@@ -297,6 +297,10 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
             return Schema.KeyValue(Schema.getDefaultSchema((Class<?>) kvType[0], SchemaType.JSON)
                     , generateKvSchema(((ParameterizedType) kvType[1]).getActualTypeArguments(), null));
         } else {
+            if (nestedSchemaType != null) {
+                return Schema.KeyValue(Schema.getSchema(SchemaType.valueOf((String) nestedSchemaType.getKey()), convertTypeToClass(kvType[0]))
+                        , Schema.getSchema(SchemaType.valueOf((String) nestedSchemaType.getValue()), convertTypeToClass(kvType[1])));
+            }
             return Schema.KeyValue(convertTypeToClass(kvType[0]), convertTypeToClass(kvType[1]));
         }
     }
@@ -307,7 +311,7 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
         }
         if (object instanceof Map) {
             try {
-                OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(object), MutableKeyValue.class);
+                return OBJECT_MAPPER.readValue(OBJECT_MAPPER.writeValueAsString(object), MutableKeyValue.class);
             } catch (JsonProcessingException jsonProcessingException) {
                 throw new RuntimeException(jsonProcessingException);
             }

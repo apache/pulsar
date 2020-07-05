@@ -530,11 +530,13 @@ public class PulsarFunctionLocalRunTest {
                     .topic(sinkTopic).subscriptionName("sub2").subscribe();
         } else {
             producer = pulsarClient
-                    .newProducer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
+                    .newProducer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(KeyValueNestedGenericsFunction.Student.class)
+                            , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class))
                             , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class)))
                     .topic(sourceTopic).create();
             consumer = pulsarClient
-                    .newConsumer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(String.class), Schema.JSON(Integer.class))
+                    .newConsumer(KeyValueSchema.of(KeyValueSchema.of(Schema.JSON(KeyValueNestedGenericsFunction.Student.class)
+                            , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class))
                             , Schema.AVRO(KeyValueNestedGenericsFunction.Student.class)))
                     .topic(sinkTopic).subscriptionName("sub3").subscribe();
             //Customize the schema type
@@ -598,9 +600,13 @@ public class PulsarFunctionLocalRunTest {
             if ("org.apache.pulsar.functions.worker.KeyValueNestedGenericsFunction".equals(classPath)) {
                 KeyValue keyValue = new KeyValue("1", new HashMap<>());
                 producer.newMessage().property(propertyKey, propertyValue).value(new KeyValue(String.valueOf(i), keyValue)).send();
-            } else {
+            } else if (classPath.contains("$KeyValueStudentFunction")) {
                 KeyValueNestedGenericsFunction.Student student = new KeyValueNestedGenericsFunction.Student(String.valueOf(i), String.valueOf(i + 1));
                 KeyValue keyValue = new KeyValue(new KeyValue(String.valueOf(i), i), student);
+                producer.newMessage().property(propertyKey, propertyValue).value(keyValue).send();
+            } else {
+                KeyValueNestedGenericsFunction.Student student = new KeyValueNestedGenericsFunction.Student(String.valueOf(i), String.valueOf(i + 1));
+                KeyValue keyValue = new KeyValue(new KeyValue(student, student), student);
                 producer.newMessage().property(propertyKey, propertyValue).value(keyValue).send();
             }
         }
@@ -619,12 +625,20 @@ public class PulsarFunctionLocalRunTest {
                 Message<KeyValue<String, KeyValue<String, Map>>> msg = consumer.receive(1, TimeUnit.SECONDS);
                 assertEquals(String.valueOf(i), msg.getValue().getKey());
                 assertEquals("1", msg.getValue().getValue().getKey());
-            } else {
+            } else if (classPath.contains("$KeyValueStudentFunction")) {
                 Message<KeyValue<KeyValue<String, Integer>, KeyValueNestedGenericsFunction.Student>> msg
                         = consumer.receive(1, TimeUnit.SECONDS);
                 KeyValueNestedGenericsFunction.Student student = msg.getValue().getValue();
                 assertEquals(msg.getValue().getKey().getKey(), String.valueOf(i));
                 assertEquals(msg.getValue().getKey().getValue().intValue(), i);
+                assertEquals(student.getName(), String.valueOf(i));
+                assertEquals(student.getAddress(), String.valueOf(i + 1));
+            } else {
+                Message<KeyValue<KeyValue<KeyValueNestedGenericsFunction.Student, KeyValueNestedGenericsFunction.Student>
+                        , KeyValueNestedGenericsFunction.Student>> msg = consumer.receive(1, TimeUnit.SECONDS);
+                KeyValueNestedGenericsFunction.Student student = msg.getValue().getValue();
+                assertEquals(msg.getValue().getKey().getKey().getName(), String.valueOf(i));
+                assertEquals(msg.getValue().getKey().getValue().getAddress(), String.valueOf(i + 1));
                 assertEquals(student.getName(), String.valueOf(i));
                 assertEquals(student.getAddress(), String.valueOf(i + 1));
             }

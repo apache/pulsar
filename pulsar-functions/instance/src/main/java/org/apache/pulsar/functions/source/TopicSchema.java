@@ -51,8 +51,6 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 @Slf4j
 public class TopicSchema {
 
-    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
-    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
@@ -242,8 +240,7 @@ public class TopicSchema {
         // The schemaTypeOrClassName can represent multiple thing, either a schema type, a schema class name or a ser-de
         // class name.
         String schemaTypeOrClassName = conf.getSchemaType();
-        if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)
-                || SchemaType.valueOf(schemaTypeOrClassName.toUpperCase()) == SchemaType.KEY_VALUE) {
+        if (StringUtils.isEmpty(schemaTypeOrClassName) || DEFAULT_SERDE.equals(schemaTypeOrClassName)) {
             // No preferred schema was provided, auto-discover schema or fallback to defaults
             return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz), kvSchemaGenericType, classLoader, conf);
         }
@@ -254,7 +251,9 @@ public class TopicSchema {
         } catch (IllegalArgumentException e) {
             // schemaType is not referring to builtin type
         }
-
+        if (schemaType == SchemaType.KEY_VALUE) {
+            return newSchemaInstance(clazz, getSchemaTypeOrDefault(topic, clazz), kvSchemaGenericType, classLoader, conf);
+        }
         if (schemaType != null) {
             // The parameter passed was indeed a valid builtin schema type
             return newSchemaInstance(clazz, schemaType, conf);

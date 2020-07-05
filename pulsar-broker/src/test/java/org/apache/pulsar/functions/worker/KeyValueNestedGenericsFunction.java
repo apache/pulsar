@@ -41,9 +41,9 @@ public class KeyValueNestedGenericsFunction implements Function<KeyValue<String,
         }
     }
 
-    public static class KeyValueStudentWithAvroFunction implements Function<KeyValue<KeyValue<String, Integer>, Student>, KeyValue<KeyValue<String, Integer>, Student>>{
+    public static class KeyValueStudentWithAvroFunction implements Function<KeyValue<KeyValue<Student, Student>, Student>, KeyValue<KeyValue<Student, Student>, Student>>{
         @Override
-        public KeyValue<KeyValue<String, Integer>, Student> process(KeyValue<KeyValue<String, Integer>, Student> input, Context context) throws Exception {
+        public KeyValue<KeyValue<Student, Student>, Student> process(KeyValue<KeyValue<Student, Student>, Student> input, Context context) throws Exception {
             return input;
         }
     }

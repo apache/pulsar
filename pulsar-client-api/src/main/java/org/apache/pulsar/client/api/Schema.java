@@ -409,4 +409,50 @@ public interface Schema<T> extends Cloneable{
         }
         throw new IllegalArgumentException("Schema class type is incorrect");
     }
+
+    static Schema getSchema(SchemaType schemaType, Class<?> ...pojo) {
+        switch (schemaType) {
+            case BYTES:
+                return Schema.BYTES;
+            case DATE:
+                return Schema.DATE;
+            case TIME:
+                return Schema.TIME;
+            case TIMESTAMP:
+                return Schema.TIMESTAMP;
+            case STRING:
+                return Schema.STRING;
+            case INT32:
+                return Schema.INT32;
+            case INT64:
+                return Schema.INT64;
+            case BOOLEAN:
+                return Schema.BOOL;
+            case FLOAT:
+                return Schema.FLOAT;
+            case DOUBLE:
+                return Schema.DOUBLE;
+            case INT8:
+                return Schema.INT8;
+            case INT16:
+                return Schema.INT16;
+            case AVRO:
+                if (pojo == null || pojo.length < 1) {
+                    throw new IllegalArgumentException("Schema avro param is incorrect");
+                }
+                return Schema.AVRO(pojo[0]);
+            case JSON:
+                if (pojo == null || pojo.length < 1) {
+                    throw new IllegalArgumentException("Schema JSON param is incorrect");
+                }
+                return Schema.JSON(pojo[0]);
+            case KEY_VALUE:
+                if (pojo == null || pojo.length < 2) {
+                    throw new IllegalArgumentException("Schema KEY_VALUE param is incorrect");
+                }
+                return Schema.KeyValue(pojo[0], pojo[1]);
+            default:
+                throw new IllegalArgumentException("Schema type type is incorrect");
+        }
+    }
 }
