@@ -45,7 +45,7 @@
       <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.version}</version>
       <exclusions>
-        <!-- bouncy-castle-bc-shaded that contains in pulsar-client-original already contains this-->
+        <!-- bouncy-castle-bc that contains in pulsar-client-original already contains this-->
         <exclusion>
           <groupId>org.bouncycastle</groupId>
           <artifactId>bcpkix-jdk15on</artifactId>
