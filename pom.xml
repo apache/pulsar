@@ -133,6 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-metadata</module>
+    <module>jclouds-shaded</module>
   </modules>
 
   <issueManagement>
@@ -1003,18 +1004,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>commons-collections</groupId>
         <artifactId>commons-collections</artifactId>
         <version>${commons.collections.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.jclouds</groupId>
-        <artifactId>jclouds-allblobstore</artifactId>
-        <version>${jclouds.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.jclouds</groupId>
-        <artifactId>jclouds-blobstore</artifactId>
-        <version>${jclouds.version}</version>
       </dependency>
 
       <!-- test dependencies -->
