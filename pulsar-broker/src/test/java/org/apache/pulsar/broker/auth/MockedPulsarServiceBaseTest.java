@@ -260,8 +260,12 @@ public abstract class MockedPulsarServiceBaseTest {
 
         setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
-        // enable authorization to initialize authorization service which is used by grant-permission
-        conf.setAuthorizationEnabled(true);
+
+        // TODO: authorization activation should be done in test setup, so grant-permission stuff should be changed
+        if (!conf.isMetricsSenderEnabled()) {
+            // enable authorization to initialize authorization service which is used by grant-permission
+            conf.setAuthorizationEnabled(true);
+        }
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
 
