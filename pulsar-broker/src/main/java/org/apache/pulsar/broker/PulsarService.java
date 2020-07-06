@@ -1161,7 +1161,7 @@ public class PulsarService implements AutoCloseable {
         // init bookkeeper metadata service uri
         String metadataServiceUri = null;
         try {
-            String zkServers = config.getZookeeperServers();
+            String zkServers = config.getConfigurationStoreServers();
             bkConf.setZkServers(zkServers);
             metadataServiceUri = bkConf.getMetadataServiceUri();
         } catch (ConfigurationException e) {
