@@ -7,6 +7,8 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
+import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -30,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -100,7 +103,12 @@ public class PulsarMetricsSender implements MetricsSender {
 
     @Override
     public void getAndSendMetrics() {
-        List<Metrics> metricsToSend = this.pulsar.getBrokerService().getTopicMetrics();
+        List<Metrics> metricsToSend = new ArrayList<>();
+
+        metricsToSend.addAll(new ManagedLedgerCacheMetrics(this.pulsar).generate());
+        metricsToSend.addAll(new ManagedLedgerMetrics(pulsar).generate());
+        metricsToSend.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());
+        metricsToSend.addAll(this.pulsar.getBrokerService().getTopicMetrics());
 
         metricsToSend.forEach(metric -> {
             try {
