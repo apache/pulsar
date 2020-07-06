@@ -70,15 +70,20 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("consumer-test")
                 .subscribe();
 
-        Message<Metrics> s = cMetrics.receive(10, TimeUnit.SECONDS);
+        System.out.println("\n\nCONSUMPTION\n\n");
 
+        while (true) {
+            Message<Metrics> msg = cMetrics.receive();
 
-        System.out.println("\n\nCONSUMPTION\n\n" +
-                "");
-        System.out.println(s.getPublishTime());
-        System.out.println(s.getEventTime());
-        System.out.println(s.getValue());
-        System.out.println(s.getValue().toString());
+            try {
+                System.out.println(msg.getPublishTime());
+                System.out.println(msg.getValue().toString());
+                System.out.println("\n");
+                cMetrics.acknowledge(msg);
+            } catch (Exception e) {
+                cMetrics.negativeAcknowledge(msg);
+            }
+        }
     }
 
 }
