@@ -7209,7 +7209,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/TopicStats"
+                            "$ref": "#/definitions/NonPersistentTopicStats"
                         }
                     },
                     "307": {
@@ -12512,28 +12512,10 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "directMemory": {
@@ -12545,8 +12527,26 @@
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -13037,13 +13037,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
+                "fileSystemDriver": {
+                    "type": "boolean"
+                },
                 "s3Driver": {
                     "type": "boolean"
                 },
                 "gcsDriver": {
-                    "type": "boolean"
-                },
-                "fileSystemDriver": {
                     "type": "boolean"
                 }
             }
