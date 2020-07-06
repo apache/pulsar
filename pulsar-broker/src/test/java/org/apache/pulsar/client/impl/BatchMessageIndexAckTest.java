@@ -181,4 +181,35 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         // broker also need to handle the available permits.
         Assert.assertEquals(received.size(), 100);
     }
+
+    @Test
+    public void testDoNotRecycleAckSetMultipleTimes() throws Exception  {
+        final String topic = "persistent://my-property/my-ns/testSafeAckSetRecycle";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .batchingMaxMessages(10)
+                .blockIfQueueFull(true).topic(topic)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync("Hello Pulsar".getBytes());
+        }
+
+        // Should not throw an exception.
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledgeCumulative(consumer.receive());
+            // make sure the group ack flushed.
+            Thread.sleep(2);
+        }
+
+        producer.close();
+        consumer.close();
+    }
 }
