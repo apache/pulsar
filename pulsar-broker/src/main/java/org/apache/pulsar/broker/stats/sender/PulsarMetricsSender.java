@@ -111,6 +111,11 @@ public class PulsarMetricsSender implements MetricsSender {
         });
     }
 
+    @Override
+    public void close() throws Exception {
+        this.metricsSenderExecutor.shutdown();
+    }
+
     static void createTenantIfAbsent(ZooKeeper configStoreZk, String tenant, String cluster) throws IOException,
             KeeperException, InterruptedException {
 
