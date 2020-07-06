@@ -658,7 +658,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testHashRangeConflict() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
-        final String topic = "testHashRangeConflict-" + UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/testHashRangeConflict-" + UUID.randomUUID().toString();
         final String sub = "test";
 
         Consumer<String> consumer1 = createFixedHashRangesConsumer(topic, sub, Range.of(0,99), Range.of(400, 65535));
@@ -666,6 +666,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         Consumer<String> consumer2 = createFixedHashRangesConsumer(topic, sub, Range.of(100,399));
         Assert.assertTrue(consumer2.isConnected());
+
+        PersistentStickyKeyDispatcherMultipleConsumers dispatcher = (PersistentStickyKeyDispatcherMultipleConsumers) pulsar
+                .getBrokerService().getTopicReference(topic).get().getSubscription(sub).getDispatcher();
+        Assert.assertEquals(dispatcher.getConsumers().size(), 2);
 
         try {
             createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
@@ -679,7 +683,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         } catch (PulsarClientException.ConsumerAssignException ignore) {
         }
 
+        Assert.assertEquals(dispatcher.getConsumers().size(), 2);
         consumer1.close();
+        Assert.assertEquals(dispatcher.getConsumers().size(), 1);
 
         try {
             createFixedHashRangesConsumer(topic, sub, Range.of(0, 65535));
@@ -705,9 +711,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<String> consumer4 = createFixedHashRangesConsumer(topic, sub, Range.of(50,99));
         Assert.assertTrue(consumer4.isConnected());
 
+        Assert.assertEquals(dispatcher.getConsumers().size(), 3);
         consumer2.close();
         consumer3.close();
         consumer4.close();
+        Assert.assertFalse(dispatcher.isConsumerConnected());
     }
 
     @Test
