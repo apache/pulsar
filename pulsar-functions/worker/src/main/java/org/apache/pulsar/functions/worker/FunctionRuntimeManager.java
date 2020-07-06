@@ -26,12 +26,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -46,18 +48,27 @@ import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsPro
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionInstanceId;
-import org.apache.pulsar.common.util.Reflections;
+
+import java.io.IOException;
+import java.net.URI;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-import java.net.URI;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -109,8 +120,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     @Getter
     final WorkerConfig workerConfig;
 
-    private FunctionAssignmentTailer functionAssignmentTailer;
-
     @Setter
     @Getter
     private FunctionActioner functionActioner;
@@ -127,10 +136,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     boolean isInitializePhase = false;
 
+    @Getter
+    private final CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+
     private final FunctionMetaDataManager functionMetaDataManager;
 
     private final ErrorNotifier errorNotifier;
-    
+
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
                                   FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
@@ -208,23 +220,31 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * Initializes the FunctionRuntimeManager.  Does the following:
      * 1. Consume all existing assignments to establish existing/latest set of assignments
      * 2. After current assignments are read, assignments belonging to this worker will be processed
+     *
+     * @return the message id of the message processed during init phase
      */
-    public void initialize() {
-        log.info("/** Initializing Runtime Manager **/");
+    public MessageId initialize() {
         try {
-            this.functionAssignmentTailer = new FunctionAssignmentTailer(
-                    this,
-                    this.getWorkerService().getClient().newReader(),
-                    this.workerConfig,
-                    this.errorNotifier);
+            Reader<byte[]> reader = WorkerUtils.createReader(
+                    workerService.getClient().newReader(),
+                    workerConfig.getWorkerId() + "-function-assignment-initialize",
+                    workerConfig.getFunctionAssignmentTopic(),
+                    MessageId.earliest);
+
             // start init phase
             this.isInitializePhase = true;
+            // keep track of the last message read
+            MessageId lastMessageRead = MessageId.earliest;
             // read all existing messages
-            while (this.functionAssignmentTailer.getReader().hasMessageAvailable()) {
-                this.functionAssignmentTailer.processAssignment(this.functionAssignmentTailer.getReader().readNext());
+            while (reader.hasMessageAvailable()) {
+                Message<byte[]> message = reader.readNext();
+                lastMessageRead = message.getMessageId();
+                processAssignmentMessage(message);
             }
             // init phase is done
             this.isInitializePhase = false;
+            // close reader
+            reader.close();
             // realize existing assignments
             Map<String, Assignment> assignmentMap = workerIdToAssignments.get(this.workerConfig.getWorkerId());
             if (assignmentMap != null) {
@@ -234,6 +254,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     }
                 }
             }
+            // complete future to indicate initialization is complete
+            isInitialized.complete(null);
+            return lastMessageRead;
         } catch (Exception e) {
             log.error("Failed to initialize function runtime manager: {}", e.getMessage(), e);
             throw new RuntimeException(e);
@@ -242,14 +265,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     /**
      * Starts the function runtime manager
-     */
-    public void start() {
-        log.info("/** Starting Function Runtime Manager **/");
-        this.functionAssignmentTailer.start();
-    }
-
-    /**
-     * Public methods
      */
 
     /**
@@ -611,18 +626,39 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStats.calculateOverall();
     }
 
+
+    public synchronized void processAssignmentMessage(Message<byte[]> msg) {
+
+        if(msg.getData()==null || (msg.getData().length==0)) {
+            log.info("Received assignment delete: {}", msg.getKey());
+            deleteAssignment(msg.getKey());
+        } else {
+            Assignment assignment;
+            try {
+                assignment = Assignment.parseFrom(msg.getData());
+            } catch (IOException e) {
+                log.error("[{}] Received bad assignment update at message {}", msg.getMessageId(), e);
+                throw new RuntimeException(e);
+            }
+            log.info("Received assignment update: {}", assignment);
+            processAssignment(assignment);
+        }
+    }
+
     /**
      * Process an assignment update from the assignment topic
      * @param newAssignment the assignment
      */
     public synchronized void processAssignment(Assignment newAssignment) {
 
-        Map<String, Assignment> existingAssignmentMap = new HashMap<>();
+        boolean exists = false;
         for (Map<String, Assignment> entry : this.workerIdToAssignments.values()) {
-            existingAssignmentMap.putAll(entry);
+            if (entry.containsKey(FunctionCommon.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
+                exists = true;
+            }
         }
 
-        if (existingAssignmentMap.containsKey(FunctionCommon.getFullyQualifiedInstanceId(newAssignment.getInstance()))) {
+        if (exists) {
             updateAssignment(newAssignment);
         } else {
             addAssignment(newAssignment);
@@ -835,7 +871,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
-        this.functionAssignmentTailer.close();
 
         stopAllOwnedFunctions();
 

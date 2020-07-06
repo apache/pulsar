@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.Codec.decode;
 
@@ -397,7 +396,7 @@ public abstract class AdminResource extends PulsarWebResource {
         if (!brokerUrl.equals(pulsar().getSafeWebServiceAddress())
                 && !brokerUrlTls.equals(pulsar().getWebServiceAddressTls())) {
             String[] parts = broker.split(":");
-            checkArgument(parts.length == 2, "Invalid broker url %s", broker);
+            checkArgument(parts.length == 2, String.format("Invalid broker url %s", broker));
             String host = parts[0];
             int port = Integer.parseInt(parts[1]);
 
@@ -842,6 +841,18 @@ public abstract class AdminResource extends PulsarWebResource {
             asyncResponse.resume(throwable);
         } else {
             asyncResponse.resume(new RestException(throwable));
+        }
+    }
+
+    protected void checkNotNull(Object o, String errorMessage) {
+        if (o == null) {
+            throw new RestException(Status.BAD_REQUEST, errorMessage);
+        }
+    }
+
+    protected void checkArgument(boolean b, String errorMessage) {
+        if (!b) {
+            throw new RestException(Status.BAD_REQUEST, errorMessage);
         }
     }
 }

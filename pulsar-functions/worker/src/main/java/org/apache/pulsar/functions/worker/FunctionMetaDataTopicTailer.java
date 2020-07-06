@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -39,21 +41,20 @@ public class FunctionMetaDataTopicTailer
     private final Thread readerThread;
     private volatile boolean running;
     private ErrorNotifier errorNotifier;
+    private volatile boolean stopOnNoMessageAvailable;
+    private CompletableFuture<Void> exitFuture = new CompletableFuture<>();
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
                                        ReaderBuilder readerBuilder, WorkerConfig workerConfig,
+                                       MessageId lastMessageSeen,
                                        ErrorNotifier errorNotifier)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
-        this.reader = readerBuilder
-                .topic(workerConfig.getFunctionMetadataTopic())
-                .startMessageId(MessageId.earliest)
-                .readerName(workerConfig.getWorkerId() + "-function-metadata-manager")
-                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-manager")
-                .create();
+        this.reader = createReader(workerConfig, readerBuilder, lastMessageSeen);
         readerThread = new Thread(this);
         readerThread.setName("function-metadata-tailer-thread");
         this.errorNotifier = errorNotifier;
+        stopOnNoMessageAvailable = false;
     }
 
     public void start() {
@@ -63,10 +64,22 @@ public class FunctionMetaDataTopicTailer
 
     @Override
     public void run() {
-        while(running) {
+        while (running) {
+            if (stopOnNoMessageAvailable) {
+                try {
+                    if (!reader.hasMessageAvailable()) {
+                        break;
+                    }
+                } catch (PulsarClientException e) {
+                    log.error("Received exception while testing hasMessageAvailable", e);
+                    errorNotifier.triggerError(e);
+                }
+            }
             try {
-                Message<byte[]> msg = reader.readNext();
-                processRequest(msg);
+                Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
+                if (msg != null) {
+                    this.functionMetaDataManager.processMetaDataTopicMessage(msg);
+                }
             } catch (Throwable th) {
                 if (running) {
                     log.error("Encountered error in metadata tailer", th);
@@ -77,10 +90,16 @@ public class FunctionMetaDataTopicTailer
                     if (!(th instanceof InterruptedException || th.getCause() instanceof InterruptedException)) {
                         log.warn("Encountered error when metadata tailer is not running", th);
                     }
-                    return;
                 }
             }
         }
+        log.info("metadata tailer thread exiting");
+        exitFuture.complete(null);
+    }
+
+    public CompletableFuture<Void> stopWhenNoMoreMessages() {
+        stopOnNoMessageAvailable = true;
+        return exitFuture;
     }
 
     @Override
@@ -88,23 +107,35 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopping function metadata tailer");
         try {
             running = false;
-            if (readerThread != null && readerThread.isAlive()) {
+            while (true) {
                 readerThread.interrupt();
+                try {
+                    readerThread.join(5000, 0);
+                } catch (InterruptedException e) {
+                    log.warn("Waiting for metadata tailer thread to stop is interrupted", e);
+                }
+
+                if (readerThread.isAlive()) {
+                    log.warn("metadata tailer thread is still alive.  Will attempt to interrupt again.");
+                } else {
+                    break;
+                }
             }
-            if (reader != null) {
-                reader.close();
-            }
+
+            reader.close();
         } catch (IOException e) {
             log.error("Failed to stop function metadata tailer", e);
         }
         log.info("Stopped function metadata tailer");
     }
 
-    public void processRequest(Message<byte[]> msg) throws IOException {
-        ServiceRequest serviceRequest = ServiceRequest.parseFrom(msg.getData());
-        if (log.isDebugEnabled()) {
-            log.debug("Received Service Request: {}", serviceRequest);
-        }
-        this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
+    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
+                                      MessageId startMessageId) throws PulsarClientException {
+        return readerBuilder
+                .topic(workerConfig.getFunctionMetadataTopic())
+                .startMessageId(startMessageId)
+                .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")
+                .subscriptionRolePrefix(workerConfig.getWorkerId() + "-function-metadata-tailer")
+                .create();
     }
 }
