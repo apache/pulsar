@@ -961,9 +961,6 @@ public class Commands {
 
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
         ack.recycle();
-        if (ackSet != null) {
-            ackSet.recycle();
-        }
         ackBuilder.recycle();
         messageIdDataBuilder.recycle();
         messageIdData.recycle();
