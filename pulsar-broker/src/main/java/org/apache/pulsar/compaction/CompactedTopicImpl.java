@@ -61,6 +61,10 @@ public class CompactedTopicImpl implements CompactedTopic {
         this.bk = bk;
     }
 
+    public PositionImpl getCompactionHorizon() {
+        return compactionHorizon;
+    }
+
     @Override
     public CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {

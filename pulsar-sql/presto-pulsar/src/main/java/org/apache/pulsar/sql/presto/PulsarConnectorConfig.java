@@ -74,6 +74,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private long managedLedgerCacheSizeMB = 0L;
     private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
+    private Boolean readCompact;
 
     // --- Nar extraction
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
@@ -359,6 +360,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.managed-ledger-num-scheduler-threads")
     public PulsarConnectorConfig setManagedLedgerNumSchedulerThreads(int managedLedgerNumSchedulerThreads) {
         this.managedLedgerNumSchedulerThreads = managedLedgerNumSchedulerThreads;
+        return this;
+    }
+
+    public Boolean getReadCompact() {
+        return readCompact;
+    }
+
+    @Config("pulsar.read-compact")
+    public PulsarConnectorConfig setReadCompact(boolean readCompact) {
+        this.readCompact = readCompact;
         return this;
     }
 

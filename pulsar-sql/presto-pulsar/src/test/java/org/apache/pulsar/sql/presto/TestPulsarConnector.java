@@ -685,6 +685,7 @@ public abstract class TestPulsarConnector {
         this.pulsarConnectorConfig.setMaxEntryReadBatchSize(1);
         this.pulsarConnectorConfig.setMaxSplitEntryQueueSize(10);
         this.pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
+        this.pulsarConnectorConfig.setReadCompact(true);
 
         Tenants tenants = mock(Tenants.class);
         doReturn(new LinkedList<>(topicNames.stream()

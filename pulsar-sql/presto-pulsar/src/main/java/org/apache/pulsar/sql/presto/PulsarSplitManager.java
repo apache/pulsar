@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
-import static java.util.Objects.requireNonNull;
-import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
-import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicate;
@@ -39,15 +33,8 @@ import io.prestosql.spi.connector.FixedSplitSource;
 import io.prestosql.spi.predicate.Domain;
 import io.prestosql.spi.predicate.Range;
 import io.prestosql.spi.predicate.TupleDomain;
-import java.io.IOException;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import javax.inject.Inject;
 import lombok.Data;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -63,6 +50,22 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.compaction.CompactedTopicImpl;
+
+import javax.inject.Inject;
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static java.util.Objects.requireNonNull;
+import static org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries;
+import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 
 /**
  * The class helping to manage splits.
@@ -255,12 +258,48 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               TupleDomain<ColumnHandle> tupleDomain,
                                               OffloadPolicies offloadPolicies)
             throws ManagedLedgerException, InterruptedException, IOException {
-
         ReadOnlyCursor readOnlyCursor = null;
+        PositionImpl initialStartPosition = PositionImpl.earliest;
+
+        int j = 0;
+        List<PulsarSplit> splits = new LinkedList<>();
         try {
             readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                     topicNamePersistenceEncoding,
-                    PositionImpl.earliest, new ManagedLedgerConfig());
+                    initialStartPosition, new ManagedLedgerConfig());
+
+            BookKeeper bk = managedLedgerFactory.getBookKeeper();
+            PositionImpl compactionHorizon = new CompactedTopicImpl(bk).getCompactionHorizon();
+            if (pulsarConnectorConfig.getReadCompact() && compactionHorizon != null) {
+                numSplits--;
+                com.google.common.collect.Range<PositionImpl> range =
+                        com.google.common.collect.Range.closed(initialStartPosition, compactionHorizon);
+                long numEntries = readOnlyCursor.getNumberOfEntries(range);
+                if (numEntries <= 0) {
+                    return Collections.EMPTY_LIST;
+                }
+
+                PulsarSplit pulsarSplit = new PulsarSplit(j++, this.connectorId,
+                        restoreNamespaceDelimiterIfNeeded(tableHandle.getSchemaName(), pulsarConnectorConfig),
+                        schemaInfo.getName(),
+                        tableName,
+                        numEntries,
+                        new String(schemaInfo.getSchema(),  "ISO8859-1"),
+                        schemaInfo.getType(),
+                        initialStartPosition.getEntryId(),
+                        compactionHorizon.getEntryId(),
+                        initialStartPosition.getLedgerId(),
+                        compactionHorizon.getLedgerId(),
+                        tupleDomain,
+                        objectMapper.writeValueAsString(schemaInfo.getProperties()),
+                        offloadPolicies);
+                splits.add(pulsarSplit);
+                initialStartPosition = compactionHorizon;
+                readOnlyCursor.close();
+                readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
+                        topicNamePersistenceEncoding,
+                        initialStartPosition, new ManagedLedgerConfig());
+            }
 
             long numEntries = readOnlyCursor.getNumberOfEntries();
             if (numEntries <= 0) {
@@ -274,7 +313,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                     topicNamePersistenceEncoding,
                     numEntries);
 
-            PositionImpl initialStartPosition;
             if (predicatePushdownInfo != null) {
                 numEntries = predicatePushdownInfo.getNumOfEntries();
                 initialStartPosition = predicatePushdownInfo.getStartPosition();
@@ -282,18 +320,17 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 initialStartPosition = (PositionImpl) readOnlyCursor.getReadPosition();
             }
 
-
             readOnlyCursor.close();
             readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                     topicNamePersistenceEncoding,
                     initialStartPosition, new ManagedLedgerConfig());
 
+            numSplits = Integer.max(numSplits, 1);
             long remainder = numEntries % numSplits;
 
             long avgEntriesPerSplit = numEntries / numSplits;
 
-            List<PulsarSplit> splits = new LinkedList<>();
-            for (int i = 0; i < numSplits; i++) {
+            for (int i = j; i < j + numSplits; i++) {
                 long entriesForSplit = (remainder > i) ? avgEntriesPerSplit + 1 : avgEntriesPerSplit;
                 PositionImpl startPosition = (PositionImpl) readOnlyCursor.getReadPosition();
                 readOnlyCursor.skipEntries(Math.toIntExact(entriesForSplit));
