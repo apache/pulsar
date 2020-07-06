@@ -8,6 +8,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.Metrics;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -64,14 +65,20 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
                 NamespaceName.get(conf.getMetricsSenderDestinationTenant(), "brokers"),
                 this.pulsar.getAdvertisedAddress());
 
-        Consumer<String> cMetrics = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<Metrics> cMetrics = pulsarClient.newConsumer(Schema.JSON(Metrics.class))
                 .topic(metricsTopic.toString())
                 .subscriptionName("consumer-test")
                 .subscribe();
 
-        Message<String> s = cMetrics.receive(10, TimeUnit.SECONDS);
+        Message<Metrics> s = cMetrics.receive(10, TimeUnit.SECONDS);
 
+
+        System.out.println("\n\nCONSUMPTION\n\n" +
+                "");
+        System.out.println(s.getPublishTime());
+        System.out.println(s.getEventTime());
         System.out.println(s.getValue());
+        System.out.println(s.getValue().toString());
     }
 
 }

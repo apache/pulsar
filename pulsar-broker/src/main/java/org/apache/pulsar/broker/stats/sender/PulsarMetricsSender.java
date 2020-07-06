@@ -11,6 +11,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -47,7 +48,7 @@ public class PulsarMetricsSender implements MetricsSender {
 
     private TopicName topicToSend;
 
-    private Producer<String> producer;
+    private Producer<Metrics> producer;
 
     public PulsarMetricsSender(PulsarService pulsar, MetricsSenderConfiguration conf) {
         this.pulsar = pulsar;
@@ -82,7 +83,7 @@ public class PulsarMetricsSender implements MetricsSender {
     @Override
     public void start() {
         try {
-            this.producer = this.pulsar.getClient().newProducer(Schema.STRING)
+            this.producer = this.pulsar.getClient().newProducer(Schema.JSON(Metrics.class))
                     .topic(this.topicToSend.toString())
                     .enableBatching(true)
                     .producerName("metrics-sender-" + this.pulsar.getAdvertisedAddress())
@@ -101,10 +102,10 @@ public class PulsarMetricsSender implements MetricsSender {
     public void getAndSendMetrics() {
         List<Metrics> metricsToSend = this.pulsar.getBrokerService().getTopicMetrics();
 
-        metricsToSend.forEach(metrics -> {
+        metricsToSend.forEach(metric -> {
             try {
-                log.info("Sending metrics [{}]", metrics.toString());
-                this.producer.send(metrics.toString());
+                log.info("Sending metrics [{}]", metric.toString());
+                this.producer.send(metric);
             } catch (PulsarClientException e) {
                 e.printStackTrace();
             }
