@@ -37,7 +37,7 @@ Pulsar module `bouncy-castle-bc`, which defined by `bouncy-castle/bc/pom.xml` co
     </dependency>
 ```
 
-By using this `bouncy-castle-bc` module, user can easily include and exclude BouncyCastle non-FIPS jars.
+By using this `bouncy-castle-bc` module, you can easily include and exclude BouncyCastle non-FIPS jars.
 
 ### Pulsar Client and Broker dependencies on BC-non-FIPS
 
@@ -116,5 +116,4 @@ For example:
 Besides this, module `bouncy-castle-bcfips` builds contain an output with format NAR, you can set java environment by `-DBcPath='nar/file/path'`, Pulsar will auto load it.
 
 For more example, you can reference module `bcfips-include-test` and `bcfips-nar-test`.
-
 
