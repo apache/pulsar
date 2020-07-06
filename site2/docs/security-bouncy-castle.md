@@ -37,8 +37,7 @@ Pulsar module `bouncy-castle-bc`, which defined by `bouncy-castle/bc/pom.xml` co
     </dependency>
 ```
 
-And based on Pulsar module `bouncy-castle-bc`, Pulsar shades a fat jar in module `bouncy-castle-bc-shaded` that contains needed classes of BouncyCastle non-FIPS jars.
-By using this `bouncy-castle-bc-shaded` module, user can easily include and exclude BouncyCastle non-FIPS jars.
+By using this `bouncy-castle-bc` module, you can easily include and exclude BouncyCastle non-FIPS jars.
 
 ### Pulsar Client and Broker dependencies on BC-non-FIPS
 
@@ -47,7 +46,7 @@ Pulsar Client(`pulsar-client-original`) module include BouncyCastle non-FIPS jar
 ```xml
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>bouncy-castle-bc-shaded</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
 ```
@@ -95,7 +94,7 @@ For example:
       <exclusions>
         <exclusion>
           <groupId>${project.groupId}</groupId>
-          <artifactId>bouncy-castle-bc-shaded</artifactId>
+          <artifactId>bouncy-castle-bc</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -117,5 +116,4 @@ For example:
 Besides this, module `bouncy-castle-bcfips` builds contain an output with format NAR, you can set java environment by `-DBcPath='nar/file/path'`, Pulsar will auto load it.
 
 For more example, you can reference module `bcfips-include-test` and `bcfips-nar-test`.
-
 
