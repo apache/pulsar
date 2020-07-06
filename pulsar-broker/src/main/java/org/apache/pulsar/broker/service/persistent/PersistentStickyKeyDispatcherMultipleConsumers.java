@@ -93,7 +93,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         super.addConsumer(consumer);
-        selector.addConsumer(consumer);
+        try {
+            selector.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            consumerSet.removeAll(consumer);
+            consumerList.remove(consumer);
+            throw e;
+        }
 
         // If this was the 1st consumer, or if all the messages are already acked, then we
         // don't need to do anything special
