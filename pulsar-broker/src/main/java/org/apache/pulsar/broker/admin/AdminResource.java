@@ -357,10 +357,9 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
-        String completeTopicName = tenant + "/" + namespace + "/" +  Codec.decode(encodedTopic);
         try {
             PartitionedTopicMetadata partitionedTopicMetadata =
-                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(completeTopicName)).get();
+                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
             if (partitionedTopicMetadata.partitions < 1) {
                 throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
             }
