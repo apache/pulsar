@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -925,6 +926,54 @@ public class ReplicatorTest extends ReplicatorTestBase {
         client1.close();
         client2.close();
     }
+
+    /**
+     * It validates that closing replicator producer will handle AlreadyClosedException and allow topic to close
+     * gracefully.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCleanReplicatorProducer() throws Exception {
+        log.info("--- Starting ReplicatorTest::testCleanReplicatorProducer ---");
+
+        final String cluster1 = pulsar1.getConfig().getClusterName();
+        final String cluster2 = pulsar2.getConfig().getClusterName();
+        final String namespace = "pulsar/global/ns-" + System.nanoTime();
+        final String topicName = "persistent://" + namespace + "/cleanup";
+
+        final String subscriberName = "sub1";
+        admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
+
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+        Consumer<byte[]> consumer2 = client2.newConsumer().topic(topicName).subscriptionName(subscriberName)
+                .subscribe();
+
+        assertEquals(pulsar1.getNamespaceService().getOwnedServiceUnits().size(), 2);
+        ((PersistentTopic) pulsar2.getBrokerService().getTopicIfExists(topicName).get().get()).producers
+                .forEach((name, prod) -> {
+                    prod.getCnx().getProducers().clear();
+                });
+
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster2));
+
+        MockedPulsarServiceBaseTest.retryStrategically(
+                (test) -> (pulsar1.getNamespaceService().getOwnedServiceUnits().size() == 1), 5, 100);
+        assertEquals(pulsar1.getNamespaceService().getOwnedServiceUnits().size(), 1);
+
+        consumer1.close();
+        consumer2.close();
+
+        client1.close();
+        client2.close();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }
