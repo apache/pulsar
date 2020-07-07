@@ -5,21 +5,20 @@ sidebar_label: Proxy support with SNI routing
 ---
 
 ## Pulsar Proxy with SNI routing
-
 A proxy server is an intermediary server that forwards requests from multiple clients to different servers across the Internet. The proxy server acts as a "traffic cop" in both forward and reverse proxy scenarios, and benefits your system such as load balancing, performance, security, auto-scaling, and so on.
 
 The proxy in Pulsar acts as a reverse proxy, and creates a gateway in front of brokers. Proxies such as Apache Traffic Server (ATS), HAProxy, Nginx, and Envoy are not supported in Pulsar. These proxy-servers support **SNI routing**. SNI routing is used to route traffic to a destination without terminating the SSL connection. Routing at layer 4 provides greater transparency because the outbound connection is determined by examining the destination address in the client TCP packets.
 
-Pulsar clients support [SNI routing protocol](https://github.com/apache/pulsar/wiki/PIP-60:-Support-Proxy-server-with-SNI-routing), so you can connect to brokers through the proxy. You learn how to set up the ATS proxy and the Pulsar client to enable SNI routing, and connect Pulsar client to the broker through the ATS proxy.
+Pulsar clients support [SNI routing protocol](https://github.com/apache/pulsar/wiki/PIP-60:-Support-Proxy-server-with-SNI-routing), so you can connect to brokers through the proxy. You learn how to set up the ATS proxy, enable SNI routing, and connect Pulsar client to the broker through the ATS proxy.
 
-### ATS-SNI Routing in Pulsar
+## ATS-SNI Routing in Pulsar
 To support [layer-4 SNI routing](https://docs.trafficserver.apache.org/en/latest/admin-guide/layer-4-routing.en.html) with ATS, the inbound connection must be a TLS connection. Pulsar client supports SNI routing protocol on TLS connection, so when Pulsar clients connect to broker through ATS proxy, Pulsar uses ATS as a reverse proxy.
 
 Pulsar supports SNI routing for geo-replication, so brokers can connect to brokers in other clusters through the ATS proxy.
 
-Therefore, this section explains how to set up and use ATS as a reverse proxy so pulsar clients can connect to brokers through the ATS proxy using SNI routing protocol on TLS connection. 
+This section explains how to set up and use ATS as a reverse proxy, so Pulsar clients can connect to brokers through the ATS proxy using SNI routing protocol on TLS connection. 
 
-#### Set up ATS Proxy for layer-4 SNI routing
+## Set up ATS Proxy for layer-4 SNI routing
 
 ![Pulsar client SNI](assets/pulsar-sni-client.png)
 
@@ -27,6 +26,7 @@ To support layer 4 SNI routing, you need to configure the `records.conf` and `ss
 
 The [records.config](https://docs.trafficserver.apache.org/en/latest/admin-guide/files/records.config.en.html) file is located in the `/usr/local/etc/trafficserver/` directory by default. The file lists configurable variables used by the Apache Traffic Server.
 
+To configure the `records.config` files, complete the following steps.
 - Update TLS port (`http.server_ports`) on which proxy listens, and update proxy certs (`ssl.client.cert.path` and `ssl.client.cert.filename`) to secure TLS tunneling. 
 - Configure server ports (`http.connect_ports`) used for tunneling to the broker. If Pulsar brokers are listening on `4443` and `6651` ports, add the brokers service port in the `http.connect_ports` configuration.
 
@@ -71,8 +71,8 @@ server_config = {
 
 After you configure the `ssl_server_name.config` and `records.config` files, ATS-proxy server handles SNI routing and creates TCP tunnel between the client and the broker.
 
-#### Pulsar-client Configuration with SNI routing
-ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy and brokers first, configure the SNI routing protocol, and connect Pulsar clients to brokers through ATS proxy. Pulsar clients support SNI routing by connecting to the proxy, and sending the target broker URL to the SNI header. This process is processed internally. You only need to configure the following proxy configuration initially when you create a Pulsar client to use the SNI routing protocol.
+## Configure Pulsar-client with SNI routing
+ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy and brokers first, configure the SNI routing protocol, and then connect Pulsar clients to brokers through ATS proxy. Pulsar clients support SNI routing by connecting to the proxy, and sending the target broker URL to the SNI header. This process is processed internally. You only need to configure the following proxy configuration initially when you create a Pulsar client to use the SNI routing protocol.
 
 ```
 String brokerServiceUrl = “pulsar+ssl://pulsar-broker-vip:6651/”;
@@ -93,7 +93,7 @@ clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 PulsarClient pulsarClient = clientBuilder.build();
 ```
 
-#### Pulsar geo-replication with SNI routing
+## Pulsar geo-replication with SNI routing
 
 You can use ATS proxy for geo-replication. Pulsar brokers can connect to brokers in geo-replication by using SNI routing. To enable SNI routing for broker connection cross cluster, you need to configure SNI proxy URL to the cluster metadata. If you have configured SNI proxy URL in the cluster metadata, you can connect broker cross cluster through the proxy over SNI routing.
 
