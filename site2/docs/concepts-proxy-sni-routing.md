@@ -99,7 +99,7 @@ We can also use ATS proxy for geo-replication. The Pulsar broker can connect to 
 
 ![Pulsar client SNI](assets/pulsar-sni-geo.png)
 
-In this example, we have a pulsar cluster deployed into two separate regions, us-west and us-east. We have also configured ATS proxy in both the regions, and brokers in each region run behind this ATS proxy. Now, we configure the cluster metadata for both the clusters, so brokers in one cluster can use SNI routing and connect to brokers in other clusters through the ATS proxy.
+In this example, we have a Pulsar cluster deployed into two separate regions, us-west and us-east. We have also configured ATS proxy in both regions and brokers in each region run behind this ATS proxy. Now, we configure the cluster metadata for both the clusters, so brokers in one cluster can use SNI routing and connect to brokers in other clusters through the ATS proxy.
 
 (a) Configure the cluster metadata for us-east with us-east broker service URL and us-east ATS proxy URL with SNI proxy-protocol.
 
@@ -120,4 +120,3 @@ In this example, we have a pulsar cluster deployed into two separate regions, us
 --proxy-protocol SNI \
 --proxy-url pulsar+ssl://west-ats-proxy:443
 ```
-
