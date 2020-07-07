@@ -21,7 +21,7 @@ This section explains how to set up ATS proxy to enable layer 4 SNI routing whic
 
 ![Pulsar client SNI](assets/pulsar-sni-client.png)
 
-To  support SNI routing, you need to configure two files: `records.conf` and `ssl_server_name.conf`.
+To support SNI routing, you need to configure two files: `records.conf` and `ssl_server_name.conf`.
 
 
 - `records.conf`: 
