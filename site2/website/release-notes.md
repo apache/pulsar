@@ -1,6 +1,12 @@
 
 ## Apache Pulsar Release Notes
 
+### 2.7.0 &mdash; Not Yet Released <a id=“2.7.0”></a>
+
+##### Upgrade notes
+
+* [IO] If Function Authorization is enabled, users have to be given the source/sink entitlement to run them. See https://github.com/apache/pulsar/pull/7466
+
 ### 2.6.0 &mdash; 2020-06-17 <a id=“2.6.0”></a>
 
 #### Features
