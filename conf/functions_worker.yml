@@ -93,6 +93,8 @@ schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinSche
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000
 rescheduleTimeoutMs: 60000
+# frequency at which to check if cluster needs rebalancing (set to -1 to disable)
+rebalanceCheckFreqSec: -1
 initialBrokerReconnectMaxRetries: 60
 assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000

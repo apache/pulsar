@@ -257,6 +257,20 @@ public class WorkerService {
                         }
                     });
 
+            if (workerConfig.getRebalanceCheckFreqSec() > 0) {
+                clusterServiceCoordinator.addTask("rebalance-periodic-check",
+                        workerConfig.getRebalanceCheckFreqSec() * 1000,
+                        () -> {
+                            try {
+                                schedulerManager.rebalanceIfNotInprogress().get();
+                            } catch (SchedulerManager.RebalanceInProgressException e) {
+                                log.info("Scheduled for rebalance but rebalance is already in progress. Ignoring.");
+                            } catch (Exception e) {
+                                log.warn("Encountered error when running scheduled rebalance", e);
+                            }
+                        });
+            }
+
             log.info("/** Starting Cluster Service Coordinator **/");
             clusterServiceCoordinator.start();
 

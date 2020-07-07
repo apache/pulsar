@@ -29,6 +29,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
+import org.apache.pulsar.functions.worker.SchedulerManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 
@@ -217,9 +218,9 @@ public class WorkerImpl {
         }
 
         if (worker().getLeaderService().isLeader()) {
-            if (currentRebalanceFuture == null || currentRebalanceFuture.isDone()) {
-                currentRebalanceFuture = this.worker().getSchedulerManager().rebalance();
-            } else {
+            try {
+                worker().getSchedulerManager().rebalanceIfNotInprogress();
+            } catch (SchedulerManager.RebalanceInProgressException e) {
                 throw new RestException(Status.BAD_REQUEST, "Rebalance already in progress");
             }
         } else {
