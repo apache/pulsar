@@ -1553,8 +1553,18 @@ public abstract class ComponentImpl {
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,
                                     AuthenticationDataSource authenticationData) {
         try {
-            return worker().getAuthorizationService().allowFunctionOpsAsync(
-                    namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            switch (componentType) {
+                case SINK:
+                    return worker().getAuthorizationService().allowSinkOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                case SOURCE:
+                    return worker().getAuthorizationService().allowSourceOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                case FUNCTION:
+                default:
+                    return worker().getAuthorizationService().allowFunctionOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            }
         } catch (InterruptedException e) {
             log.warn("Time-out {} sec while checking function authorization on {} ", worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), namespaceName);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

@@ -142,6 +142,26 @@ public interface AuthorizationProvider extends Closeable {
                                                      AuthenticationDataSource authenticationData);
 
     /**
+     * Allow all source operations with in this namespace
+     * @param namespaceName The namespace that the sources operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                   AuthenticationDataSource authenticationData);
+
+    /**
+     * Allow all sink operations with in this namespace
+     * @param namespaceName The namespace that the sink operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                 AuthenticationDataSource authenticationData);
+
+    /**
      *
      * Grant authorization-action permission on a namespace to the given client
      *
