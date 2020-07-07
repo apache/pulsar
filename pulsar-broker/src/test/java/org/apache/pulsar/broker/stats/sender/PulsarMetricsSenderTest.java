@@ -65,7 +65,7 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
                 NamespaceName.get(conf.getMetricsSenderDestinationTenant(), "brokers"),
                 this.pulsar.getAdvertisedAddress());
 
-        Consumer<Metrics> cMetrics = pulsarClient.newConsumer(Schema.JSON(Metrics.class))
+        Consumer<PulsarMetrics> cMetrics = pulsarClient.newConsumer(Schema.JSON(PulsarMetrics.class))
                 .topic(metricsTopic.toString())
                 .subscriptionName("consumer-test")
                 .subscribe();
@@ -73,14 +73,19 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
         System.out.println("\n\nCONSUMPTION\n\n");
 
         while (true) {
-            Message<Metrics> msg = cMetrics.receive();
+            Message<PulsarMetrics> msg = cMetrics.receive();
 
             try {
                 System.out.println(msg.getPublishTime());
+                String yo = msg.getValue().toString();
+                System.out.println(msg.getValue().head);
+                System.out.println(msg.getValue().body);
                 System.out.println(msg.getValue().toString());
                 System.out.println("\n");
                 cMetrics.acknowledge(msg);
             } catch (Exception e) {
+                String o = e.toString();
+                e.printStackTrace();
                 cMetrics.negativeAcknowledge(msg);
             }
         }

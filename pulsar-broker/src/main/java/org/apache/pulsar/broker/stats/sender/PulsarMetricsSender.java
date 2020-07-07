@@ -2,6 +2,8 @@ package org.apache.pulsar.broker.stats.sender;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -9,6 +11,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -22,6 +25,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -32,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -51,7 +57,7 @@ public class PulsarMetricsSender implements MetricsSender {
 
     private TopicName topicToSend;
 
-    private Producer<Metrics> producer;
+    private Producer<PulsarMetrics> producer;
 
     public PulsarMetricsSender(PulsarService pulsar, MetricsSenderConfiguration conf) {
         this.pulsar = pulsar;
@@ -86,7 +92,7 @@ public class PulsarMetricsSender implements MetricsSender {
     @Override
     public void start() {
         try {
-            this.producer = this.pulsar.getClient().newProducer(Schema.JSON(Metrics.class))
+            this.producer = this.pulsar.getClient().newProducer(Schema.JSON(PulsarMetrics.class))
                     .topic(this.topicToSend.toString())
                     .enableBatching(true)
                     .producerName("metrics-sender-" + this.pulsar.getAdvertisedAddress())
@@ -95,29 +101,29 @@ public class PulsarMetricsSender implements MetricsSender {
             e.printStackTrace();
         }
 
+        //metricsToSend.addAll(new ManagedLedgerCacheMetrics(this.pulsar).generate());
+        //metricsToSend.addAll(new ManagedLedgerMetrics(pulsar).generate());
+        //metricsToSend.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());
+        //List<Metrics> yo = this.pulsar.getBrokerService().getTopicMetrics();
+        //metricsToSend.addAll(this.pulsar.getBrokerService().getTopicMetrics());
+
+        final int initialDelay = 1;
         final int interval = this.conf.intervalInSeconds;
         log.info("Scheduling a thread to send metrics after [{}] seconds in background", interval);
-        this.metricsSenderExecutor.scheduleAtFixedRate(safeRun(this::getAndSendMetrics), interval, interval, TimeUnit.SECONDS);
-        getAndSendMetrics();
+        this.metricsSenderExecutor.scheduleAtFixedRate(safeRun(this::generateAndSend), initialDelay, interval, TimeUnit.SECONDS);
+    }
+
+    private void generateAndSend() {
+        NamespaceStatsAggregator.generate(this.pulsar, true, true, this);
     }
 
     @Override
-    public void getAndSendMetrics() {
-        List<Metrics> metricsToSend = new ArrayList<>();
-
-        metricsToSend.addAll(new ManagedLedgerCacheMetrics(this.pulsar).generate());
-        metricsToSend.addAll(new ManagedLedgerMetrics(pulsar).generate());
-        metricsToSend.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());
-        metricsToSend.addAll(this.pulsar.getBrokerService().getTopicMetrics());
-
-        metricsToSend.forEach(metric -> {
-            try {
-                log.info("Sending metrics [{}]", metric.toString());
-                this.producer.send(metric);
-            } catch (PulsarClientException e) {
-                e.printStackTrace();
-            }
-        });
+    public void send(PulsarMetrics pulsarMetrics) {
+        try {
+            this.producer.send(pulsarMetrics);
+        } catch (PulsarClientException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

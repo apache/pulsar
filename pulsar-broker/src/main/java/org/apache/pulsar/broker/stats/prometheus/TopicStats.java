@@ -22,6 +22,9 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.broker.stats.sender.MetricsSender;
+import org.apache.pulsar.broker.stats.sender.PulsarMetrics;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 class TopicStats {
@@ -240,6 +243,96 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
     }
 
+    static void printTopicStats(MetricsSender metricsSender, String cluster, String namespace, String topic,
+                                TopicStats stats) {
+        metric(metricsSender, cluster, namespace, topic, "pulsar_subscriptions_count", stats.subscriptionsCount);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_producers_count", stats.producersCount);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_consumers_count", stats.consumersCount);
+
+        metric(metricsSender, cluster, namespace, topic, "pulsar_rate_in", stats.rateIn);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_rate_out", stats.rateOut);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_throughput_in", stats.throughputIn);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_throughput_out", stats.throughputOut);
+
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
+
+        long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_1", latencyBuckets[1]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_5", latencyBuckets[2]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_10", latencyBuckets[3]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_20", latencyBuckets[4]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_50", latencyBuckets[5]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_100", latencyBuckets[6]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_200", latencyBuckets[7]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_le_1000", latencyBuckets[8]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_overflow", latencyBuckets[9]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_count",
+                stats.storageWriteLatencyBuckets.getCount());
+        metric(metricsSender, cluster, namespace, topic, "pulsar_storage_write_latency_sum",
+                stats.storageWriteLatencyBuckets.getSum());
+
+        long[] entrySizeBuckets = stats.entrySizeBuckets.getBuckets();
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_128", entrySizeBuckets[0]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_512", entrySizeBuckets[1]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_1_kb", entrySizeBuckets[2]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_2_kb", entrySizeBuckets[3]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_4_kb", entrySizeBuckets[4]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_16_kb", entrySizeBuckets[5]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_100_kb", entrySizeBuckets[6]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_1_mb", entrySizeBuckets[7]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_le_overflow", entrySizeBuckets[8]);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_count", stats.entrySizeBuckets.getCount());
+        metric(metricsSender, cluster, namespace, topic, "pulsar_entry_size_sum", stats.entrySizeBuckets.getSum());
+
+        stats.subscriptionStats.forEach((n, subsStats) -> {
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_back_log", subsStats.msgBacklog);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_back_log_no_delayed", subsStats.msgBacklogNoDelayed);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_delayed", subsStats.msgDelayed);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_redeliver", subsStats.msgRateRedeliver);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_unacked_messages", subsStats.unackedMessages);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_blocked_on_unacked_messages", subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_out", subsStats.msgRateOut);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_subscription_msg_throughput_out", subsStats.msgThroughputOut);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_out_bytes_total", subsStats.bytesOutCounter);
+            metric(metricsSender, cluster, namespace, topic, n, "pulsar_out_messages_total", subsStats.msgOutCounter);
+            subsStats.consumerStat.forEach((c, consumerStats) -> {
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_unacked_messages", consumerStats.unackedMessages);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_blocked_on_unacked_messages", consumerStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_available_permits", consumerStats.availablePermits);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_bytes_total", consumerStats.bytesOutCounter);
+                metric(metricsSender, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_messages_total", consumerStats.msgOutCounter);
+            });
+        });
+
+        if (!stats.replicationStats.isEmpty()) {
+            stats.replicationStats.forEach((remoteCluster, replStats) -> {
+                metricWithRemoteCluster(metricsSender, cluster, namespace, topic, "pulsar_replication_rate_in", remoteCluster,
+                        replStats.msgRateIn);
+                metricWithRemoteCluster(metricsSender, cluster, namespace, topic, "pulsar_replication_rate_out", remoteCluster,
+                        replStats.msgRateOut);
+                metricWithRemoteCluster(metricsSender, cluster, namespace, topic, "pulsar_replication_throughput_in",
+                        remoteCluster,
+                        replStats.msgThroughputIn);
+                metricWithRemoteCluster(metricsSender, cluster, namespace, topic, "pulsar_replication_throughput_out",
+                        remoteCluster,
+                        replStats.msgThroughputOut);
+                metricWithRemoteCluster(metricsSender, cluster, namespace, topic, "pulsar_replication_backlog", remoteCluster,
+                        replStats.replicationBacklog);
+            });
+        }
+
+        metric(metricsSender, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
+        metric(metricsSender, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
+    }
+
     static void metricType(SimpleTextOutputStream stream, String name) {
 
         if (!metricWithTypeDefinition.containsKey(name)) {
@@ -247,6 +340,14 @@ class TopicStats {
             stream.write("# TYPE ").write(name).write(" gauge\n");
         }
 
+    }
+
+    static String metricType(String name) {
+        if (!metricWithTypeDefinition.containsKey(name)) {
+            metricWithTypeDefinition.put(name, "gauge");
+            return "# TYPE " + name + " gauge\n";
+        }
+        return "";
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
@@ -257,24 +358,52 @@ class TopicStats {
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
-                               String subscription, String name, long value) {
+    private static void metric(MetricsSender metricsSender, String cluster, String namespace, String topic,
+                               String name, double value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\",topic=\"" + topic + "\"} " +
+                value + " " + System.currentTimeMillis();
+
+        metricsSender.send(new PulsarMetrics(head, body));
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
+                               String name, long value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
-                               String subscription, String name, double value) {
+    private static void metric(MetricsSender metricsSender, String cluster, String namespace, String topic, String subscription,
+                               String name, long value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace +
+                "\",topic=\"" + topic + "\",subscription=\"" + subscription + "\"} " +
+                value + " " + System.currentTimeMillis();
+        metricsSender.send(new PulsarMetrics(head, body));
+    }
+
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
+                               String name, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
-                               String subscription, String consumerName, long consumerId, String name, long value) {
+    private static void metric(MetricsSender metricsSender, String cluster, String namespace, String topic, String subscription,
+                               String name, double value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace +
+                "\",topic=\"" + topic + "\",subscription=\"" + subscription + "\"} " +
+                value + " " + System.currentTimeMillis();
+        metricsSender.send(new PulsarMetrics(head, body));
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
+                               String consumerName, long consumerId, String name, long value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
@@ -283,14 +412,34 @@ class TopicStats {
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
-    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
-                               String subscription, String consumerName, long consumerId, String name, double value) {
+    private static void metric(MetricsSender metricsSender, String cluster, String namespace, String topic, String subscription,
+                               String consumerName, long consumerId, String name, long value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\", namespace=\"" + namespace +
+                "\",topic=\"" + topic + "\",subscription=\"" + subscription +
+                "\",consumer_name=\"" + consumerName + "\",consumer_id=\"" + consumerId + "\"} " +
+                value + " " + System.currentTimeMillis();
+        metricsSender.send(new PulsarMetrics(head, body));
+    }
+
+    private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic, String subscription,
+                               String consumerName, long consumerId, String name, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace)
                 .write("\",topic=\"").write(topic).write("\",subscription=\"").write(subscription)
                 .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"")
                 .write(consumerId).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metric(MetricsSender metricsSender, String cluster, String namespace, String topic, String subscription,
+                               String consumerName, long consumerId, String name, double value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace +
+                "\",topic=\"" + topic + "\",subscription=\"" + subscription +
+                "\",consumer_name=\"" + consumerName + "\",consumer_id=\"" + consumerId + "\"} " +
+                value + " " + System.currentTimeMillis();
+        metricsSender.send(new PulsarMetrics(head, body));
     }
 
     private static void metricWithRemoteCluster(SimpleTextOutputStream stream, String cluster, String namespace,
@@ -300,5 +449,15 @@ class TopicStats {
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
         stream.write("\",topic=\"").write(topic).write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+    }
+
+    private static void metricWithRemoteCluster(MetricsSender metricsSender, String cluster, String namespace,
+                                                String topic,
+                                                String name, String remoteCluster, double value) {
+        String head = metricType(name);
+        String body = name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace +
+                "\",topic=\"" + topic + "\",remote_cluster=\"" + remoteCluster + "\"} " +
+                value + " " + System.currentTimeMillis();
+        metricsSender.send(new PulsarMetrics(head, body));
     }
 }
