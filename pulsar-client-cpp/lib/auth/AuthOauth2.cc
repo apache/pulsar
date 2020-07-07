@@ -150,7 +150,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "POST");
 
     // set URL: issuerUrl
-    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_);
+    curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
@@ -159,6 +159,10 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     // New connection is made for each call
     curl_easy_setopt(handle, CURLOPT_FRESH_CONNECT, 1L);
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
+
+    curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
+    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     // fill in the request data
     boost::property_tree::ptree pt;
@@ -169,14 +173,15 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 
     std::stringstream ss;
     boost::property_tree::json_parser::write_json(ss, pt);
+    std::string ssString = ss.str();
 
-    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, ss.str());
+    curl_easy_setopt(handle, CURLOPT_POSTFIELDS, ssString.c_str());
 
     // Make get call to server
     res = curl_easy_perform(handle);
 
-    // Free header list
-    curl_slist_free_all(list);
+    LOG_DEBUG("issuerUrl_ " << issuerUrl_ << " clientid: " << clientId_ << " client_secret " << clientSecret_
+                            << " audience " << audience_ << " ssstring " << ssString);
 
     switch (res) {
         case CURLE_OK:
@@ -190,8 +195,8 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                 try {
                     boost::property_tree::read_json(stream, root);
                 } catch (boost::property_tree::json_parser_error& e) {
-                    LOG_ERROR("Failed to parse json of Oauth2 response: " << e.what() << "\nInput Json = "
-                                                                          << responseData);
+                    LOG_ERROR("Failed to parse json of Oauth2 response: "
+                              << e.what() << "\nInput Json = " << responseData << " passedin: " << ssString);
                     break;
                 }
 
@@ -202,13 +207,16 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
                                            << " expires_in: " << resultPtr->getExpiresIn());
             } else {
                 LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". response Code "
-                                                           << response_code);
+                                                           << response_code << " passedin: " << ssString);
             }
             break;
         default:
-            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". Error Code " << res);
+            LOG_ERROR("Response failed for issuerurl " << issuerUrl_ << ". Error Code " << res
+                                                       << " passedin: " << ssString);
             break;
     }
+    // Free header list
+    curl_slist_free_all(list);
     curl_easy_cleanup(handle);
 
     return resultPtr;
