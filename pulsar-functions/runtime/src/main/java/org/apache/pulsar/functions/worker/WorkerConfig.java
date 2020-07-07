@@ -241,6 +241,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private long rescheduleTimeoutMs;
     @FieldContext(
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "The frequency to check whether the cluster needs rebalancing"
+    )
+    private long rebalanceCheckFreqSec;
+    @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for initial broker reconnects when function metadata manager"
             + " tries to create producer on metadata topics"
