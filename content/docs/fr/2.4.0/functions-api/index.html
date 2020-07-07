@@ -163,6 +163,7 @@
 <ul>
 <li>The name and ID of the Pulsar Function</li>
 <li>The message ID of each message. Each Pulsar message is automatically assigned an ID.</li>
+<li>The key, event time, properties and partition key of each message</li>
 <li>The name of the topic on which the message was sent</li>
 <li>The names of all input topics as well as the output topic associated with the function</li>
 <li>The name of the class used for <a href="#serialization-and-deserialization-serde">SerDe</a></li>
@@ -173,6 +174,8 @@
 <li>Access to arbitrary <a href="#user-config">user config</a> values supplied via the CLI</li>
 <li>An interface for recording <a href="/docs/fr/2.4.0/functions-metrics">metrics</a></li>
 <li>An interface for storing and retrieving state in <a href="/docs/fr/2.4.0/functions-overview#state-storage">state storage</a></li>
+<li>A function to publish new messages onto arbitrary topics.</li>
+<li>A function to acknowledge the message being processed (if auto-acknowledgement is disabled).</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="user-config"></a><a href="#user-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>User config</h3>
 <p>When you run or update Pulsar Functions created using the <a href="#available-apis">SDK</a>, you can pass arbitrary key/values to them via the command line with the <code>--userConfig</code> flag. Key/values must be specified as JSON. Here's an example of a function creation command that passes a user config key/value to a function:</p>
@@ -550,6 +553,9 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>get_message_id</code></td><td style="text-align:left">The message ID of the message being processed</td></tr>
+<tr><td style="text-align:left"><code>get_message_key</code></td><td style="text-align:left">The key of the message being processed</td></tr>
+<tr><td style="text-align:left"><code>get_message_eventtime</code></td><td style="text-align:left">The event time of the message being processed</td></tr>
+<tr><td style="text-align:left"><code>get_message_properties</code></td><td style="text-align:left">The properties of the message being processed</td></tr>
 <tr><td style="text-align:left"><code>get_current_message_topic_name</code></td><td style="text-align:left">The topic of the message being currently being processed</td></tr>
 <tr><td style="text-align:left"><code>get_function_tenant</code></td><td style="text-align:left">The tenant under which the current Pulsar Function runs under</td></tr>
 <tr><td style="text-align:left"><code>get_function_namespace</code></td><td style="text-align:left">The namespace under which the current Pulsar Function runs under</td></tr>
@@ -560,10 +566,17 @@ String wotd = context.getUserConfigValueOrDefault(<span class="hljs-string">"wor
 <tr><td style="text-align:left"><code>get_logger</code></td><td style="text-align:left">A logger object that can be used for <a href="#python-logging">logging</a></td></tr>
 <tr><td style="text-align:left"><code>get_user_config_value</code></td><td style="text-align:left">Returns the value of a <a href="#python-user-config">user-defined config</a> (or <code>None</code> if the config doesn't exist)</td></tr>
 <tr><td style="text-align:left"><code>get_user_config_map</code></td><td style="text-align:left">Returns the entire user-defined config as a dict</td></tr>
+<tr><td style="text-align:left"><code>get_secret</code></td><td style="text-align:left">The secret value associated with the name</td></tr>
+<tr><td style="text-align:left"><code>get_partition_key</code></td><td style="text-align:left">The partition key of the input message</td></tr>
 <tr><td style="text-align:left"><code>record_metric</code></td><td style="text-align:left">Records a per-key <a href="#python-metrics">metric</a></td></tr>
 <tr><td style="text-align:left"><code>publish</code></td><td style="text-align:left">Publishes a message to the specified Pulsar topic</td></tr>
 <tr><td style="text-align:left"><code>get_output_serde_class_name</code></td><td style="text-align:left">The name of the output <a href="#python-serde">SerDe</a> class</td></tr>
 <tr><td style="text-align:left"><code>ack</code></td><td style="text-align:left"><a href="/docs/fr/2.4.0/reference-terminology#acknowledgment-ack">Acks</a> the message being processed to Pulsar</td></tr>
+<tr><td style="text-align:left"><code>incr_counter</code></td><td style="text-align:left">Increase the counter of a given key in the managed state</td></tr>
+<tr><td style="text-align:left"><code>get_counter</code></td><td style="text-align:left">Get the counter of a given key in the managed state</td></tr>
+<tr><td style="text-align:left"><code>del_counter</code></td><td style="text-align:left">Delete the counter of a given key in the managed state</td></tr>
+<tr><td style="text-align:left"><code>put_state</code></td><td style="text-align:left">Update the value of a given key in the managed state</td></tr>
+<tr><td style="text-align:left"><code>get_state</code></td><td style="text-align:left">Get the value of a given key in the managed state</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="python-serde"></a><a href="#python-serde" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Python SerDe</h3>

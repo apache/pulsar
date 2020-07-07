@@ -12512,6 +12512,15 @@
                     "type": "number",
                     "format": "double"
                 },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -12538,15 +12547,6 @@
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
                 }
             }
         },
@@ -13037,13 +13037,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "fileSystemDriver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
                 "s3Driver": {
                     "type": "boolean"
                 },
-                "gcsDriver": {
+                "fileSystemDriver": {
                     "type": "boolean"
                 }
             }
@@ -13695,15 +13695,15 @@
         "ResourceDescription": {
             "type": "object",
             "properties": {
-                "usagePct": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "resourceUsage": {
                     "type": "object",
                     "additionalProperties": {
                         "$ref": "#/definitions/ResourceUsage"
                     }
+                },
+                "usagePct": {
+                    "type": "integer",
+                    "format": "int32"
                 }
             }
         },
