@@ -221,6 +221,22 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.functions);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sources);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+        return allowFunctionSourceSinkOpsAsync(namespaceName, role, authenticationData, AuthAction.sinks);
+    }
+
+    private CompletableFuture<Boolean> allowFunctionSourceSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                                       AuthenticationDataSource authenticationData,
+                                                                       AuthAction authAction) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
             configCache.policiesCache().getAsync(POLICY_ROOT + namespaceName.toString()).thenAccept(policies -> {
@@ -231,7 +247,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 } else {
                     Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
                     Set<AuthAction> namespaceActions = namespaceRoles.get(role);
-                    if (namespaceActions != null && namespaceActions.contains(AuthAction.functions)) {
+                    if (namespaceActions != null && namespaceActions.contains(authAction)) {
                         // The role has namespace level permission
                         permissionFuture.complete(true);
                         return;
@@ -239,7 +255,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
 
                     // Using wildcard
                     if (conf.isAuthorizationAllowWildcardsMatching()) {
-                        if (checkWildcardPermission(role, AuthAction.functions, namespaceRoles)) {
+                        if (checkWildcardPermission(role, authAction, namespaceRoles)) {
                             // The role has namespace level permission by wildcard match
                             permissionFuture.complete(true);
                             return;
