@@ -208,6 +208,7 @@ public class MembershipManager implements AutoCloseable {
         // check unassigned
         Collection<Function.Instance> needSchedule = new LinkedList<>();
         Collection<Function.Assignment> needRemove = new LinkedList<>();
+        Map<String, Integer> numRemoved = new HashMap<>();
         for (Map.Entry<Function.Instance, Long> entry : this.unsignedFunctionDurations.entrySet()) {
             Function.Instance instance = entry.getKey();
             long unassignedDurationMs = entry.getValue();
@@ -217,6 +218,12 @@ public class MembershipManager implements AutoCloseable {
                 Function.Assignment assignment = assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
                 if (assignment != null) {
                     needRemove.add(assignment);
+
+                    Integer count = numRemoved.get(assignment.getWorkerId());
+                    if (count == null) {
+                        count = 0;
+                    }
+                    numRemoved.put(assignment.getWorkerId(),  count + 1);
                 }
                 triggerScheduler = true;
             }
@@ -225,7 +232,8 @@ public class MembershipManager implements AutoCloseable {
             functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
-            log.info("Functions that need scheduling/rescheduling: {}", needSchedule);
+            log.info("Failure check - Total number of instances that need to be scheduled/rescheduled: {} | Number of unassigned instances that need to be scheduled: {} | Number of instances on dead workers that need to be reassigned {}",
+                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
             schedulerManager.schedule();
         }
     }
