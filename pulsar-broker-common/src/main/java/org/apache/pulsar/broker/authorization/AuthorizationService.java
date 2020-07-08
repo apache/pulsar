@@ -331,6 +331,16 @@ public class AuthorizationService {
         return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
     }
 
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                          AuthenticationDataSource authenticationData) {
+        return provider.allowSourceOpsAsync(namespaceName, role, authenticationData);
+    }
+
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                        AuthenticationDataSource authenticationData) {
+        return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
+    }
+
     /**
      * Grant authorization-action permission on a tenant to the given client
      *
