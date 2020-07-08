@@ -279,6 +279,6 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private static long readLongFromFile(String path) throws IOException {
-        return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8));
+        return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8).trim());
     }
 }
