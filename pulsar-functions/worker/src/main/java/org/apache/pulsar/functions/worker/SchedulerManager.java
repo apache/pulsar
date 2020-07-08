@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.Builder;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +38,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
@@ -239,7 +244,8 @@ public class SchedulerManager implements AutoCloseable {
     
     @VisibleForTesting
     void invokeScheduler() {
-        
+        long startTime = System.nanoTime();
+
         Set<String> currentMembership = membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
 
@@ -248,11 +254,13 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager
                 .getCurrentAssignments();
 
+        // initialize stats collection
+        SchedulerStats schedulerStats = new SchedulerStats(workerIdToAssignments, currentMembership);
+
         //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
-            String workerId = workerIdToAssignmentEntry.getKey();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
 
             // remove instances that don't exist anymore
@@ -268,6 +276,8 @@ public class SchedulerManager implements AutoCloseable {
                     functionRuntimeManager.deleteAssignment(fullyQualifiedInstanceId);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
+                    // update stats
+                    schedulerStats.removedAssignment(assignment);
                 }
                 return deleted;
             });
@@ -288,6 +298,8 @@ public class SchedulerManager implements AutoCloseable {
                     functionRuntimeManager.processAssignment(newAssignment);
                     // update message id associated with current view of assignments map
                     lastMessageProduced = messageId;
+                    //update stats
+                    schedulerStats.updatedAssignment(newAssignment);
                 }
                 if (functionMap.isEmpty()) {
                     it.remove();
@@ -331,15 +343,25 @@ public class SchedulerManager implements AutoCloseable {
             functionRuntimeManager.processAssignment(assignment);
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
+            // update stats
+            schedulerStats.newAssignment(assignment);
         }
+
+        log.info("Schedule summary - execution time: {} sec | total unassigned: {} | stats: {}\n{}",
+                (System.nanoTime() - startTime) / Math.pow(10, 9),
+                unassignedInstances.getLeft().size(), schedulerStats.getSummary(), schedulerStats);
     }
 
     private void invokeRebalance() {
+        long startTime = System.nanoTime();
 
         Set<String> currentMembership = membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toSet());
 
         Map<String, Map<String, Assignment>> workerIdToAssignments = functionRuntimeManager.getCurrentAssignments();
+
+        // initialize stats collection
+        SchedulerStats schedulerStats = new SchedulerStats(workerIdToAssignments, currentMembership);
 
         // filter out assignments of workers that are not currently in the active membership
         List<Assignment> currentAssignments = workerIdToAssignments
@@ -368,8 +390,13 @@ public class SchedulerManager implements AutoCloseable {
             functionRuntimeManager.processAssignment(assignment);
             // update message id associated with current view of assignments map
             lastMessageProduced = messageId;
+            // update stats
+            schedulerStats.newAssignment(assignment);
         }
-        log.info("Rebalance - Total number of new assignments computed: {}", rebalancedAssignments.size());
+
+        log.info("Rebalance summary - execution time: {} sec | stats: {}\n{}",
+                (System.nanoTime() - startTime) / Math.pow(10, 9), schedulerStats.getSummary(), schedulerStats);
+
         rebalanceInProgess.set(false);
     }
 
@@ -525,5 +552,119 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public static class RebalanceInProgressException extends RuntimeException {
+    }
+
+    @Data
+    private static class SchedulerStats {
+
+        @Builder
+        @Data
+        private static class WorkerStats {
+            private int originalNumAssignments;
+            private int finalNumAssignments;
+            private int instancesAdded;
+            private int instancesRemoved;
+            private int instancesUpdated;
+            private boolean alive;
+        }
+
+        private Map<String, WorkerStats> workerStatsMap = new HashMap<>();
+
+        private Map<String, String> instanceToWorkerId = new HashMap<>();
+
+        public SchedulerStats(Map<String, Map<String, Assignment>> workerIdToAssignments, Set<String> workers) {
+
+            for(String workerId : workers) {
+                WorkerStats.WorkerStatsBuilder workerStats = WorkerStats.builder().alive(true);
+                Map<String, Assignment> assignmentMap = workerIdToAssignments.get(workerId);
+                if (assignmentMap != null) {
+                    workerStats.originalNumAssignments(assignmentMap.size());
+                    workerStats.finalNumAssignments(assignmentMap.size());
+
+                    for (String fullyQualifiedInstanceId : assignmentMap.keySet()) {
+                        instanceToWorkerId.put(fullyQualifiedInstanceId, workerId);
+                    }
+                } else {
+                    workerStats.originalNumAssignments(0);
+                    workerStats.finalNumAssignments(0);
+                }
+
+                workerStatsMap.put(workerId, workerStats.build());
+            }
+
+            // workers with assignments that are dead
+            for (Map.Entry<String, Map<String, Assignment>> entry : workerIdToAssignments.entrySet()) {
+                String workerId = entry.getKey();
+                Map<String, Assignment> assignmentMap = entry.getValue();
+                if (!workers.contains(workerId)) {
+                    WorkerStats workerStats = WorkerStats.builder()
+                            .alive(false)
+                            .originalNumAssignments(assignmentMap.size())
+                            .finalNumAssignments(assignmentMap.size())
+                            .build();
+                    workerStatsMap.put(workerId, workerStats);
+                }
+            }
+        }
+
+        public void removedAssignment(Assignment assignment) {
+            String workerId = assignment.getWorkerId();
+            WorkerStats stats = workerStatsMap.get(workerId);
+            Preconditions.checkNotNull(stats);
+
+            stats.instancesRemoved++;
+            stats.finalNumAssignments--;
+        }
+
+        public void newAssignment(Assignment assignment) {
+            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
+            String newWorkerId = assignment.getWorkerId();
+            String oldWorkerId = instanceToWorkerId.get(fullyQualifiedInstanceId);
+            if (oldWorkerId != null) {
+                WorkerStats oldWorkerStats = workerStatsMap.get(oldWorkerId);
+                Preconditions.checkNotNull(oldWorkerStats);
+
+                oldWorkerStats.instancesRemoved++;
+                oldWorkerStats.finalNumAssignments--;
+            }
+
+            WorkerStats newWorkerStats = workerStatsMap.get(newWorkerId);
+            Preconditions.checkNotNull(newWorkerStats);
+
+            newWorkerStats.instancesAdded++;
+            newWorkerStats.finalNumAssignments++;
+        }
+
+        public void updatedAssignment(Assignment assignment) {
+            String workerId = assignment.getWorkerId();
+            WorkerStats stats = workerStatsMap.get(workerId);
+            Preconditions.checkNotNull(stats);
+
+            stats.instancesUpdated++;
+        }
+
+        public String getSummary() {
+            int totalAdded = 0;
+            int totalUpdated = 0;
+            int totalRemoved = 0;
+
+            for (Map.Entry<String, WorkerStats> entry : workerStatsMap.entrySet()) {
+                WorkerStats workerStats = entry.getValue();
+                totalAdded += workerStats.instancesAdded;
+                totalUpdated += workerStats.instancesUpdated;
+                totalRemoved += workerStats.instancesRemoved;
+            }
+
+            return String.format("{\"Added\": %d, \"Updated\": %d, \"removed\": %d}", totalAdded, totalUpdated, totalRemoved);
+        }
+
+        @Override
+        public String toString() {
+            try {
+                return ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter().writeValueAsString(workerStatsMap);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }

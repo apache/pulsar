@@ -813,7 +813,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private void startFunctionInstance(Assignment assignment) {
-        log.info("infos: {}", functionRuntimeInfos.getAll());
         String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
         FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
 
