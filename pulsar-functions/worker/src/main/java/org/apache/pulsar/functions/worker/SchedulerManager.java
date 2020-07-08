@@ -554,7 +554,6 @@ public class SchedulerManager implements AutoCloseable {
     public static class RebalanceInProgressException extends RuntimeException {
     }
 
-    @Data
     private static class SchedulerStats {
 
         @Builder
