@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -761,13 +760,11 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
         super.disconnect(failIfHasBacklog).thenRun(() -> {
-            cleanAfterDisconnect(future);
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+            future.complete(null);
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-            if (t instanceof AlreadyClosedException) {
-                cleanAfterDisconnect(future);
-                return null;
-            } else if (t instanceof TopicBusyException == false) {
+            if (t instanceof TopicBusyException == false) {
                 log.error("[{}][{} -> {}] Failed to close dispatch rate limiter: {}", topicName, localCluster,
                         remoteCluster, ex.getMessage());
             }
@@ -776,11 +773,6 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         });
 
         return future;
-    }
-
-    private void cleanAfterDisconnect(CompletableFuture<Void> future) {
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-        future.complete(null);
     }
 
     @Override
