@@ -89,6 +89,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         }
 
         this.isCGroupsEnabled = isCGroupsEnabled;
+        calculateBrokerHostUsage();
     }
 
     @Override
@@ -116,8 +117,16 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         } else {
             double nicUsageTx = (totalNicUsageTx - lastTotalNicUsageTx) / elapsedSeconds;
             double nicUsageRx = (totalNicUsageRx - lastTotalNicUsageRx) / elapsedSeconds;
+
+            usage.setMemory(getMemUsage());
+            usage.setBandwidthIn(new ResourceUsage(nicUsageRx, totalNicLimit));
+            usage.setBandwidthOut(new ResourceUsage(nicUsageTx, totalNicLimit));
         }
 
+        lastTotalNicUsageTx = totalNicUsageTx;
+        lastTotalNicUsageRx = totalNicUsageRx;
+        lastCollection = System.currentTimeMillis();
+        this.usage = usage;
         usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
     }
 
