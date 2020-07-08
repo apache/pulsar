@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import com.google.common.base.Charsets;
 import com.sun.management.OperatingSystemMXBean;
 
 import java.io.IOException;
@@ -59,6 +60,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private final boolean isCGroupsEnabled;
 
     private static final String CGROUPS_CPU_USAGE_PATH = "/sys/fs/cgroup/cpu/cpuacct.usage";
+    private static final String CGROUPS_CPU_LIMIT_QUOTA_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us";
+    private static final String CGROUPS_CPU_LIMIT_PERIOD_PATH = "/sys/fs/cgroup/cpu/cpu.cfs_period_us";
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
@@ -119,6 +122,20 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuLimit() {
+        if (isCGroupsEnabled) {
+            try {
+                long quota = readLongFromFile(CGROUPS_CPU_LIMIT_QUOTA_PATH);
+                long period = readLongFromFile(CGROUPS_CPU_LIMIT_PERIOD_PATH);
+                if (quota > 0) {
+                    return 100.0 * quota / period;
+                }
+            } catch (IOException e) {
+                log.warn("Failed to read CPU quotas from cgroups", e);
+                // Fallback to availableProcessors
+            }
+        }
+
+        // Fallback to JVM reported CPU quota
         return 100 * Runtime.getRuntime().availableProcessors();
     }
 
@@ -162,8 +179,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        try (Stream<String> stream = Files.lines(Paths.get(CGROUPS_CPU_USAGE_PATH))) {
-            long usage = Long.parseLong(stream.findFirst().get());
+        try {
+            long usage = readLongFromFile(CGROUPS_CPU_USAGE_PATH);
             double currentUsage = usage - lastCpuUsage;
             lastCpuUsage = usage;
 
@@ -250,5 +267,9 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 return 0d;
             }
         }).sum() * 8 / 1024;
+    }
+
+    private static long readLongFromFile(String path) throws IOException {
+        return Long.parseLong(new String(Files.readAllBytes(Paths.get(path)), Charsets.UTF_8));
     }
 }
