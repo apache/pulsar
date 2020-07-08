@@ -1964,7 +1964,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         long elapsedMs = clock.millis() - offload.getTimestamp();
 
         if (config.getLedgerOffloader() != null && config.getLedgerOffloader() != NullLedgerOffloader.INSTANCE
-                && config.getLedgerOffloader().getOffloadPolicies() != null) {
+                && config.getLedgerOffloader().getOffloadPolicies() != null
+                && config.getLedgerOffloader().getOffloadPolicies()
+                    .getManagedLedgerOffloadDeletionLagInMillis() != null) {
             return offload.getComplete() && !offload.getBookkeeperDeleted()
                     && elapsedMs > config.getLedgerOffloader()
                     .getOffloadPolicies().getManagedLedgerOffloadDeletionLagInMillis();
