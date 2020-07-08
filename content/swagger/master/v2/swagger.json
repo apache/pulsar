@@ -3837,7 +3837,9 @@
                                 "enum": [
                                     "produce",
                                     "consume",
-                                    "functions"
+                                    "functions",
+                                    "sources",
+                                    "sinks"
                                 ]
                             }
                         }
@@ -7063,7 +7065,9 @@
                                 "enum": [
                                     "produce",
                                     "consume",
-                                    "functions"
+                                    "functions",
+                                    "sources",
+                                    "sinks"
                                 ]
                             }
                         }
@@ -7209,7 +7213,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -9726,7 +9730,9 @@
                                 "enum": [
                                     "produce",
                                     "consume",
-                                    "functions"
+                                    "functions",
+                                    "sources",
+                                    "sinks"
                                 ]
                             }
                         }
@@ -11849,7 +11855,9 @@
                             "enum": [
                                 "produce",
                                 "consume",
-                                "functions"
+                                "functions",
+                                "sources",
+                                "sinks"
                             ]
                         }
                     }
@@ -11866,7 +11874,9 @@
                                 "enum": [
                                     "produce",
                                     "consume",
-                                    "functions"
+                                    "functions",
+                                    "sources",
+                                    "sinks"
                                 ]
                             }
                         }
@@ -12518,27 +12528,24 @@
                 "overLoaded": {
                     "type": "boolean"
                 },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "msgThroughputIn": {
                     "type": "number",
@@ -12547,6 +12554,9 @@
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -13037,10 +13047,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "gcsDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
-                "s3Driver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
@@ -13695,15 +13705,15 @@
         "ResourceDescription": {
             "type": "object",
             "properties": {
+                "usagePct": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "resourceUsage": {
                     "type": "object",
                     "additionalProperties": {
                         "$ref": "#/definitions/ResourceUsage"
                     }
-                },
-                "usagePct": {
-                    "type": "integer",
-                    "format": "int32"
                 }
             }
         },
@@ -13738,11 +13748,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
