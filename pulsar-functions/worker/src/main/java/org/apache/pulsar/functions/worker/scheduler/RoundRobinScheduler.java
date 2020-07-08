@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import lombok.Builder;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.Instance;
 
@@ -41,9 +37,9 @@ public class RoundRobinScheduler implements IScheduler {
 
     @Override
     public List<Assignment> schedule(List<Instance> unassignedFunctionInstances,
-            List<Assignment> currentAssignments, Set<String> workers) {
+                                     List<Assignment> currentAssignments, Set<String> workers) {
 
-        Map<String, List<Assignment>> workerIdToAssignment = new HashMap<>();
+        Map<String, List<Instance>> workerIdToAssignment = new HashMap<>();
         List<Assignment> newAssignments = Lists.newArrayList();
 
         for (String workerId : workers) {
@@ -51,26 +47,26 @@ public class RoundRobinScheduler implements IScheduler {
         }
 
         for (Assignment existingAssignment : currentAssignments) {
-            workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment);
+            workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment.getInstance());
         }
 
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String workerId = findNextWorker(workerIdToAssignment);
             Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
                     .setWorkerId(workerId).build();
-            workerIdToAssignment.get(workerId).add(newAssignment);
+            workerIdToAssignment.get(workerId).add(newAssignment.getInstance());
             newAssignments.add(newAssignment);
         }
 
         return newAssignments;
     }
 
-    private String findNextWorker(Map<String, List<Assignment>> workerIdToAssignment) {
+    private String findNextWorker(Map<String, List<Instance>> workerIdToAssignment) {
         String targetWorkerId = null;
         int least = Integer.MAX_VALUE;
-        for (Map.Entry<String, List<Assignment>> entry : workerIdToAssignment.entrySet()) {
+        for (Map.Entry<String, List<Instance>> entry : workerIdToAssignment.entrySet()) {
             String workerId = entry.getKey();
-            List<Assignment> workerAssignments = entry.getValue();
+            List<Instance> workerAssignments = entry.getValue();
             if (workerAssignments.size() < least) {
                 targetWorkerId = workerId;
                 least = workerAssignments.size();
@@ -82,7 +78,7 @@ public class RoundRobinScheduler implements IScheduler {
     @Override
     public List<Assignment> rebalance(List<Assignment> currentAssignments, Set<String> workers) {
 
-        Map<String, Queue<Instance>> workerToAssignmentMap = new HashMap<>();
+        Map<String, List<Instance>> workerToAssignmentMap = new HashMap<>();
 
         workers.forEach(workerId -> workerToAssignmentMap.put(workerId, new LinkedList<>()));
 
@@ -90,14 +86,13 @@ public class RoundRobinScheduler implements IScheduler {
 
         List<Assignment> newAssignments = new LinkedList<>();
 
-         RebalanceStats rebalanceStats = new RebalanceStats(workerToAssignmentMap);
         int iterations = 0;
         while(true) {
             iterations++;
 
-            Map.Entry<String, Queue<Instance>> mostAssignmentsWorker = findWorkerWithMostAssignments(workerToAssignmentMap);
+            Map.Entry<String, List<Instance>> mostAssignmentsWorker = findWorkerWithMostAssignments(workerToAssignmentMap);
 
-            Map.Entry<String, Queue<Instance>> leastAssignmentsWorker = findWorkerWithLeastAssignments(workerToAssignmentMap);
+            Map.Entry<String, List<Instance>> leastAssignmentsWorker = findWorkerWithLeastAssignments(workerToAssignmentMap);
 
             if (mostAssignmentsWorker.getValue().size() == leastAssignmentsWorker.getValue().size()
                     || mostAssignmentsWorker.getValue().size() == leastAssignmentsWorker.getValue().size() + 1) {
@@ -107,12 +102,8 @@ public class RoundRobinScheduler implements IScheduler {
             String mostAssignmentsWorkerId = mostAssignmentsWorker.getKey();
             String leastAssignmentsWorkerId = leastAssignmentsWorker.getKey();
 
-            Queue<Instance> src = workerToAssignmentMap.get(mostAssignmentsWorkerId);
-            Queue<Instance> dest = workerToAssignmentMap.get(leastAssignmentsWorkerId);
-
-            // update stats
-            rebalanceStats.decrementInstance(mostAssignmentsWorkerId);
-            rebalanceStats.incrementInstance(leastAssignmentsWorkerId);
+            Queue<Instance> src = (Queue) workerToAssignmentMap.get(mostAssignmentsWorkerId);
+            Queue<Instance> dest = (Queue) workerToAssignmentMap.get(leastAssignmentsWorkerId);
 
             Instance instance = src.poll();
             Assignment newAssignment = Assignment.newBuilder()
@@ -124,70 +115,18 @@ public class RoundRobinScheduler implements IScheduler {
             dest.add(instance);
         }
 
-        log.info("Rebalance - iterations: {} stats: {}", iterations, rebalanceStats);
+        log.info("Rebalance - iterations: {}", iterations);
 
         return newAssignments;
     }
 
-    private Map.Entry<String, Queue<Instance>> findWorkerWithLeastAssignments(Map<String, Queue<Instance>> workerToAssignmentMap) {
+    private Map.Entry<String, List<Instance>> findWorkerWithLeastAssignments(Map<String, List<Instance>> workerToAssignmentMap) {
         return workerToAssignmentMap.entrySet().stream().min(Comparator.comparingInt(o -> o.getValue().size())).get();
 
     }
 
-    private Map.Entry<String, Queue<Instance>> findWorkerWithMostAssignments(Map<String, Queue<Instance>> workerToAssignmentMap) {
+    private Map.Entry<String, List<Instance>> findWorkerWithMostAssignments(Map<String, List<Instance>> workerToAssignmentMap) {
         return workerToAssignmentMap.entrySet().stream().max(Comparator.comparingInt(o -> o.getValue().size())).get();
     }
 
-    @Data
-    private static class RebalanceStats {
-        @Override
-        public String toString() {
-            try {
-                return ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter().writeValueAsString(workerStatsMap);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Builder
-        @Data
-        private static class WorkerStats {
-            private int originalNumAssignments;
-            private int numAssignmentsAfterRebalance;
-            private int instancesAdded;
-            private int instancesRemoved;
-        }
-
-        private Map<String, WorkerStats> workerStatsMap = new HashMap<>();
-
-        public RebalanceStats(Map<String, Queue<Instance>> workerToAssignmentMap) {
-            for(Map.Entry<String, Queue<Instance>> entry : workerToAssignmentMap.entrySet()) {
-                WorkerStats workerStats = WorkerStats.builder()
-                        .originalNumAssignments(entry.getValue().size())
-                        .numAssignmentsAfterRebalance(entry.getValue().size())
-                        .build();
-                workerStatsMap.put(entry.getKey(), workerStats);
-            }
-        }
-
-        private void decrementInstance(String workerId) {
-            WorkerStats stats = workerStatsMap.get(workerId);
-            if (stats == null) {
-                throw new RuntimeException("Rebalance stats for worker " + workerId + " shouldn't be null");
-            }
-
-            stats.instancesRemoved++;
-            stats.numAssignmentsAfterRebalance--;
-        }
-
-        private void incrementInstance(String workerId) {
-            WorkerStats stats = workerStatsMap.get(workerId);
-            if (stats == null) {
-                throw new RuntimeException("Rebalance stats for worker " + workerId + " shouldn't be null");
-            }
-
-            stats.instancesAdded++;
-            stats.numAssignmentsAfterRebalance++;
-        }
-    }
 }
