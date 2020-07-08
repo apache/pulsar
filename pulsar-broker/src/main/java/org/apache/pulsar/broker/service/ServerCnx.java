@@ -1358,9 +1358,8 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
-            log.warn("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
-                    "Producer was not registered on the connection"));
+            log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
