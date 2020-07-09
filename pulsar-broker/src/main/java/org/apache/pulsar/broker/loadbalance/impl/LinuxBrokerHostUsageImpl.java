@@ -85,7 +85,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         try {
              isCGroupsEnabled = Files.exists(Paths.get(CGROUPS_CPU_USAGE_PATH));
         } catch (Exception e) {
-            log.warn("Failed to check cgroup CPU usage file", e.getMessage());
+            log.warn("Failed to check cgroup CPU usage file: {}", e.getMessage());
         }
 
         this.isCGroupsEnabled = isCGroupsEnabled;
@@ -195,7 +195,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
             return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);
         } catch (IOException e) {
-            log.error("Failed to read CPU usage from " + CGROUPS_CPU_USAGE_PATH, e);
+            log.error("Failed to read CPU usage from {}", CGROUPS_CPU_USAGE_PATH, e);
             return -1;
         }
     }
