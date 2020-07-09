@@ -19,10 +19,7 @@
 #include <cmath>
 #include <ctime>
 #include <vector>
-#include <set>
 #include <map>
-#include <chrono>
-#include <thread>
 
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
@@ -36,9 +33,6 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 static std::string lookupUrl = "pulsar://localhost:6650";
-static std::string adminUrl = "http://localhost:8080/";
-
-using StringSet = std::set<std::string>;
 
 class KeySharedConsumerTest : public ::testing::Test {
    protected:
