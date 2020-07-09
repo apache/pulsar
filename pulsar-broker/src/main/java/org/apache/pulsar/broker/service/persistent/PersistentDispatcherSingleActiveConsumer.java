@@ -237,7 +237,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         } else {
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
+            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
             filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
