@@ -75,8 +75,12 @@ class KeySharedConsumerTest : public ::testing::Test {
 
     static constexpr int NUMBER_OF_KEYS = 300;
 
-    static Message newIntMessage(int i, const std::string& key) {
-        return MessageBuilder().setPartitionKey(key).setContent(std::to_string(i)).build();
+    static Message newIntMessage(int i, const std::string& key, const char* orderingKey = nullptr) {
+        MessageBuilder builder;
+        if (orderingKey) {
+            builder.setOrderingKey(orderingKey);
+        }
+        return builder.setPartitionKey(key).setContent(std::to_string(i)).build();
     }
 
     static void sendCallback(Result result, const MessageId&) { ASSERT_EQ(result, ResultOk); }
@@ -168,6 +172,27 @@ TEST_F(KeySharedConsumerTest, testMultiTopics) {
         }
         ASSERT_EQ(ResultOk, producer.flush());
     }
+
+    receiveAndCheckDistribution();
+}
+
+TEST_F(KeySharedConsumerTest, testOrderingKeyPriority) {
+    const std::string topicName =
+        "KeySharedConsumerTest-ordering-key-priority" + std::to_string(time(nullptr));
+
+    addProducer(topicName);
+    for (int i = 0; i < 3; i++) {
+        addConsumer(topicName);
+    }
+
+    srand(time(nullptr));
+    for (int i = 0; i < 1000; i++) {
+        int randomInt = rand();
+        std::string key = std::to_string(randomInt % NUMBER_OF_KEYS);
+        std::string orderingKey = std::to_string((randomInt + 1) % NUMBER_OF_KEYS);
+        producers[0].sendAsync(newIntMessage(i, key, orderingKey.c_str()), sendCallback);
+    }
+    ASSERT_EQ(ResultOk, producers[0].flush());
 
     receiveAndCheckDistribution();
 }
