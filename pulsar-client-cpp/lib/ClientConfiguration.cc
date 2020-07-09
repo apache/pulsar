@@ -36,7 +36,7 @@ ClientConfiguration& ClientConfiguration::setAuth(const AuthenticationPtr& authe
     return *this;
 }
 
-const Authentication& ClientConfiguration::getAuth() const { return *impl_->authenticationPtr; }
+Authentication& ClientConfiguration::getAuth() const { return *impl_->authenticationPtr; }
 
 const AuthenticationPtr& ClientConfiguration::getAuthPtr() const { return impl_->authenticationPtr; }
 
