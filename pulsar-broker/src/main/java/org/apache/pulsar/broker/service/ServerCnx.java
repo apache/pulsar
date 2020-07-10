@@ -1476,6 +1476,7 @@ public class ServerCnx extends PulsarHandler {
                     .setPartition(partitionIndex).build();
 
             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+            return;
         }
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
