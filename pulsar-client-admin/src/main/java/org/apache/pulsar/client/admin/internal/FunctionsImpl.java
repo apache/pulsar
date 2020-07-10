@@ -357,6 +357,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
@@ -472,7 +476,11 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
-                    });
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });;
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -755,6 +763,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -844,24 +856,29 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             }
                         }).toCompletableFuture();
 
-            statusFuture.thenAccept(status -> {
-                try {
-                    os.close();
-                } catch (Exception e) {
-                    future.completeExceptionally(getApiException(e));
-                    return;
-                }
+            statusFuture
+                    .thenAccept(status -> {
+                        try {
+                            os.close();
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                            return;
+                        }
 
-                if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response
-                                    .status(status.getStatusCode())
-                                    .entity(status.getStatusText())
-                                    .build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+                        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(status.getStatusCode())
+                                            .entity(status.getStatusText())
+                                            .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -978,6 +995,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
@@ -1025,6 +1046,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
