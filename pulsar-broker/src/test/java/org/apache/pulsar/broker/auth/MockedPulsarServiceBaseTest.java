@@ -192,7 +192,7 @@ public abstract class MockedPulsarServiceBaseTest {
                 admin = null;
             }
             if (pulsarClient != null) {
-                pulsarClient.close();
+                pulsarClient.shutdown();
                 pulsarClient = null;
             }
             if (pulsar != null) {
