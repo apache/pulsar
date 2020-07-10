@@ -52,6 +52,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     final ExecutorService executor;
     final ZooKeeper zkc;
+    PulsarLedgerHandleFactory ledgerHandler;
+    public static interface PulsarLedgerHandleFactory {
+        PulsarMockLedgerHandle create(PulsarMockBookKeeper bk, long id, DigestType digest, byte[] passwd);
+    }
 
     @Override
     public ZooKeeper getZkHandle() {
@@ -93,7 +97,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
                 try {
                     long id = sequence.getAndIncrement();
                     log.info("Creating ledger {}", id);
-                    PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                PulsarMockLedgerHandle lh = ledgerHandler != null ? ledgerHandler.create(this, id, digestType, passwd)
+                        : new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {
@@ -116,7 +121,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         try {
             long id = sequence.getAndIncrement();
             log.info("Creating ledger {}", id);
-            PulsarMockLedgerHandle lh = new PulsarMockLedgerHandle(this, id, digestType, passwd);
+            PulsarMockLedgerHandle lh = ledgerHandler != null ? ledgerHandler.create(this, id, digestType, passwd)
+                    : new PulsarMockLedgerHandle(this, id, digestType, passwd);
             ledgers.put(id, lh);
             return lh;
         } catch (Throwable t) {
@@ -323,5 +329,12 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
     }
 
+    public PulsarLedgerHandleFactory getLedgerHandler() {
+        return ledgerHandler;
+    }
+
+    public void setLedgerHandler(PulsarLedgerHandleFactory ledgerHandler) {
+        this.ledgerHandler = ledgerHandler;
+    }
     private static final Logger log = LoggerFactory.getLogger(PulsarMockBookKeeper.class);
 }

@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 
 import javax.naming.AuthenticationException;
@@ -149,6 +150,8 @@ public class ServerCnx extends PulsarHandler {
     private final int maxPendingSendRequests;
     private final int resumeReadsThreshold;
     private int pendingSendRequest = 0;
+    private LongAdder brokerPendingMessages;
+    private int maxConcurrentBrokerPendingPublishMessage;
     private final String replicatorPrefix;
     private String clientVersion = null;
     private int nonPersistentPendingMessages = 0;
@@ -196,6 +199,11 @@ public class ServerCnx extends PulsarHandler {
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
+        this.maxConcurrentBrokerPendingPublishMessage = pulsar.getConfiguration().getMaxConcurrentPendingPublishMessages();
+        if (maxConcurrentBrokerPendingPublishMessage > 0) {
+            service.getServerConnections().add(this);
+        }
+        brokerPendingMessages = service.getBrokerPendingMessages();
     }
 
     @Override
@@ -1774,6 +1782,7 @@ public class ServerCnx extends PulsarHandler {
      * consumers from connection-map
      */
     protected void close() {
+        service.getServerConnections().remove(this);
         ctx.close();
     }
 
@@ -1822,7 +1831,7 @@ public class ServerCnx extends PulsarHandler {
         if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
-            ctx.channel().config().setAutoRead(false);
+            setAutoRead(false);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
 
         }
@@ -1830,19 +1839,29 @@ public class ServerCnx extends PulsarHandler {
             ctx.channel().config().setAutoRead(false);
             autoReadDisabledPublishBufferLimiting = true;
         }
+        if (maxConcurrentBrokerPendingPublishMessage > 0) {
+            brokerPendingMessages.increment();
+        }
     }
 
     public void completedSendOperation(boolean isNonPersistentTopic, int msgSize) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, -msgSize);
         if (--pendingSendRequest == resumeReadsThreshold) {
             // Resume reading from socket
-            ctx.channel().config().setAutoRead(true);
+            setAutoRead(true);
             // triggers channel read if autoRead couldn't trigger it
             ctx.read();
         }
         if (isNonPersistentTopic) {
             nonPersistentPendingMessages--;
         }
+        if (maxConcurrentBrokerPendingPublishMessage > 0) {
+            brokerPendingMessages.decrement();
+        }
+    }
+
+    public void setAutoRead(boolean autoRead) {
+        ctx.channel().config().setAutoRead(autoRead);
     }
 
     public void enableCnxAutoRead() {

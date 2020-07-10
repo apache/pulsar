@@ -602,6 +602,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Max concurrent non-persistent message can be processed per connection")
     private int maxConcurrentNonPersistentMessagePerConnection = 1000;
     @FieldContext(
+        dynamic = true,
+        category = CATEGORY_SERVER,
+        doc = "Max number of concurrent pending published messages to control backpressure across "
+                + "all topics on broker ((0 to disable it)"
+    )
+    private int maxConcurrentPendingPublishMessages = 0;
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of worker threads to serve non-persistent topic")
     private int numWorkerThreadsForNonPersistentTopic = Runtime.getRuntime().availableProcessors();
