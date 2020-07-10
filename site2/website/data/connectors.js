@@ -13,15 +13,27 @@ module.exports = [
     },
     {
         name: 'cassandra',
-        longName: 'Apache Cassandra sink',
-        type: 'Sink',
+        longName: 'Apache Cassandra source and sink',
+        type: 'Source and sink',
         link: 'https://cassandra.apache.org'
     },
     {
-        name: 'data-generator',
-        longName: 'Test Data Generator source',
+        name: 'kafka-connect-adaptor',
+        longName: 'Apache Kafka Connect Adaptor source and sink',
+        type: 'Source and sink',
+        link: 'http://kafka.apache.org/'
+    },
+    {
+        name: 'dynamodb',
+        longName: 'AWS DynamoDB source',
         type: 'Source',
-        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/data-generator'
+        link: 'https://aws.amazon.com/dynamodb/'
+    },
+    {
+        name: 'kinesis',
+        longName: 'AWS Kinesis source and sink',
+        type: 'Source and sink',
+        link: 'https://aws.amazon.com/kinesis/'
     },
     {
         name: 'debezium-mysql',
@@ -36,15 +48,9 @@ module.exports = [
         link: 'https://debezium.io/'
     },
     {
-        name: 'dynamodb',
-        longName: 'AWS DynamoDB source',
-        type: 'Source',
-        link: 'https://aws.amazon.com/dynamodb/'
-    },
-    {
         name: 'elastic-search',
-        longName: 'ElasticSearch sink',
-        type: 'Sink',
+        longName: 'ElasticSearch source and sink',
+        type: 'Source and sink',
         link: 'https://www.elastic.co/'
     },
     {
@@ -55,14 +61,8 @@ module.exports = [
     },
     {
         name: 'flume',
-        longName: 'Flume source',
-        type: 'Source',
-        link: 'https://flume.apache.org/'
-    },
-    {
-        name: 'flume',
-        longName: 'Flume sink',
-        type: 'Sink',
+        longName: 'Flume source and sink',
+        type: 'Source and sink',
         link: 'https://flume.apache.org/'
     },
     {
@@ -114,40 +114,10 @@ module.exports = [
         link: 'https://www.sqlite.org/'
     },
     {
-        name: 'kafka-connect-adaptor',
-        longName: 'Apache Kafka Connect Adaptor source',
-        type: 'Source',
-        link: 'http://kafka.apache.org/'
-    },
-    {
-        name: 'kafka-connect-adaptor',
-        longName: 'Apache Kafka Connect Adaptor sink',
-        type: 'Sink',
-        link: 'http://kafka.apache.org/'
-    },
-    {
         name: 'kafka',
-        longName: 'Kafka source',
-        type: 'Source',
+        longName: 'Kafka source and sink',
+        type: 'Source and sink',
         link: 'https://kafka.apache.org/'
-    },
-    {
-        name: 'kafka',
-        longName: 'Kafka sink',
-        type: 'Sink',
-        link: 'https://kafka.apache.org/'
-    },
-    {
-        name: 'kinesis',
-        longName: 'AWS Kinesis source',
-        type: 'Source',
-        link: 'https://aws.amazon.com/kinesis/'
-    },
-    {
-        name: 'kinesis',
-        longName: 'AWS Kinesis sink',
-        type: 'Sink',
-        link: 'https://aws.amazon.com/kinesis/'
     },
     {
         name: 'mongo',
@@ -157,20 +127,14 @@ module.exports = [
     },
     {
         name: 'netty',
-        longName: 'TCP/UDP with Netty source',
+        longName: 'Netty source',
         type: 'Source',
         link: 'https://netty.io/'
     },
     {
         name: 'rabbitmq',
-        longName: 'RabbitMQ source',
-        type: 'Source',
-        link: 'https://www.rabbitmq.com/'
-    },
-    {
-        name: 'rabbitmq',
-        longName: 'RabbitMQ sink',
-        type: 'Sink',
+        longName: 'RabbitMQ source and sink',
+        type: 'Source and sink',
         link: 'https://www.rabbitmq.com/'
     },
     {
@@ -184,6 +148,18 @@ module.exports = [
         longName: 'Solr sink',
         type: 'Sink',
         link: 'https://lucene.apache.org/solr/'
+    },
+    {
+        name: 'netty',
+        longName: 'TCP/UDP with Netty source',
+        type: 'Source',
+        link: 'https://netty.io/'
+    },
+    {
+        name: 'data-generator',
+        longName: 'Test Data Generator source',
+        type: 'Source',
+        link: 'https://github.com/apache/pulsar/tree/master/pulsar-io/data-generator'
     },
     {
         name: 'twitter',
