@@ -1493,6 +1493,7 @@ public class PulsarFunctionE2ETest {
 
     @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
+        functionsWorkerService.getLeaderService().waitLeaderInit();
 
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
