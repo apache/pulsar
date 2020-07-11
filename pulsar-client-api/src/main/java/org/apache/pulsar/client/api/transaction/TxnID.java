@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.impl.common;
+package org.apache.pulsar.client.api.transaction;
 
-import com.google.common.annotations.Beta;
 import java.io.Serializable;
 import lombok.Data;
 
 /**
  * An identifier for representing a transaction.
  */
-@Beta
 @Data
 public class TxnID implements Serializable {
 
