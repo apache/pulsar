@@ -543,16 +543,16 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - org.glassfish.hk2.external-aopalliance-repackaged-2.5.0-b42.jar
     - org.glassfish.hk2.external-javax.inject-2.5.0-b42.jar
  * Jersey
-    - org.glassfish.jersey.containers-jersey-container-servlet-2.27.jar
-    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.27.jar
-    - org.glassfish.jersey.core-jersey-client-2.27.jar
-    - org.glassfish.jersey.core-jersey-common-2.27.jar
-    - org.glassfish.jersey.core-jersey-server-2.27.jar
-    - org.glassfish.jersey.ext-jersey-entity-filtering-2.27.jar
-    - org.glassfish.jersey.media-jersey-media-jaxb-2.27.jar
-    - org.glassfish.jersey.media-jersey-media-json-jackson-2.27.jar
-    - org.glassfish.jersey.media-jersey-media-multipart-2.27.jar
-    - org.glassfish.jersey.inject-jersey-hk2-2.27.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-2.31.jar
+    - org.glassfish.jersey.containers-jersey-container-servlet-core-2.31.jar
+    - org.glassfish.jersey.core-jersey-client-2.31.jar
+    - org.glassfish.jersey.core-jersey-common-2.31.jar
+    - org.glassfish.jersey.core-jersey-server-2.31.jar
+    - org.glassfish.jersey.ext-jersey-entity-filtering-2.31.jar
+    - org.glassfish.jersey.media-jersey-media-jaxb-2.31.jar
+    - org.glassfish.jersey.media-jersey-media-json-jackson-2.31.jar
+    - org.glassfish.jersey.media-jersey-media-multipart-2.31.jar
+    - org.glassfish.jersey.inject-jersey-hk2-2.31.jar
  * Mimepull -- org.jvnet.mimepull-mimepull-1.9.6.jar
 
 Eclipse Distribution License 1.0 -- licenses/LICENSE-EDL-1.0.txt

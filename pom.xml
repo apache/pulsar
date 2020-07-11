@@ -161,7 +161,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.29.v20200521</jetty.version>
-    <jersey.version>2.27</jersey.version>
+    <jersey.version>2.31</jersey.version>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
