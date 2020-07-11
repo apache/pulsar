@@ -229,7 +229,7 @@ typedef std::shared_ptr<Oauth2Flow> FlowPtr;
 
 class CachedToken {
    public:
-    ~CachedToken();
+    virtual ~CachedToken();
     virtual bool isExpired() = 0;
     virtual AuthenticationDataPtr getAuthData() = 0;
 
