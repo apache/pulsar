@@ -312,14 +312,14 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.48.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.7.3.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.10.1.jar
-     - com.fasterxml.jackson.core-jackson-core-2.10.1.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.10.1.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.10.1.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.10.1.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.10.1.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.10.1.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.10.1.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.11.1.jar
+     - com.fasterxml.jackson.core-jackson-core-2.11.1.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.11.1.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.11.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.11.1.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.11.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.11.1.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.11.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
  * Gson -- com.google.code.gson-gson-2.8.2.jar
