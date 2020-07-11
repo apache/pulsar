@@ -480,7 +480,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .exceptionally(throwable -> {
                         future.completeExceptionally(getApiException(throwable));
                         return null;
-                    });;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }

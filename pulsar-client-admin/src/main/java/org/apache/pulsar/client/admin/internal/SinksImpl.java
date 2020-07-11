@@ -263,7 +263,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     .exceptionally(throwable -> {
                         future.completeExceptionally(getApiException(throwable));
                         return null;
-                    });;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
