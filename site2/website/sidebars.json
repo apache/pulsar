@@ -16,7 +16,8 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-tiered-storage"
+      "concepts-tiered-storage",
+      "concepts-proxy-sni-routing"
     ],
     "Pulsar Schema": [
       "schema-get-started",
