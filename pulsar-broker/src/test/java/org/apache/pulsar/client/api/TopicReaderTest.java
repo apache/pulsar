@@ -1416,7 +1416,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
+        final String topicName = "persistent://my-property/my-ns/testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic" + System.currentTimeMillis();
         final int numOfMessage = 10;
         final int halfMessages = numOfMessage / 2;
         admin.topics().createPartitionedTopic(topicName, 3);

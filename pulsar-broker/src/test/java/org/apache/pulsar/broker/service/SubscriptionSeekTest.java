@@ -175,9 +175,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
         try {
             consumer.seek(MessageId.latest);
-            fail("Should not have succeeded");
         } catch (PulsarClientException e) {
-            // Expected
+            fail("Should not have exception");
         }
     }
 
