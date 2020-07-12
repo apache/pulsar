@@ -293,6 +293,10 @@ public class PulsarFunctionE2ETest {
         });
         fileServerThread.start();
         latch.await(1, TimeUnit.SECONDS);
+
+        functionsWorkerService.getLeaderService().waitLeaderInit();
+
+
     }
 
     @AfterMethod
@@ -1493,7 +1497,6 @@ public class PulsarFunctionE2ETest {
 
     @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
-
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sinkTopic = "persistent://" + replNamespace + "/output";
