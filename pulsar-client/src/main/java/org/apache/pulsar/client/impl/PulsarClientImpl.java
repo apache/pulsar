@@ -483,7 +483,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
-            if (metadata.partitions > 0 && MultiTopicsReaderImpl.isIllegalMultiTopicsReaderMessageId(conf.getStartMessageId())) {
+            if (metadata.partitions > 0 && MultiTopicsConsumerImpl.isIllegalMultiTopicsMessageId(conf.getStartMessageId())) {
                 readerFuture.completeExceptionally(
                         new PulsarClientException("The partitioned topic startMessageId is illegal"));
                 return;
@@ -496,7 +496,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (metadata.partitions > 0) {
                 reader = new MultiTopicsReaderImpl<>(PulsarClientImpl.this,
                         conf, listenerThread, consumerSubscribedFuture, schema);
-                consumer = ((MultiTopicsReaderImpl<T>) reader).getConsumer();
+                consumer = ((MultiTopicsReaderImpl<T>) reader).getMultiTopicsConsumer();
             } else {
                 reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
                 consumer = ((ReaderImpl<T>) reader).getConsumer();
