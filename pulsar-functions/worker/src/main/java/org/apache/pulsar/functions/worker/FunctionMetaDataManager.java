@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import lombok.Getter;
 import org.apache.pulsar.client.api.*;
@@ -76,6 +77,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     @Getter
     private CompletableFuture<Void> isInitialized = new CompletableFuture<>();
+
+    @Setter
+    private LeaderService leaderService;
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    SchedulerManager schedulerManager,
@@ -201,11 +205,13 @@ public class FunctionMetaDataManager implements AutoCloseable {
      */
     public void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
             throws IllegalStateException, IllegalArgumentException {
+
+        // make sure we are fully initialized to be the leader.
+        // if not we should wait until we are
+        leaderService.waitLeaderInit();
+
         boolean needsScheduling;
         synchronized (this) {
-            if (exclusiveLeaderProducer == null) {
-                throw new IllegalStateException("Not the leader");
-            }
 
             if (delete) {
                 needsScheduling = proccessDeregister(functionMetaData);
@@ -221,8 +227,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 }
             } else {
                 Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                        .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
-                                : Request.ServiceRequest.ServiceRequestType.UPDATE)
+                        .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE : Request.ServiceRequest.ServiceRequestType.UPDATE)
                         .setFunctionMetaData(functionMetaData)
                         .setWorkerId(workerConfig.getWorkerId())
                         .setRequestId(UUID.randomUUID().toString())
@@ -241,7 +246,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 log.error("Could not write into Function Metadata topic", e);
                 throw new IllegalStateException("Internal Error updating function at the leader", e);
             }
-
         }
 
         if (needsScheduling) {

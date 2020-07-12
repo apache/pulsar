@@ -118,17 +118,11 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
+        functionMetaDataManager.setLeaderService(mock(LeaderService.class));
+
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
                 .setVersion(1)
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
-
-        // update when you are not the leader
-        try {
-            functionMetaDataManager.updateFunctionOnLeader(m1, false);
-            Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
-            Assert.assertEquals(e.getMessage(), "Not the leader");
-        }
 
         // become leader
         functionMetaDataManager.acquireLeadership();
@@ -176,18 +170,11 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         mockedScheduler,
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
+        functionMetaDataManager.setLeaderService(mock(LeaderService.class));
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
                 .setVersion(1)
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
                         .setNamespace("namespace-1").setTenant("tenant-1")).build();
-
-        // Try deleting when you are not the leader
-        try {
-            functionMetaDataManager.updateFunctionOnLeader(m1, true);
-            Assert.assertTrue(false);
-        } catch (IllegalStateException e) {
-            Assert.assertEquals(e.getMessage(), "Not the leader");
-        }
 
         // become leader
         functionMetaDataManager.acquireLeadership();

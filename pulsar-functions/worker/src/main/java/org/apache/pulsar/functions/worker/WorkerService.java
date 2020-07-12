@@ -208,6 +208,11 @@ public class WorkerService {
               functionMetaDataManager,
               errorNotifier);
 
+            // the metadata mananger needs to the leader service to make sure
+            // if worker is leader that it needs to be complete finished initializing to become leader
+            // before performing tasks like updateOnLeader
+            functionMetaDataManager.setLeaderService(leaderService);
+
             log.info("/** Start Leader Service **/");
             leaderService.start();
 

@@ -686,10 +686,33 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         // Redirect if we are not the leader
+        boolean shouldRedirect = false;
         if (!worker().getLeaderService().isLeader()) {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
-            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
-            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            // there might be a delay between when the leader service for this worker gets triggered "becomeActive"
+            // and when the broker is already reporting the worker is the leader
+            // it is pointless to redirect the request back to this worker
+            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                while (!worker().getLeaderService().isLeader()) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    workerInfo = worker().getMembershipManager().getLeader();
+                    // I am no longer the leader
+                    if (!workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                        shouldRedirect = true;
+                        break;
+                    }
+                }
+            } else {
+                shouldRedirect = true;
+            }
+            if (shouldRedirect) {
+                URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            }
         }
 
         // Its possible that we are not the leader anymore. That will be taken care of by FunctionMetaDataManager
