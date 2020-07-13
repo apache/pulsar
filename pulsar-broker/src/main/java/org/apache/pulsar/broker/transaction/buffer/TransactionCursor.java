@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * The transaction Cursor maintains the index of all transactions.
