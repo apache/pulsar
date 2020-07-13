@@ -1095,7 +1095,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             try {
                 client.newConsumer(Schema.STRING)
                         .subscriptionName("subName")
-                        .topics(com.sun.tools.javac.util.List.of(topic0, topic1))
+                        .topics(Lists.<String>newArrayList(topic0, topic1))
                         .receiverQueueSize(2)
                         .subscriptionType(SubscriptionType.Shared)
                         .ackTimeout(365, TimeUnit.DAYS)
