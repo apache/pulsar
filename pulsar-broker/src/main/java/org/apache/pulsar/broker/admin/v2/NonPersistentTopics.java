@@ -50,9 +50,11 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -118,7 +120,9 @@ public class NonPersistentTopics extends PersistentTopics {
                     + "not to use when there's heavy traffic.")
             @QueryParam("subscriptionBacklogSize") @DefaultValue("false") boolean subscriptionBacklogSize) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminOperationOnTopic(topicName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
+
         Topic topic = getTopicReference(topicName);
         return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, subscriptionBacklogSize);
     }
@@ -145,7 +149,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateAdminOperationOnTopic(topicName, authoritative);
+        validateTopicOwnership(topicName, authoritative);
+        validateTopicOperation(topicName, TopicOperation.GET_STATS);
         Topic topic = getTopicReference(topicName);
         try {
             boolean includeMetadata = metadata && hasSuperUserAccess();
@@ -188,7 +193,6 @@ public class NonPersistentTopics extends PersistentTopics {
         try {
             validateGlobalNamespaceOwnership(tenant, namespace);
             validateTopicName(tenant, namespace, encodedTopic);
-            validateAdminAccessForTenant(topicName.getTenant());
             internalCreatePartitionedTopic(asyncResponse, numPartitions);
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
@@ -252,7 +256,7 @@ public class NonPersistentTopics extends PersistentTopics {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
             }
-            validateAdminAccessForTenant(tenant);
+            validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
             policies = getNamespacePolicies(namespaceName);
 
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -327,7 +331,7 @@ public class NonPersistentTopics extends PersistentTopics {
             log.debug("[{}] list of topics on namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
         }
 
-        validateAdminAccessForTenant(tenant);
+        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
         Policies policies = getNamespacePolicies(namespaceName);
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -372,11 +376,6 @@ public class NonPersistentTopics extends PersistentTopics {
             }
             return null;
         });
-    }
-
-    protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {
-        validateAdminAccessForTenant(topicName.getTenant());
-        validateTopicOwnership(topicName, authoritative);
     }
 
     private Topic getTopicReference(TopicName topicName) {
