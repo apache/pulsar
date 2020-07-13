@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -488,8 +489,14 @@ public abstract class PulsarWebResource {
             String bundleRange) {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
+
+        LookupOptions options = LookupOptions.builder()
+                .authoritative(false)
+                .requestHttps(isRequestHttps())
+                .readOnly(true)
+                .loadTopicsInBundle(false).build();
         try {
-            return nsService.getWebServiceUrl(nsBundle, /*authoritative */ false, isRequestHttps(), /* read-only */ true).isPresent();
+            return nsService.getWebServiceUrl(nsBundle, options).isPresent();
         } catch (Exception e) {
             log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);
@@ -525,7 +532,12 @@ public abstract class PulsarWebResource {
             // - If authoritative is false and this broker is not leader, forward to leader
             // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
             // - If authoritative is true, own the namespace and continue
-            Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, authoritative, isRequestHttps(), readOnly);
+            LookupOptions options = LookupOptions.builder()
+                    .authoritative(authoritative)
+                    .requestHttps(isRequestHttps())
+                    .readOnly(readOnly)
+                    .loadTopicsInBundle(false).build();
+            Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
             // Ensure we get a url
             if (webUrl == null || !webUrl.isPresent()) {
                 log.warn("Unable to get web service url");
@@ -581,7 +593,12 @@ public abstract class PulsarWebResource {
 
         try {
             // per function name, this is trying to acquire the whole namespace ownership
-            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, authoritative, isRequestHttps(), false);
+            LookupOptions options = LookupOptions.builder()
+                    .authoritative(authoritative)
+                    .requestHttps(isRequestHttps())
+                    .readOnly(false)
+                    .loadTopicsInBundle(false).build();
+            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, options);
             // Ensure we get a url
             if (webUrl == null || !webUrl.isPresent()) {
                 log.info("Unable to get web service url");
