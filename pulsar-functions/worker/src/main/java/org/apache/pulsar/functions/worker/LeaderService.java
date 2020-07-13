@@ -95,14 +95,15 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 functionMetaDataManager.getIsInitialized().get();
                 functionRuntimeManager.getIsInitialized().get();
 
+                // make sure scheduler is initialized because this worker
+                // is the leader and may need to start computing and writing assignments
+                // also creates exclusive producer for assignment topic
+                schedulerManager.initialize();
+
                 // trigger read to the end of the topic and exit
                 // Since the leader can just update its in memory assignments cache directly
                 functionAssignmentTailer.triggerReadToTheEndAndExit().get();
                 functionAssignmentTailer.close();
-
-                // make sure scheduler is initialized because this worker
-                // is the leader and may need to start computing and writing assignments
-                schedulerManager.initialize();
 
                 // need to move function meta data manager into leader mode
                 functionMetaDataManager.acquireLeadership();
