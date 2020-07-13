@@ -196,10 +196,6 @@ public class SchedulerManager implements AutoCloseable {
             return CompletableFuture.completedFuture(null);
         }
 
-        // make sure leader is done initializing before starting to compute new assignments
-        // scheduler mananger will also be initialized during that process
-        leaderService.waitLeaderInit();
-
         try {
             return executorService.submit(() -> {
                 try {
