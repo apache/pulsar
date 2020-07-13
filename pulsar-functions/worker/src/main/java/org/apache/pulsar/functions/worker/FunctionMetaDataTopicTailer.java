@@ -75,12 +75,10 @@ public class FunctionMetaDataTopicTailer
                 }
             }
             try {
-                Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
-                if (msg != null) {
-                    this.functionMetaDataManager.processMetaDataTopicMessage(msg);
-                }
+                Message<byte[]> msg = reader.readNext();
+                this.functionMetaDataManager.processMetaDataTopicMessage(msg);
             } catch (Throwable th) {
-                if (running) {
+                if (running && !stopOnNoMessageAvailable) {
                     log.error("Encountered error in metadata tailer", th);
                     // trigger fatal error
                     running = false;
@@ -98,6 +96,7 @@ public class FunctionMetaDataTopicTailer
 
     public CompletableFuture<Void> stopWhenNoMoreMessages() {
         stopOnNoMessageAvailable = true;
+        readerThread.interrupt();
         return exitFuture;
     }
 
