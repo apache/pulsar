@@ -294,9 +294,9 @@ public class PulsarFunctionE2ETest {
         fileServerThread.start();
         latch.await(1, TimeUnit.SECONDS);
 
-        functionsWorkerService.getLeaderService().waitLeaderInit();
-
-
+        while (!functionsWorkerService.getLeaderService().isLeader()) {
+            Thread.sleep(1000);
+        }
     }
 
     @AfterMethod

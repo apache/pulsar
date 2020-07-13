@@ -199,49 +199,46 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * @throws IllegalStateException if we are not the leader
      * @throws IllegalArgumentException if the request is out of date.
      */
-    public void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
+    public synchronized void updateFunctionOnLeader(FunctionMetaData functionMetaData, boolean delete)
             throws IllegalStateException, IllegalArgumentException {
         boolean needsScheduling;
-        synchronized (this) {
-            if (exclusiveLeaderProducer == null) {
-                throw new IllegalStateException("Not the leader");
-            }
+        if (exclusiveLeaderProducer == null) {
+            throw new IllegalStateException("Not the leader");
+        }
 
+        if (delete) {
+            needsScheduling = proccessDeregister(functionMetaData);
+        } else {
+            needsScheduling = processUpdate(functionMetaData);
+        }
+        byte[] toWrite;
+        if (workerConfig.getUseCompactedMetadataTopic()) {
             if (delete) {
-                needsScheduling = proccessDeregister(functionMetaData);
+                toWrite = "".getBytes();
             } else {
-                needsScheduling = processUpdate(functionMetaData);
+                toWrite = functionMetaData.toByteArray();
             }
-            byte[] toWrite;
+        } else {
+            Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
+                    .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
+                            : Request.ServiceRequest.ServiceRequestType.UPDATE)
+                    .setFunctionMetaData(functionMetaData)
+                    .setWorkerId(workerConfig.getWorkerId())
+                    .setRequestId(UUID.randomUUID().toString())
+                    .build();
+            toWrite = serviceRequest.toByteArray();
+        }
+        try {
+            TypedMessageBuilder builder = exclusiveLeaderProducer.newMessage()
+                    .value(toWrite)
+                    .property(versionTag, Long.toString(functionMetaData.getVersion()));
             if (workerConfig.getUseCompactedMetadataTopic()) {
-                if (delete) {
-                    toWrite = "".getBytes();
-                } else {
-                    toWrite = functionMetaData.toByteArray();
-                }
-            } else {
-                Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                        .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
-                                : Request.ServiceRequest.ServiceRequestType.UPDATE)
-                        .setFunctionMetaData(functionMetaData)
-                        .setWorkerId(workerConfig.getWorkerId())
-                        .setRequestId(UUID.randomUUID().toString())
-                        .build();
-                toWrite = serviceRequest.toByteArray();
+                builder = builder.key(FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()));
             }
-            try {
-                TypedMessageBuilder builder = exclusiveLeaderProducer.newMessage()
-                        .value(toWrite)
-                        .property(versionTag, Long.toString(functionMetaData.getVersion()));
-                if (workerConfig.getUseCompactedMetadataTopic()) {
-                    builder = builder.key(FunctionCommon.getFullyQualifiedName(functionMetaData.getFunctionDetails()));
-                }
-                lastMessageSeen = builder.send();
-            } catch (Exception e) {
-                log.error("Could not write into Function Metadata topic", e);
-                throw new IllegalStateException("Internal Error updating function at the leader", e);
-            }
-
+            lastMessageSeen = builder.send();
+        } catch (Exception e) {
+            log.error("Could not write into Function Metadata topic", e);
+            throw new IllegalStateException("Internal Error updating function at the leader", e);
         }
 
         if (needsScheduling) {

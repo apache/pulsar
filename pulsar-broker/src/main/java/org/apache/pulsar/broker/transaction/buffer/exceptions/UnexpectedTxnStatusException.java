@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**

@@ -688,6 +688,10 @@ public class FunctionsImpl extends ComponentImpl {
         // Redirect if we are not the leader
         if (!worker().getLeaderService().isLeader()) {
             WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+                        "Leader not yet ready. Please retry again");
+            }
             URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }

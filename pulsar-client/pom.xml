@@ -46,6 +46,12 @@
     </dependency>
 
     <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-transaction-common</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>bouncy-castle-bc-shaded</artifactId>
       <version>${project.parent.version}</version>
