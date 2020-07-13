@@ -210,14 +210,20 @@ The Apache Software License, Version 2.0
     - jackson-annotations-2.8.11.jar
     - jackson-core-2.8.11.jar
     - jackson-databind-2.8.11.6.jar
-    - jackson-dataformat-smile-2.8.11.jar
     - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-jdk8-2.8.11.jar
     - jackson-datatype-jdk8-2.8.11.jar
     - jackson-datatype-joda-2.8.11.jar
     - jackson-datatype-jsr310-2.8.11.jar
     - jackson-dataformat-yaml-2.8.11.jar
+    - jackson-annotations-2.11.1.jar
+    - jackson-core-2.11.1.jar
+    - jackson-databind-2.11.1.6.jar
+    - jackson-dataformat-smile-2.11.1.jar
+    - jackson-datatype-guava-2.11.1.jar
+    - jackson-datatype-jdk8-2.11.1.jar
+    - jackson-datatype-joda-2.11.1.jar
+    - jackson-datatype-jsr310-2.11.1.jar
+    - jackson-dataformat-yaml-2.11.1.jar
  * Guava
     - guava-25.1-jre.jar
  * Google Guice
@@ -394,6 +400,7 @@ The Apache Software License, Version 2.0
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
     - snakeyaml-1.17.jar
+    - snakeyaml-1.26.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize

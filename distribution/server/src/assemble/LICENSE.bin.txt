@@ -431,7 +431,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-common-9.4.29.v20200521.jar
     - org.eclipse.jetty.websocket-websocket-server-9.4.29.v20200521.jar
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.29.v20200521.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.24.jar
+ * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
     - org.apache.httpcomponents-httpclient-4.5.5.jar
