@@ -141,6 +141,7 @@ public class SchedulerManager implements AutoCloseable {
                 .sleepBetweenInvocationsMs(10000)
                 .supplier(() -> {
                     try {
+                        // TODO set producer to be in exclusive mode
                         Producer<byte[]> producer = client.newProducer().topic(config.getFunctionAssignmentTopic())
                                 .enableBatching(false)
                                 .blockIfQueueFull(true)
@@ -179,13 +180,15 @@ public class SchedulerManager implements AutoCloseable {
     public synchronized void initialize() {
         if (!isRunning) {
             log.info("Initializing scheduler manager");
+            // creates exclusive producer for assignment topic
+            producer = createProducer(pulsarClient, workerConfig);
+
             executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>(5));
             executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
             scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
             scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
 
-            producer = createProducer(pulsarClient, workerConfig);
             isRunning = true;
             lastMessageProduced = null;
         }
