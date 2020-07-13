@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoun
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 /**

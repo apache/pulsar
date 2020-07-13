@@ -20,7 +20,8 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * A class represents an entry appended to a transaction.

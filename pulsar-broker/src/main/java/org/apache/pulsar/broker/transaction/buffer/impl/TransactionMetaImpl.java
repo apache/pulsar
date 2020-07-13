@@ -28,7 +28,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 public class TransactionMetaImpl implements TransactionMeta {
