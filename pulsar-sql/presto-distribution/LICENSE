@@ -549,10 +549,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
   * MIME Streaming Extension
     - mimepull-1.9.13.jar
 
-Eclipse Public License - v2.0 -- licenses/LICENSE-EPL-2.0.txt
- * Jakarta Annotations API -- jakarta.annotation-jakarta.annotation-api-1.3.5.jar
- * Jakarta RESTful Web Services -- jakarta.ws.rs-jakarta.ws.rs-api-2.1.6.jar
-
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
    - HdrHistogram-2.1.9.jar
