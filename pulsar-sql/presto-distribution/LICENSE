@@ -207,17 +207,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.8.11.jar
-    - jackson-core-2.8.11.jar
-    - jackson-databind-2.8.11.4.jar
-    - jackson-dataformat-smile-2.8.11.jar
-    - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-guava-2.8.11.jar
-    - jackson-datatype-jdk8-2.8.11.jar
-    - jackson-datatype-jdk8-2.8.11.jar
-    - jackson-datatype-joda-2.8.11.jar
-    - jackson-datatype-jsr310-2.8.11.jar
-    - jackson-dataformat-yaml-2.8.11.jar
+    - jackson-annotations-2.11.1.jar
+    - jackson-core-2.11.1.jar
+    - jackson-databind-2.11.1.jar
+    - jackson-dataformat-smile-2.11.1.jar
+    - jackson-datatype-guava-2.11.1.jar
+    - jackson-datatype-jdk8-2.11.1.jar
+    - jackson-datatype-joda-2.11.1.jar
+    - jackson-datatype-jsr310-2.11.1.jar
+    - jackson-dataformat-yaml-2.11.1.jar
+    - jackson-jaxrs-base-2.11.1.jar
+    - jackson-jaxrs-json-provider-2.11.1.jar
+    - jackson-module-jaxb-annotations-2.11.1.jar
+    - jackson-module-jsonSchema-2.11.1.jar
  * Guava
     - guava-25.1-jre.jar
  * Google Guice
@@ -393,7 +395,7 @@ The Apache Software License, Version 2.0
   * RocksDB JNI
     - rocksdbjni-5.13.3.jar
   * SnakeYAML
-    - snakeyaml-1.17.jar
+    - snakeyaml-1.26.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize
@@ -435,10 +437,6 @@ The Apache Software License, Version 2.0
   * GSON
     - gson-2.8.2.jar
   * Jackson
-    - jackson-jaxrs-base-2.8.11.jar
-    - jackson-jaxrs-json-provider-2.8.11.jar
-    - jackson-module-jaxb-annotations-2.8.11.jar
-    - jackson-module-jsonSchema-2.8.11.jar
     - jackson-module-parameter-names-2.10.0.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
@@ -515,6 +513,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - javax.annotation-api-1.3.2.jar
    - javax.activation-1.2.0.jar
    - javax.activation-api-1.2.0.jar
+   - jakarta.activation-api-1.2.1.jar
  * HK2 - Dependency Injection Kernel
    - hk2-api-2.5.0-b42.jar
    - hk2-locator-2.5.0-b42.jar
@@ -548,6 +547,8 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - logback-core-1.2.3.jar
   * MIME Streaming Extension
     - mimepull-1.9.6.jar
+  * XML Bind API
+    - jakarta.xml.bind-api-2.3.2.jar
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * HdrHistogram
