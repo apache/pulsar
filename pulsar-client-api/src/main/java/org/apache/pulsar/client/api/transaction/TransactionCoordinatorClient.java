@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
-
 /**
  * Transaction coordinator client.
  */
