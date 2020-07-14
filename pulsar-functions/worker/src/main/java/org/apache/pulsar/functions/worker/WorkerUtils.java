@@ -157,9 +157,17 @@ public final class WorkerUtils {
 
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
         String zookeeperServers = internalConf.getZookeeperServers();
-        URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
-        String ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
-        String ledgersRootPath = metadataServiceUri.getPath();
+        String ledgersRootPath;
+        String ledgersStoreServers;
+        // for BC purposes
+        if (internalConf.getBookkeeperMetadataServiceUri() == null) {
+            ledgersRootPath = internalConf.getLedgersRootPath();
+            ledgersStoreServers = zookeeperServers;
+        } else {
+            URI metadataServiceUri = URI.create(internalConf.getBookkeeperMetadataServiceUri());
+            ledgersStoreServers = metadataServiceUri.getAuthority().replace(";", ",");
+            ledgersRootPath = metadataServiceUri.getPath();
+        }
         BKDLConfig dlConfig = new BKDLConfig(ledgersStoreServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
         URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
