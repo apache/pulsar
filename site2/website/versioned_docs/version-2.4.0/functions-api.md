@@ -267,9 +267,13 @@ public interface Context {
     String getFunctionVersion();
     Logger getLogger();
     void incrCounter(String key, long amount);
+    void incrCounterAsync(String key, long amount);
     long getCounter(String key);
+    long getCounterAsync(String key);
     void putState(String key, ByteBuffer value);
+    void putStateAsync(String key, ByteBuffer value);
     ByteBuffer getState(String key);
+    ByteBuffer getStateAsync(String key);
     Map<String, Object> getUserConfigMap();
     Optional<Object> getUserConfigValue(String key);
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
