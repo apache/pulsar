@@ -53,6 +53,7 @@ public class PulsarStandalone implements AutoCloseable {
     PulsarAdmin admin;
     LocalBookkeeperEnsemble bkEnsemble;
     ServiceConfiguration config;
+    ServerConfiguration bkServerConfig;
     WorkerService fnWorkerService;
 
     public void setBroker(PulsarService broker) {
@@ -80,6 +81,10 @@ public class PulsarStandalone implements AutoCloseable {
     }
 
     public void setConfig(ServiceConfiguration config) { this.config = config; }
+
+    public void setBkServerConfig(ServerConfiguration bkServerConfig) {
+        this.bkServerConfig = bkServerConfig;
+    }
 
     public void setFnWorkerService(WorkerService fnWorkerService) {
         this.fnWorkerService = fnWorkerService;
@@ -135,6 +140,10 @@ public class PulsarStandalone implements AutoCloseable {
 
     public ServiceConfiguration getConfig() {
         return config;
+    }
+
+    public ServerConfiguration getBkServerConfig() {
+        return bkServerConfig;
     }
 
     public String getConfigFile() {
@@ -251,14 +260,18 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
-            ServerConfiguration bkServerConf = new ServerConfiguration();
-            bkServerConf.loadConf(new File(configFile).toURI().toURL());
+            if (bkServerConfig == null) {
+                // Load bookkeeper configuration file here if server configuration is not provided,
+                // e.g. by PulsarStandaloneBuilder
+                bkServerConfig = new ServerConfiguration();
+                bkServerConfig.loadConf(new File(configFile).toURI().toURL());
+            }
 
             // Start LocalBookKeeper
             bkEnsemble = new LocalBookkeeperEnsemble(
                     this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
                     this.getBkDir(), this.isWipeData(), "127.0.0.1");
-            bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
+            bkEnsemble.startStandalone(bkServerConfig, !this.isNoStreamStorage());
         }
 
         if (this.isNoBroker()) {

@@ -18,14 +18,25 @@
  */
 package org.apache.pulsar;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public final class PulsarStandaloneBuilder {
 
-    private PulsarStandalone pulsarStandalone;
+    private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneBuilder.class);
+
+    private final PulsarStandalone pulsarStandalone;
 
     private PulsarStandaloneBuilder() {
         pulsarStandalone = new PulsarStandalone();
@@ -37,8 +48,8 @@ public final class PulsarStandaloneBuilder {
         return new PulsarStandaloneBuilder();
     }
 
-    public PulsarStandaloneBuilder withConfig(ServiceConfiguration config) {
-        pulsarStandalone.setConfig(config);
+    public PulsarStandaloneBuilder withConfigFile(String configFile) {
+        pulsarStandalone.setConfigFile(configFile);
         return this;
     }
 
@@ -97,10 +108,31 @@ public final class PulsarStandaloneBuilder {
         return this;
     }
 
-    public PulsarStandalone build() {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setClusterName("standalone");
-        pulsarStandalone.setConfig(config);
+    public PulsarStandalone build()
+    {
+        // Change IOException and ConfigurationException into a RuntimeException, because if the
+        // config file isn't readable, there is nothing a caller can do, so don't bother with
+        // a checked exception that needs to be catched
+        try {
+            // By reading the configuration file here, the user can modify the configurations before
+            // calling PulsarStandalone.start()
+            ServerConfiguration bkServerConf = new ServerConfiguration();
+            bkServerConf.loadConf(new File(pulsarStandalone.getConfigFile()).toURI().toURL());
+            pulsarStandalone.setBkServerConfig(bkServerConf);
+
+            pulsarStandalone.setConfig(PulsarConfigurationLoader.create(
+                    new FileInputStream(pulsarStandalone.getConfigFile()), ServiceConfiguration.class));
+        }
+        catch (IOException | ConfigurationException e) {
+            // IllegalArgumentException seems appropriate here as the config file was used as an "argument"
+            // by using #withConfigFile
+            throw new IllegalArgumentException("Config file could not be read: " + pulsarStandalone.getConfigFile(), e);
+        }
+
+        if (pulsarStandalone.getConfig().getClusterName() == null) {
+            pulsarStandalone.getConfig().setClusterName("standalone");
+        }
+
         String zkServers = "127.0.0.1";
 
         if (pulsarStandalone.getAdvertisedAddress() != null) {
