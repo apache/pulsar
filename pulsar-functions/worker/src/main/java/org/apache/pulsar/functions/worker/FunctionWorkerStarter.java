@@ -63,15 +63,18 @@ public class FunctionWorkerStarter {
         }
 
         final Worker worker = new Worker(workerConfig);
-        try {
-            worker.start();
-        } catch (Throwable th) {
-            worker.stop();
-            System.exit(-1);
-        }
+        
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Stopping function worker service ..");
             worker.stop();
         }));
+
+        try {
+            worker.start();
+        } catch (Throwable th) {
+            log.error("Encountered error in function worker", th);
+            worker.stop();
+            System.exit(-1);
+        }
     }
 }
