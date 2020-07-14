@@ -84,6 +84,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Should the metadata topic be compacted? Defaulting it to false for backwards compatibility
+useCompactedMetadataTopic: false
 # Number of threads to use for HTTP requests processing. Default is set to 8
 numHttpServerThreads: 8
 
