@@ -8,10 +8,9 @@ This is the official supported Helm chart to install Apache Pulsar on a cloud-na
 
 ## Introduction
 
-The Apache Pulsar Helm chart is one of the most convenient ways 
-to operate Pulsar on Kubernetes. This chart contains all the required components to get started and can scale to large deployments.
+The Apache Pulsar Helm chart is one of the most convenient ways to operate Pulsar on Kubernetes. This Pulsar Helm chart contains all the required components to get started and can scale to large deployments.
 
-This chart includes all the components for a complete experience, but each part can be configured to install separately.
+This chart includes all the components for a complete experience, but each part can be configured to be installed separately.
 
 - Pulsar core components:
     - ZooKeeper
@@ -23,12 +22,11 @@ This chart includes all the components for a complete experience, but each part 
     - Pulsar Manager
     - Prometheus
     - Grafana
-    - Alert Manager
 
 It includes support for:
 
 - Security
-    - Automatically provisioned TLS certs, using [Jetstack](https://www.jetstack.io/)'s [cert-manager](https://cert-manager.io/docs/)
+    - Automatically provisioned TLS certificates, using [Jetstack](https://www.jetstack.io/)'s [cert-manager](https://cert-manager.io/docs/)
         - self-signed
         - [Let's Encrypt](https://letsencrypt.org/)
     - TLS Encryption
@@ -42,69 +40,60 @@ It includes support for:
     - Authorization
 - Storage
     - Non-persistence storage
-    - Persistence Volume
-    - Local Persistent Volumes
+    - Persistence volume
+    - Local persistent volumes
 - Functions
     - Kubernetes Runtime
     - Process Runtime
     - Thread Runtime
 - Operations
-    - Independent Image Versions for all components, enabling controlled upgrades
+    - Independent image versions for all components, enabling controlled upgrades
 
 ## Pulsar Helm chart quick start
 
-For those looking to get up and running with these charts as fast
-as possible, in a **non-production** use case, we provide
-a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
+To get up and run with these charts as fast as possible, in a **non-production** use case, we provide a [quick start guide](getting-started-helm.md) for Proof of Concept (PoC) deployments.
 
-This guide walks the user through deploying these charts with default
-values & features, but *does not* meet production ready requirements.
-If you wish to deploy these charts into production under sustained load,
-you should follow the complete [Installation Guide](helm-install.md).
+This guide walks the user through deploying these charts with default values and features, but *does not* meet production ready requirements. To deploy these charts into production under sustained load, follow the complete [Installation Guide](helm-install.md).
 
 ## Troubleshooting
 
-We've done our best to make these charts as seamless as possible,
-occasionally troubles do surface outside of our control. We've collected
-tips and tricks for troubleshooting common issues. Please examine these first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add to them by raising a [Pull Request](https://github.com/apache/pulsar/compare)!
+We have done our best to make these charts as seamless as possible. Occasionally, troubles do go outside of our control. We have collected tips and tricks for troubleshooting common issues. Please check them first before raising an [issue](https://github.com/apache/pulsar/issues/new/choose), and feel free to add to them by raising a [Pull Request](https://github.com/apache/pulsar/compare).
 
 ## Installation
 
 The Apache Pulsar Helm chart contains all required dependencies.
 
-If you are just looking to deploy a Proof of Concept for testing,
-we strongly suggest you follow our [Quick Start Guide](getting-started-helm.md) for your first iteration.
+If you deploy a PoC for testing, we strongly suggest you follow our [Quick Start Guide](getting-started-helm.md) for your first iteration.
 
 1. [Preparation](helm-prepare.md)
 2. [Deployment](helm-deploy.md)
 
 ## Upgrading
 
-Once your Pulsar Chart is installed, configuration changes and chart
-updates should be done using `helm upgrade`.
+Once the Pulsar Helm chart is installed, use the `helm upgrade` to complete configuration changes and chart updates.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+helm repo add apache https://pulsar.apache.org/charts
+helm repo update
 helm get values <pulsar-release-name> > pulsar.yaml
-helm upgrade <pulsar-release-name> pulsar -f pulsar.yaml
+helm upgrade <pulsar-release-name> apache/pulsar -f pulsar.yaml
 ```
 
 For more detailed information, see [Upgrading](helm-upgrade.md).
 
-## Uninstall
+## Uninstallation
 
-To uninstall the Pulsar Chart, run the following command:
+To uninstall the Pulsar Helm chart, run the following command:
 
 ```bash
 helm delete <pulsar-release-name>
 ```
 
-For the purposes of continuity, these charts have some Kubernetes objects that are not removed when performing `helm delete`.
-These items we require you to *conciously* remove them, as they affect re-deployment should you choose to.
+For the purposes of continuity, these charts have some Kubernetes objects that cannot be removed when performing `helm delete`.
+It is recommended to *conciously* remove these items, as they affect re-deployment.
 
-* PVCs for stateful data, which you must *consciously* remove
+* PVCs for stateful data: *consciously* remove these items.
     - ZooKeeper: This is your metadata.
     - BookKeeper: This is your data.
     - Prometheus: This is your metrics data, which can be safely removed.
-* Secrets, if generated by our [prepare release script](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/prepare_helm_release.sh). They contain secret keys, tokens, etc. You can use [cleanup release script](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/cleanup_helm_release.sh) to remove these secrets and tokens as needed.
+* Secrets: if the secrets are generated by the [prepare release script](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh), they contain secret keys and tokens. You can use the [cleanup release script](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/cleanup_helm_release.sh) to remove these secrets and tokens as needed.

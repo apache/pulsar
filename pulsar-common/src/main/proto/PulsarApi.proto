@@ -54,6 +54,7 @@ message MessageIdData {
     required uint64 entryId  = 2;
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
+    repeated int64 ack_set = 5;
 }
 
 message KeyValue {
@@ -135,6 +136,16 @@ message MessageMetadata {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 24 [default = 0];
+
+    // Indicate if the message payload value is set
+    optional bool null_value = 25 [ default = false ];
+    optional string uuid = 26;
+	optional int32 num_chunks_from_msg = 27;
+	optional int32 total_chunk_msg_size = 28;
+	optional int32 chunk_id = 29;
+
+    // Indicate if the message partition key is set
+    optional bool null_partition_key = 30 [default = false];
 }
 
 message SingleMessageMetadata {
@@ -151,6 +162,10 @@ message SingleMessageMetadata {
     optional bytes ordering_key = 7;
     // Allows consumer retrieve the sequence id that the producer set.
     optional uint64 sequence_id = 8;
+    // Indicate if the message payload value is set
+    optional bool null_value = 9 [ default = false ];
+    // Indicate if the message partition key is set
+    optional bool null_partition_key = 10 [ default = false];
 }
 
 enum ServerError {
@@ -275,6 +290,7 @@ enum KeySharedMode {
 message KeySharedMeta {
     required KeySharedMode keySharedMode = 1;
     repeated IntRange hashRanges = 3;
+    optional bool allowOutOfOrderDelivery = 4 [default = false];
 }
 
 message CommandSubscribe {
@@ -375,6 +391,8 @@ message CommandLookupTopic {
     // to the proxy.
     optional string original_auth_data = 5;
     optional string original_auth_method = 6;
+    //
+    optional string advertised_listener_name = 7;
 }
 
 message CommandLookupTopicResponse {
@@ -433,6 +451,7 @@ message CommandSend {
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 6 [default = 0];
+    optional bool is_chunk     =7 [default = false];
 }
 
 message CommandSendReceipt {
@@ -453,6 +472,7 @@ message CommandMessage {
     required uint64 consumer_id       = 1;
     required MessageIdData message_id = 2;
     optional uint32 redelivery_count  = 3 [default = 0];
+    repeated int64 ack_set = 4;
 }
 
 message CommandAck {

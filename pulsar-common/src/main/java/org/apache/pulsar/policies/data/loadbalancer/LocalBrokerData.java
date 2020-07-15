@@ -20,6 +20,7 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.Maps;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -83,6 +84,8 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
 
     // the external protocol data advertised by protocol handlers.
     private Map<String, String> protocols;
+    //
+    private Map<String, AdvertisedListener> advertisedListeners;
 
     // For JSON only.
     public LocalBrokerData() {
@@ -94,6 +97,12 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
      */
     public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
             final String pulsarServiceUrlTls) {
+        this(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
+                Collections.unmodifiableMap(Collections.emptyMap()));
+    }
+
+    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
+                           final String pulsarServiceUrlTls, Map<String, AdvertisedListener> advertisedListeners) {
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
@@ -109,6 +118,7 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         lastBundleGains = new HashSet<>();
         lastBundleLosses = new HashSet<>();
         protocols = new HashMap<>();
+        this.advertisedListeners = Collections.unmodifiableMap(Maps.newHashMap(advertisedListeners));
     }
 
     /**
@@ -210,6 +220,26 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
                 "cpu: %.2f%%, memory: %.2f%%, directMemory: %.2f%%, bandwidthIn: %.2f%%, bandwidthOut: %.2f%%",
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
+    }
+
+    public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
+                                                final double directMemoryWeight, final double bandwithInWeight,
+                                                final double bandWithOutWeight) {
+        return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwithInWeight,
+                bandwidthOut.percentUsage() * bandWithOutWeight) / 100;
+    }
+
+    private static double max(double... args) {
+        double max = Double.NEGATIVE_INFINITY;
+
+        for (double d : args) {
+            if (d > max) {
+                max = d;
+            }
+        }
+
+        return max;
     }
 
     private static float max(float...args) {
@@ -452,4 +482,11 @@ public class LocalBrokerData extends JSONWritable implements LoadManagerReport {
         return Optional.ofNullable(protocols.get(protocol));
     }
 
+    public Map<String, AdvertisedListener> getAdvertisedListeners() {
+        return advertisedListeners;
+    }
+
+    public void setAdvertisedListeners(Map<String, AdvertisedListener> advertisedListeners) {
+        this.advertisedListeners = advertisedListeners;
+    }
 }

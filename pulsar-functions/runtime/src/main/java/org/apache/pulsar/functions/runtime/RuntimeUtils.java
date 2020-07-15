@@ -70,7 +70,8 @@ public class RuntimeUtils {
                                           Boolean installUserCodeDependencies,
                                           String pythonDependencyRepository,
                                           String pythonExtraDependencyRepository,
-                                          int metricsPort) throws Exception {
+                                          int metricsPort,
+                                          String narExtractionDirectory) throws Exception {
 
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
@@ -79,7 +80,7 @@ public class RuntimeUtils {
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
-                pythonExtraDependencyRepository, metricsPort));
+                pythonExtraDependencyRepository, metricsPort, narExtractionDirectory));
         return cmd;
     }
 
@@ -213,6 +214,7 @@ public class RuntimeUtils {
         }
 
         goInstanceConfig.setKillAfterIdleMs(0);
+        goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
@@ -244,7 +246,8 @@ public class RuntimeUtils {
                                       Boolean installUserCodeDependencies,
                                       String pythonDependencyRepository,
                                       String pythonExtraDependencyRepository,
-                                      int metricsPort) throws Exception {
+                                      int metricsPort,
+                                      String narExtractionDirectory) throws Exception {
         final List<String> args = new LinkedList<>();
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
@@ -386,6 +389,13 @@ public class RuntimeUtils {
 
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
+
+        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+            if (!StringUtils.isEmpty(narExtractionDirectory)) {
+                args.add("--nar_extraction_directory");
+                args.add(narExtractionDirectory);
+            }
+        }
         return args;
     }
 

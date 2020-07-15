@@ -38,6 +38,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
@@ -50,9 +51,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -60,6 +63,7 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.asynchttpclient.netty.ssl.JsseSslEngineFactory;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -97,11 +101,14 @@ public class AsyncHttpConnector implements Connector {
         confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setRequestTimeout(requestTimeoutMs);
+        confBuilder.setIoThreadsCount(conf.getNumIoThreads());
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
-            public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
+            public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
+                                     HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
-                return (response.status().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
+                return (response.status().code() / 100 != 5)
+                       && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
 
@@ -109,24 +116,41 @@ public class AsyncHttpConnector implements Connector {
         if (conf != null && StringUtils.isNotBlank(conf.getServiceUrl())) {
             serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
             if (conf.getServiceUrl().startsWith("https://")) {
-
-                SslContext sslCtx = null;
-
                 // Set client key and certificate if available
                 AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
-                if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createNettySslContextForClient(
-                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                            conf.getTlsTrustCertsFilePath(),
-                            authData.getTlsCertificates(),
-                            authData.getTlsPrivateKey());
-                } else {
-                    sslCtx = SecurityUtility.createNettySslContextForClient(
-                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                            conf.getTlsTrustCertsFilePath());
-                }
 
-                confBuilder.setSslContext(sslCtx);
+                if (conf.isUseKeyStoreTls()) {
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+
+                    final SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
+                            conf.getSslProvider(),
+                            params != null ? params.getKeyStoreType() : null,
+                            params != null ? params.getKeyStorePath() : null,
+                            params != null ? params.getKeyStorePassword() : null,
+                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                            conf.getTlsTrustStoreType(),
+                            conf.getTlsTrustStorePath(),
+                            conf.getTlsTrustStorePassword(),
+                            conf.getTlsCiphers(),
+                            conf.getTlsProtocols());
+
+                    JsseSslEngineFactory sslEngineFactory = new JsseSslEngineFactory(sslCtx);
+                    confBuilder.setSslEngineFactory(sslEngineFactory);
+                } else {
+                    SslContext sslCtx = null;
+                    if (authData.hasDataForTls()) {
+                        sslCtx = SecurityUtility.createNettySslContextForClient(
+                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.getTlsTrustCertsFilePath(),
+                                authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey());
+                    } else {
+                        sslCtx = SecurityUtility.createNettySslContextForClient(
+                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.getTlsTrustCertsFilePath());
+                    }
+                    confBuilder.setSslContext(sslCtx);
+                }
             }
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
@@ -216,8 +240,9 @@ public class AsyncHttpConnector implements Connector {
                                             retries - 1);
                                 } else {
                                     resultFuture.completeExceptionally(
-                                            new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted.", throwable));
+                                        new RetryException("Could not complete the operation. Number of retries "
+                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                            throwable));
                                 }
                             }
                         } else {

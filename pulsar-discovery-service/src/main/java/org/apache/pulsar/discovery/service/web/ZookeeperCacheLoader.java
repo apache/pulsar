@@ -34,6 +34,8 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher;
+import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,17 +68,33 @@ public class ZookeeperCacheLoader implements Closeable {
             int zookeeperSessionTimeoutMs) throws Exception {
         localZkConnectionSvc = new LocalZooKeeperConnectionService(zkClientFactory, zookeeperServers,
                 zookeeperSessionTimeoutMs);
-        localZkConnectionSvc.start(exitCode -> {
-            log.error("Shutting down ZK sessions: {}", exitCode);
+        localZkConnectionSvc.start(new ZookeeperSessionExpiredHandler() {
+            @Override
+            public void onSessionExpired() {
+                log.error("Shutting down ZK sessions: {}", -1);
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
+            }
         });
 
         this.localZkCache = new LocalZooKeeperCache(localZkConnectionSvc.getLocalZooKeeper(),
                 (int) TimeUnit.MILLISECONDS.toSeconds(zookeeperSessionTimeoutMs), this.orderedExecutor);
-        localZkConnectionSvc.start(exitCode -> {
-            try {
-                localZkCache.getZooKeeper().close();
-            } catch (InterruptedException e) {
-                log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
+        localZkConnectionSvc.start(new ZookeeperSessionExpiredHandler() {
+            @Override
+            public void onSessionExpired() {
+                try {
+                    localZkCache.getZooKeeper().close();
+                } catch (InterruptedException e) {
+                    log.warn("Failed to shutdown ZooKeeper gracefully {}", e.getMessage(), e);
+                }
+            }
+
+            @Override
+            public void setWatcher(ZooKeeperSessionWatcher watcher) {
+
             }
         });
 

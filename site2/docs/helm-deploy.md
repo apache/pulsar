@@ -1,37 +1,37 @@
 ---
 id: helm-deploy
-title: Deploying a Pulsar cluster using Helm
+title: Deploy Pulsar cluster using Helm
 sidebar_label: Deployment
 ---
 
-Before running `helm install`, you need to make some decisions about how you will run Pulsar.
+Before running `helm install`, you need to decide how to run Pulsar.
 Options can be specified using Helm's `--set option.name=value` command line option.
 
-## Selecting configuration options
+## Select configuration options
 
-In each section collect the options that will be combined to use with `helm install`.
+In each section, collect the options that are combined to use with the `helm install` command.
 
-### Kubernetes Namespace
+### Kubernetes namespace
 
-By default, the chart is installed to a namespace called `pulsar`.
+By default, the Pulsar Helm chart is installed to a namespace called `pulsar`.
 
 ```yaml
 namespace: pulsar
 ```
 
-If you decide to install the chart into a different k8s namespace, you can include this option in your Helm install command:
+To install the Pulsar Helm chart into a different Kubernetes namespace, you can include this option in the `helm install` command.
 
 ```bash
 --set namespace=<different-k8s-namespace>
 ```
 
-By default, the chart doesn't create the namespace.
+By default, the Pulsar Helm chart doesn't create the namespace.
 
 ```yaml
 namespaceCreate: false
 ```
 
-If you want the chart to create the k8s namespace automatically, you can include this option in your Helm install command.
+To use the Pulsar Helm chart to create the Kubernetes namespace automatically, you can include this option in the `helm install` command.
 
 ```bash
 --set namespaceCreate=true
@@ -39,7 +39,7 @@ If you want the chart to create the k8s namespace automatically, you can include
 
 ### Persistence
 
-By default the chart creates Volume Claims with the expectation that a dynamic provisioner will create the underlying Persistent Volumes.
+By default, the Pulsar Helm chart creates Volume Claims with the expectation that a dynamic provisioner creates the underlying Persistent Volumes.
 
 ```yaml
 volumes:
@@ -49,16 +49,17 @@ volumes:
   local_storage: false
 ```
 
-If you would like to use local persistent volumes as the persistent storage for your Helm release, you can install [local-storage-provisioner](#install-local-storage-provisioner) and include the following option in your Helm install command. 
+To use local persistent volumes as the persistent storage for Helm release, you can install the [local storage provisioner](#install-local-storage-provisioner) and include the following option in the `helm install` command. 
 
 ```bash
 --set volumes.local_storage=true
 ```
 
-> **Important**: After initial installation, making changes to your storage settings requires manually editing Kubernetes objects,
-> so it's best to plan ahead before installing your production instance of Pulsar to avoid extra storage migration work.
+> #### Note
+> 
+> Before installing the production instance of Pulsar, ensure to plan the storage settings to avoid extra storage migration work. Because after initial installation, you must edit Kubernetes objects manually if you want to change storage settings.
 
-This chart is designed for production use, To use this chart in a development environment (e.g. minikube), you can disable persistence by including this option in your Helm install command.
+The Pulsar Helm chart is designed for production use. To use the Pulsar Helm chart in a development environment (such as Minikube), you can disable persistence by including this option in your `helm install` command.
 
 ```bash
 --set volumes.persistence=false
@@ -66,14 +67,14 @@ This chart is designed for production use, To use this chart in a development en
 
 ### Affinity 
 
-By default `anti-affinity` is turned on to ensure pods of same component can run on different nodes.
+By default, `anti-affinity` is enabled to ensure pods of the same component can run on different nodes.
 
 ```yaml
 affinity:
   anti_affinity: true
 ```
 
-If you are planning to use this chart in a development environment (e.g. minikue), you can disable `anti-affinity` by including this option in your Helm install command.
+To use the Pulsar Helm chart in a development environment (such as Minikue), you can disable `anti-affinity` by including this option in your `helm install` command.
 
 ```bash
 --set affinity.anti_affinity=false
@@ -81,9 +82,9 @@ If you are planning to use this chart in a development environment (e.g. minikue
 
 ### Components
 
-This chart is designed for production usage. It deploys a production-ready Pulsar cluster including Pulsar core components and monitoring components.
+The Pulsar Helm chart is designed for production usage. It deploys a production-ready Pulsar cluster, including Pulsar core components and monitoring components.
 
-You can customize the components to deploy by turning on/off individual components.
+You can customize the components to be deployed by turning on/off individual components.
 
 ```yaml
 ## Components
@@ -117,9 +118,9 @@ monitoring:
   grafana: true
 ```
 
-### Docker Images
+### Docker images
 
-This chart is designed to enable controlled upgrades. So it provides the capability to configure independent image versions for components. You can customize the images by setting individual component.
+The Pulsar Helm chart is designed to enable controlled upgrades. So it can configure independent image versions for components. You can customize the images by setting individual component.
 
 ```yaml
 ## Images
@@ -166,18 +167,11 @@ images:
 
 ### TLS
 
-This Pulsar Chart can be configured to enable TLS to protect all the traffic between components. Before you enable TLS, you have to provision TLS certificates
-for the components you have configured to enable TLS.
+The Pulsar Helm chart can be configured to enable TLS (Transport Layer Security) to protect all the traffic between components. Before enabling TLS, you have to provision TLS certificates for the required components.
 
-- [Provision TLS certs using `cert-manager`](#provision-tls-certs-using-cert-manager)
+#### Provision TLS certificates using cert-manager
 
-#### Provision TLS certs using cert-manager
-
-In order to using `cert-manager` to provision the TLS certificates, you have to install
-[cert-manager](#install-cert-manager) before installing the Pulsar chart. After
-successfully install cert manager, you can then set `certs.internal_issuer.enabled`
-to `true`. So the Pulsar chart will use `cert-manager` to generate `selfsigning` TLS
-certs for the configured components.
+To use the `cert-manager` to provision the TLS certificates, you have to install the [cert-manager](#install-cert-manager) before installing the Pulsar Helm chart. After successfully installing the cert-manager, you can set `certs.internal_issuer.enabled` to `true`. Therefore, the Pulsar Helm chart can use the `cert-manager` to generate `selfsigning` TLS certificates for the configured components.
 
 ```yaml
 certs:
@@ -205,14 +199,14 @@ tls:
 
 #### Enable TLS
 
-After installing `cert-manager`, you can then set `tls.enabled` to `true` to enable TLS encryption for the entire cluster.
+After installing the `cert-manager`, you can set `tls.enabled` to `true` to enable TLS encryption for the entire cluster.
 
 ```yaml
 tls:
   enabled: false
 ```
 
-You can also control whether to enable TLS encryption for individual component.
+You can also configure whether to enable TLS encryption for individual component.
 
 ```yaml
 tls:
@@ -242,8 +236,8 @@ tls:
 
 ### Authentication
 
-Authentication is disabled by default. You can set `auth.authentication.enabled` to `true` to turn on authentication.
-Currently this chart only supports JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use JWT authentication provider.
+By default, authentication is disabled. You can set `auth.authentication.enabled` to `true` to enable authentication.
+Currently, the Pulsar Helm chart only supports JWT authentication provider. You can set `auth.authentication.provider` to `jwt` to use the JWT authentication provider.
 
 ```yaml
 # Enable or disable broker authentication and authorization.
@@ -265,7 +259,7 @@ auth:
     client: "admin"
 ```
 
-If you decide to enable authentication, you can run [prepare helm release](#prepare-the-helm-release) to generate token secret keys and tokens for three super users specified in `auth.superUsers` field. The generated token keys and super user tokens are uploaded and stored as kubernetes secrets prefixed with `<pulsar-release-name>-token-`. You can use following command to find those secrets.
+To enable authentication, you can run [prepare helm release](#prepare-the-helm-release) to generate token secret keys and tokens for three super users specified in the `auth.superUsers` field. The generated token keys and super user tokens are uploaded and stored as Kubernetes secrets prefixed with `<pulsar-release-name>-token-`. You can use the following command to find those secrets.
 
 ```bash
 kubectl get secrets -n <k8s-namespace>
@@ -273,8 +267,7 @@ kubectl get secrets -n <k8s-namespace>
 
 ### Authorization
 
-Authorization is disabled by default. Authorization can be enabled
-only if Authentication is enabled.
+By default, authorization is disabled. Authorization can be enabled only when authentication is enabled.
 
 ```yaml
 auth:
@@ -282,7 +275,7 @@ auth:
     enabled: false
 ```
 
-You can include this option to turn on authorization.
+To enable authorization, you can include this option in the `helm install` command.
 
 ```bash
 --set auth.authorization.enabled=true
@@ -290,17 +283,15 @@ You can include this option to turn on authorization.
 
 ### CPU and RAM resource requirements
 
-The resource requests, and number of replicas for the Pulsar components in this Chart are set by default to be adequate for a small production deployment. If you are trying to deploy a non-production instance, you can reduce the defaults in order to fit into a smaller cluster.
+By default, the resource requests and the number of replicas for the Pulsar components in the Pulsar Helm chart are adequate for a small production deployment. If you deploy a non-production instance, you can reduce the defaults to fit into a smaller cluster.
 
-Once you have all of your configuration options collected, we need
-to install dependent charts before proceeding to install the Pulsar
-Chart.
+Once you have all of your configuration options collected, you can install dependent charts before installing the Pulsar Helm chart.
 
-## Install Dependent Charts
+## Install dependent charts
 
-### Install Local Storage Provisioner
+### Install local storage provisioner
 
-If you decide to use local persistent volumes as the persistent storage, you need to [install a storage provisioner for local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/).
+To use local persistent volumes as the persistent storage, you need to install a storage provisioner for [local persistent volumes](https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-persistent-volumes-ga/).
 
 One of the easiest way to get started is to use the local storage provisioner provided along with the Pulsar Helm chart.
 
@@ -310,74 +301,73 @@ helm repo update
 helm install pulsar-storage-provisioner streamnative/local-storage-provisioner
 ```
 
-### Install Cert Manager
+### Install cert-manager
 
-The Pulsar Chart uses [cert-manager](https://github.com/jetstack/cert-manager) to automate provisioning and managing TLS certificates. If you decide to enable TLS encryption for brokers or proxies, you need to install cert-manager first.
+The Pulsar Helm chart uses the [cert-manager](https://github.com/jetstack/cert-manager) to provision and manage TLS certificates automatically. To enable TLS encryption for brokers or proxies, you need to install the cert-manager in advance.
 
-You can follow the [official instructions](https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm) to install cert-manager.
+For details about how to install the cert-manager, follow the [official instructions](https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm).
 
-Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to namespace `cert-manager`.
+Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to the namespace `cert-manager`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/cert-manager/install-cert-manager.sh
 ```
 
-## Prepare the Helm Release
+## Prepare Helm release
 
-Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/prepare_helm_release.sh) to prepare the helm release.
+Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh) to prepare the Helm release.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/pulsar/prepare_helm_release.sh -n <k8s-namespace> -k <helm-release-name>
 ```
 
-The `prepare_helm_release` creates following resources:
+The `prepare_helm_release` creates the following resources:
 
-- A k8s namespace for installing the Pulsar release
-- Create a secret for storing the username and password of control center administrator. The username and password can be passed to `prepare_helm_release.sh` through flags `--control-center-admin` and `--control-center-password`. The username and password is used for logging into Grafana dashboard and Pulsar Manager.
-- Create the JWT secret keys and tokens for three superusers: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates asymmeric pubic/private key pair. You can choose to generate symmeric secret key by specifying `--symmetric`.
+- A Kubernetes namespace for installing the Pulsar release
+- JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
     - `proxy-admin` role is used for proxies to communicate to brokers.
     - `broker-admin` role is used for inter-broker communications.
     - `admin` role is used by the admin tools.
 
-## Deploy using Helm
+## Deploy Pulsar cluster using Helm
 
-Once you have done the following three things, you can proceed to install a Helm release.
+Once you have finished the following three things, you can install a Helm release.
 
-- Collect all of your configuration options
-- Install dependent charts
-- Prepare the Helm release
+- Collect all of your configuration options.
+- Install dependent charts.
+- Prepare the Helm release.
 
-In this example, we've named our Helm release `pulsar`.
+In this example, we name our Helm release `pulsar`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd deployment/kubernetes/helm
-helm upgrade --install pulsar pulsar \
-    --timeout 600 \
+helm repo add apache https://pulsar.apache.org/charts
+helm repo update
+helm upgrade --install pulsar apache/pulsar \
+    --timeout 10m \
     --set [your configuration options]
 ```
 
-You can also use `--version <installation version>` option if you would like to install a specific version of Pulsar Helm chart.
+You can also use the `--version <installation version>` option if you want to install a specific version of Pulsar Helm chart.
 
-## Monitoring the Deployment
+## Monitor deployment
 
-This will output the list of resources installed once the deployment finishes which may take 5-10 minutes.
+A list of installed resources are output once the Pulsar cluster is deployed. This may take 5-10 minutes.
 
-The status of the deployment can be checked by running `helm status pulsar` which can also be done while the deployment is taking place if you run the command in another terminal.
+The status of the deployment can be checked by running the `helm status pulsar` command, which can also be done while the deployment is taking place if you run the command in another terminal.
 
-## Accessing the Pulsar Cluster
+## Access Pulsar cluster
 
-The default values will create a `ClusterIP` for the following resources you can use to interact with the cluster.
+The default values will create a `ClusterIP` for the following resources, which you can use to interact with the cluster.
 
 - Proxy: You can use the IP address to produce and consume messages to the installed Pulsar cluster.
-- Pulsar Manager: You can access the pulsar manager UI at `http://<pulsar-manager-ip>:9527`.
+- Pulsar Manager: You can access the Pulsar Manager UI at `http://<pulsar-manager-ip>:9527`.
 - Grafana Dashboard: You can access the Grafana dashboard at `http://<grafana-dashboard-ip>:3000`.
 
-To find the IP address of those components use:
+To find the IP addresses of those components, run the following command:
 
 ```bash
 kubectl get service -n <k8s-namespace>

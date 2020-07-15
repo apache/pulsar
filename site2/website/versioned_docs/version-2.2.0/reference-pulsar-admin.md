@@ -331,7 +331,6 @@ Options
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
 |`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
 |`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
@@ -372,7 +371,6 @@ Options
 |`--schema-type`|Schema Type to be used for storing output messages||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
 |`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
@@ -430,7 +428,6 @@ Options
 |`--schema-type`|Schema Type to be used for storing output messages||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--subscription-type`|The subscription type used by the function when consuming messages on the input topic(s). Can be either SHARED or EXCLUSIVE|SHARED|
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
 |`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||

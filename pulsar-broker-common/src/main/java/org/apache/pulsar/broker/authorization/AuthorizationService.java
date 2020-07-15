@@ -21,12 +21,19 @@ package org.apache.pulsar.broker.authorization;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,25 +55,20 @@ public class AuthorizationService {
 
     public AuthorizationService(ServiceConfiguration conf, ConfigurationCacheService configCache)
             throws PulsarServerException {
-
         this.conf = conf;
-        if (this.conf.isAuthorizationEnabled()) {
-            try {
-                final String providerClassname = conf.getAuthorizationProvider();
-                if (StringUtils.isNotBlank(providerClassname)) {
-                    provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
-                    provider.initialize(conf, configCache);
-                    log.info("{} has been loaded.", providerClassname);
-                } else {
-                    throw new PulsarServerException("No authorization providers are present.");
-                }
-            } catch (PulsarServerException e) {
-                throw e;
-            } catch (Throwable e) {
-                throw new PulsarServerException("Failed to load an authorization provider.", e);
+        try {
+            final String providerClassname = conf.getAuthorizationProvider();
+            if (StringUtils.isNotBlank(providerClassname)) {
+                provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
+                provider.initialize(conf, configCache);
+                log.info("{} has been loaded.", providerClassname);
+            } else {
+                throw new PulsarServerException("No authorization providers are present.");
             }
-        } else {
-            log.info("Authorization is disabled");
+        } catch (PulsarServerException e) {
+            throw e;
+        } catch (Throwable e) {
+            throw new PulsarServerException("Failed to load an authorization provider.", e);
         }
     }
 
@@ -262,8 +264,18 @@ public class AuthorizationService {
      */
     public boolean canLookup(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
-        return canProduce(topicName, role, authenticationData)
-                || canConsume(topicName, role, authenticationData, null);
+        try {
+            return canLookupAsync(topicName, role, authenticationData)
+                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
+                    topicName);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     /**
@@ -317,5 +329,181 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                        AuthenticationDataSource authenticationData) {
         return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+    }
+
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                          AuthenticationDataSource authenticationData) {
+        return provider.allowSourceOpsAsync(namespaceName, role, authenticationData);
+    }
+
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                        AuthenticationDataSource authenticationData) {
+        return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
+    }
+
+    /**
+     * Grant authorization-action permission on a tenant to the given client
+     *
+     * @param tenantName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when tenant not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, TenantOperation operation,
+                                                                 String originalRole, String role,
+                                                                 AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowTenantOperationAsync(tenantName, originalRole, role, operation, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTenantOperationAsync"));
+    }
+
+    public Boolean allowTenantOperation(String tenantName, TenantOperation operation, String orignalRole, String role,
+                                        AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowTenantOperation(tenantName, orignalRole, role, operation, authData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowTenantOperation");
+    }
+
+    /**
+     * Grant authorization-action permission on a namespace to the given client
+     *
+     * @param namespaceName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation,
+                                                                   String originalRole, String role,
+                                                                   AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowNamespaceOperationAsync"));
+    }
+
+    public Boolean allowNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation,
+                                           String originalPrincipal, String role, AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowNamespaceOperation(namespaceName, originalPrincipal, role, operation, authData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowNamespaceOperation");
+    }
+
+    /**
+     * Grant authorization-action permission on a namespace to the given client
+     *
+     * @param namespaceName
+     * @param operation
+     * @param originalRole
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
+                                                                         PolicyOperation operation, String originalRole,
+                                                                         String role, AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, originalRole, role, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowNamespacePolicyOperationAsync"));
+    }
+
+    public Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy,
+                                                 PolicyOperation operation, String originalPrincipal, String role,
+                                                 AuthenticationDataHttps authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowNamespacePolicyOperation(namespaceName, policy, operation, originalPrincipal, role, authData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowNamespacePolicyOperation");
+    }
+
+    /**
+     * Grant authorization-action permission on a topic to the given client
+     *
+     * @param topicName
+     * @param operation
+     * @param role
+     * @param authData
+     *            additional authdata in json for targeted authorization provider
+     * @return IllegalArgumentException when namespace not found
+     * @throws IllegalStateException
+     *             when failed to grant permission
+     */
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, TopicOperation operation,
+                                                               String originalRole, String role,
+                                                               AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        if (provider != null) {
+            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+        }
+
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
+                "allowTopicOperationAsync"));
+    }
+
+    public Boolean allowTopicOperation(TopicName topicName, TopicOperation operation,
+                                         String orignalRole, String role,
+                                         AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return true;
+        }
+
+        if (provider != null) {
+            return provider.allowTopicOperation(topicName, orignalRole, role, operation, authData);
+        }
+
+        throw new IllegalStateException("No authorization provider configured for allowTopicOperation");
     }
 }

@@ -22,6 +22,9 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - branch-*
 
 jobs:
 
@@ -36,6 +39,14 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - name: Check if this pull request only changes documentation
         id:   docs
@@ -57,7 +68,7 @@ jobs:
 
       - name: run unit tests install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn clean install -DskipTests -pl pulsar-broker-auth-sasl -am
 
       - name: run unit tests pulsar auth sasl
         if: steps.docs.outputs.changed_only == 'no'

@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -35,7 +34,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
@@ -47,7 +46,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
     private List<String> inputTopics;
-    private List<Consumer<T>> inputConsumers = Collections.emptyList();
+    private List<Consumer<T>> inputConsumers = new LinkedList<>();
     private final TopicSchema topicSchema;
 
     public PulsarSource(PulsarClient pulsarClient, PulsarSourceConfig pulsarConfig, Map<String, String> properties,
@@ -65,7 +64,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
         Map<String, ConsumerConfig<T>> configs = setupConsumerConfigs();
 
-        inputConsumers = configs.entrySet().stream().map(e -> {
+        for (Map.Entry<String, ConsumerConfig<T>> e : configs.entrySet()) {
             String topic = e.getKey();
             ConsumerConfig<T> conf = e.getValue();
             log.info("Creating consumers for topic : {}, schema : {}, schemaInfo: {}",
@@ -76,34 +75,42 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
                     .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
-                    .subscriptionType(pulsarSourceConfig.getSubscriptionType())
-                    .messageListener(this);
+                    .subscriptionType(pulsarSourceConfig.getSubscriptionType());
+
+            if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
+                cb.loadConf(new HashMap<>(conf.getConsumerProperties()));
+            }
+            //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
+            cb.messageListener(this);
 
             if (conf.isRegexPattern) {
-                cb.topicsPattern(topic);
+                cb = cb.topicsPattern(topic);
             } else {
-                cb.topic(topic);
+                cb = cb.topics(Collections.singletonList(topic));
             }
             if (conf.getReceiverQueueSize() != null) {
-                cb.receiverQueueSize(conf.getReceiverQueueSize());
+                cb = cb.receiverQueueSize(conf.getReceiverQueueSize());
             }
-            cb.properties(properties);
-
+            cb = cb.properties(properties);
+            if (pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() != null
+                    && pulsarSourceConfig.getNegativeAckRedeliveryDelayMs() > 0) {
+                cb.negativeAckRedeliveryDelay(pulsarSourceConfig.getNegativeAckRedeliveryDelayMs(), TimeUnit.MILLISECONDS);
+            }
             if (pulsarSourceConfig.getTimeoutMs() != null) {
-                cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
+                cb = cb.ackTimeout(pulsarSourceConfig.getTimeoutMs(), TimeUnit.MILLISECONDS);
             }
-
             if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
                 DeadLetterPolicy.DeadLetterPolicyBuilder deadLetterPolicyBuilder = DeadLetterPolicy.builder();
                 deadLetterPolicyBuilder.maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
                 if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
                     deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
                 }
-                cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
+                cb = cb.enableRetry(true).deadLetterPolicy(deadLetterPolicyBuilder.build());
             }
 
-            return cb.subscribeAsync();
-        }).collect(Collectors.toList()).stream().map(CompletableFuture::join).collect(Collectors.toList());
+            Consumer<T> consumer = cb.subscribeAsync().join();
+            inputConsumers.add(consumer);
+        }
 
         inputTopics = inputConsumers.stream().flatMap(c -> {
             return (c instanceof MultiTopicsConsumerImpl) ? ((MultiTopicsConsumerImpl<?>) c).getTopics().stream()
@@ -163,10 +170,14 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                 schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSerdeClassName(), true);
             } else {
-                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf.getSchemaType(), true);
+                schema = (Schema<T>) topicSchema.getSchema(topic, typeArg, conf, true);
             }
             configs.put(topic,
-                    ConsumerConfig.<T> builder().schema(schema).isRegexPattern(conf.isRegexPattern()).receiverQueueSize(conf.getReceiverQueueSize()).build());
+                    ConsumerConfig.<T> builder().
+                            schema(schema).
+                            isRegexPattern(conf.isRegexPattern()).
+                            receiverQueueSize(conf.getReceiverQueueSize()).
+                            consumerProperties(conf.getConsumerProperties()).build());
         });
 
         return configs;
@@ -176,12 +187,17 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
         return inputTopics;
     }
 
+    public List<Consumer<T>> getInputConsumers() {
+        return inputConsumers;
+    }
+
     @Data
     @Builder
     private static class ConsumerConfig<T> {
         private Schema<T> schema;
         private boolean isRegexPattern;
         private Integer receiverQueueSize;
+        private Map<String, String> consumerProperties;
     }
 
 }

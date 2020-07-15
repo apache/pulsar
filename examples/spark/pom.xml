@@ -25,35 +25,17 @@
   <parent>
     <artifactId>pulsar-examples</artifactId>
     <groupId>org.apache.pulsar.examples</groupId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.apache.pulsar.examples</groupId>
   <artifactId>spark</artifactId>
   <name>Pulsar Examples :: Spark</name>
-
   <properties>
     <maven.compiler.target>1.8</maven.compiler.target>
     <maven.compiler.source>1.8</maven.compiler.source>
-    <jaskson.version>2.6.5</jaskson.version>
   </properties>
 
   <dependencies>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>${jaskson.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jaskson.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-      <version>${jaskson.version}</version>
-    </dependency>
 
     <dependency>
       <groupId>org.apache.pulsar</groupId>

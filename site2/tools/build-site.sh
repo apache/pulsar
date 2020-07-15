@@ -35,15 +35,32 @@ yarn run crowdin-download
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-CN/version-2.4.2/functions-develop.md
 cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/zh-CN/version-2.5.0/functions-develop.md
 cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-CN/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/zh-CN/version-2.5.1/functions-develop.md
+cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/zh-CN/version-2.5.2/functions-develop.md
+
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ja/version-2.4.2/functions-develop.md
 cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/ja/version-2.5.0/functions-develop.md
 cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ja/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ja/version-2.5.1/functions-develop.md
+cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ja/version-2.5.2/functions-develop.md
+
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/fr/version-2.4.2/functions-develop.md
 cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/fr/version-2.5.0/functions-develop.md
 cp versioned_docs/version-2.5.0/io-overview.md translated_docs/fr/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/fr/version-2.5.1/functions-develop.md
+cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/fr/version-2.5.2/functions-develop.md
+
 cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/zh-TW/version-2.4.2/functions-develop.md
 cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/zh-TW/version-2.5.0/functions-develop.md
 cp versioned_docs/version-2.5.0/io-overview.md translated_docs/zh-TW/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/zh-TW/version-2.5.1/functions-develop.md
+cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/zh-TW/version-2.5.2/functions-develop.md
+
+cp versioned_docs/version-2.4.2/functions-develop.md translated_docs/ko/version-2.4.2/functions-develop.md
+cp versioned_docs/version-2.5.0/functions-develop.md translated_docs/ko/version-2.5.0/functions-develop.md
+cp versioned_docs/version-2.5.0/io-overview.md translated_docs/ko/version-2.5.0/io-overview.md
+cp versioned_docs/version-2.5.1/functions-develop.md translated_docs/ko/version-2.5.1/functions-develop.md
+cp versioned_docs/version-2.5.2/functions-develop.md translated_docs/ko/version-2.5.2/functions-develop.md
 
 yarn build
 
@@ -59,3 +76,4 @@ mkdir -p ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/api ${ROOT_DIR}/generated-site/content
 cp -R ./build/pulsar/* ${ROOT_DIR}/generated-site/content
 cp -R ${ROOT_DIR}/generated-site/tools ${ROOT_DIR}/generated-site/content
+cp -R ${ROOT_DIR}/site2/website/static/swagger/* ${ROOT_DIR}/generated-site/content/swagger/

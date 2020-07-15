@@ -16,7 +16,7 @@
       "concepts-multi-tenancy",
       "concepts-authentication",
       "concepts-topic-compaction",
-      "concepts-tiered-storage"
+      "concepts-proxy-sni-routing"
     ],
     "Pulsar Schema": [
       "schema-get-started",
@@ -49,6 +49,12 @@
       "sql-deployment-configurations",
       "sql-rest-api"
     ],
+   "Tiered storage": [
+     "tiered-storage-overview",
+     "tiered-storage-aws",
+     "tiered-storage-gcs",
+     "tiered-storage-filesystem"
+  ],
     "Kubernetes (Helm)": [
       "helm-overview",
       "helm-prepare",
@@ -78,13 +84,18 @@
       "security-overview",
       "security-tls-transport",
       "security-tls-authentication",
+      "security-tls-keystore",
       "security-jwt",
       "security-athenz",
       "security-kerberos",
+      "security-oauth"
       "security-authorization",
       "security-encryption",
       "security-extending",
       "security-bouncy-castle"
+    ],
+    "Performance": [
+      "performance-pulsar-perf"
     ],
     "Client libraries": [
       "client-libraries-java",
@@ -92,7 +103,8 @@
       "client-libraries-python",
       "client-libraries-cpp",
       "client-libraries-node",
-      "client-libraries-websocket"
+      "client-libraries-websocket",
+      "client-libraries-dotnet"
     ],
     "Admin API": [
       "admin-api-overview",
@@ -114,7 +126,6 @@
       "adaptors-storm"
     ],
     "Cookbooks": [
-      "cookbooks-tiered-storage",
       "cookbooks-compaction",
       "cookbooks-deduplication",
       "cookbooks-non-persistent",

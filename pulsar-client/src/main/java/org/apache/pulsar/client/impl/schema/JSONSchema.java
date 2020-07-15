@@ -27,8 +27,9 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.apache.pulsar.client.impl.schema.reader.JsonReader;
-import org.apache.pulsar.client.impl.schema.writer.JsonWriter;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
+import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
+import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -51,11 +52,11 @@ public class JSONSchema<T> extends StructSchema<T> {
 
     private final Class<T> pojo;
 
-    private JSONSchema(SchemaInfo schemaInfo, Class<T> pojo) {
+    private JSONSchema(SchemaInfo schemaInfo, Class<T> pojo, SchemaReader<T> reader, SchemaWriter<T> writer) {
         super(schemaInfo);
         this.pojo = pojo;
-        setWriter(new JsonWriter<>(JSON_MAPPER.get()));
-        setReader(new JsonReader<>(JSON_MAPPER.get(), pojo));
+        setWriter(writer);
+        setReader(reader);
     }
 
     @Override
@@ -88,7 +89,11 @@ public class JSONSchema<T> extends StructSchema<T> {
     }
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo());
+        SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
+                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
+        SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
+                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER.get()));
+        return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(), reader, writer);
     }
 
     public static <T> JSONSchema<T> of(Class<T> pojo) {

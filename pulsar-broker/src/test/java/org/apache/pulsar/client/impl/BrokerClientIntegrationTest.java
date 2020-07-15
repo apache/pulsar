@@ -53,8 +53,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Cleanup;
 
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -75,19 +79,27 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.schema.SchemaReader;
+import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.HandlerState.State;
-import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
+import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
+import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -200,7 +212,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topic2));
 
         // unload ns-bundle:1
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1);
+        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1).join();
         // let server send signal to close-connection and client close the connection
         Thread.sleep(1000);
         // [1] Verify: producer1 must get connectionClosed signal
@@ -225,7 +237,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertEquals(State.Ready, prod2.getState());
 
         // unload ns-bundle2 as well
-        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2);
+        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle2).join();
         // let producer2 give some time to get disconnect signal and get disconnected
         Thread.sleep(200);
         verify(producer2, atLeastOnce()).connectionClosed(any());
@@ -845,6 +857,47 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
+        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        ObjectMapper mapper = new ObjectMapper();
+        SchemaReader<TestMessageObject> reader = Mockito.spy(new JacksonJsonReader<>(mapper, TestMessageObject.class));
+        SchemaWriter<TestMessageObject> writer = Mockito.spy(new JacksonJsonWriter<>(mapper));
+
+        SchemaDefinition<TestMessageObject> schemaDefinition = new SchemaDefinitionBuilderImpl<TestMessageObject>()
+                .withPojo(TestMessageObject.class)
+                .withSchemaReader(reader)
+                .withSchemaWriter(writer)
+                .build();
+        Schema<TestMessageObject> schema = Schema.JSON(schemaDefinition);
+        PulsarClient client =  PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .build();
+
+        try(Producer<TestMessageObject> producer = client.newProducer(schema).topic(topicName).create();
+            Consumer<TestMessageObject> consumer = client.newConsumer(schema).topic(topicName).subscriptionName("my-subscriber-name").subscribe()) {
+            assertNotNull(producer);
+            assertNotNull(consumer);
+
+            TestMessageObject object = new TestMessageObject();
+            object.setValue("fooooo");
+            producer.newMessage().value(object).send();
+
+            TestMessageObject testObject = consumer.receive().getValue();
+            Assert.assertEquals(object.getValue(), testObject.getValue());
+
+            Mockito.verify(writer, Mockito.times(1)).write(Mockito.any());
+            Mockito.verify(reader, Mockito.times(1)).read(Mockito.any(byte[].class));
+        }
+    }
+
+    @Getter
+    @Setter
+    @EqualsAndHashCode
+    private static final class TestMessageObject{
+        private String value;
     }
 
 }

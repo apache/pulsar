@@ -37,6 +37,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -128,8 +130,17 @@ public class TwoPhaseCompactor extends Compactor {
                         boolean deletedMessage = false;
                         if (RawBatchConverter.isReadableBatch(m)) {
                             try {
-                                RawBatchConverter.extractIdsAndKeys(m)
-                                    .forEach(e -> latestForKey.put(e.getRight(), e.getLeft()));
+                                for (ImmutableTriple<MessageId, String, Integer> e :
+                                        RawBatchConverter.extractIdsAndKeysAndSize(m)) {
+                                    if (e != null) {
+                                        if (e.getRight() > 0) {
+                                            latestForKey.put(e.getMiddle(), e.getLeft());
+                                        } else {
+                                            deletedMessage = true;
+                                            latestForKey.remove(e.getMiddle());
+                                        }
+                                    }
+                                }
                             } catch (IOException ioe) {
                                 log.info("Error decoding batch for message {}. Whole batch will be included in output",
                                          id, ioe);
@@ -149,7 +160,8 @@ public class TwoPhaseCompactor extends Compactor {
                         MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
                         MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
                         if (id.compareTo(lastMessageId) == 0) {
-                            loopPromise.complete(new PhaseOneResult(first, to, lastMessageId, latestForKey));
+                            loopPromise.complete(new PhaseOneResult(first == null ? id : first, to == null ? id : to,
+                                    lastMessageId, latestForKey));
                         } else {
                             phaseOneLoop(reader,
                                          Optional.ofNullable(first),
@@ -230,7 +242,7 @@ public class TwoPhaseCompactor extends Compactor {
                         if (RawBatchConverter.isReadableBatch(m)) {
                             try {
                                 messageToAdd = RawBatchConverter.rebatchMessage(
-                                        m, (key, subid) -> latestForKey.get(key).equals(subid));
+                                        m, (key, subid) -> subid.equals(latestForKey.get(key)));
                             } catch (IOException ioe) {
                                 log.info("Error decoding batch for message {}. Whole batch will be included in output",
                                         id, ioe);
@@ -299,18 +311,24 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String,byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
-        bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
-                             conf.getManagedLedgerDefaultWriteQuorum(),
-                             conf.getManagedLedgerDefaultAckQuorum(),
-                             Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-                             Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
-                             (rc, ledger, ctx) -> {
-                                 if (rc != BKException.Code.OK) {
-                                     bkf.completeExceptionally(BKException.create(rc));
-                                 } else {
-                                     bkf.complete(ledger);
-                                 }
-                             }, null, metadata);
+
+        try {
+            bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
+                    conf.getManagedLedgerDefaultWriteQuorum(),
+                    conf.getManagedLedgerDefaultAckQuorum(),
+                    Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                    Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
+                    (rc, ledger, ctx) -> {
+                        if (rc != BKException.Code.OK) {
+                            bkf.completeExceptionally(BKException.create(rc));
+                        } else {
+                            bkf.complete(ledger);
+                        }
+                    }, null, metadata);
+        } catch (Throwable t) {
+            log.error("Encountered unexpected error when creating compaction ledger", t);
+            return FutureUtil.failedFuture(t);
+        }
         return bkf;
     }
 

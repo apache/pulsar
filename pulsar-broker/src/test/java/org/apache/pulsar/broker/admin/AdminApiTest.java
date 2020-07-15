@@ -159,6 +159,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setMessageExpiryCheckIntervalInMinutes(1);
+        conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.internalSetup();
 
@@ -790,6 +792,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().skipAllMessages(persistentTopicName, subName);
         topicStats = admin.topics().getStats(persistentTopicName);
         assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 0);
+
+        publishNullValueMessageOnPersistentTopic(persistentTopicName, 10);
+        topicStats = admin.topics().getStats(persistentTopicName);
+        assertEquals(topicStats.subscriptions.get(subName).msgBacklog, 10);
+        messages = admin.topics().peekMessages(persistentTopicName, subName, 10);
+        assertEquals(messages.size(), 10);
+        for (int i = 0; i < 10; i++) {
+            assertNull(messages.get(i).getData());
+            assertNull(messages.get(i).getValue());
+        }
+        admin.topics().skipAllMessages(persistentTopicName, subName);
 
         consumer.close();
         client.close();
@@ -1557,10 +1570,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     long secondTimestamp = System.currentTimeMillis();
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages) throws Exception {
-        publishMessagesOnPersistentTopic(topicName, messages, 0);
+        publishMessagesOnPersistentTopic(topicName, messages, 0, false);
     }
 
-    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
+    private void publishNullValueMessageOnPersistentTopic(String topicName, int messages) throws Exception {
+        publishMessagesOnPersistentTopic(topicName, messages, 0, true);
+    }
+
+    private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx,
+                                                  boolean nullValue) throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
             .topic(topicName)
             .enableBatching(false)
@@ -1568,8 +1586,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             .create();
 
         for (int i = startIdx; i < (messages + startIdx); i++) {
-            String message = "message-" + i;
-            producer.send(message.getBytes());
+            if (nullValue) {
+                producer.send(null);
+            } else {
+                String message = "message-" + i;
+                producer.send(message.getBytes());
+            }
         }
 
         producer.close();
@@ -1702,13 +1724,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long messageTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 10);
         assertEquals(messages.size(), 10);
@@ -1755,17 +1777,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long firstTimestamp = System.currentTimeMillis();
-        publishMessagesOnPersistentTopic(topicName, 3, 5);
+        publishMessagesOnPersistentTopic(topicName, 3, 5, false);
 
         Thread.sleep(1);
         long secondTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 2, 8);
+        publishMessagesOnPersistentTopic(topicName, 2, 8, false);
 
         List<Message<byte[]>> messages = admin.topics().peekMessages(topicName, "my-sub", 10);
         assertEquals(messages.size(), 10);
@@ -1827,13 +1849,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .consumerName("consumerA").subscriptionType(SubscriptionType.Failover)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
 
         // Allow at least 1ms for messages to have different timestamps
         Thread.sleep(1);
         long messageTimestamp = System.currentTimeMillis();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         // Currently the active consumer is consumerA
         for (int i = 0; i < 10; i++) {
@@ -1864,7 +1886,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // Closing consumerA activates consumerB
         consumerA.close();
 
-        publishMessagesOnPersistentTopic(topicName, 5, 10);
+        publishMessagesOnPersistentTopic(topicName, 5, 10, false);
 
         int receivedAfterFailover = 0;
         for (int i = 10; i < 15; i++) {
@@ -1899,11 +1921,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
 
-        publishMessagesOnPersistentTopic(topicName, 5, 0);
+        publishMessagesOnPersistentTopic(topicName, 5, 0, false);
         Thread.sleep(1);
 
         long timestamp = System.currentTimeMillis();
-        publishMessagesOnPersistentTopic(topicName, 5, 5);
+        publishMessagesOnPersistentTopic(topicName, 5, 5, false);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
@@ -2382,7 +2404,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.NOT_RUN);
+            LongRunningProcessStatus.Status.NOT_RUN);
 
         // mock actual compaction, we don't need to really run it
         CompletableFuture<Long> promise = new CompletableFuture<Long>();
@@ -2391,12 +2413,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().triggerCompaction(topicName);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.RUNNING);
+            LongRunningProcessStatus.Status.RUNNING);
 
         promise.complete(1L);
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.SUCCESS);
+            LongRunningProcessStatus.Status.SUCCESS);
 
         CompletableFuture<Long> errorPromise = new CompletableFuture<Long>();
         doReturn(errorPromise).when(compactor).compact(topicName);
@@ -2404,7 +2426,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         errorPromise.completeExceptionally(new Exception("Failed at something"));
 
         assertEquals(admin.topics().compactionStatus(topicName).status,
-                     LongRunningProcessStatus.Status.ERROR);
+            LongRunningProcessStatus.Status.ERROR);
         assertTrue(admin.topics().compactionStatus(topicName).lastError.contains("Failed at something"));
     }
 
@@ -2423,6 +2445,39 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(60000);
 
         Assert.assertTrue(admin.topics().getStats(topic).subscriptions.values().iterator().next().lastExpireTimestamp > 0L);
+    }
+
+    @Test(timeOut = 150000)
+    public void testSubscriptionExpiry() throws Exception {
+        final String namespace1 = "prop-xyz/sub-gc1";
+        final String namespace2 = "prop-xyz/sub-gc2";
+        final String topic1 = "persistent://" + namespace1 + "/testSubscriptionExpiry";
+        final String topic2 = "persistent://" + namespace2 + "/testSubscriptionExpiry";
+        final String sub = "sub1";
+
+        admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
+        admin.topics().createSubscription(topic1, sub, MessageId.latest);
+        admin.topics().createSubscription(topic2, sub, MessageId.latest);
+        admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
+        admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
+
+        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
+        Assert.assertEquals(admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
+        Thread.sleep(60000);
+        for (int i = 0; i < 60; i++) {
+            if (admin.topics().getSubscriptions(topic2).size() == 0) {
+                break;
+            }
+            Thread.sleep(1000);
+        }
+        Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
+        Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
+
+        admin.topics().delete(topic1);
+        admin.topics().delete(topic2);
+        admin.namespaces().deleteNamespace(namespace1);
+        admin.namespaces().deleteNamespace(namespace2);
     }
 
     @Test
@@ -2467,5 +2522,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         TopicStats topicStats = admin.topics().getStats(topic);
         assertEquals(topicStats.backlogSize, 0);
+    }
+
+    @Test
+    public void testGetTtlDurationDefaultInSeconds() throws Exception {
+        conf.setTtlDurationDefaultInSeconds(3600);
+        int seconds = admin.namespaces().getPolicies("prop-xyz/ns1").message_ttl_in_seconds;
+        assertEquals(seconds, 3600);
     }
 }

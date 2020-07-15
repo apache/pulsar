@@ -27,6 +27,13 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Reader implementation for reading objects from JSON.
+ *
+ * @param <T> object type to read
+ * @deprecated use {@link JacksonJsonReader} instead.
+ */
+@Deprecated
 public class JsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectMapper objectMapper;

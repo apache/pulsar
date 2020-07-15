@@ -109,7 +109,7 @@ AuthenticationPtr AuthToken::create(const TokenSupplier &tokenSupplier) {
 
 const std::string AuthToken::getAuthMethodName() const { return "token"; }
 
-Result AuthToken::getAuthData(AuthenticationDataPtr &authDataContent) const {
+Result AuthToken::getAuthData(AuthenticationDataPtr &authDataContent) {
     authDataContent = authDataToken_;
     return ResultOk;
 }

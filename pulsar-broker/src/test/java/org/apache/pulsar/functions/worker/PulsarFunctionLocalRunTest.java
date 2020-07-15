@@ -43,7 +43,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -60,6 +59,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -73,6 +74,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
+import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.io.datagenerator.DataGeneratorPrintSink;
@@ -178,8 +180,7 @@ public class PulsarFunctionLocalRunTest {
         functionsWorkerService = createPulsarFunctionWorker(config);
 
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         String brokerServiceUrl = pulsar.getWebServiceAddressTls();
@@ -204,12 +205,12 @@ public class PulsarFunctionLocalRunTest {
 
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl());
-        if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
-                && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
+        if (isNotBlank(workerConfig.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
             clientBuilder.enableTls(workerConfig.isUseTls());
             clientBuilder.allowTlsInsecureConnection(workerConfig.isTlsAllowInsecureConnection());
-            clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters());
+            clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
+                    workerConfig.getBrokerClientAuthenticationParameters());
             clientBuilder.serviceUrl(pulsar.getBrokerServiceUrlTls());
         }
         pulsarClient = clientBuilder.build();
@@ -311,8 +312,8 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setWorkerHostname(hostname);
         workerConfig.setWorkerId(workerId);
 
-        workerConfig.setClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        workerConfig.setClientAuthenticationParameters(
+        workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        workerConfig.setBrokerClientAuthenticationParameters(
                 String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
         workerConfig.setUseTls(true);
         workerConfig.setTlsAllowInsecureConnection(true);
@@ -481,9 +482,132 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
+    public void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
+
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
+        final String sinkTopic = "persistent://" + replNamespace + "/output";
+        final String propertyKey = "key";
+        final String propertyValue = "value";
+        final String functionName = "PulsarFunction-test";
+        final String subscriptionName = "test-sub";
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+
+        Schema schema = Schema.AVRO(SchemaDefinition.builder()
+                .withAlwaysAllowNull(true)
+                .withJSR310ConversionEnabled(true)
+                .withPojo(AvroTestObject.class).build());
+        //use AVRO schema
+        admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());
+
+        //produce message to sourceTopic
+        Producer<AvroTestObject> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
+        //consume message from sinkTopic
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
+
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        //set jsr310ConversionEnabled、alwaysAllowNull
+        Map<String,String> schemaInput = new HashMap<>();
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+        Map<String, String> schemaOutput = new HashMap<>();
+        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+
+        functionConfig.setCustomSchemaInputs(schemaInput);
+        functionConfig.setCustomSchemaOutputs(schemaOutput);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        if (jarFilePathUrl == null) {
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction");
+        } else {
+            functionConfig.setJar(jarFilePathUrl);
+        }
+
+        LocalRunner localRunner = LocalRunner.builder()
+                .functionConfig(functionConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        localRunner.start(false);
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats stats = admin.topics().getStats(sourceTopic);
+                return stats.subscriptions.get(subscriptionName) != null
+                        && !stats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        int totalMsgs = 5;
+        for (int i = 0; i < totalMsgs; i++) {
+            AvroTestObject avroTestObject = new AvroTestObject();
+            avroTestObject.setBaseValue(i);
+            producer.newMessage().property(propertyKey, propertyValue)
+                    .value(avroTestObject).send();
+        }
+
+        //consume message from sinkTopic
+        for (int i = 0; i < totalMsgs; i++) {
+            Message<GenericRecord> msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedPropertyValue = msg.getProperty(propertyKey);
+            assertEquals(propertyValue, receivedPropertyValue);
+            assertEquals(msg.getValue().getField("baseValue"),  10 + i);
+            consumer.acknowledge(msg);
+        }
+
+        // validate pulsar-sink consumer has consumed all messages
+        assertNotEquals(admin.topics().getStats(sinkTopic).subscriptions.values().iterator().next().unackedMessages, 0);
+        localRunner.stop();
+
+        retryStrategically((test) -> {
+            try {
+                TopicStats topicStats = admin.topics().getStats(sourceTopic);
+                return topicStats.subscriptions.get(subscriptionName) != null
+                        && topicStats.subscriptions.get(subscriptionName).consumers.isEmpty();
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 20, 150);
+
+        //change the schema ,the function should not run, resulting in no messages to consume
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
+        localRunner = LocalRunner.builder()
+                .functionConfig(functionConfig)
+                .clientAuthPlugin(AuthenticationTls.class.getName())
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .useTls(true)
+                .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsAllowInsecureConnection(true)
+                .tlsHostNameVerificationEnabled(false)
+                .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        localRunner.start(false);
+
+        producer.newMessage().property(propertyKey, propertyValue).value(new AvroTestObject()).send();
+        Message<GenericRecord> msg = consumer.receive(2, TimeUnit.SECONDS);
+        assertEquals(msg, null);
+
+        producer.close();
+        consumer.close();
+        localRunner.stop();
+    }
+
     @Test(timeOut = 20000)
     public void testE2EPulsarFunctionLocalRun() throws Exception {
         testE2EPulsarFunctionLocalRun(null);
+    }
+
+    @Test(timeOut = 30000)
+    public void testAvroFunctionLocalRun() throws Exception {
+        testAvroFunctionLocalRun(null);
     }
 
     @Test(timeOut = 20000)

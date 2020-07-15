@@ -22,10 +22,10 @@ Commands
 * `ns-isolation-policy`
 * `sources`
 
-    For more information, see [here](reference-connector-admin.md#sources)
+  For more information, see [here](io-cli.md#sources)
 * `sinks`
   
-  For more information, see [here](reference-connector-admin.md#sinks)
+  For more information, see [here](io-cli.md#sinks)
 * `topics`
 * `tenants`
 * `resource-quotas`
@@ -451,7 +451,7 @@ Options
 |`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--state-storage-service-url`|The URL for the state storage service (by default Apache BookKeeper)||
+|`--state-storage-service-url`|The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally.||
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)||
 |`--user-config`|User-defined config key/values||
@@ -1510,6 +1510,27 @@ Options
 |`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
 |`-d`, `--disabled`|Disable automatic schema updates.|false|
 
+### `get-publish-rate`
+Get the message publish rate for each topic in a namespace, in bytes as well as messages per second 
+
+Usage
+```bash
+$ pulsar-admin namespaces get-publish-rate tenant/namespace
+```
+
+### `set-publish-rate`
+Set the message publish rate for each topic in a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces set-publish-rate tenant/namespace options
+```
+
+Options
+|Flag|Description|Default|
+|----|---|---|
+|`-m`, `--msg-publish-rate`|Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
+|`-b`, `--byte-publish-rate`|Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).|-1|
 
 ## `ns-isolation-policy`
 Operations for managing namespace isolation policies.

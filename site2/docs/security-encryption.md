@@ -30,16 +30,16 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 
 ```shell
 openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
+openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
 ```
 
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
 
-3. Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which Pulsar client invokes to load the key.
+3. Implement the CryptoKeyReader interface, specifically CryptoKeyReader.getPublicKey() for producer and CryptoKeyReader.getPrivateKey() for consumer, which Pulsar client invokes to load the key.
 
-4. Add encryption key to producer configuration: conf.addEncryptionKey("myapp.key").
+4. Add encryption key name to producer builder: PulsarClient.newProducer().addEncryptionKey("myapp.key").
 
-5. Add CryptoKeyReader implementation to producer or consumer config: conf.setCryptoKeyReader(keyReader).
+5. Add CryptoKeyReader implementation to producer or consumer builder: PulsarClient.newProducer().cryptoKeyReader(keyReader) / PulsarClient.newConsumer().cryptoKeyReader(keyReader).
 
 6. Sample producer application:
 
@@ -78,18 +78,20 @@ class RawFileKeyReader implements CryptoKeyReader {
         return keyInfo;
     }
 }
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
 
-ProducerConfiguration prodConf = new ProducerConfiguration();
-prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-prodConf.addEncryptionKey("myappkey");
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 
-Producer producer = pulsarClient.createProducer("persistent://my-tenant/my-ns/my-topic", prodConf);
+Producer producer = pulsarClient.newProducer()
+                .topic("persistent://my-tenant/my-ns/my-topic")
+                .addEncryptionKey("myappkey")
+                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
+                .create();
 
 for (int i = 0; i < 10; i++) {
     producer.send("my-message".getBytes());
 }
 
+producer.close();
 pulsarClient.close();
 ```
 7. Sample Consumer Application:
@@ -130,10 +132,12 @@ class RawFileKeyReader implements CryptoKeyReader {
     }
 }
 
-ConsumerConfiguration consConf = new ConsumerConfiguration();
-consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-Consumer consumer = pulsarClient.subscribe("persistent://my-tenant/my-ns/my-topic", "my-subscriber-name", consConf);
+PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
+Consumer consumer = pulsarClient.newConsumer()
+                .topic("persistent://my-tenant/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name")
+                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
+                .subscribe();
 Message msg = null;
 
 for (int i = 0; i < 10; i++) {
@@ -144,11 +148,12 @@ for (int i = 0; i < 10; i++) {
 
 // Acknowledge the consumption of all messages at once
 consumer.acknowledgeCumulative(msg);
+consumer.close();
 pulsarClient.close();
 ```
 
 ## Key rotation
-Pulsar generates new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.
+Pulsar generates a new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader.getPublicKey() to retrieve the latest version.
 
 ## Enable encryption at the producer application
 If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages. You can do this in two ways:
@@ -160,16 +165,15 @@ When producers want to encrypt the messages with multiple keys, producers add al
 If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2), refer to the following example.
 
 ```java
-conf.addEncryptionKey("myapp.messagekey1");
-conf.addEncryptionKey("myapp.messagekey2");
+PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
 ```
 ## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 
 ## Handle failures
 * Producer/ Consumer loses access to the key
-  * Producer action fails indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call conf.setCryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
-  * If consumption fails due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
+  * Producer action fails indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call PulsarClient.newProducer().cryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
+  * If consumption fails due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
 * Batch messaging
-  * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.
+  * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if cryptoFailureAction() is set to ConsumerCryptoFailureAction.CONSUME.
 * If decryption fails, the message consumption stops and application notices backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages. 

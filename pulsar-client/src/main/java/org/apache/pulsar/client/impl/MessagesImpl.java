@@ -45,11 +45,15 @@ public class MessagesImpl<T> implements Messages<T> {
     }
 
     protected boolean canAdd(Message<T> message) {
-        if (maxNumberOfMessages <= 0 && maxSizeOfMessages <= 0) {
-            return true;
+        if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
+            return false;
         }
-        return (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 <= maxNumberOfMessages)
-                || (maxSizeOfMessages > 0 && currentSizeOfMessages + message.getData().length <= maxSizeOfMessages);
+
+        if (maxSizeOfMessages > 0 && currentSizeOfMessages + message.getData().length > maxSizeOfMessages) {
+            return false;
+        }
+
+        return true;
     }
 
     protected void add(Message<T> message) {

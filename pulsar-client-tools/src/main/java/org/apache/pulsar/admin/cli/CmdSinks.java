@@ -47,6 +47,7 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -276,6 +277,13 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--custom-schema-inputs", description = "The map of input topics to Schema types or class names (as a JSON string)")
         protected String customSchemaInputString;
 
+        @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
+        protected String inputSpecs;
+
+        @Parameter(names = "--max-redeliver-count", description = "Maximum number of times that a message will be redelivered before being sent to the dead letter queue")
+        protected Integer maxMessageRetries;
+        @Parameter(names = "--dead-letter-topic", description = "Name of the dead topic where the failing messages will be sent.")
+        protected String deadLetterTopic;
 
         @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the sink", hidden = true)
         protected FunctionConfig.ProcessingGuarantees DEPRECATED_processingGuarantees;
@@ -314,6 +322,8 @@ public class CmdSinks extends CmdBase {
         protected Boolean autoAck;
         @Parameter(names = "--timeout-ms", description = "The message timeout in milliseconds")
         protected Long timeoutMs;
+        @Parameter(names = "--negative-ack-redelivery-delay-ms", description = "The negative ack message redelivery delay in milliseconds")
+        protected Long negativeAckRedeliveryDelayMs;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
 
@@ -380,6 +390,16 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setTopicToSchemaType(customSchemaInputMap);
             }
 
+            if(null != inputSpecs){
+                Type type = new TypeToken<Map<String, ConsumerConfig>>(){}.getType();
+                sinkConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
+            }
+
+            sinkConfig.setMaxMessageRetries(maxMessageRetries);
+            if (null != deadLetterTopic) {
+                sinkConfig.setDeadLetterTopic(deadLetterTopic);
+            }
+
             if (isNotBlank(subsName)) {
                 sinkConfig.setSourceSubscriptionName(subsName);
             }
@@ -443,9 +463,8 @@ public class CmdSinks extends CmdBase {
             if (timeoutMs != null) {
                 sinkConfig.setTimeoutMs(timeoutMs);
             }
-            
-            if (null != sinkConfigString) {
-                sinkConfig.setConfigs(parseConfigs(sinkConfigString));
+            if (negativeAckRedeliveryDelayMs != null && negativeAckRedeliveryDelayMs > 0) {
+                sinkConfig.setNegativeAckRedeliveryDelayMs(negativeAckRedeliveryDelayMs);
             }
 
             if (customRuntimeOptions != null) {

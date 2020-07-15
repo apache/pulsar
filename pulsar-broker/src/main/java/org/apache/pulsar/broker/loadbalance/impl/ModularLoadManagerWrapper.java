@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -83,7 +82,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
     
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        return Collections.emptyList();
+        return loadManager.getLoadBalancingMetrics();
     }
 
     @Override

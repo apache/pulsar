@@ -55,96 +55,197 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         return new Object[][] {
 
                 // Default batch receive policy.
-                { BatchReceivePolicy.DEFAULT_POLICY, true },
+                { BatchReceivePolicy.DEFAULT_POLICY, true, 1000},
                 // Only receive timeout limitation.
                 { BatchReceivePolicy.builder()
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), true
+                        .build(), true, 1000
                 },
                 // Only number of messages in a single batch receive limitation.
                 { BatchReceivePolicy.builder()
                         .maxNumMessages(10)
-                        .build(), true
+                        .build(), true, 1000
                 },
                 // Number of messages and timeout limitation
                 { BatchReceivePolicy.builder()
                         .maxNumMessages(13)
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), true
+                        .build(), true, 1000
                 },
                 // Size of messages and timeout limitation
                 { BatchReceivePolicy.builder()
                         .maxNumBytes(64)
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), true
+                        .build(), true, 1000
                 },
                 // Default batch receive policy.
-                { BatchReceivePolicy.DEFAULT_POLICY, false },
+                { BatchReceivePolicy.DEFAULT_POLICY, false, 1000 },
                 // Only receive timeout limitation.
                 { BatchReceivePolicy.builder()
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), false
+                        .build(), false, 1000
                 },
                 // Only number of messages in a single batch receive limitation.
                 { BatchReceivePolicy.builder()
                         .maxNumMessages(10)
-                        .build(), false
+                        .build(), false, 1000
                 },
                 // Number of messages and timeout limitation
                 { BatchReceivePolicy.builder()
                         .maxNumMessages(13)
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), false
+                        .build(), false, 1000
                 },
                 // Size of messages and timeout limitation
                 { BatchReceivePolicy.builder()
                         .maxNumBytes(64)
                         .timeout(50, TimeUnit.MILLISECONDS)
-                        .build(), false
+                        .build(), false, 1000
+                },
+                // Number of message limitation exceed receiverQueue size
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(70)
+                        .build(), true, 50
+                },
+                // Number of message limitation exceed receiverQueue size and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(50)
+                        .timeout(10, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
+                },
+                // Number of message limitation is negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .timeout(10, TimeUnit.MILLISECONDS)
+                        .build(), true, 10
+                },
+                // Size of message limitation is negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
+                },
+                // Number of message limitation and size of message limitation are both negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
+                },
+                // Number of message limitation exceed receiverQueue size
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(70)
+                        .build(), false, 50
+                },
+                // Number of message limitation exceed receiverQueue size and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(50)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
+                },
+                // Number of message limitation is negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
+                },
+                // Size of message limitation is negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
+                },
+                // Number of message limitation and size of message limitation are both negative and timeout limitation
+                {
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
                 }
         };
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-non-partition-" + UUID.randomUUID();
-        testBatchReceive(topic, batchReceivePolicy, batchProduce);
+        testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
-        testBatchReceive(topic, batchReceivePolicy, batchProduce);
+        testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-non-partition-async-" + UUID.randomUUID();
-        testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce);
+        testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testAsyncBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testAsyncBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-async-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
-        testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce);
+        testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveAndRedeliveryNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testBatchReceiveAndRedeliveryNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-non-partition-" + UUID.randomUUID();
-        testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce);
+        testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
     @Test(dataProvider = "batchReceivePolicy")
-    public void testBatchReceiveAndRedeliveryPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    public void testBatchReceiveAndRedeliveryPartitionedTopic(BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-receive-and-redelivery-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
-        testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce);
+        testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize);
     }
 
-    private void testBatchReceive(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    @Test
+    public void verifyBatchSizeIsEqualToPolicyConfiguration() throws Exception {
+        final int muxNumMessages = 100;
+        final int messagesToSend = 500;
+
+        final String topic = "persistent://my-property/my-ns/batch-receive-size" + UUID.randomUUID();
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumMessages(muxNumMessages).build();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s2")
+                .batchReceivePolicy(batchReceivePolicy)
+                .subscribe();
+
+        sendMessagesAsyncAndWait(producer, messagesToSend);
+        receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy, messagesToSend / muxNumMessages);
+    }
+
+
+    private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer, BatchReceivePolicy batchReceivePolicy, int numOfExpectedBatches) throws PulsarClientException {
+        Messages<String> messages;
+        for (int i = 0; i < numOfExpectedBatches; i++) {
+            messages = consumer.batchReceive();
+            log.info("Received {} messages in a single batch receive verifying batch size.", messages.size());
+            Assert.assertEquals(messages.size(), batchReceivePolicy.getMaxNumMessages());
+        }
+    }
+
+    private void testBatchReceive(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);
@@ -155,14 +256,14 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
+                .receiverQueueSize(receiverQueueSize)
                 .batchReceivePolicy(batchReceivePolicy)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, 100);
         batchReceiveAndCheck(consumer, 100);
     }
 
-    private void testBatchReceiveAsync(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
-
+    private void testBatchReceiveAsync(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         if (batchReceivePolicy.getTimeoutMs() <= 0) {
             return;
         }
@@ -178,6 +279,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
+                .receiverQueueSize(receiverQueueSize)
                 .batchReceivePolicy(batchReceivePolicy)
                 .subscribe();
 
@@ -187,7 +289,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         latch.await();
     }
 
-    private void testBatchReceiveAndRedelivery(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce) throws Exception {
+    private void testBatchReceiveAndRedelivery(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);
@@ -198,6 +300,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
+                .receiverQueueSize(receiverQueueSize)
                 .batchReceivePolicy(batchReceivePolicy)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .subscribe();

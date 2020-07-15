@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import lombok.AccessLevel;
@@ -66,6 +68,7 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.PulsarVersion;
@@ -74,6 +77,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService.LeaderListener;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -84,10 +89,13 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -110,9 +118,11 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
+import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -125,6 +135,8 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
+import org.apache.pulsar.ZookeeperSessionExpiredHandlers;
+import org.apache.pulsar.zookeeper.ZookeeperSessionExpiredHandler;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooDefs;
@@ -151,6 +163,7 @@ public class PulsarService implements AutoCloseable {
     private WebSocketService webSocketService = null;
     private ConfigurationCacheService configurationCacheService = null;
     private LocalZooKeeperCacheService localZkCacheService = null;
+    private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
     private ZooKeeperCache localZkCache;
     private GlobalZooKeeperCache globalZkCache;
@@ -187,10 +200,11 @@ public class PulsarService implements AutoCloseable {
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
-    private ShutdownService shutdownService;
+    private final ShutdownService shutdownService;
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
+    private BrokerInterceptor brokerInterceptor;
 
     public enum State {
         Init, Started, Closed
@@ -200,21 +214,38 @@ public class PulsarService implements AutoCloseable {
 
     private final ReentrantLock mutex = new ReentrantLock();
     private final Condition isClosedCondition = mutex.newCondition();
+    // key is listener name , value is pulsar address and pulsar ssl address
+    private Map<String, AdvertisedListener> advertisedListeners;
 
     public PulsarService(ServiceConfiguration config) {
-        this(config, Optional.empty());
+        this(config, Optional.empty(), (exitCode) -> {
+                LOG.info("Process termination requested with code {}. "
+                         + "Ignoring, as this constructor is intended for tests. ", exitCode);
+            });
     }
 
-    public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService) {
+    public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService,
+                         Consumer<Integer> processTerminator) {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
-
+        // validate `advertisedAddress`, `advertisedListeners`, `internalListenerName`
+        Map<String, AdvertisedListener> result = MultipleListenerValidator.validateAndAnalysisAdvertisedListener(config);
+        if (result != null) {
+            this.advertisedListeners = Collections.unmodifiableMap(result);
+        } else {
+            this.advertisedListeners = Collections.unmodifiableMap(Collections.emptyMap());
+        }
         state = State.Init;
+        // use `internalListenerName` listener as `advertisedAddress`
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
-        this.advertisedAddress = advertisedAddress(config);
+        if (!this.advertisedListeners.isEmpty()) {
+            this.advertisedAddress = this.advertisedListeners.get(config.getInternalListenerName()).getBrokerServiceUrl().getHost();
+        } else {
+            this.advertisedAddress = advertisedAddress(config);
+        }
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
-        this.shutdownService = new MessagingServiceShutdownHook(this);
+        this.shutdownService = new MessagingServiceShutdownHook(this, processTerminator);
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
         this.functionWorkerService = functionWorkerService;
@@ -236,6 +267,10 @@ public class PulsarService implements AutoCloseable {
             if (this.webService != null) {
                 this.webService.close();
                 this.webService = null;
+            }
+
+            if (this.webSocketService != null) {
+                this.webSocketService.close();
             }
 
             if (this.brokerService != null) {
@@ -392,7 +427,15 @@ public class PulsarService implements AutoCloseable {
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
                     config.getZookeeperServers(), config.getZooKeeperSessionTimeoutMillis());
-            localZooKeeperConnectionProvider.start(shutdownService);
+            ZookeeperSessionExpiredHandler sessionExpiredHandler = null;
+            if (ZookeeperSessionExpiredHandlers.RECONNECT_POLICY.equals(config.getZookeeperSessionExpiredPolicy())) {
+                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.reconnectWhenZookeeperSessionExpired(this, shutdownService);
+            } else if (ZookeeperSessionExpiredHandlers.SHUTDOWN_POLICY.equals(config.getZookeeperSessionExpiredPolicy())) {
+                sessionExpiredHandler = ZookeeperSessionExpiredHandlers.shutdownWhenZookeeperSessionExpired(shutdownService);
+            } else {
+                throw new IllegalArgumentException("Invalid zookeeper session expired policy " + config.getZookeeperSessionExpiredPolicy());
+            }
+            localZooKeeperConnectionProvider.start(sessionExpiredHandler);
 
             // Initialize and start service to access configuration repository.
             this.startZkCacheService();
@@ -414,7 +457,9 @@ public class PulsarService implements AutoCloseable {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPolicies.create(this.getConfiguration().getProperties()));
-
+            this.brokerInterceptor = BrokerInterceptors.load(config);
+            brokerService.setInterceptor(getBrokerInterceptor());
+            this.brokerInterceptor.initialize(config);
             brokerService.start();
 
             this.webService = new WebService(this);
@@ -486,6 +531,13 @@ public class PulsarService implements AutoCloseable {
             // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
             this.nsService.initialize();
 
+            // Start topic level policies service
+            if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
+                this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
+            }
+
+            this.topicPoliciesService.start();
+
             // Start the leader election service
             startLeaderElectionService();
 
@@ -523,9 +575,9 @@ public class PulsarService implements AutoCloseable {
 
             final String bootstrapMessage = "bootstrap service "
                     + (config.getWebServicePort().isPresent() ? "port = " + config.getWebServicePort().get() : "")
-                    + (config.getWebServicePortTls().isPresent() ? "tls-port = " + config.getWebServicePortTls() : "")
-                    + (config.getBrokerServicePort().isPresent() ? "broker url= " + brokerServiceUrl : "")
-                    + (config.getBrokerServicePortTls().isPresent() ? "broker url= " + brokerServiceUrlTls : "");
+                    + (config.getWebServicePortTls().isPresent() ? ", tls-port = " + config.getWebServicePortTls() : "")
+                    + (config.getBrokerServicePort().isPresent() ? ", broker url= " + brokerServiceUrl : "")
+                    + (config.getBrokerServicePortTls().isPresent() ? ", broker tls url= " + brokerServiceUrlTls : "");
             LOG.info("messaging service is ready");
 
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
@@ -721,6 +773,29 @@ public class PulsarService implements AutoCloseable {
         return this.localZooKeeperConnectionProvider.getLocalZooKeeper();
     }
 
+    /**
+     * Get default bookkeeper metadata service uri.
+     */
+    public String getMetadataServiceUri() {
+        return bookieMetadataServiceUri(this.getConfiguration());
+    }
+
+    public InternalConfigurationData getInternalConfigurationData() {
+
+        String metadataServiceUri = getMetadataServiceUri();
+
+        if (StringUtils.isNotBlank(config.getBookkeeperMetadataServiceUri())) {
+            metadataServiceUri = this.getConfiguration().getBookkeeperMetadataServiceUri();
+        }
+
+        return new InternalConfigurationData(
+            this.getConfiguration().getZookeeperServers(),
+            this.getConfiguration().getConfigurationStoreServers(),
+            new ClientConfiguration().getZkLedgersRootPath(),
+            metadataServiceUri,
+            this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+    }
+
     public ConfigurationCacheService getConfigurationCache() {
         return configurationCacheService;
     }
@@ -814,7 +889,7 @@ public class PulsarService implements AutoCloseable {
                 checkNotNull(offloadPolicies.getOffloadersDirectory(),
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
-                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory());
+                this.offloaderManager = OffloaderUtils.searchForOffloaders(offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
                 LedgerOffloaderFactory offloaderFactory = this.offloaderManager.getOffloaderFactory(
                         offloadPolicies.getManagedLedgerOffloadDriver());
                 try {
@@ -903,15 +978,16 @@ public class PulsarService implements AutoCloseable {
         return this.compactorExecutor;
     }
 
+    // only public so mockito can mock it
+    public Compactor newCompactor() throws PulsarServerException {
+        return new TwoPhaseCompactor(this.getConfiguration(),
+                                     getClient(), getBookKeeperClient(),
+                                     getCompactorExecutor());
+    }
+
     public synchronized Compactor getCompactor() throws PulsarServerException {
         if (this.compactor == null) {
-            try {
-                this.compactor = new TwoPhaseCompactor(this.getConfiguration(),
-                                                       getClient(), getBookKeeperClient(),
-                                                       getCompactorExecutor());
-            } catch (Exception e) {
-                throw new PulsarServerException(e);
-            }
+            this.compactor = newCompactor();
         }
         return this.compactor;
     }
@@ -936,10 +1012,17 @@ public class PulsarService implements AutoCloseable {
                     .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(
-                        isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
-                            ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
-                            : this.getConfiguration().getTlsCertificateFilePath());
+                    if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(this.getConfiguration().getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(this.getConfiguration().getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(
+                                isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
+                                        ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
+                                        : this.getConfiguration().getTlsCertificateFilePath());
+                    }
                 }
 
                 if (isNotBlank(this.getConfiguration().getBrokerClientAuthenticationPlugin())) {
@@ -965,7 +1048,14 @@ public class PulsarService implements AutoCloseable {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
-                    builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
+                        builder.useKeyStoreTls(true)
+                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
+                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
+                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword());
+                    } else {
+                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath());
+                    }
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
                 }
 
@@ -989,10 +1079,6 @@ public class PulsarService implements AutoCloseable {
 
     public TransactionMetadataStoreService getTransactionMetadataStoreService() {
         return transactionMetadataStoreService;
-    }
-
-    public void setShutdownService(ShutdownService shutdownService) {
-        this.shutdownService = shutdownService;
     }
 
     public ShutdownService getShutdownService() {
@@ -1062,6 +1148,30 @@ public class PulsarService implements AutoCloseable {
 
     public String getSafeBrokerServiceUrl() {
         return brokerServiceUrl != null ? brokerServiceUrl : brokerServiceUrlTls;
+    }
+
+    /**
+     * Get bookkeeper metadata service uri.
+     *
+     * @param config broker configuration
+     * @return the metadata service uri that bookkeeper is used
+     */
+    public static String bookieMetadataServiceUri(ServiceConfiguration config) {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        // init bookkeeper metadata service uri
+        String metadataServiceUri = null;
+        try {
+            String zkServers = config.getZookeeperServers();
+            bkConf.setZkServers(zkServers);
+            metadataServiceUri = bkConf.getMetadataServiceUri();
+        } catch (ConfigurationException e) {
+            LOG.error("Failed to get bookkeeper metadata service uri", e);
+        }
+        return metadataServiceUri;
+    }
+
+    public TopicPoliciesService getTopicPoliciesService() {
+        return topicPoliciesService;
     }
 
     private void startWorkerService(AuthenticationService authenticationService,
@@ -1153,25 +1263,20 @@ public class PulsarService implements AutoCloseable {
                 throw e;
             }
 
-            InternalConfigurationData internalConf = new InternalConfigurationData(
-                    this.getConfiguration().getZookeeperServers(),
-                    this.getConfiguration().getConfigurationStoreServers(),
-                    new ClientConfiguration().getZkLedgersRootPath(),
-                    this.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
+            InternalConfigurationData internalConf = this.getInternalConfigurationData();
 
             URI dlogURI;
             try {
                 // initializing dlog namespace for function worker
-                dlogURI = WorkerUtils.initializeDlogNamespace(
-                        internalConf.getZookeeperServers(),
-                        internalConf.getLedgersRootPath());
+                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             } catch (IOException ioe) {
-                LOG.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                        internalConf.getZookeeperServers(), ioe);
+                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for storing function packages",
+                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
                 throw ioe;
             }
             LOG.info("Function worker service setup completed");
-            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService);
+            // TODO figure out how to handle errors from function worker service
+            functionWorkerService.get().start(dlogURI, authenticationService, authorizationService, ErrorNotifier.getShutdownServiceImpl(shutdownService));
             LOG.info("Function worker service started");
         }
     }

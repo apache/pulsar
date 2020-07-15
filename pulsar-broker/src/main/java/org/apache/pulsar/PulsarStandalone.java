@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -298,14 +299,13 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setTlsHostnameVerificationEnable(false);
-
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+            workerConfig.setTlsEnableHostnameVerification(false);
+            workerConfig.setBrokerClientTrustCertsFilePath(config.getTlsTrustCertsFilePath());
 
             // client in worker will use this config to authenticate with broker
-            workerConfig.setClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
-            workerConfig.setClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
+            workerConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+            workerConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
 
             // inherit super users
             workerConfig.setSuperUserRoles(config.getSuperUserRoles());
@@ -314,7 +314,12 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         // Start Broker
-        broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
+        broker = new PulsarService(config,
+                                   Optional.ofNullable(fnWorkerService),
+                                   (exitCode) -> {
+                                       log.info("Halting standalone process with code {}", exitCode);
+                                       Runtime.getRuntime().halt(exitCode);
+                                   });
         broker.start();
 
         broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));
@@ -332,11 +337,29 @@ public class PulsarStandalone implements AutoCloseable {
             createSampleNameSpace(clusterData, cluster);
         } else {
             URL webServiceUrlTls = new URL(
-                    String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
+                    String.format("https://%s:%d", config.getAdvertisedAddress(), config.getWebServicePortTls().get()));
             String brokerServiceUrlTls = String.format("pulsar+ssl://%s:%d", config.getAdvertisedAddress(),
                     config.getBrokerServicePortTls().get());
-            admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrlTls.toString()).authentication(
-                    config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters()).build();
+            PulsarAdminBuilder builder = PulsarAdmin.builder()
+                    .serviceHttpUrl(webServiceUrlTls.toString())
+                    .authentication(
+                            config.getBrokerClientAuthenticationPlugin(),
+                            config.getBrokerClientAuthenticationParameters());
+
+            // set trust store if needed.
+            if (config.isBrokerClientTlsEnabled()) {
+                if (config.isBrokerClientTlsEnabledWithKeyStore()) {
+                    builder.useKeyStoreTls(true)
+                            .tlsTrustStoreType(config.getBrokerClientTlsTrustStoreType())
+                            .tlsTrustStorePath(config.getBrokerClientTlsTrustStore())
+                            .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword());
+                } else {
+                    builder.tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
+                }
+                builder.allowTlsInsecureConnection(config.isTlsAllowInsecureConnection());
+            }
+
+            admin = builder.build();
             ClusterData clusterData = new ClusterData(null, webServiceUrlTls.toString(), null, brokerServiceUrlTls);
             createSampleNameSpace(clusterData, cluster);
         }

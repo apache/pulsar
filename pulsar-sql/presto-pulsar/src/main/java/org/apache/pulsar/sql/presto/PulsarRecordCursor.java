@@ -18,30 +18,31 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
-import static com.facebook.presto.spi.type.BigintType.BIGINT;
-import static com.facebook.presto.spi.type.DateTimeEncoding.packDateTimeWithZone;
-import static com.facebook.presto.spi.type.DateType.DATE;
-import static com.facebook.presto.spi.type.IntegerType.INTEGER;
-import static com.facebook.presto.spi.type.RealType.REAL;
-import static com.facebook.presto.spi.type.SmallintType.SMALLINT;
-import static com.facebook.presto.spi.type.TimeType.TIME;
-import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
-import static com.facebook.presto.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
-import static com.facebook.presto.spi.type.TinyintType.TINYINT;
 import static com.google.common.base.Preconditions.checkArgument;
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.type.BigintType.BIGINT;
+import static io.prestosql.spi.type.DateTimeEncoding.packDateTimeWithZone;
+import static io.prestosql.spi.type.DateType.DATE;
+import static io.prestosql.spi.type.IntegerType.INTEGER;
+import static io.prestosql.spi.type.RealType.REAL;
+import static io.prestosql.spi.type.SmallintType.SMALLINT;
+import static io.prestosql.spi.type.TimeType.TIME;
+import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
+import static io.prestosql.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
+import static io.prestosql.spi.type.TinyintType.TINYINT;
 
-import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.RecordCursor;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.annotations.VisibleForTesting;
 import io.airlift.log.Logger;
 import io.airlift.slice.Slice;
 import io.airlift.slice.Slices;
 import io.netty.buffer.ByteBuf;
+import io.prestosql.spi.PrestoException;
+import io.prestosql.spi.connector.RecordCursor;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.VarbinaryType;
+import io.prestosql.spi.type.VarcharType;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -123,7 +124,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 pulsarConnectorCache.getManagedLedgerFactory(),
                 pulsarConnectorCache.getManagedLedgerConfig(
                         TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies),
+                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies,
+                        pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
     }
 
@@ -153,10 +155,9 @@ public class PulsarRecordCursor implements RecordCursor {
         this.readOffloaded = pulsarConnectorConfig.getManagedLedgerOffloadDriver() != null;
         this.pulsarConnectorConfig = pulsarConnectorConfig;
 
-        this.schemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(
-                pulsarSplit.getSchemaInfo(),
-                columnHandles
-        );
+        this.schemaHandler = PulsarSchemaHandlers
+                .newPulsarSchemaHandler(this.topicName,
+                        this.pulsarConnectorConfig, pulsarSplit.getSchemaInfo(), columnHandles);
 
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
@@ -424,9 +425,11 @@ public class PulsarRecordCursor implements RecordCursor {
             if (this.currentMessage.getKeyBytes().isPresent()) {
                 keyByteBuf = this.currentMessage.getKeyBytes().get();
             }
-            currentRecord = this.schemaHandler.deserialize(keyByteBuf, this.currentMessage.getData());
+            currentRecord = this.schemaHandler.deserialize(keyByteBuf,
+                    this.currentMessage.getData(), this.currentMessage.getSchemaVersion());
         } else {
-            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData());
+            currentRecord = this.schemaHandler.deserialize(this.currentMessage.getData(),
+                    this.currentMessage.getSchemaVersion());
         }
         metricsTracker.incr_NUM_RECORD_DESERIALIZED();
 
@@ -487,7 +490,11 @@ public class PulsarRecordCursor implements RecordCursor {
         } else if (type.equals(TIME)) {
             return ((Number) record).longValue();
         } else if (type.equals(TIMESTAMP)) {
-            return ((Number) record).longValue();
+            if (record instanceof String) {
+                return Long.parseLong((String) record);
+            } else {
+                return ((Number) record).longValue();
+            }
         } else if (type.equals(TIMESTAMP_WITH_TIME_ZONE)) {
             return packDateTimeWithZone(((Number) record).longValue(), 0);
         } else if (type.equals(TINYINT)) {
@@ -513,9 +520,36 @@ public class PulsarRecordCursor implements RecordCursor {
         if (type == VarcharType.VARCHAR) {
             return Slices.utf8Slice(record.toString());
         } else if (type == VarbinaryType.VARBINARY) {
-            return Slices.wrappedBuffer((byte[]) record);
+            return Slices.wrappedBuffer(toBytes(record));
         } else {
             throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + type);
+        }
+    }
+
+    private byte[] toBytes(Object record) {
+        if (record instanceof ByteBuffer) {
+            ByteBuffer byteBuffer = (ByteBuffer) record;
+            if (byteBuffer.hasArray()) {
+                return byteBuffer.array();
+            }
+            byte[] bytes = new byte[byteBuffer.position()];
+            byteBuffer.flip();
+            byteBuffer.get(bytes);
+            return bytes;
+        } else if (record instanceof ByteBuf) {
+            ByteBuf byteBuf = (ByteBuf) record;
+            if (byteBuf.hasArray()) {
+                return byteBuf.array();
+            }
+            byte[] bytes = new byte[byteBuf.readableBytes()];
+            byteBuf.readBytes(bytes);
+            return bytes;
+        } else {
+            try {
+                return (byte[]) record;
+            } catch (Exception e) {
+                throw new PrestoException(NOT_SUPPORTED, "Unsupported type " + record.getClass().getName());
+            }
         }
     }
 
@@ -569,5 +603,10 @@ public class PulsarRecordCursor implements RecordCursor {
     private void checkFieldType(int field, Class<?> expected) {
         Class<?> actual = getType(field).getJavaType();
         checkArgument(actual == expected, "Expected field %s to be type %s but is %s", field, expected, actual);
+    }
+
+    @VisibleForTesting
+    SchemaHandler getSchemaHandler() {
+        return this.schemaHandler;
     }
 }

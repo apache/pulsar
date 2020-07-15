@@ -33,7 +33,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.6.0-SNAPSHOT</version>
+  <version>2.7.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -117,6 +117,9 @@ flexible messaging model and an intuitive client API.</description>
     <!-- connector-related modules -->
     <module>pulsar-io</module>
 
+    <!-- kafka connect avro converter shaded, because version mismatch    -->
+    <module>kafka-connect-avro-converter-shaded</module>
+
     <!-- examples -->
     <module>examples</module>
 
@@ -130,6 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>docker</module>
     <module>tests</module>
     <module>pulsar-metadata</module>
+    <module>jclouds-shaded</module>
   </modules>
 
   <issueManagement>
@@ -153,10 +157,10 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
-    <netty.version>4.1.45.Final</netty.version>
-    <netty-tc-native.version>2.0.26.Final</netty-tc-native.version>
+    <netty.version>4.1.48.Final</netty.version>
+    <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
-    <jetty.version>9.4.20.v20190813</jetty.version>
+    <jetty.version>9.4.29.v20200521</jetty.version>
     <jersey.version>2.27</jersey.version>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
@@ -167,8 +171,8 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.10.0</log4j2.version>
     <bouncycastle.version>1.60</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.10.1</jackson.version>
-    <jackson.databind.version>2.10.1</jackson.databind.version>
+    <jackson.version>2.11.1</jackson.version>
+    <jackson.databind.version>2.11.1</jackson.databind.version>
     <reflections.version>0.9.11</reflections.version>
     <swagger.version>1.5.21</swagger.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
@@ -186,28 +190,34 @@ flexible messaging model and an intuitive client API.</description>
     <aerospike-client.version>4.4.8</aerospike-client.version>
     <kafka-client.version>2.3.0</kafka-client.version>
     <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
-    <aws-sdk.version>1.11.297</aws-sdk.version>
+    <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.9.1</avro.version>
     <joda.version>2.10.1</joda.version>
-    <jclouds.version>2.2.0</jclouds.version>
+    <jclouds.version>2.2.1</jclouds.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
+    <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
+    <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
+    <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
     <elasticsearch.version>6.3.2</elasticsearch.version>
-    <presto.version>0.206</presto.version>
+    <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
     <scala.binary.version>2.11</scala.binary.version>
     <debezium.version>1.0.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
-    <zstd.version>1.3.7-3</zstd.version>
-    <snappy.version>1.1.1.3</snappy.version>
     <hbase.version>1.4.9</hbase.version>
     <guava.version>25.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
+    <confluent.version>5.3.2</confluent.version>
+    <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
+    <aircompressor.version>0.16</aircompressor.version>
+    <httpcomponents.version>4.5.5</httpcomponents.version>
+    <asynchttpclient.version>2.12.1</asynchttpclient.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -220,6 +230,7 @@ flexible messaging model and an intuitive client API.</description>
     <javassist.version>3.25.0-GA</javassist.version>
     <failsafe.version>2.3.1</failsafe.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
+    <confluent.version>5.2.2</confluent.version>
 
     <!-- Plugin dependencies -->
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
@@ -236,7 +247,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.asynchttpclient</groupId>
         <artifactId>async-http-client</artifactId>
-        <version>2.7.0</version>
+        <version>${asynchttpclient.version}</version>
         <exclusions>
           <exclusion>
             <groupId>io.netty</groupId>
@@ -248,7 +259,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
-        <version>4.5.5</version>
+        <version>${httpcomponents.version}</version>
       </dependency>
 
       <dependency>
@@ -571,7 +582,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.4</version>
+        <version>3.6</version>
       </dependency>
 
       <dependency>
@@ -590,24 +601,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
         <version>2.5</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.lz4</groupId>
-        <artifactId>lz4-java</artifactId>
-        <version>1.5.0</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.github.luben</groupId>
-        <artifactId>zstd-jni</artifactId>
-        <version>${zstd.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.xerial.snappy</groupId>
-        <artifactId>snappy-java</artifactId>
-        <version>${snappy.version}</version>
       </dependency>
 
       <dependency>
@@ -752,6 +745,30 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_2.10</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-scala_2.11</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-paranamer</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
+        <artifactId>jackson-module-parameter-names</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.module</groupId>
         <artifactId>jackson-module-jaxb-annotations</artifactId>
         <version>${jackson.version}</version>
       </dependency>
@@ -775,8 +792,38 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jdk8</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.fasterxml.jackson.dataformat</groupId>
         <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-csv</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-cbor</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-smile</artifactId>
         <version>${jackson.version}</version>
       </dependency>
 
@@ -1013,18 +1060,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${commons.collections.version}</version>
       </dependency>
 
-      <dependency>
-        <groupId>org.apache.jclouds</groupId>
-        <artifactId>jclouds-allblobstore</artifactId>
-        <version>${jclouds.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.jclouds</groupId>
-        <artifactId>jclouds-blobstore</artifactId>
-        <version>${jclouds.version}</version>
-      </dependency>
-
       <!-- test dependencies -->
       <dependency>
         <groupId>com.lmax</groupId>
@@ -1044,6 +1079,11 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testcontainers</groupId>
         <artifactId>mysql</artifactId>
+        <version>${testcontainers.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>postgresql</artifactId>
         <version>${testcontainers.version}</version>
       </dependency>
       <dependency>
@@ -1120,6 +1160,17 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>net.jcip</groupId>
         <artifactId>jcip-annotations</artifactId>
         <version>${jcip.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.airlift</groupId>
+        <artifactId>aircompressor</artifactId>
+        <version>${aircompressor.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.openjdk.jol</groupId>
+            <artifactId>jol-core</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1386,13 +1437,15 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>pulsar-client-go/go.sum</exclude>
             <exclude>pulsar-function-go/go.mod</exclude>
             <exclude>pulsar-function-go/go.sum</exclude>
+            <exclude>pulsar-function-go/examples/go.mod</exclude>
+            <exclude>pulsar-function-go/examples/go.sum</exclude>
 
             <!-- This file is using ZLib license -->
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sw.cc</exclude>
 
             <!-- This is a text property file that contains just a class name -->
             <exclude>**/META-INF/services/com.scurrilous.circe.HashProvider</exclude>
-            <exclude>**/META-INF/services/com.facebook.presto.spi.Plugin</exclude>
+            <exclude>**/META-INF/services/io.prestosql.spi.Plugin</exclude>
 
             <!-- Django generated code -->
             <exclude>**/django/stats/migrations/*.py</exclude>
@@ -1418,6 +1471,7 @@ flexible messaging model and an intuitive client API.</description>
 
             <!-- Configuration Templates -->
             <exclude>conf/schema_example.conf</exclude>
+            <exclude>**/templates/*.tpl</exclude>
 
             <!-- helm files -->
             <exclude>**/.helmignore</exclude>
@@ -1714,6 +1768,10 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>spring-plugins-release</id>
       <url>https://repo.spring.io/plugins-release/</url>
+    </repository>
+    <repository>
+      <id>confluent</id>
+      <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
 </project>

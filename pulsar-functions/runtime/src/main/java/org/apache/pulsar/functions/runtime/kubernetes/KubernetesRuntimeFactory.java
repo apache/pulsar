@@ -96,6 +96,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private boolean authenticationEnabled;
     private Integer grpcPort;
     private Integer metricsPort;
+    private String narExtractionDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -241,6 +242,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
         this.grpcPort = factoryConfig.getGrpcPort();
         this.metricsPort = factoryConfig.getMetricsPort();
+        this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
     }
 
     @Override
@@ -307,6 +309,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             authenticationEnabled,
             grpcPort,
             metricsPort,
+            narExtractionDirectory,
             manifestCustomizer);
     }
 

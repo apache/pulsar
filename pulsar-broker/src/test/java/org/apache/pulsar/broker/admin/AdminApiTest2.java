@@ -60,9 +60,9 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -1245,4 +1245,42 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.subscriptions.get(subName).msgBacklogNoDelayed, 0);
     }
 
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicSuccess() {
+        final String topic = "persistent://prop-xyz/ns1/max-num-partitions-per-partitioned-topic-success";
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(3);
+
+        try {
+            admin.topics().createPartitionedTopic(topic, 2);
+        } catch (Exception e) {
+            fail("should not throw any exceptions");
+        }
+    }
+
+    @Test
+    public void testMaxNumPartitionsPerPartitionedTopicFailure() {
+        final String topic = "persistent://prop-xyz/ns1/max-num-partitions-per-partitioned-topic-failure";
+        pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(2);
+
+        try {
+            admin.topics().createPartitionedTopic(topic, 3);
+            fail("should throw exception when number of partitions exceed than max partitions");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarAdminException);
+        }
+    }
+
+    @Test
+    public void testUpdateClusterWithProxyUrl() throws Exception {
+        ClusterData cluster = new ClusterData(pulsar.getWebServiceAddress());
+        String clusterName = "test2";
+        admin.clusters().createCluster(clusterName, cluster);
+        Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
+
+        // update
+        cluster.setProxyServiceUrl("proxy");
+        cluster.setProxyProtocol(ProxyProtocol.SNI);
+        admin.clusters().updateCluster(clusterName, cluster);
+        Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
+    }
 }

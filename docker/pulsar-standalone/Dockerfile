@@ -42,7 +42,7 @@ RUN echo "[program:pulsar]\n\
 command = /pulsar/bin/pulsar standalone\n\
 stdout_logfile=/dev/fd/1\n\
 stdout_logfile_maxbytes=0\n\
-redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf 
+redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf
 
 # Configure nginx
 RUN echo "daemon off;" >> /etc/nginx/nginx.conf
@@ -68,6 +68,12 @@ COPY --from=dashboard /pulsar/init-postgres.sh /pulsar/django/init-postgres.sh
 RUN mkdir /data
 RUN /pulsar/django/init-postgres.sh
 RUN sudo -u postgres /etc/init.d/postgresql stop
+# Add postgresql to supervisord. Redirect logs to stdout
+RUN echo "\n[program:postgresql]\n\
+command = /etc/init.d/postgresql start\n\
+stdout_logfile=/dev/fd/1\n\
+stdout_logfile_maxbytes=0\n\
+redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf
 
 # Collect all static files needed by Django in a
 # single place. Needed to run the app outside the
@@ -75,6 +81,6 @@ RUN sudo -u postgres /etc/init.d/postgresql stop
 RUN cd /pulsar/django && ./manage.py collectstatic --no-input
 
 ENV SERVICE_URL http://127.0.0.1:8080
-EXPOSE 80
+EXPOSE 80 8080 6650
 
 CMD ["supervisord", "-n"]

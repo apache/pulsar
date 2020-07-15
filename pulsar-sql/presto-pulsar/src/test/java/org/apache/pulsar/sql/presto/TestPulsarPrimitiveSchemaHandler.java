@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.ColumnMetadata;
 import io.netty.buffer.ByteBufAllocator;
+import io.prestosql.spi.connector.ColumnMetadata;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.pulsar.client.impl.schema.BooleanSchema;
@@ -138,6 +138,8 @@ public class TestPulsarPrimitiveSchemaHandler {
     public void testNewPulsarPrimitiveSchemaHandler() {
         RawMessage rawMessage = mock(RawMessage.class);
         SchemaHandler schemaHandler = PulsarSchemaHandlers.newPulsarSchemaHandler(
+                null,
+                null,
                 StringSchema.utf8().getSchemaInfo(),
                 null);
 

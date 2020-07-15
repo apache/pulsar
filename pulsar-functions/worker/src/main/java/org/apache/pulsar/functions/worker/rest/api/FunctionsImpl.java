@@ -26,6 +26,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.RestException;
@@ -40,14 +41,17 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -224,12 +228,12 @@ public class FunctionsImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
-
-            if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if (functionPkgUrl == null || !functionPkgUrl.startsWith(Utils.FILE)) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
@@ -415,11 +419,12 @@ public class FunctionsImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
-            if (!(functionPkgUrl != null && functionPkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if ((functionPkgUrl != null && !functionPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
@@ -644,6 +649,64 @@ public class FunctionsImpl extends ComponentImpl {
         return functionStatus;
     }
 
+    public void updateFunctionOnWorkerLeader(final String tenant,
+                               final String namespace,
+                               final String functionName,
+                               final InputStream uploadedInputStream,
+                               final boolean delete,
+                               URI uri,
+                               final String clientRole) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            if (!isSuperUser(clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        }
+
+        if (tenant == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
+        }
+        Function.FunctionMetaData functionMetaData;
+        try {
+            functionMetaData = Function.FunctionMetaData.parseFrom(uploadedInputStream);
+        } catch (IOException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Corrupt Function MetaData");
+        }
+
+        // Redirect if we are not the leader
+        if (!worker().getLeaderService().isLeader()) {
+            WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+                        "Leader not yet ready. Please retry again");
+            }
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+
+        // Its possible that we are not the leader anymore. That will be taken care of by FunctionMetaDataManager
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        try {
+            functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
+        } catch (IllegalStateException e) {
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+        }
+    }
+
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String componentName,
@@ -651,11 +714,30 @@ public class FunctionsImpl extends ComponentImpl {
                                                                  final File componentPackageFile) throws IOException {
 
         // The rest end points take precedence over whatever is there in function config
+        Path archivePath = null;
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
         FunctionConfigUtils.inferMissingArguments(functionConfig);
-        ClassLoader clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+
+        if (!StringUtils.isEmpty(functionConfig.getJar())) {
+            String builtinArchive = functionConfig.getJar();
+            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+            }
+            try {
+                archivePath = this.worker().getFunctionsManager().getFunctionArchive(builtinArchive);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("No Function archive %s found", archivePath));
+            }
+        }
+        ClassLoader clsLoader  = null;
+        if(archivePath != null){
+            clsLoader = FunctionConfigUtils.validate(functionConfig, archivePath.toFile());
+        }
+        else{
+            clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+        }
         return FunctionConfigUtils.convert(functionConfig, clsLoader);
 
     }

@@ -132,6 +132,9 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
                 valueSchema
             );
         } else {
+            if (message.getValue() == null) {
+                return null;
+            }
             return valueSchema.encode(message.getValue());
         }
     }
@@ -150,16 +153,25 @@ public class KeyValueSchema<K, V> implements Schema<KeyValue<K, V>> {
 
     public KeyValue<K, V> decode(byte[] keyBytes, byte[] valueBytes, byte[] schemaVersion) {
         K k;
-        if (keySchema.supportSchemaVersioning() && schemaVersion != null) {
-            k = keySchema.decode(keyBytes, schemaVersion);
+        if (keyBytes == null) {
+            k = null;
         } else {
-            k = keySchema.decode(keyBytes);
+            if (keySchema.supportSchemaVersioning() && schemaVersion != null) {
+                k = keySchema.decode(keyBytes, schemaVersion);
+            } else {
+                k = keySchema.decode(keyBytes);
+            }
         }
+
         V v;
-        if (valueSchema.supportSchemaVersioning() && schemaVersion != null) {
-            v = valueSchema.decode(valueBytes, schemaVersion);
+        if (valueBytes == null) {
+            v = null;
         } else {
-            v = valueSchema.decode(valueBytes);
+            if (valueSchema.supportSchemaVersioning() && schemaVersion != null) {
+                v = valueSchema.decode(valueBytes, schemaVersion);
+            } else {
+                v = valueSchema.decode(valueBytes);
+            }
         }
         return new KeyValue<>(k, v);
     }
