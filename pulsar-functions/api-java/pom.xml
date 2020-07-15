@@ -43,7 +43,7 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-api</artifactId>
       <version>${project.version}</version>
       <scope>compile</scope>
