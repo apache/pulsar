@@ -20,7 +20,6 @@
 package pf
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
