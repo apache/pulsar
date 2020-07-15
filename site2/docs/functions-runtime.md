@@ -6,16 +6,16 @@ sidebar_label: "Setup: Configure Functions runtime"
 
 Pulsar Functions support the following methods to run functions.
 
-- *Thread*: Invoke functions threads in Functions Worker.
-- *Process*: Invoke functions in processes forked by Functions Worker.
-- *Kubernetes*: Submit functions as Kubernetes StatefulSets by Functions Worker.
+- *Thread*: Invoke functions threads in functions worker.
+- *Process*: Invoke functions in processes forked by functions worker.
+- *Kubernetes*: Submit functions as Kubernetes StatefulSets by functions worker.
 
 #### Note
 > Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.
 
 The differences of the thread and process modes are:
-- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with Functions worker.
-- Process mode: when a function runs in process mode, it runs on the same machine that Functions worker runs.
+- Thread mode: when a function runs in thread mode, it runs on the same Java virtual machine (JVM) with functions worker.
+- Process mode: when a function runs in process mode, it runs on the same machine that functions worker runs.
 
 ## Configure thread runtime
 It is easy to configure *Thread* runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:
@@ -91,12 +91,12 @@ kubernetesContainerFactory:
 
 As stated earlier, if you already run your functions worker embedded in a broker on Kubernetes, you can keep many of these settings as default.
 
-### Standalone Functions Worker on K8S
+### Standalone functions worker on K8S
 
-If you run your Functions Worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the
-broker and `pulsarAdminUrl` as the URL to the Functions Worker.
+If you run your functions worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the
+broker and `pulsarAdminUrl` as the URL to the functions worker.
 
-As an example, suppose both our Pulsar brokers and Function Workers run in the `pulsar` K8S namespace. Additionally, assuming the brokers have a service called `brokers` and the Functions Worker has a service called `func-worker`, then the settings would be:
+As an example, suppose both our Pulsar brokers and Function Workers run in the `pulsar` K8S namespace. Additionally, assuming the brokers have a service called `brokers` and the functions worker has a service called `func-worker`, then the settings would be:
 
 ```yaml
 pulsarServiceUrl: pulsar://broker.pulsar:6650 // or pulsar+ssl://broker.pulsar:6651 if using TLS
@@ -106,7 +106,7 @@ pulsarAdminUrl: http://func-worker.pulsar:8080 // or https://func-worker:8443 if
 ### Kubernetes RBAC
 
 If you are running RBAC in your Kubernetes cluster, make sure the service account you use for
-running Functions Workers (or brokers, if Functions Workers run along with brokers) have permissions on the following
+running functions workers (or brokers, if functions workers run along with brokers) have permissions on the following
 kubernetes APIs.
 
 - services
@@ -258,7 +258,7 @@ Pulsar also includes a built-in implementation. To use this basic implementation
 If you are running multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster. Otherwise, the function
 shares a namespace and potentially schedule across clusters.
 
-As an example, suppose we have clusters east-1 and west-1, we would configure the Functions Worker in east-1 like:
+As an example, suppose we have clusters east-1 and west-1, we would configure the functions worker in east-1 like:
 ```Yaml
 pulsarFunctionsCluster: east-1
 pulsarFunctionsNamespace: public/functions-east-1
@@ -272,9 +272,9 @@ pulsarFunctionsNamespace: public/functions-west-1
 
 This ensures the two different Function Workers use distinct sets of topics for their internal coordination.
 
-### Configure standalone Functions Worker
+### Configure standalone functions worker
 
-When configuring a standalone Functions Worker, you need to specify a few properties in order for the Functions Worker to be able
+When configuring a standalone functions worker, you need to specify a few properties in order for the functions worker to be able
 to communicate with the broker. This requires many of the same properties to be set that the broker requires, especially when using TLS.
 
 The following properties are the baseline of what is required:
@@ -293,7 +293,7 @@ useTls: true # when using TLS, critical!
 
 #### With authentication
 
-When running a Functions Worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your Functions Worker to both be able to interact with the broker *and* also to authenticate incoming requests as well. This requires many of the same properties to be set that the broker requires for authentication or authorization.
+When running a functions worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your functions worker to both be able to interact with the broker *and* also to authenticate incoming requests as well. This requires many of the same properties to be set that the broker requires for authentication or authorization.
 
 As an example, assuming you want to use token authentication. Here is an example of properties you need to set in `function-worker.yml`
 
