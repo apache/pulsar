@@ -315,19 +315,19 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 4, 3, 10.0));
             fail("should have failed");
         } catch (PulsarAdminException e) {
-            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getStatusCode(), 400);
         }
         try {
             admin.namespaces().setPersistence(namespace, new PersistencePolicies(3, 3, 4, 10.0));
             fail("should have failed");
         } catch (PulsarAdminException e) {
-            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getStatusCode(), 400);
         }
         try {
             admin.namespaces().setPersistence(namespace, new PersistencePolicies(6, 3, 1, 10.0));
             fail("should have failed");
         } catch (PulsarAdminException e) {
-            assertEquals(e.getStatusCode(), 412);
+            assertEquals(e.getStatusCode(), 400);
         }
 
         // make sure policies has not been changed
