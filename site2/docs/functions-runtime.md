@@ -49,11 +49,11 @@ processContainerFactory:
 
 ### How it works
 
-The Kubernetes runtime works by having the functions-worker generate and apply kubernetes manifests. In the event that the functions worker is running on Kubernetes already, it can use the `serviceAccount` that is associated with the pod the functions worker is running in. Otherwise, it can be configured to communicate with a Kubernetes cluster.
+The Kubernetes runtime works by having the functions worker generate and apply Kubernetes manifests. In the event that the functions worker is running on Kubernetes already, it can use the `serviceAccount` that is associated with the pod the functions worker is running in. Otherwise, it can be configured to communicate with a Kubernetes cluster.
 
-The manifests which the functions worker generates include a `StatefulSet`, a `Service (which is used to communicate with the pods), and a `Secret` for auth credentials (when applicable). The StatefulSet manifest (by default) has a single pod, with the number of replicas determined by the "parallelism" of the function. On pod boot, the pod will download the function payload (via the functions worker REST API). The pod's container image is configurable, but must have the functions runtime.
+The manifests which the functions worker generates include a `StatefulSet`, a `Service` (which is used to communicate with the pods), and a `Secret` for auth credentials (when applicable). The `StatefulSet` manifest (by default) has a single pod, with the number of replicas determined by the "parallelism" of the function. On pod boot, the pod downloads the function payload (via the functions worker REST API). The pod's container image is configurable, but must have the functions runtime.
 
-The Kubernetes runtime also has supports for secrets, with the end user being able to create a kubernetes secret and have it be exposed as an environment variable in the pod (described below). Additionally, the Kubernetes runtime fairly extensible, with the user being able to implement classes that customize the way kubernetes manifests get generated, how auth data is passed to pods, and how secrets can be integrated.
+The Kubernetes runtime also supports secrets, with the end user being able to create a Kubernetes secret and have it be exposed as an environment variable in the pod (described below). Additionally, the Kubernetes runtime fairly extensible, with the user being able to implement classes that customize the way Kubernetes manifests get generated, how auth data is passed to pods, and how secrets can be integrated.
 
 ### Basic configuration
 
@@ -89,14 +89,14 @@ kubernetesContainerFactory:
   percentMemoryPadding: 10
 ```
 
-As stated earlier, If you already run your Functions Worker embedded in a Broker on Kubernetes, you can keep many of these settings as their default.
+As stated earlier, if you already run your functions worker embedded in a broker on Kubernetes, you can keep many of these settings as default.
 
 ### Standalone Functions Worker on K8S
 
-If you run your Functions Worker standalone (i.e. not embedded) on Kubernetes, you will need to configure `pulsarSerivceUrl` to be the URL of the
+If you run your Functions Worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the
 broker and `pulsarAdminUrl` as the URL to the Functions Worker.
 
-As an example, suppose both our Pulsar Brokers and Function Workers are run in the `pulsar` K8S namespace. Additionally, assuming the Brokers have a service called `brokers` and the Functions Worker has a service called `func-worker`, then the settings would be:
+As an example, suppose both our Pulsar brokers and Function Workers run in the `pulsar` K8S namespace. Additionally, assuming the brokers have a service called `brokers` and the Functions Worker has a service called `func-worker`, then the settings would be:
 
 ```yaml
 pulsarServiceUrl: pulsar://broker.pulsar:6650 // or pulsar+ssl://broker.pulsar:6651 if using TLS
@@ -172,7 +172,7 @@ io.kubernetes.client.ApiException: Forbidden
 
 In order to safely distribute secrets, Pulasr Functions can reference Kubernetes secrets. To enable this, set the `secretsProviderConfiguratorClassName` to `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`.
 
-Then, you can create a secret in the namespace where your functions will be deployed. As an example, suppose we are deploying functions to the `pulsar-func` Kubernetes namespace, and we have a secret named `database-creds` with a field name `password`, which we want to mount in the pod as an environment variable called `DATABASE_PASSWORD`.
+Then, you can create a secret in the namespace where your functions are deployed. As an example, suppose we are deploying functions to the `pulsar-func` Kubernetes namespace, and we have a secret named `database-creds` with a field name `password`, which we want to mount in the pod as an environment variable called `DATABASE_PASSWORD`.
 
 The following functions configuration would then allow us to reference that secret and have the value be mounted as an environment variable in the pod.
 
@@ -194,7 +194,7 @@ secrets:
 ### Kubernetes Functions authentication
 
 
-When your Pulsar cluster uses authentication, the pod running your function needs a mechanism to authenticate with the Broker.
+When your Pulsar cluster uses authentication, the pod running your function needs a mechanism to authenticate with the broker.
 
 An interface, `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider`, can be extended to provide support for any authentication mechanism. The `functionAuthProviderClassName` in `function-worker.yml` is used to specify your path to this implementation.
 
@@ -203,7 +203,7 @@ Pulsar includes an implementation of this interface that is suitable for token a
 functionAuthProviderClassName: org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider
 ```
 
-For custom auth or TLS, the user will need to implement this interface (or use an alternative mechanism to provide auth)
+For custom authentication or TLS, you need to implement this interface (or use an alternative mechanism to provide authentication)
 
 For token authentication, the way this works is that the functions worker captures the token that was used to deploy (or update) the function. This token is then saved as a secret and mounted into the pod.
 
@@ -212,9 +212,9 @@ One thing to keep in mind is that if you use tokens that expire when deploying f
 
 ### Kubernetes CustomRuntimeOptions
 
-The Kubernetes integration also includes the ability for the user to implement a class which will customize how manifests will be generated. This is configured by setting the `runtimeCustomizerClassName` in the `functions-worker.yml` to the fully qualified class name. The interface the user must implement is the `org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer` interface.
+The Kubernetes integration also includes the ability for the user to implement a class which customizes how manifests is generated. This is configured by setting the `runtimeCustomizerClassName` in the `functions-worker.yml` to the fully qualified class name. The interface the you must implement is the `org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer` interface.
 
-The functions (and sinks/sources) API provides a flag, `customRuntimeOptions` which will be passed to this interface.
+The functions (and sinks/sources) API provides a flag, `customRuntimeOptions`, which is passed to this interface.
 
 Pulsar also includes a built-in implementation. To use this basic implementation, set `runtimeCustomizerClassName` to `org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer`. This built-in implementation allows you pass a JSON document with certain properties to augment how the manifests are generated, for example:
 
@@ -255,8 +255,8 @@ Pulsar also includes a built-in implementation. To use this basic implementation
 
 ### In a cluster with geo-replication
 
-If you are running multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster! Otherwise, the functions
-will share a namespace and potentially schedule across clusters.
+If you are running multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster. Otherwise, the function
+shares a namespace and potentially schedule across clusters.
 
 As an example, suppose we have clusters east-1 and west-1, we would configure the Functions Worker in east-1 like:
 ```Yaml
@@ -270,12 +270,12 @@ pulsarFunctionsCluster: west-1
 pulsarFunctionsNamespace: public/functions-west-1
 ```
 
-This ensures the two different Function Workers will use distinct sets of topics for their internal co-ordination.
+This ensures the two different Function Workers use distinct sets of topics for their internal coordination.
 
-### Configuring Standalone Functions Worker
+### Configure standalone Functions Worker
 
 When configuring a standalone Functions Worker, you need to specify a few properties in order for the Functions Worker to be able
-to communicate with the Broker. This requires many of the same properties to be set that the Broker requires, especially when using TLS.
+to communicate with the broker. This requires many of the same properties to be set that the broker requires, especially when using TLS.
 
 The following properties are the baseline of what is required:
 
@@ -291,11 +291,11 @@ useTls: true # when using TLS, critical!
 
 ```
 
-#### With Authentication
+#### With authentication
 
-When running a Functions Worker in a standalone process (i.e. not embedded in the Broker) in a cluster with authentication, you must configure your Functions Worker to both be able to interact with the Broker *and* also to authenticate incoming requests as well. This requires many of the same properties to be set that the Broker requires for authentication/authorization.
+When running a Functions Worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your Functions Worker to both be able to interact with the broker *and* also to authenticate incoming requests as well. This requires many of the same properties to be set that the broker requires for authentication or authorization.
 
-As an example, assuming we want to use token authentication, here is an example of properties we need to set in `function-worker.yml`
+As an example, assuming you want to use token authentication. Here is an example of properties you need to set in `function-worker.yml`
 
 ```Yaml
 clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
@@ -313,4 +313,6 @@ properties:
   tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
 ```
 
-Notice that we must configure both the Function Worker authz/authn for the server to proper auth requests and configure the client to be authenticated to communicate with the broker.
+> #### Note 
+>
+> You must configure both the Function Worker authorization or authentication for the server to proper authentication requests and configure the client to be authenticated to communicate with the broker.
