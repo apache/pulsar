@@ -312,7 +312,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
 
-        this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService);
+        this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService, null);
     }
 
     @AfterMethod
@@ -552,7 +552,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                                          BrokerServiceException.NamingException {
         ManagedLedger ledger = factory.open("test_ledger");
         PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                brokerService);
+                                                                                brokerService, null);
         final int numEntries = 10;
         TxnID txnID = new TxnID(1111L, 2222L);
         List<ByteBuf> appendEntries =  appendEntries(newBuffer, txnID, numEntries, 0L);
@@ -577,7 +577,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     public void testCommitMarker() throws Exception {
         ManagedLedger ledger = factory.open("test_commit_ledger");
         PersistentTransactionBuffer commitBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                   brokerService);
+                                                                                   brokerService, null);
         final int numEntries = 10;
         List<ByteBuf> appendEntires = appendEntries(commitBuffer, txnID, numEntries, 0L);
 
@@ -605,7 +605,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     public void testAbortMarker() throws Exception {
         ManagedLedger ledger = factory.open("test_abort_ledger");
         PersistentTransactionBuffer abortBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                   brokerService);
+                                                                                   brokerService, null);
         final int numEntries = 10;
         List<ByteBuf> appendEntires = appendEntries(abortBuffer, txnID, numEntries, 0L);
 
@@ -654,7 +654,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                ExecutionException {
         ManagedLedger ledger = factory.open("test_deduplicate");
         PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                brokerService);
+                                                                                brokerService, null);
         final int numEntries = 10;
 
         TxnID txnID = new TxnID(1234L, 5678L);

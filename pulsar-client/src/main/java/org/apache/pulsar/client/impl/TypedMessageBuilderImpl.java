@@ -97,7 +97,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             // it is okay that we register produced topic after sending the messages. because
             // the transactional messages will not be visible for consumers until the transaction
             // is committed.
-            txn.registerProducedTopic(producer.getTopic());
+            txn.registerProducedTopic(producer.getTopic(), sendFuture);
             // register the sendFuture as part of the transaction
             return txn.registerSendOp(sequenceId, sendFuture);
         } else {

@@ -148,7 +148,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newAddPartitionToTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits());
+        ByteBuf cmd = Commands.newAddPartitionToTxn(
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
@@ -173,6 +174,48 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             op.callback.complete(null);
         } else {
             LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+        }
+
+        onResponse(op);
+    }
+
+    public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, List<PulsarApi.Subscription> subscriptions) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Add subscriptions {} to txn {}", subscriptions, txnID);
+        }
+        CompletableFuture<Void> callback = new CompletableFuture<>();
+
+        if (!canSendRequest(callback)) {
+            return callback;
+        }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newAddSubscriptionToTxn(requestId, txnID.getLeastSigBits(),
+                txnID.getMostSigBits(), subscriptions);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        cmd.retain();
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return callback;
+    }
+
+    void handleAddSubscriptionToTxnResponse(PulsarApi.CommandAddSubscriptionToTxnResponse response) {
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        if (op == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Got add subscription to txn response for timeout {} - {}", response.getTxnidMostBits(),
+                        response.getTxnidLeastBits());
+            }
+            return;
+        }
+        if (!response.hasError()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add subscription for request {} success.", response.getRequestId());
+            }
+            op.callback.complete(null);
+        } else {
+            LOG.error("Add subscription for request {} error {}.", response.getRequestId(), response.getError());
             op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
         }
 

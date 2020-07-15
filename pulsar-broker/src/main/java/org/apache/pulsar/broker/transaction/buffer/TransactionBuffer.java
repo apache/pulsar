@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -83,6 +84,10 @@ public interface TransactionBuffer {
      *         is not in the buffer.
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
+
+    CompletableFuture<Void> committingTxn(TxnID txnID);
+
+    CompletableFuture<Position> commitPartitionTopic(TxnID txnID);
 
     /**
      * Commit the transaction and seal the buffer for this transaction.

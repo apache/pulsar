@@ -1271,12 +1271,16 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandAddPartitionToTxn commandAddPartitionToTxn = CommandAddPartitionToTxn.newBuilder()
-                                                                                    .setRequestId(requestId)
-                                                                                    .setTxnidLeastBits(txnIdLeastBits)
-                                                                                    .setTxnidMostBits(txnIdMostBits)
-                                                                                    .build();
+    public static ByteBuf newAddPartitionToTxn(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                               List<String> partitions) {
+        PulsarApi.CommandAddPartitionToTxn.Builder builder = CommandAddPartitionToTxn.newBuilder();
+        builder.setRequestId(requestId);
+        builder.setTxnidLeastBits(txnIdLeastBits);
+        builder.setTxnidMostBits(txnIdMostBits);
+        if (partitions != null) {
+            builder.addAllPartitions(partitions);
+        }
+        CommandAddPartitionToTxn commandAddPartitionToTxn = builder.build();
         ByteBuf res = serializeWithSize(
             BaseCommand.newBuilder().setType(Type.ADD_PARTITION_TO_TXN).setAddPartitionToTxn(commandAddPartitionToTxn));
         commandAddPartitionToTxn.recycle();
@@ -1470,9 +1474,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnOnSubscriptionResponse(long requestId, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnOnSubscriptionResponse(long requestId, long txnIdLeastBits, long txnIdMostBits,
+                                                          ServerError error, String errorMsg) {
         CommandEndTxnOnSubscriptionResponse.Builder builder = CommandEndTxnOnSubscriptionResponse.newBuilder();
         builder.setRequestId(requestId);
+        builder.setTxnidMostBits(txnIdMostBits);
+        builder.setTxnidLeastBits(txnIdLeastBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);

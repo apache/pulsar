@@ -285,6 +285,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
         return commitFuture;
     }
 
+    @Override
+    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+        return null;
+    }
+
     private void addTxnToTxnIdex(TxnID txnId, long committedAtLedgerId) {
         synchronized (txnIndex) {
             txnIndex

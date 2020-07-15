@@ -34,7 +34,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -43,7 +45,6 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * A persistent transaction buffer implementation.
@@ -53,7 +54,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
-
+    private Producer producer;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -79,12 +80,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         }
     }
 
-    public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService)
+    public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService,
+                                       Producer producer)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
         this.txnCursor = new TransactionCursorImpl();
         this.retentionCursor = ledger.newNonDurableCursor(
             PositionImpl.earliest, "txn-buffer-retention");
+        this.producer = producer;
     }
 
     @Override
@@ -126,6 +129,36 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker;
     }
 
+    // append committing marker to TB
+    @Override
+    public CompletableFuture<Void> committingTxn(TxnID txnID) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        txnCursor.getTxnMeta(txnID, false).whenComplete(((meta, txnMetaThrowable) -> {
+
+            if (txnMetaThrowable != null) {
+                completableFuture.completeExceptionally(txnMetaThrowable);
+            }
+
+            long sequenceId = meta.lastSequenceId() + 1;
+            ByteBuf committingMarker = Markers.newTxnCommittingMarker(
+                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null
+            );
+            publishMessage(txnID, committingMarker, sequenceId).whenComplete((position, publishThrowable) -> {
+                if (publishThrowable != null) {
+                    completableFuture.completeExceptionally(publishThrowable);
+                } else {
+                    completableFuture.complete(null);
+                }
+            });
+        }));
+        return completableFuture;
+    }
+
+    @Override
+    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
+        return null;
+    }
+
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long committedAtLedgerId, long committedAtEntryId) {
         return txnCursor.getTxnMeta(txnID, false)
@@ -148,6 +181,55 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                                                           meta.id().getLeastSigBits(), messageIdData);
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
         return marker;
+    }
+
+    public CompletableFuture<Void> commitTxn(TxnID txnID) {
+        return txnCursor.getTxnMeta(txnID, false).thenApply((meta -> {
+
+            // append committing marker to TB
+            long sequenceId = meta.lastSequenceId() + 1;
+            ByteBuf committingMarker = Markers.newTxnCommittingMarker(
+                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null
+            );
+
+            CompletableFuture<Marker> tempFuture = new CompletableFuture<>();
+            publishMessage(txnID, committingMarker, sequenceId).whenComplete((position, throwable) -> {
+                tempFuture.complete(new Marker(sequenceId, null));
+            });
+            return tempFuture;
+
+        })).thenCompose(preMarkerFuture -> {
+
+            CompletableFuture<Marker> nextMarkerFuture = new CompletableFuture<>();
+            preMarkerFuture.whenComplete((preMarker, committingThrowable) -> {
+                // append committed marker to partitioned topic
+                // TODO How to generate sequenceId for commit marker in partitioned topic
+                long ptSequenceId = -1;
+                ByteBuf commitMarker = Markers.newTxnCommitMarker(
+                        ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null);
+
+                producer.getTopic().publishMessage(commitMarker, (e, ledgerId, entryId) -> {
+                    MessageIdData messageIdData = MessageIdData.newBuilder()
+                            .setLedgerId(ledgerId)
+                            .setEntryId(entryId)
+                            .build();
+                    ByteBuf tbCommitMarker = Markers.newTxnCommitMarker(preMarker.sequenceId,
+                            txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
+                    nextMarkerFuture.complete(new Marker(preMarker.sequenceId, tbCommitMarker));
+                });
+
+            });
+            return nextMarkerFuture;
+
+        }).thenCompose(preMarkerFuture -> {
+            // append committed marker to TB
+            CompletableFuture<Void> resultFuture = new CompletableFuture<>();
+            publishMessage(txnID, preMarkerFuture.marker, preMarkerFuture.sequenceId).whenComplete(
+                    (position, throwable) -> {
+                resultFuture.complete(null);
+            });
+            return resultFuture;
+        });
     }
 
     @Override

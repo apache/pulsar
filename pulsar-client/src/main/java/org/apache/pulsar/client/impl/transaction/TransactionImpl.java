@@ -20,15 +20,26 @@ package org.apache.pulsar.client.impl.transaction;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MultiMessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -39,6 +50,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * failures. This decouples the transactional operations from non-transactional operations as
  * much as possible.
  */
+@Slf4j
 @Getter
 public class TransactionImpl implements Transaction {
 
@@ -63,6 +75,8 @@ public class TransactionImpl implements Transaction {
     private final Set<String> producedTopics;
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
+    private final TransactionCoordinatorClientImpl tcClient;
+    private final Set<String> partitions;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -76,6 +90,8 @@ public class TransactionImpl implements Transaction {
         this.producedTopics = new HashSet<>();
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
+        this.tcClient = client.getTcClient();
+        this.partitions = new HashSet<>();
     }
 
     public long nextSequenceId() {
@@ -83,10 +99,47 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerProducedTopic(String topic) {
-        if (producedTopics.add(topic)) {
-            // TODO: we need to issue the request to TC to register the produced topic
-        }
+    public synchronized void registerProducedTopic(String topic, CompletableFuture<MessageId> sendFuture) {
+        sendFuture.whenComplete((messageId, throwable) -> {
+            if (throwable != null) {
+                log.error("Send message error. topic: " + topic, throwable);
+                return;
+            }
+
+            producedTopics.add(topic);
+            boolean needAddPublishParitionToTxn = false;
+            List<String> list = Lists.newArrayList();
+            if (messageId instanceof MessageIdImpl) {
+                int partitionIndex = ((MessageIdImpl) messageId).getPartitionIndex();
+                String partition = topic;
+                if (partitionIndex > 0) {
+                    partition += TopicName.PARTITIONED_TOPIC_SUFFIX + partitionIndex;
+                }
+                if (partitions.add(partition)) {
+                    if (((MessageIdImpl) messageId).getLedgerId() > 0
+                            && ((MessageIdImpl) messageId).getEntryId() > 0
+                            && !topic.startsWith(TopicDomain.persistent.value())) {
+                        partition = TopicDomain.persistent.value() + partition;
+                    }
+                    needAddPublishParitionToTxn = true;
+                }
+                list.add(partition);
+            }
+            if (needAddPublishParitionToTxn) {
+                tcClient.addPublishPartitionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), list);
+            }
+
+            if (messageId instanceof MessageIdImpl) {
+                log.info("add publish partition to txn. partitionId: {}", ((MessageIdImpl) messageId).getPartitionIndex());
+            }
+
+//            if (producedTopics.add(topic)) {
+//                // TODO: we need to issue the request to TC to register the produced topic
+//
+//                tcClient.addPublishPartitionToTxnAsync(
+//                        new TxnID(txnIdMostBits, txnIdLeastBits), list);
+//            }
+        });
     }
 
     public synchronized CompletableFuture<MessageId> registerSendOp(long sequenceId,
@@ -119,11 +172,11 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
+        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits));
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
+        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits));
     }
 }

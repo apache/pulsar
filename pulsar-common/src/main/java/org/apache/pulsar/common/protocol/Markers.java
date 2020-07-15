@@ -259,6 +259,11 @@ public class Markers {
                && msgMetadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE;
     }
 
+    public static ByteBuf newTxnCommittingMarker(long sequenceId, long txnMostBits,
+                                                 long txnLeastBits, MessageIdData messageIdData) {
+        return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdData));
+    }
+
     public static ByteBuf newTxnCommitMarker(long sequenceId, long txnMostBits,
                                              long txnLeastBits, MessageIdData messageIdData) {
         return newTxnMarker(MarkerType.TXN_COMMIT, sequenceId, txnMostBits, txnLeastBits, Optional.of(messageIdData));
