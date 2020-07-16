@@ -78,6 +78,12 @@ flexible messaging model and an intuitive client API.</description>
   </issueManagement>
 
   <properties>
+    <!--config keys to congiure test selection -->
+    <include>*</include>
+    <exclude/>
+    <groups/>
+    <excludedGroups/>
+
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -1469,6 +1475,16 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.0.0-M3</version>
+          <configuration>
+            <includes>
+                <include>${include}</include>
+            </includes>
+            <excludes>
+                <exclude>${exclude}</exclude>
+            </excludes>
+            <groups>${groups}</groups>
+            <excludedGroups>${excludedGroups}</excludedGroups>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
