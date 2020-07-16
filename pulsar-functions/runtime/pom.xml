@@ -34,13 +34,13 @@
   <dependencies>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-instance</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-secrets</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -74,7 +74,7 @@
     </dependency>
 
       <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-broker-common</artifactId>
           <version>${project.version}</version>
       </dependency>

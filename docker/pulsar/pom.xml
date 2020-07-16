@@ -26,16 +26,15 @@
     <version>2.7.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-docker-image</artifactId>
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-server-distribution</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
       <classifier>bin</classifier>
       <type>tar.gz</type>
       <scope>provided</scope>
