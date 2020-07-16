@@ -467,12 +467,15 @@ public class Commands {
 
     public static ByteBufPair newSend(long producerId, long sequenceId, int numMessaegs, ChecksumType checksumType,
                                       MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, sequenceId, numMessaegs, 0, 0, checksumType, messageMetadata, payload);
+        return newSend(producerId, sequenceId, numMessaegs,
+                messageMetadata.getTxnidLeastBits(), messageMetadata.getTxnidMostBits(),
+                checksumType, messageMetadata, payload);
     }
 
     public static ByteBufPair newSend(long producerId, long lowestSequenceId, long highestSequenceId, int numMessaegs,
               ChecksumType checksumType, MessageMetadata messageMetadata, ByteBuf payload) {
-        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs, 0, 0,
+        return newSend(producerId, lowestSequenceId, highestSequenceId, numMessaegs,
+                messageMetadata.getTxnidLeastBits(), messageMetadata.getTxnidMostBits(),
                 checksumType, messageMetadata, payload);
     }
 
@@ -485,10 +488,10 @@ public class Commands {
         if (numMessages > 1) {
             sendBuilder.setNumMessages(numMessages);
         }
-        if (txnIdLeastBits > 0) {
+        if (txnIdLeastBits >= 0) {
             sendBuilder.setTxnidLeastBits(txnIdLeastBits);
         }
-        if (txnIdMostBits > 0) {
+        if (txnIdMostBits >= 0) {
             sendBuilder.setTxnidMostBits(txnIdMostBits);
         }
         if (messageData.hasTotalChunkMsgSize() && messageData.getTotalChunkMsgSize() > 1) {

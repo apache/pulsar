@@ -19,11 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
-import java.util.List;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -34,17 +29,24 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
-import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.FutureUtil;
+
+import java.util.List;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * A persistent transaction buffer implementation.
@@ -52,9 +54,10 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
+    private final static String TB_TOPIC_NAME_SUFFIX = "_txnlog";
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
-    private Producer producer;
+    private Topic originTopic;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -66,8 +69,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             this.completableFuture = future;
             this.producerName = producerName;
         }
-
-
 
         @Override
         public String getProducerName() {
@@ -81,13 +82,17 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     public PersistentTransactionBuffer(String topic, ManagedLedger ledger, BrokerService brokerService,
-                                       Producer producer)
+                                       Topic originTopic)
         throws BrokerServiceException.NamingException, ManagedLedgerException {
         super(topic, ledger, brokerService);
         this.txnCursor = new TransactionCursorImpl();
         this.retentionCursor = ledger.newNonDurableCursor(
             PositionImpl.earliest, "txn-buffer-retention");
-        this.producer = producer;
+        this.originTopic = originTopic;
+    }
+
+    public static String getTransactionBufferTopicName(String originTopicName) {
+        return TopicName.get(originTopicName) + TB_TOPIC_NAME_SUFFIX;
     }
 
     @Override
@@ -154,9 +159,20 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return completableFuture;
     }
 
+    // append committed marker to partitioned topic
     @Override
     public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
-        return null;
+        CompletableFuture<Position> positionFuture = new CompletableFuture<>();
+        // TODO How to generate sequenceId for commit marker in partitioned topic
+        long ptSequenceId = -1;
+        ByteBuf commitMarker = Markers.newTxnCommitMarker(
+                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null);
+
+        originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
+            positionFuture.complete(new PositionImpl(ledgerId, entryId));
+        });
+
+        return positionFuture;
     }
 
     @Override
@@ -208,7 +224,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                 ByteBuf commitMarker = Markers.newTxnCommitMarker(
                         ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null);
 
-                producer.getTopic().publishMessage(commitMarker, (e, ledgerId, entryId) -> {
+                originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
                     MessageIdData messageIdData = MessageIdData.newBuilder()
                             .setLedgerId(ledgerId)
                             .setEntryId(entryId)

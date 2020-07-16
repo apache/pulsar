@@ -95,6 +95,8 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -204,6 +206,7 @@ public class PulsarService implements AutoCloseable {
 
     private MetricsGenerator metricsGenerator;
     private TransactionMetadataStoreService transactionMetadataStoreService;
+    private TransactionBufferProvider transactionBufferProvider;
     private BrokerInterceptor brokerInterceptor;
 
     public enum State {
@@ -549,6 +552,9 @@ public class PulsarService implements AutoCloseable {
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
                 transactionMetadataStoreService.start();
+
+                transactionBufferProvider = TransactionBufferProvider.newProvider(
+                        PersistentTransactionBufferProvider.class.getName());
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
@@ -1079,6 +1085,10 @@ public class PulsarService implements AutoCloseable {
 
     public TransactionMetadataStoreService getTransactionMetadataStoreService() {
         return transactionMetadataStoreService;
+    }
+
+    public TransactionBufferProvider getTransactionBufferProvider() {
+        return transactionBufferProvider;
     }
 
     public ShutdownService getShutdownService() {

@@ -268,6 +268,16 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public CompletableFuture<Void> committingTxn(TxnID txnID) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Position> commitPartitionTopic(TxnID txnID) {
+        return null;
+    }
+
+    @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID,
                                              long committedAtLedgerId,
                                              long committedAtEntryId) {
@@ -283,11 +293,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
             commitFuture.completeExceptionally(e);
         }
         return commitFuture;
-    }
-
-    @Override
-    public CompletableFuture<Void> commitTxn(TxnID txnID) {
-        return null;
     }
 
     private void addTxnToTxnIdex(TxnID txnId, long committedAtLedgerId) {

@@ -85,8 +85,20 @@ public interface TransactionBuffer {
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
+    /**
+     * Append committing marker to transaction buffer.
+     *
+     * @param txnID transaction id
+     * @return
+     */
     CompletableFuture<Void> committingTxn(TxnID txnID);
 
+    /**
+     * Append committed marker to the related origin topic partition.
+     *
+     * @param txnID transaction id
+     * @return a future represents the position of the committed marker in the origin topic partition.
+     */
     CompletableFuture<Position> commitPartitionTopic(TxnID txnID);
 
     /**
