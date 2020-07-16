@@ -62,13 +62,13 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         final AtomicBoolean onLoad = new AtomicBoolean(false);
         final AtomicBoolean unLoad = new AtomicBoolean(false);
 
-        final String namespace = "prop/ns-test-1";
+        final String namespace = "prop/" + UUID.randomUUID().toString();
 
         pulsar.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
 
             @Override
             public boolean test(NamespaceBundle namespaceBundle) {
-                return namespaceBundle.getNamespaceObject().getLocalName().equals("ns-test-1");
+                return namespaceBundle.getNamespaceObject().toString().equals(namespace);
             }
 
             @Override
@@ -95,7 +95,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
         producer.close();
 
-        admin.namespaces().unload("prop/ns-test-1");
+        admin.namespaces().unload(namespace);
 
         countDownLatch.await();
 

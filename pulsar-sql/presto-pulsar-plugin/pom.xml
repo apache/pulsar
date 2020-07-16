@@ -34,7 +34,7 @@
     <dependencies>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-presto-connector-original</artifactId>
             <version>${project.version}</version>
         </dependency>

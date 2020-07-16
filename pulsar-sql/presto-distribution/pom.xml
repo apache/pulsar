@@ -97,7 +97,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-presto-connector</artifactId>
             <version>${project.version}</version>
             <type>tar.gz</type>

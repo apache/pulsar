@@ -865,16 +865,17 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.PYTHON);
     }
-    @Test(enabled = false, groups = "function")
+
+    @Test(enabled = false, groups = {"go_function", "function"})
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testJavaFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.JAVA);
     }
@@ -1109,7 +1110,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test(groups="function")
+    @Test(groups = {"java_function", "function"})
     public void testSlidingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4",
@@ -1137,7 +1138,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         testWindowFunction("sliding", EXPECTED_RESULTS);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testTumblingCountWindowTest() throws Exception {
         String[] EXPECTED_RESULTS = {
                 "0,1,2,3,4,5,6,7,8,9",
@@ -1159,12 +1160,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     // Test CRUD functions on different runtimes.
     //
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.PYTHON);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testJavaFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.JAVA);
     }
@@ -1345,17 +1346,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         checkSubscriptionsCleanup(inputTopicName);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonPublishFunction() throws Exception {
         testPublishFunction(Runtime.PYTHON);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testJavaPublishFunction() throws Exception {
         testPublishFunction(Runtime.JAVA);
     }
 
-    @Test
     public void testGoPublishFunction() throws Exception {
         testPublishFunction(Runtime.GO);
     }
@@ -1489,7 +1489,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         checkSubscriptionsCleanup(inputTopicName);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testSerdeFunction() throws Exception {
         testCustomSerdeFunction();
     }
@@ -1536,32 +1536,32 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, false);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonExclamationFunctionWithExtraDeps() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, true);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonExclamationZipFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, true, false);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"python_function", "function"})
     public void testPythonExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, true, false, false);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testJavaExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, false, false, false);
     }
 
-    @Test(groups = "function")
+    @Test(groups = {"java_function", "function"})
     public void testJavaExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.JAVA, true, false, false);
     }
