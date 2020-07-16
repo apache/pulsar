@@ -140,10 +140,18 @@ public class MessageImpl<T> implements Message<T> {
         } else {
             properties = Collections.emptyMap();
         }
-
         if (singleMessageMetadata.hasPartitionKey()) {
             msgMetadataBuilder.setPartitionKeyB64Encoded(singleMessageMetadata.getPartitionKeyB64Encoded());
             msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
+        } else if (msgMetadataBuilder.hasPartitionKey()) {
+            msgMetadataBuilder.clearPartitionKey();
+            msgMetadataBuilder.clearPartitionKeyB64Encoded();
+        }
+
+        if (singleMessageMetadata.hasOrderingKey()) {
+            msgMetadataBuilder.setOrderingKey(singleMessageMetadata.getOrderingKey());
+        } else if (msgMetadataBuilder.hasOrderingKey()) {
+            msgMetadataBuilder.clearOrderingKey();
         }
 
         if (singleMessageMetadata.hasEventTime()) {
