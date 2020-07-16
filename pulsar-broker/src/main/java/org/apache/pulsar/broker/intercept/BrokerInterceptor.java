@@ -24,7 +24,6 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.intercept.InterceptException;
 
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -53,12 +52,12 @@ public interface BrokerInterceptor extends AutoCloseable {
     /**
      * Called by the web service while new request incoming.
      */
-    void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException;
 
     /**
      * Intercept the webservice response before send to client.
      */
-    void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException;
 
     /**
      * Initialize the broker interceptor.
@@ -85,13 +84,13 @@ public interface BrokerInterceptor extends AutoCloseable {
         }
 
         @Override
-        public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-            chain.doFilter(request, response);
+        public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+            // no-op
         }
 
         @Override
-        public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-            chain.doFilter(request, response);
+        public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+            // no-op
         }
 
         @Override

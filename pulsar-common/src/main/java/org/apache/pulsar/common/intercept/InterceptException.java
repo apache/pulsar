@@ -20,7 +20,6 @@
 package org.apache.pulsar.common.intercept;
 
 import lombok.Getter;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
  * Base exception for the broker interceptor.
@@ -28,10 +27,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 @Getter
 public class InterceptException extends Exception {
 
-    private final PulsarApi.ServerError error;
+    private final int errorCode;
 
-    public InterceptException(PulsarApi.ServerError error, String message) {
+    public InterceptException(int errorCode, String message) {
         super(message);
-        this.error = error;
+        this.errorCode = errorCode;
     }
 }
