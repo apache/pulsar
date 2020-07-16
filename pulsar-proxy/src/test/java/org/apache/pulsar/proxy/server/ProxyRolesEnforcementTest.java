@@ -176,7 +176,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     }
 
     @Test
-    void testIncorrectRoles() throws Exception {
+    public void testIncorrectRoles() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         // Step 1: Create Admin Client
