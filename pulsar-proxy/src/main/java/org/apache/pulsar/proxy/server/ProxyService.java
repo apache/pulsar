@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -143,7 +144,7 @@ public class ProxyService implements Closeable {
         statsExecutor.schedule(()->{
             this.clientCnxs.forEach(cnx -> {
                 cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-            }); 
+            });
             this.topicStats.forEach((topic, stats) -> {
                 stats.calculate();
             });
@@ -186,13 +187,8 @@ public class ProxyService implements Closeable {
             LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
         }
 
-        String hostname;
-        try {
-            hostname = StringUtils.isNotBlank(proxyConfig.getAdvertisedAddress()) ? proxyConfig.getAdvertisedAddress()
-                    : InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
+        final String hostname =
+            ServiceConfigurationUtils.getDefaultOrConfiguredAddress(proxyConfig.getAdvertisedAddress());
 
         if (proxyConfig.getServicePort().isPresent()) {
             this.serviceUrl = String.format("pulsar://%s:%d/", hostname, getListenPort().get());

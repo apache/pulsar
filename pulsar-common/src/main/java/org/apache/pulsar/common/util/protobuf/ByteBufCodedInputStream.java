@@ -346,4 +346,34 @@ public class ByteBufCodedInputStream {
 
         buf.readerIndex(buf.readerIndex() + size);
     }
+
+    public int pushLimit(int byteLimit) throws InvalidProtocolBufferException {
+        if (byteLimit < 0) {
+            throw new InvalidProtocolBufferException("CodedInputStream encountered an embedded string or message"
+                + " which claimed to have negative size.");
+        }
+
+        byteLimit += buf.readerIndex();
+        final int oldLimit = buf.writerIndex();
+        if (byteLimit > oldLimit) {
+            throw new InvalidProtocolBufferException("While parsing a protocol message, the input ended unexpectedly"
+                + " in the middle of a field.  This could mean either than the input has been truncated or that an"
+                + " embedded message misreported its own length.");
+        }
+        buf.writerIndex(byteLimit);
+        return oldLimit;
+    }
+
+    /**
+     * Discards the current limit, returning to the previous limit.
+     *
+     * @param oldLimit The old limit, as returned by {@code pushLimit}.
+     */
+    public void popLimit(final int oldLimit) {
+        buf.writerIndex(oldLimit);
+    }
+
+    public int getBytesUntilLimit() {
+        return buf.readableBytes();
+    }
 }

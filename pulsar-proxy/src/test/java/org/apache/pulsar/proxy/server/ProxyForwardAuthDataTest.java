@@ -82,7 +82,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     }
 
     @Test
-    void testForwardAuthData() throws Exception {
+    public void testForwardAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         // Step 1: Create Admin Client

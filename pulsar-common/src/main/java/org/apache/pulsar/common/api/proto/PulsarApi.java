@@ -1575,6 +1575,15 @@ public final class PulsarApi {
               ackSet_.add(input.readInt64());
               break;
             }
+            case 42: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
+              break;
+            }
           }
         }
       }
@@ -18855,6 +18864,15 @@ public final class PulsarApi {
             case 32: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 34: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
               break;
             }
           }
