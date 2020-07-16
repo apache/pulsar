@@ -750,7 +750,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         client.getPartitionedTopicMetadata(topicName)
                 .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, topicName, metadata.partitions,
-                        createTopicIfDoesNotExist))
+                    createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
                     log.warn("[{}] Failed to get partitioned topic metadata: {}", topicName, ex1.getMessage());
                     subscribeResult.completeExceptionally(ex1);
@@ -904,12 +904,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // handling failure during subscribe new topic, unsubscribe success created partitions
     private void handleSubscribeOneTopicError(String topicName, Throwable error, CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
-
         client.externalExecutorProvider().getExecutor().submit(() -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(TopicName.get(topicName).getPartitionedTopicName())) {
                     toCloseNum.incrementAndGet();
                     return true;
                 } else {
@@ -924,7 +923,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer, subscribe error: {}",
                             topic, topicName, error.getMessage());
                         topics.remove(topicName);
-                        checkState(allTopicPartitionsNumber.get() == consumers.values().size());
                         subscribeFuture.completeExceptionally(error);
                     }
                     return;
