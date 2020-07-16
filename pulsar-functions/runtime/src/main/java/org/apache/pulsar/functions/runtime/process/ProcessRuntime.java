@@ -106,6 +106,10 @@ class ProcessRuntime implements Runtime {
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 logConfigFile = "java_instance_log4j2.xml";
+                String instanceLogPath = System.getenv("PULSAR_HOME");
+                if(instanceLogPath!=null&&!instanceLogPath.trim().isEmpty()){
+                    logConfigFile = instanceLogPath+ "/conf/java_instance_log4j2.xml";
+                }
                 break;
             case PYTHON:
                 logConfigFile = System.getenv("PULSAR_HOME") + "/conf/functions-logging/logging_config.ini";
