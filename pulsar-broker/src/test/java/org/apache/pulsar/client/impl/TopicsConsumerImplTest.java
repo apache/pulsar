@@ -31,8 +31,10 @@ import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -42,6 +44,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -76,6 +79,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @Override
@@ -1073,6 +1077,37 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer.close();
         producer1.close();
         producer2.close();
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .ioThreads(2)
+                .listenerThreads(3)
+                .operationTimeout(2, TimeUnit.MILLISECONDS) // Set this very small so the operation timeout can be triggered
+                .build();
+
+        String topic0 = "public/default/topic0";
+        String topic1 = "public/default/topic1";
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                client.newConsumer(Schema.STRING)
+                        .subscriptionName("subName")
+                        .topics(Lists.<String>newArrayList(topic0, topic1))
+                        .receiverQueueSize(2)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .ackTimeout(365, TimeUnit.DAYS)
+                        .ackTimeoutTickTime(36, TimeUnit.DAYS)
+                        .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+                Thread.sleep(3000);
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
+            }
+        }
     }
 
 }
