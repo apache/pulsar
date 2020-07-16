@@ -1622,6 +1622,14 @@ public class Commands {
         messageMetadata.setPublishTime(builder.getPublishTime());
         messageMetadata.setProducerName(builder.getProducerName());
         messageMetadata.setSequenceId(builder.getSequenceId());
+        // Attach the key to the message metadata.
+        if (builder.hasPartitionKey()) {
+            messageMetadata.setPartitionKey(builder.getPartitionKey());
+            messageMetadata.setPartitionKeyB64Encoded(builder.getPartitionKeyB64Encoded());
+        }
+        if (builder.hasOrderingKey()) {
+            messageMetadata.setOrderingKey(builder.getOrderingKey());
+        }
         if (builder.hasReplicatedFrom()) {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }
