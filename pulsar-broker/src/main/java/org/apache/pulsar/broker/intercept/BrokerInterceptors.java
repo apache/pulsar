@@ -26,7 +26,6 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.intercept.InterceptException;
 
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -101,16 +100,16 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.onWebserviceRequest(request, response, chain);
+            value.onWebserviceRequest(request);
         }
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
         for (BrokerInterceptorWithClassLoader value : interceptors.values()) {
-            value.onWebserviceResponse(request, response, chain);
+            value.onWebserviceResponse(request, response);
         }
     }
 

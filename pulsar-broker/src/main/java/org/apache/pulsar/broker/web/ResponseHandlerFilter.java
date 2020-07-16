@@ -63,7 +63,7 @@ public class ResponseHandlerFilter implements Filter {
                 /* connection is already invalidated */
             }
         }
-        interceptor.onWebserviceResponse(request, response, chain);
+        interceptor.onWebserviceResponse(request, response);
 
     }
 

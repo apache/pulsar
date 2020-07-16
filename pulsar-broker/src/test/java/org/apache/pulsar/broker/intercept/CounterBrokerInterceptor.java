@@ -48,17 +48,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
         count ++;
         log.info("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
-        chain.doFilter(request, response);
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
         count ++;
         log.info("[{}] On [{}] Webservice response", count, ((HttpServletRequest)request).getRequestURL().toString());
-        chain.doFilter(request, response);
     }
 
     @Override

@@ -114,8 +114,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handlePartitionMetadataRequest(cmd.getPartitionMetadata());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(e.getError(), e.getMessage(),
-                            cmd.getPartitionMetadata().getRequestId()));
+                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
+                            e.getMessage(), cmd.getPartitionMetadata().getRequestId()));
                 } finally {
                     cmd.getPartitionMetadata().recycle();
                 }
@@ -198,8 +198,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleProducer(cmd.getProducer());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getProducer().getRequestId(), e.getError(),
-                            e.getMessage()));
+                    ctx.writeAndFlush(Commands.newError(cmd.getProducer().getRequestId(),
+                            getServerError(e.getErrorCode()), e.getMessage()));
                 } finally {
                     cmd.getProducer().recycle();
                 }
@@ -214,7 +214,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     handleSend(cmd.getSend(), headersAndPayload);
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newSendError(cmd.getSend().getProducerId(),
-                            cmd.getSend().getSequenceId(), e.getError(), e.getMessage()));
+                            cmd.getSend().getSequenceId(), getServerError(e.getErrorCode()), e.getMessage()));
                 } finally {
                     cmd.getSend().recycle();
                 }
@@ -238,8 +238,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSubscribe(cmd.getSubscribe());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSubscribe().getRequestId(), e.getError(),
-                            e.getMessage()));
+                    ctx.writeAndFlush(Commands.newError(cmd.getSubscribe().getRequestId(),
+                            getServerError(e.getErrorCode()), e.getMessage()));
                 } finally {
                     cmd.getSubscribe().recycle();
                 }
@@ -270,7 +270,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSeek(cmd.getSeek());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSeek().getRequestId(), e.getError(), e.getMessage()));
+                    ctx.writeAndFlush(Commands.newError(cmd.getSeek().getRequestId(), getServerError(e.getErrorCode()),
+                            e.getMessage()));
                 } finally {
                     cmd.getSeek().recycle();
                 }
@@ -335,8 +336,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetTopicsOfNamespace(cmd.getGetTopicsOfNamespace());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(), e.getError(),
-                            e.getMessage()));
+                    ctx.writeAndFlush(Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
+                            getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 cmd.getGetTopicsOfNamespace().recycle();
                 break;
@@ -354,7 +355,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     handleGetSchema(cmd.getGetSchema());
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
-                            e.getError(), e.getMessage()));
+                            getServerError(e.getErrorCode()), e.getMessage()));
                 } finally {
                     cmd.getGetSchema().recycle();
                 }
@@ -373,7 +374,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     handleGetOrCreateSchema(cmd.getGetOrCreateSchema());
                 } catch (InterceptException e) {
                     ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
-                            cmd.getGetOrCreateSchema().getRequestId(), e.getError(), e.getMessage()));
+                            cmd.getGetOrCreateSchema().getRequestId(), getServerError(e.getErrorCode()),
+                            e.getMessage()));
                 } finally {
                     cmd.getGetOrCreateSchema().recycle();
                 }
@@ -483,6 +485,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected abstract void messageReceived();
+
+    private PulsarApi.ServerError getServerError(int errorCode) {
+        PulsarApi.ServerError serverError = PulsarApi.ServerError.valueOf(errorCode);
+        return serverError == null ? PulsarApi.ServerError.UnknownError : serverError;
+    }
 
     private void safeInterceptCommand(BaseCommand command) {
         try {

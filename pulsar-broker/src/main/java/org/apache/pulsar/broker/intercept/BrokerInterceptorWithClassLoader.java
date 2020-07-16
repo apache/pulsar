@@ -27,7 +27,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -55,13 +54,13 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        this.interceptor.onWebserviceRequest(request, response, chain);
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        this.interceptor.onWebserviceRequest(request);
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        this.interceptor.onWebserviceResponse(request, response, chain);
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+        this.interceptor.onWebserviceResponse(request, response);
     }
 
     @Override
