@@ -130,10 +130,8 @@ public class KubernetesRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final Map<String, String> customLabels;
+    private final Map<String, String> functionDockerImages;
     private final String pulsarDockerImageName;
-    private final String javaFunctionDockerImageName;
-    private final String pythonFunctionDockerImageName;
-    private final String goFunctionDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
     private final String configAdminCLI;
@@ -159,9 +157,7 @@ public class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
-                      String javaFunctionDockerImageName,
-                      String pythonFunctionDockerImageName,
-                      String goFunctionDockerImageName,
+                      Map<String, String> functionDockerImages,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -191,10 +187,8 @@ public class KubernetesRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
+        this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
-        this.javaFunctionDockerImageName = javaFunctionDockerImageName;
-        this.pythonFunctionDockerImageName = pythonFunctionDockerImageName;
-        this.goFunctionDockerImageName = goFunctionDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
         this.configAdminCLI = configAdminCLI;
@@ -988,18 +982,23 @@ public class KubernetesRuntime implements Runtime {
 
         Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
 
-        if (pulsarDockerImageName != null) {
-            container.setImage(pulsarDockerImageName);
-        } else {
-            if (runtime == Function.FunctionDetails.Runtime.JAVA) {
-                container.setImage(javaFunctionDockerImageName);
-            } else if (runtime == Function.FunctionDetails.Runtime.PYTHON) {
-                container.setImage(pythonFunctionDockerImageName);
-            } else if (runtime == Function.FunctionDetails.Runtime.GO) {
-                container.setImage(goFunctionDockerImageName);
-            }
+        String imageName = null;
+        switch (runtime) {
+            case JAVA:
+                imageName = functionDockerImages.get("JAVA");
+                break;
+            case PYTHON:
+                imageName = functionDockerImages.get("PYTHON");
+                break;
+            case GO:
+                imageName = functionDockerImages.get("GO");
+                break;
+            default:
+                imageName = pulsarDockerImageName;
+                break;
         }
 
+        container.setImage(imageName);
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
