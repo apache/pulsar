@@ -435,7 +435,7 @@ public class AuthorizationService {
                         if (isSuperUser) {
                             return CompletableFuture.completedFuture(true);
                         } else {
-                            return provider.allowTopicOperationAsync(topicName, originalRole, role, TopicOperation.PRODUCE, authData);
+                            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
                         }
                     });
                 case LOOKUP:
