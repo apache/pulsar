@@ -548,29 +548,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
     }
 
-    @Override
-    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, String originalRole, String role,
-                                                               TopicOperation operation,
-                                                               AuthenticationDataSource authData) {
-        CompletableFuture<Boolean> isAuthorizedFuture;
-
-        switch (operation) {
-            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
-                break;
-            case PRODUCE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
-                break;
-            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
-                break;
-            default: isAuthorizedFuture = FutureUtil.failedFuture(
-                    new IllegalStateException("TopicOperation is not supported."));
-        }
-
-        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
-
-        return isSuperUserFuture
-                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> isSuperUser || isAuthorized);
-    }
-
     private static String path(String... parts) {
         StringBuilder sb = new StringBuilder();
         sb.append("/admin/");

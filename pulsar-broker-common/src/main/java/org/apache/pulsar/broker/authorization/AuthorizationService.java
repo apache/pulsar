@@ -485,17 +485,24 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
 
+        CompletableFuture<Boolean> isAuthorizedFuture;
+
         if (provider != null) {
             switch (operation) {
                 case PRODUCE:
-                    return canProduceAsync(topicName, role, authData);
+                    isAuthorizedFuture = canProduceAsync(topicName, role, authData);
+                    break;
                 case CONSUME:
-                    return canConsumeAsync(topicName, role, authData, null);
+                    isAuthorizedFuture = canConsumeAsync(topicName, role, authData, null);
+                    break;
                 case LOOKUP:
-                    return canLookupAsync(topicName, role, authData);
+                    isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+                    break;
                 default:
-                    return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+                    isAuthorizedFuture = provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
             }
+            return provider.isSuperUser(role, authData, conf)
+                    .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> isSuperUser || isAuthorized);
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
