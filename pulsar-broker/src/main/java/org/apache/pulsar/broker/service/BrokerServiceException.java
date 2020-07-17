@@ -212,6 +212,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.TransactionCoordinatorNotFound;
         } else if (t instanceof CoordinatorException.InvalidTxnStatusException) {
             return ServerError.InvalidTxnStatus;
+        } else if (t instanceof NotAllowedException) {
+            return ServerError.NotAllowedError;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

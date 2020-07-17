@@ -640,6 +640,23 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Not allowed exception thrown by Pulsar client.
+     */
+    public static class NotAllowedException extends PulsarClientException {
+
+        /**
+         * Constructs an {@code NotAllowedException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public NotAllowedException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Full producer queue error thrown by Pulsar client.
      */
     public static class ProducerQueueIsFullError extends PulsarClientException {
@@ -790,6 +807,8 @@ public class PulsarClientException extends IOException {
             return new InvalidTopicNameException(msg);
         } else if (t instanceof NotSupportedException) {
             return new NotSupportedException(msg);
+        } else if (t instanceof NotAllowedException) {
+            return new NotAllowedException(msg);
         } else if (t instanceof ProducerQueueIsFullError) {
             return new ProducerQueueIsFullError(msg);
         } else if (t instanceof ProducerBlockedQuotaExceededError) {
@@ -873,6 +892,8 @@ public class PulsarClientException extends IOException {
             return new InvalidTopicNameException(msg);
         } else if (cause instanceof NotSupportedException) {
             return new NotSupportedException(msg);
+        } else if (cause instanceof NotAllowedException) {
+            return new NotAllowedException(msg);
         } else if (cause instanceof ProducerQueueIsFullError) {
             return new ProducerQueueIsFullError(msg);
         } else if (cause instanceof ProducerBlockedQuotaExceededError) {
@@ -911,6 +932,7 @@ public class PulsarClientException extends IOException {
                 || t instanceof InvalidMessageException
                 || t instanceof InvalidTopicNameException
                 || t instanceof NotSupportedException
+                || t instanceof NotAllowedException
                 || t instanceof ChecksumException
                 || t instanceof CryptoException
                 || t instanceof ConsumerAssignException
