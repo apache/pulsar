@@ -134,8 +134,8 @@ authenticationProviders: [ provider1, provider2 ]
 For *TLS Authentication* provider, follow the example below to add the necessary settings.
 See [TLS Authentication](security-tls-authentication.md) for more details.
 ```
-clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
-clientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
+brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
 
 authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
