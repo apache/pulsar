@@ -318,11 +318,20 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role,
                                                              TopicOperation operation,
                                                              AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-            new IllegalStateException(
-                    String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
-                            " by the Authorization provider you are using.",
-                            operation.toString(), topic.toString(), role == null ? "null" : null)));
+        switch (operation) {
+            case PRODUCE:
+                return canProduceAsync(topic, role, authData);
+            case CONSUME:
+                return canConsumeAsync(topic, role, authData, null);
+            case LOOKUP:
+                return canLookupAsync(topic, role, authData);
+            default:
+                return FutureUtil.failedFuture(
+                        new IllegalStateException(
+                                String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
+                                                " by the Authorization provider you are using.",
+                                        operation.toString(), topic.toString(), role == null ? "null" : null)));
+        }
     }
 
     default Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation,
