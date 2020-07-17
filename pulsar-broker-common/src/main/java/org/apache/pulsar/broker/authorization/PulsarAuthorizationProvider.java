@@ -559,7 +559,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 break;
             case PRODUCE: isAuthorizedFuture= canProduceAsync(topicName, role, authData);
                 break;
-            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
+            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData != null ? authData.getSubscription() : null);
                 break;
             default: isAuthorizedFuture = FutureUtil.failedFuture(
                     new IllegalStateException("TopicOperation is not supported."));
