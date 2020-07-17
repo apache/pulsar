@@ -39,6 +39,7 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
 
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
+    private final NullRecord nullRecord = new NullRecord();
 
     public BatchPushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
@@ -64,7 +65,7 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
             if (record != null) {
                 queue.put(record);
             } else {
-                queue.put(new NullRecord());
+                queue.put(nullRecord);
             }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
