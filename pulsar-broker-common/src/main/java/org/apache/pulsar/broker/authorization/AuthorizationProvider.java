@@ -258,7 +258,10 @@ public interface AuthorizationProvider extends Closeable {
                                                                  String role, NamespaceOperation operation,
                                                                  AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-            new IllegalStateException("NamespaceOperation is not supported by the Authorization provider you are using."));
+            new IllegalStateException(
+                    String.format("NamespaceOperation(%s) on namespace(%s) by role(%s) is not supported" +
+                    " by the Authorization provider you are using.",
+                            operation.toString(), namespaceName.toString(), role == null ? "null" : role)));
     }
 
     default Boolean allowNamespaceOperation(NamespaceName namespaceName, String originalRole, String role,
@@ -285,7 +288,10 @@ public interface AuthorizationProvider extends Closeable {
                                                                           PolicyOperation operation, String originalRole,
                                                                           String role, AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-                new IllegalStateException("NamespacePolicyOperation is not supported by the Authorization provider you are using."));
+                new IllegalStateException(
+                        String.format("NamespacePolicyOperation(%s) on namespace(%s) by role(%s) is not supported" +
+                                " by the Authorization provider you are using.", operation.toString(),
+                                namespaceName.toString(), role == null ? "null" : role)));
     }
 
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation,
@@ -313,7 +319,10 @@ public interface AuthorizationProvider extends Closeable {
                                                              TopicOperation operation,
                                                              AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-            new IllegalStateException("TopicOperation is not supported by the Authorization provider you are using."));
+            new IllegalStateException(
+                    String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
+                            " by the Authorization provider you are using.",
+                            operation.toString(), topic.toString(), role == null ? "null" : null)));
     }
 
     default Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation,
