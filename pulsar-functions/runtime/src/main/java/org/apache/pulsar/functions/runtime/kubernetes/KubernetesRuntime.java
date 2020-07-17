@@ -984,28 +984,32 @@ public class KubernetesRuntime implements Runtime {
         Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
 
         String imageName = null;
-        switch (runtime) {
-            case JAVA:
-                if (functionDockerImages.get("JAVA") != null) {
-                    imageName = functionDockerImages.get("JAVA");
+        if (functionDockerImages != null) {
+            switch (runtime) {
+                case JAVA:
+                    if (functionDockerImages.get("JAVA") != null) {
+                        imageName = functionDockerImages.get("JAVA");
+                        break;
+                    }
+                case PYTHON:
+                    if (functionDockerImages.get("PYTHON") != null) {
+                        imageName = functionDockerImages.get("PYTHON");
+                        break;
+                    }
+                case GO:
+                    if (functionDockerImages.get("GO") != null) {
+                        imageName = functionDockerImages.get("GO");
+                        break;
+                    }
+                default:
+                    imageName = pulsarDockerImageName;
                     break;
-                }
-            case PYTHON:
-                if (functionDockerImages.get("PYTHON") != null) {
-                    imageName = functionDockerImages.get("PYTHON");
-                    break;
-                }
-            case GO:
-                if (functionDockerImages.get("GO") != null) {
-                    imageName = functionDockerImages.get("GO");
-                    break;
-                }
-            default:
-                imageName = pulsarDockerImageName;
-                break;
+            }
+            container.setImage(imageName);
+        } else {
+            container.setImage(pulsarDockerImageName);
         }
 
-        container.setImage(imageName);
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
