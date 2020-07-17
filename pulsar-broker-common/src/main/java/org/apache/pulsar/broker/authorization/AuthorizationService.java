@@ -486,7 +486,16 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            switch (operation) {
+                case PRODUCE:
+                    return canProduceAsync(topicName, role, authData);
+                case CONSUME:
+                    return canConsumeAsync(topicName, role, authData, null);
+                case LOOKUP:
+                    return canLookupAsync(topicName, role, authData);
+                default:
+                    return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            }
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
