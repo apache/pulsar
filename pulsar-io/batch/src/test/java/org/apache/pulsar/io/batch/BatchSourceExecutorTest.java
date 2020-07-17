@@ -162,10 +162,12 @@ public class BatchSourceExecutorTest {
 
         @Override
         public void stop() {
-            thread.interrupt();
-            try {
-                thread.join();
-            } catch (Exception e) {
+            if (thread != null) {
+                thread.interrupt();
+                try {
+                    thread.join();
+                } catch (Exception e) {
+                }
             }
         }
     }
@@ -242,7 +244,9 @@ public class BatchSourceExecutorTest {
     }
 
     @AfterMethod
-    public void cleanUp() { }
+    public void cleanUp() throws Exception {
+        batchSourceExecutor.close();
+    }
 
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Batch Configs cannot be found")
     public void testWithoutRightConfig() throws Exception {
