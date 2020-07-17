@@ -85,6 +85,7 @@ import java.util.regex.Pattern;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
@@ -985,14 +986,20 @@ public class KubernetesRuntime implements Runtime {
         String imageName = null;
         switch (runtime) {
             case JAVA:
-                imageName = functionDockerImages.get("JAVA");
-                break;
+                if (functionDockerImages.get("JAVA") != null) {
+                    imageName = functionDockerImages.get("JAVA");
+                    break;
+                }
             case PYTHON:
-                imageName = functionDockerImages.get("PYTHON");
-                break;
+                if (functionDockerImages.get("PYTHON") != null) {
+                    imageName = functionDockerImages.get("PYTHON");
+                    break;
+                }
             case GO:
-                imageName = functionDockerImages.get("GO");
-                break;
+                if (functionDockerImages.get("GO") != null) {
+                    imageName = functionDockerImages.get("GO");
+                    break;
+                }
             default:
                 imageName = pulsarDockerImageName;
                 break;
