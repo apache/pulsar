@@ -82,6 +82,7 @@ enum Result
                                                      /// Shared and Key_Shared subscription mode
     ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
     ResultInvalidTxnStatusError,                     /// Invalid txn status error
+    ResultNotAllowedError,                           /// Not allowed
 };
 
 // Return string representation of result code

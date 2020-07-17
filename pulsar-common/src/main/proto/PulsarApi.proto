@@ -196,6 +196,7 @@ enum ServerError {
 
     TransactionCoordinatorNotFound = 20; // Transaction coordinator not found error
     InvalidTxnStatus = 21; // Invalid txn status error
+    NotAllowedError = 22; // Not allowed error
 }
 
 enum AuthMethod {

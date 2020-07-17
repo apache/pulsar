@@ -1003,6 +1003,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.TopicDoesNotExistException(errorMsg);
         case ConsumerAssignError:
             return new PulsarClientException.ConsumerAssignException(errorMsg);
+        case NotAllowedError:
+            return new PulsarClientException.NotAllowedException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);
