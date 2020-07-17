@@ -74,7 +74,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
         prepareInternal();
       }
       Record<T> retval = batchSource.readNext();
-      if (retval == null || retval instanceof BatchPushSource.NullRecord) {
+      if (retval == null) {
         // signals end if this batch
         intermediateTopicConsumer.acknowledge(currentTask.getMessageId());
         currentTask = null;

@@ -30,7 +30,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public abstract class BatchPushSource<T> implements BatchSource<T> {
 
-    public static class NullRecord implements Record {
+    private static class NullRecord implements Record {
         @Override
         public Object getValue() {
             return null;
@@ -46,7 +46,12 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
 
     @Override
     public Record<T> readNext() throws Exception {
-        return queue.take();
+        Record<T> record = queue.take();
+        if (record instanceof NullRecord) {
+            return null;
+        } else {
+            return record;
+        }
     }
 
     /**
