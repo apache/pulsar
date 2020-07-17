@@ -177,47 +177,7 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
-        }
-        if (provider != null) {
-            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
-                if (isSuperUser) {
-                    return CompletableFuture.completedFuture(true);
-                } else {
-                    return provider.canProduceAsync(topicName, role, authenticationData);
-                }
-            });
-        }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
-    }
-
-    /**
-     * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
-     *
-     * @param topicName
-     *            the fully qualified topic name associated with the topic.
-     * @param role
-     *            the app id used to receive messages from the topic.
-     * @param subscription
-     *            the subscription name defined by the client
-     */
-    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData, String subscription) {
-        if (!this.conf.isAuthorizationEnabled()) {
-            return CompletableFuture.completedFuture(true);
-        }
-        if (provider != null) {
-            return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
-                if (isSuperUser) {
-                    return CompletableFuture.completedFuture(true);
-                } else {
-                    return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
-                }
-            });
-        }
-        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
+        return allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, null, role, authenticationData);
     }
 
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
@@ -234,6 +194,21 @@ public class AuthorizationService {
                     e.getMessage());
             throw e;
         }
+    }
+
+    /**
+     * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
+     *
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
+     * @param role
+     *            the app id used to receive messages from the topic.
+     * @param subscription
+     *            the subscription name defined by the client
+     */
+    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData, String subscription) {
+        return allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, null, role, authenticationData);
     }
 
     public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
@@ -290,40 +265,7 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
-            if (ex == null) {
-                if (produceAuthorized) {
-                    finalResult.complete(produceAuthorized);
-                    return;
-                }
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug(
-                            "Topic [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
-                            topicName.toString(), role, ex.getMessage());
-                }
-            }
-            canConsumeAsync(topicName, role, null, null).whenComplete((consumeAuthorized, e) -> {
-                if (e == null) {
-                    if (consumeAuthorized) {
-                        finalResult.complete(consumeAuthorized);
-                        return;
-                    }
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug(
-                                "Topic [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
-                                topicName.toString(), role, e.getMessage());
-
-                    }
-                    finalResult.completeExceptionally(e);
-                    return;
-                }
-                finalResult.complete(false);
-            });
-        });
-        return finalResult;
+        return allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, null, role, authenticationData);
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
@@ -486,7 +428,54 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            switch(operation) {
+                case PRODUCE:
+                case CONSUME:
+                    return provider.isSuperUser(role, authData, conf).thenComposeAsync(isSuperUser -> {
+                        if (isSuperUser) {
+                            return CompletableFuture.completedFuture(true);
+                        } else {
+                            return provider.allowTopicOperationAsync(topicName, originalRole, role, TopicOperation.PRODUCE, authData);
+                        }
+                    });
+                case LOOKUP:
+                    CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
+                    allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, originalRole, role, authData).whenComplete((produceAuthorized, ex) -> {
+                        if (ex == null) {
+                            if (produceAuthorized) {
+                                finalResult.complete(produceAuthorized);
+                                return;
+                            }
+                        } else {
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "Topic [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                                        topicName.toString(), role, ex.getMessage());
+                            }
+                        }
+                        allowTopicOperationAsync(topicName, TopicOperation.CONSUME, originalRole, role, null).whenComplete((consumeAuthorized, e) -> {
+                            if (e == null) {
+                                if (consumeAuthorized) {
+                                    finalResult.complete(consumeAuthorized);
+                                    return;
+                                }
+                            } else {
+                                if (log.isDebugEnabled()) {
+                                    log.debug(
+                                            "Topic [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                                            topicName.toString(), role, e.getMessage());
+
+                                }
+                                finalResult.completeExceptionally(e);
+                                return;
+                            }
+                            finalResult.complete(false);
+                        });
+                    });
+                    return finalResult;
+                default:
+                    return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            }
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +
