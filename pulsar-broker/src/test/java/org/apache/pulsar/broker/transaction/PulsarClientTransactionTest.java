@@ -24,7 +24,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -122,13 +126,15 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
 
         int messageCnt = 5;
         String content = "Hello Txn - ";
+        List<CompletableFuture<MessageId>> futureList = new ArrayList<>();
         for (int i = 0; i < messageCnt; i++) {
             CompletableFuture<MessageId> produceFuture = outProducer
                     .newMessage(tnx).value((content + i).getBytes(UTF_8)).sendAsync();
+            futureList.add(produceFuture);
         }
 
         // TODO wait a moment for adding publish partition to transaction, need to be fixed
-        Thread.sleep(1000 * 10);
+        Thread.sleep(1000 * 5);
 
 //        ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, 0);
 //        Assert.assertNotNull(originTopicCursor);
@@ -139,7 +145,32 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
 //        List<Entry> entries = originTopicCursor.readEntries(10);
 //        Assert.assertEquals(0, entries.size());
 
+        futureList.forEach(messageIdFuture -> {
+            try {
+                MessageId messageId = messageIdFuture.get(1, TimeUnit.SECONDS);
+                Assert.fail("MessageId shouldn't be get before txn commit.");
+            } catch (Exception e) {
+                if (e instanceof TimeoutException) {
+                    log.info("This is a expected exception.");
+                } else {
+                    log.error("This exception is not expected.", e);
+                    Assert.fail("This exception is not expected.");
+                }
+            }
+        });
+
         tnx.commit().get();
+
+        futureList.forEach(messageIdFuture -> {
+            try {
+                MessageId messageId = messageIdFuture.get(1, TimeUnit.SECONDS);
+                Assert.assertNotNull(messageId);
+                log.info("Tnx commit success! messageId: {}", messageId);
+            } catch (Exception e) {
+                log.error("Tnx commit failed! tnx: " + tnx, e);
+                Assert.fail("Tnx commit failed! tnx: " + tnx);
+            }
+        });
 
         List<Entry> entries = tbTopicCursor.readEntries(10);
         for (int i = 0; i < messageCnt; i++) {
@@ -152,24 +183,6 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
             System.out.println(new String(bytes));
             Assert.assertEquals(new String(bytes), content + i);
         }
-
-//        entries = originTopicCursor.readEntries(10);
-//        Assert.assertEquals(1, entries.size());
-
-//        CountDownLatch countDownLatch = new CountDownLatch(5);
-//        messageIdFutureList.forEach(messageIdFuture -> {
-//            messageIdFuture.whenComplete((messageId, throwable) -> {
-//                countDownLatch.countDown();
-//                if (throwable != null) {
-//                    log.error("Tnx commit failed! tnx: " + tnx, throwable);
-//                    Assert.fail("Tnx commit failed! tnx: " + tnx);
-//                    return;
-//                }
-//                Assert.assertNotNull(messageId);
-//                log.info("Tnx commit success! messageId: {}", messageId);
-//            });
-//        });
-//        countDownLatch.await();
     }
 
     private CompletableFuture<ReadOnlyCursor> getTBTopicCursor(String topic, int partition) {

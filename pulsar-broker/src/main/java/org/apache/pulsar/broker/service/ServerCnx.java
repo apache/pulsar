@@ -1219,29 +1219,41 @@ public class ServerCnx extends PulsarHandler {
 
         startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
 
-        if (send.getTxnidMostBits() >= 0 && send.getTxnidLeastBits() >= 0) {
+        final long produceId = producer.getProducerId();
+        final long sequenceId = send.getSequenceId();
+        final long highSequenceId = send.getHighestSequenceId();
+
+        if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(send.getTxnidMostBits(), send.getTxnidLeastBits());
 
-            CompletableFuture<TransactionBuffer> tbFuture = transactionBuffers.computeIfAbsent(
-                    producer.getTopic().getName(), topicName ->
-                            service.getPulsar().getTransactionBufferProvider()
-                                    .newTransactionBuffer(producer.getTopic()));
-            tbFuture.whenComplete((tb, throwable) -> {
-                if (throwable != null) {
-                    log.error("Get transactionBuffer error. produceId: " + send.getProducerId(), throwable);
-                    return;
-                }
-                if (tb == null) {
-                    log.error("The transactionBuffer is not exist. produceId: " + send.getProducerId());
-                    return;
-                }
-                tb.appendBufferToTxn(txnID, send.getSequenceId(), headersAndPayload);
-            });
-            try {
-                tbFuture.get();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            producer.getTopic()
+                    .getTransactionBuffer(true)
+                    .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(txnID, send.getSequenceId(), headersAndPayload))
+                    .thenAccept(position -> {
+                        ctx.writeAndFlush(
+                                Commands.newSendReceipt(
+                                        produceId,
+                                        sequenceId,
+                                        highSequenceId,
+                                        ((PositionImpl) position).getLedgerId(),
+                                        ((PositionImpl) position).getEntryId()));
+                    })
+                    .exceptionally(throwable -> {
+                        ctx.writeAndFlush(Commands.newSendError(producer.getProducerId(),
+                                send.getSequenceId(), ServerError.UnknownError, ""));
+                        return null;
+                    });
+//            tbFuture.whenComplete((tb, throwable) -> {
+//                if (throwable != null) {
+//                    log.error("Get transactionBuffer error. produceId: " + send.getProducerId(), throwable);
+//                    return;
+//                }
+//                if (tb == null) {
+//                    log.error("The transactionBuffer is not exist. produceId: " + send.getProducerId());
+//                    return;
+//                }
+//                tb.appendBufferToTxn(txnID, send.getSequenceId(), headersAndPayload);
+//            });
             return;
         }
 

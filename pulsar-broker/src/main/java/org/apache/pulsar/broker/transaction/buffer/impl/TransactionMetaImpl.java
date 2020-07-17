@@ -109,8 +109,8 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<Void> appendEntry(long sequenceId, Position position) {
-        CompletableFuture<Void> appendFuture = new CompletableFuture<>();
+    public CompletableFuture<Position> appendEntry(long sequenceId, Position position) {
+        CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         synchronized (this) {
             if (TxnStatus.OPEN != txnStatus) {
                 appendFuture.completeExceptionally(
@@ -121,7 +121,7 @@ public class TransactionMetaImpl implements TransactionMeta {
         synchronized (this.entries) {
             this.entries.put(sequenceId, position);
         }
-        return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(position);
     }
 
     @Override
