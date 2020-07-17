@@ -69,7 +69,7 @@ public class MockZooKeeper extends ZooKeeper {
     
     //see details of Objenesis caching - http://objenesis.org/details.html
     //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
-    private static Objenesis objenesis = new ObjenesisStd();
+    private static final Objenesis objenesis = new ObjenesisStd();
 
     public enum Op {
         CREATE, GET, SET, GET_CHILDREN, DELETE, EXISTS, SYNC,
