@@ -185,6 +185,7 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setFunctionDockerImages(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
         kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
         kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);

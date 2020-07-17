@@ -153,6 +153,7 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setK8Uri(null);
         kubernetesRuntimeFactoryConfig.setJobNamespace(null);
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName(null);
+        kubernetesRuntimeFactoryConfig.setFunctionDockerImages(null);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy(null);
         kubernetesRuntimeFactoryConfig.setPulsarRootDir(pulsarRootDir);
         kubernetesRuntimeFactoryConfig.setSubmittingInsidePod(false);
@@ -367,10 +368,15 @@ public class KubernetesRuntimeFactoryTest {
     private KubernetesRuntimeFactory getKuberentesRuntimeFactory() {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
         WorkerConfig workerConfig = new WorkerConfig();
+        Map<String, String> imageNames = new HashMap<>();
+        imageNames.put("JAVA", "test-java-function-docker-image");
+        imageNames.put("PYTHON", "test-python-function-docker-image");
+        imageNames.put("GO", "test-go-function-docker-image");
         KubernetesRuntimeFactoryConfig kubernetesRuntimeFactoryConfig = new KubernetesRuntimeFactoryConfig();
         kubernetesRuntimeFactoryConfig.setK8Uri("test_k8uri");
         kubernetesRuntimeFactoryConfig.setJobNamespace("test_jobNamespace");
         kubernetesRuntimeFactoryConfig.setPulsarDockerImageName("test_dockerImage");
+        kubernetesRuntimeFactoryConfig.setFunctionDockerImages(imageNames);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
