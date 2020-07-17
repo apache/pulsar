@@ -240,9 +240,13 @@
     <span class="hljs-function">String <span class="hljs-title">getFunctionVersion</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">Logger <span class="hljs-title">getLogger</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounter</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">incrCounterAsync</span><span class="hljs-params">(String key, <span class="hljs-keyword">long</span> amount)</span></span>;
     <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounter</span><span class="hljs-params">(String key)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">long</span> <span class="hljs-title">getCounterAsync</span><span class="hljs-params">(String key)</span></span>;
     <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putState</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
+    <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putStateAsync</span><span class="hljs-params">(String key, ByteBuffer value)</span></span>;
     <span class="hljs-function">ByteBuffer <span class="hljs-title">getState</span><span class="hljs-params">(String key)</span></span>;
+    <span class="hljs-function">ByteBuffer <span class="hljs-title">getStateAsync</span><span class="hljs-params">(String key)</span></span>;
     <span class="hljs-function">Map&lt;String, Object&gt; <span class="hljs-title">getUserConfigMap</span><span class="hljs-params">()</span></span>;
     <span class="hljs-function">Optional&lt;Object&gt; <span class="hljs-title">getUserConfigValue</span><span class="hljs-params">(String key)</span></span>;
     <span class="hljs-function">Object <span class="hljs-title">getUserConfigValueOrDefault</span><span class="hljs-params">(String key, Object defaultValue)</span></span>;

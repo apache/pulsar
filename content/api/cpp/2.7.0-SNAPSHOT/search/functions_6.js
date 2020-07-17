@@ -3,7 +3,7 @@ var searchData=
   ['getackgroupingmaxsize',['getAckGroupingMaxSize',['../classpulsar_1_1_consumer_configuration.html#a3beadfaddac3776199f8f449db523243',1,'pulsar::ConsumerConfiguration']]],
   ['getackgroupingtimems',['getAckGroupingTimeMs',['../classpulsar_1_1_consumer_configuration.html#a11f10805e23f3d86fb6533ffacb2d292',1,'pulsar::ConsumerConfiguration']]],
   ['getaddress',['getAddress',['../classpulsar_1_1_broker_consumer_stats.html#a46bdf3a845d75f888d4ae6f840a3b5ce',1,'pulsar::BrokerConsumerStats']]],
-  ['getauth',['getAuth',['../classpulsar_1_1_client_configuration.html#aff4c3bb8c15d5d2a1fc242d6942331cc',1,'pulsar::ClientConfiguration']]],
+  ['getauth',['getAuth',['../classpulsar_1_1_client_configuration.html#aafbf0377be1ba157d3b7455b34af9d37',1,'pulsar::ClientConfiguration']]],
   ['getavailablepermits',['getAvailablePermits',['../classpulsar_1_1_broker_consumer_stats.html#a09cce823b8f5d304427ede767bc2529e',1,'pulsar::BrokerConsumerStats']]],
   ['getbrokerconsumerstats',['getBrokerConsumerStats',['../classpulsar_1_1_consumer.html#a617639e11e05ecba3d013d831578d19d',1,'pulsar::Consumer']]],
   ['getbrokerconsumerstatsasync',['getBrokerConsumerStatsAsync',['../classpulsar_1_1_consumer.html#a01e55f7906b6922fa069d84f5459af4b',1,'pulsar::Consumer']]],

@@ -108,6 +108,8 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_broker_consumer_stats.html">BrokerConsumerStats</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_cached_token.html">CachedToken</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client.html">Client</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_client_configuration.html">ClientConfiguration</a></td></tr>
@@ -136,6 +138,10 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_routing_policy.html">MessageRoutingPolicy</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_oauth2_flow.html">Oauth2Flow</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_oauth2_token_result.html">Oauth2TokenResult</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer.html">Producer</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a></td></tr>
@@ -163,6 +169,15 @@ typedef std::map&lt; std::string, std::string &gt;&#160;</td><td class="memItemR
 <tr class="memitem:a2eabcdf96ac5fd61e685919e7ef42f49"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2eabcdf96ac5fd61e685919e7ef42f49"></a>
 typedef std::function&lt; std::string()&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>TokenSupplier</b></td></tr>
 <tr class="separator:a2eabcdf96ac5fd61e685919e7ef42f49"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a038e38e4311d32270978b9ef9e188f63"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a038e38e4311d32270978b9ef9e188f63"></a>
+typedef std::shared_ptr&lt; <a class="el" href="classpulsar_1_1_oauth2_token_result.html">Oauth2TokenResult</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>Oauth2TokenResultPtr</b></td></tr>
+<tr class="separator:a038e38e4311d32270978b9ef9e188f63"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2b89d3b7765002ab2cbfa2a88c5d9d41"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2b89d3b7765002ab2cbfa2a88c5d9d41"></a>
+typedef std::shared_ptr&lt; <a class="el" href="classpulsar_1_1_oauth2_flow.html">Oauth2Flow</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>FlowPtr</b></td></tr>
+<tr class="separator:a2b89d3b7765002ab2cbfa2a88c5d9d41"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a3ea4abf665ae6f87909e0a57aa31f294"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a3ea4abf665ae6f87909e0a57aa31f294"></a>
+typedef std::shared_ptr&lt; <a class="el" href="classpulsar_1_1_cached_token.html">CachedToken</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>CachedTokenPtr</b></td></tr>
+<tr class="separator:a3ea4abf665ae6f87909e0a57aa31f294"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aed95b2d6d7bc1b4fc4c888f77107ecec"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aed95b2d6d7bc1b4fc4c888f77107ecec"></a>
 typedef std::function&lt; void(<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> result, <a class="el" href="classpulsar_1_1_broker_consumer_stats.html">BrokerConsumerStats</a> brokerConsumerStats)&gt;&#160;</td><td class="memItemRight" valign="bottom"><b>BrokerConsumerStatsCallback</b></td></tr>
 <tr class="separator:aed95b2d6d7bc1b4fc4c888f77107ecec"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -304,7 +319,9 @@ Enumerations</h2></td></tr>
 &#160;&#160;<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbac0f35889e7dd6cb7f634baedb8481e9e">ResultConsumerAssignError</a>, 
 <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba2e01cfc218b721cbd2e2a06bf3cb78b0">ResultCumulativeAcknowledgementNotAllowedError</a>, 
 <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba653a82475a2715f839ba52329a9b6414">ResultTransactionCoordinatorNotFoundError</a>, 
-<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba742ada2f12ae5b2ca11fa674889dc186">ResultInvalidTxnStatusError</a>
+<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba742ada2f12ae5b2ca11fa674889dc186">ResultInvalidTxnStatusError</a>, 
+<br />
+&#160;&#160;<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad38a4ab387c0769f3c8c30fd2c7413a1">ResultNotAllowedError</a>
 <br />
  }</td></tr>
 <tr class="separator:ae85314d6b9e8afd831cf8c66705f2dbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -498,6 +515,9 @@ PULSAR_PUBLIC const char *&#160;</td><td class="memItemRight" valign="bottom"><b
 </td></tr>
 <tr><td class="fieldname"><a class="anchor" id="ae85314d6b9e8afd831cf8c66705f2dbba742ada2f12ae5b2ca11fa674889dc186"></a>ResultInvalidTxnStatusError&#160;</td><td class="fielddoc">
 <p>Transaction coordinator not found. </p>
+</td></tr>
+<tr><td class="fieldname"><a class="anchor" id="ae85314d6b9e8afd831cf8c66705f2dbbad38a4ab387c0769f3c8c30fd2c7413a1"></a>ResultNotAllowedError&#160;</td><td class="fielddoc">
+<p>Invalid txn status error. </p>
 </td></tr>
 </table>
 

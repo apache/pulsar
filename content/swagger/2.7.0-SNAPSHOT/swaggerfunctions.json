@@ -1391,15 +1391,35 @@
     "Message" : {
       "type" : "object",
       "properties" : {
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
         "publishTime" : {
           "type" : "integer",
           "format" : "int64"
         },
         "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
@@ -1409,15 +1429,6 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
         "keyBytes" : {
           "type" : "array",
           "items" : {
@@ -1425,26 +1436,15 @@
             "format" : "byte"
           }
         },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "data" : {
           "type" : "array",

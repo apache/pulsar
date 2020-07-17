@@ -5,6 +5,7 @@ var searchData=
   ['acknowledgecumulative',['acknowledgeCumulative',['../classpulsar_1_1_consumer.html#a3eb0b0db2da0628da15d3f242e254f6d',1,'pulsar::Consumer']]],
   ['acknowledgecumulativeasync',['acknowledgeCumulativeAsync',['../classpulsar_1_1_consumer.html#a6ad164b1ab4449b17bce764224e92960',1,'pulsar::Consumer']]],
   ['authathenz',['AuthAthenz',['../classpulsar_1_1_auth_athenz.html',1,'pulsar']]],
+  ['authenticate',['authenticate',['../classpulsar_1_1_oauth2_flow.html#a26ba112e97d9ce0283adaa9213f848ac',1,'pulsar::Oauth2Flow']]],
   ['authentication',['Authentication',['../classpulsar_1_1_authentication.html',1,'pulsar']]],
   ['authenticationdataprovider',['AuthenticationDataProvider',['../classpulsar_1_1_authentication_data_provider.html',1,'pulsar']]],
   ['authfactory',['AuthFactory',['../classpulsar_1_1_auth_factory.html',1,'pulsar']]],
