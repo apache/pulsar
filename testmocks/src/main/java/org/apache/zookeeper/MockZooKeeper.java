@@ -18,15 +18,7 @@
  */
 package org.apache.zookeeper;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimaps;
-import com.google.common.collect.SetMultimap;
-import com.google.common.collect.Sets;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Constructor;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -35,10 +27,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
@@ -50,8 +42,20 @@ import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
+import org.objenesis.Objenesis;
+import org.objenesis.ObjenesisStd;
+import org.objenesis.instantiator.ObjectInstantiator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimaps;
+import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 @SuppressWarnings({ "deprecation", "restriction", "rawtypes" })
 public class MockZooKeeper extends ZooKeeper {
@@ -67,6 +71,10 @@ public class MockZooKeeper extends ZooKeeper {
     private int readOpDelayMs;
 
     private ReentrantLock mutex;
+    
+    //see details of Objenesis caching - http://objenesis.org/details.html
+    //see supported jvms - https://github.com/easymock/objenesis/blob/master/SupportedJVMs.md
+    private static Objenesis objenesis = new ObjenesisStd();
 
     public enum Op {
         CREATE, GET, SET, GET_CHILDREN, DELETE, EXISTS, SYNC,
@@ -92,11 +100,8 @@ public class MockZooKeeper extends ZooKeeper {
 
     public static MockZooKeeper newInstance(ExecutorService executor, int readOpDelayMs) {
         try {
-
-            sun.reflect.ReflectionFactory rf = sun.reflect.ReflectionFactory.getReflectionFactory();
-            Constructor objDef = Object.class.getDeclaredConstructor();
-            Constructor intConstr = rf.newConstructorForSerialization(MockZooKeeper.class, objDef);
-            MockZooKeeper zk = (MockZooKeeper) intConstr.newInstance();
+            ObjectInstantiator mockZooKeeperInstantiator = objenesis.getInstantiatorOf(MockZooKeeper.class);
+            MockZooKeeper zk = (MockZooKeeper) mockZooKeeperInstantiator.newInstance();
             zk.init(executor);
             zk.readOpDelayMs = readOpDelayMs;
             zk.mutex = new ReentrantLock();
