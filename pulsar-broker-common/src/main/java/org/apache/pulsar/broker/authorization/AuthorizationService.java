@@ -208,7 +208,7 @@ public class AuthorizationService {
      */
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData, String subscription) {
-        return allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, null, role, authenticationData);
+        return allowTopicOperationAsync(topicName, TopicOperation.CONSUME, null, role, authenticationData);
     }
 
     public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
