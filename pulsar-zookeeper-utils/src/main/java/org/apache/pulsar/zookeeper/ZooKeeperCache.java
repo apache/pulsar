@@ -25,7 +25,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
 import java.util.Map;
@@ -146,7 +145,7 @@ public abstract class ZooKeeperCache implements Watcher {
             // ZookeeperCache instance then ZkChildrenCache may not invalidate for it's parent. Therefore, invalidate
             // cache for parent if child is created/deleted
             if (event.getType().equals(EventType.NodeCreated) || event.getType().equals(EventType.NodeDeleted)) {
-                childrenCache.synchronous().invalidate(Paths.get(path).getParent().toString());
+                childrenCache.synchronous().invalidate(ZkUtils.getParentForPath(path));
             }
             existsCache.synchronous().invalidate(path);
             if (executor != null && updater != null) {
