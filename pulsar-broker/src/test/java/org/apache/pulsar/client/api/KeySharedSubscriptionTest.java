@@ -397,7 +397,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(false);
         String topic = "persistent://public/default/key_shared_disabled";
