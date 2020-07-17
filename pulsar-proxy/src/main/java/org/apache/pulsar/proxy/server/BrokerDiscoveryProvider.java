@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
@@ -138,7 +139,8 @@ public class BrokerDiscoveryProvider implements Closeable {
             return;
         }
         // get zk policy manager
-        if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
+        if (!service.getAuthorizationService().allowTopicOperation(topicName,
+                TopicOperation.LOOKUP, null, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
             TenantInfo tenantInfo;

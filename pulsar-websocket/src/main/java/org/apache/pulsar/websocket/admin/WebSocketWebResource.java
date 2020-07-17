@@ -29,6 +29,7 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
@@ -143,7 +144,8 @@ public class WebSocketWebResource {
      */
     protected boolean isAuthorized(TopicName topic) throws Exception {
         if (service().isAuthorizationEnabled()) {
-            return service().getAuthorizationService().canLookup(topic, clientAppId(), authData());
+            return service().getAuthorizationService().allowTopicOperation(topic,
+                    TopicOperation.LOOKUP, null, clientAppId(), authData());
         }
         return true;
     }

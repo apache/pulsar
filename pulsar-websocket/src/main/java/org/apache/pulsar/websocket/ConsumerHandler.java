@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
@@ -349,8 +350,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
-                this.subscription);
+        return service.getAuthorizationService().allowTopicOperation(topic,
+                TopicOperation.CONSUME, null, authRole, authenticationData);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

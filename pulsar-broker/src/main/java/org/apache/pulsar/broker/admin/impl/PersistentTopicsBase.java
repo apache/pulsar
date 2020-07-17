@@ -93,15 +93,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -111,6 +102,16 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
@@ -262,8 +263,8 @@ public class PersistentTopicsBase extends AdminResource {
                 log.debug("[{}] failed to validate admin access for {}", topicName, clientAppId());
             }
             try {
-                if (!pulsar().getBrokerService().getAuthorizationService().canProduce(topicName, clientAppId(),
-                  clientAuthData())) {
+                if (!pulsar().getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                        TopicOperation.PRODUCE, originalPrincipal(), clientAppId(), clientAuthData())) {
                     log.warn("[{}} Subscriber {} is not authorized to access api", topicName, clientAppId());
                     throw new RestException(Status.UNAUTHORIZED,
                       String.format("Subscriber %s is not authorized to access this operation", clientAppId()));
@@ -293,8 +294,9 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void validateAdminAccessForSubscriber(String subscriptionName) {
         try {
-            if (!pulsar().getBrokerService().getAuthorizationService().canConsume(topicName, clientAppId(),
-                    clientAuthData(), subscriptionName)) {
+            if (!pulsar().getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                    TopicOperation.CONSUME, originalPrincipal(), clientAppId(),
+                    clientAuthData())) {
                 log.warn("[{}} Subscriber {} is not authorized to access api", topicName, clientAppId());
                 throw new RestException(Status.UNAUTHORIZED,
                         String.format("Subscriber %s is not authorized to access this operation", clientAppId()));

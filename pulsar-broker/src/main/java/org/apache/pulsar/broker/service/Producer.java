@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -591,8 +592,8 @@ public class Producer {
         TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
-                        authenticationData)) {
+                if (cnx.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                        TopicOperation.PRODUCE, null, appId, authenticationData)) {
                     return;
                 }
             } catch (Exception e) {

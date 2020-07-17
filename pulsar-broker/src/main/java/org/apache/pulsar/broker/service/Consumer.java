@@ -56,6 +56,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -550,8 +551,8 @@ public class Consumer {
         TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId, authenticationData,
-                        subscription.getName())) {
+                if (cnx.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
+                        TopicOperation.CONSUME, null, appId, authenticationData)) {
                     return;
                 }
             } catch (Exception e) {
