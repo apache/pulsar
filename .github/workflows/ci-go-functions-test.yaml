@@ -66,4 +66,4 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
-          go test -v $(go list ./... | grep -v examples) ${{ matrix.go-version }}
+          go test -v $(go list ./... | grep -v examples)
