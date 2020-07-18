@@ -456,6 +456,28 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testTopicNameValid() throws Exception{
+        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscribe();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync("ns-abc/testTopicNameValid", 5).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            return null;
+        }).get();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName, 3).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            return null;
+        }).get();
+    }
+
+    @Test
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
