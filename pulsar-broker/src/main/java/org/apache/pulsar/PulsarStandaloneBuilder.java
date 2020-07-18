@@ -108,25 +108,28 @@ public final class PulsarStandaloneBuilder {
         return this;
     }
 
-    public PulsarStandalone build()
-    {
-        // Change IOException and ConfigurationException into a RuntimeException, because if the
-        // config file isn't readable, there is nothing a caller can do, so don't bother with
-        // a checked exception that needs to be catched
-        try {
-            // By reading the configuration file here, the user can modify the configurations before
-            // calling PulsarStandalone.start()
-            ServerConfiguration bkServerConf = new ServerConfiguration();
-            bkServerConf.loadConf(new File(pulsarStandalone.getConfigFile()).toURI().toURL());
-            pulsarStandalone.setBkServerConfig(bkServerConf);
+    public PulsarStandalone build() {
+        // Don't break existing code which does not have the config file set
+        if (pulsarStandalone.getConfigFile() != null) {
+            // Change IOException and ConfigurationException into a RuntimeException, because if the
+            // config file isn't readable, there is nothing a caller can do, so don't bother with
+            // a checked exception that needs to be catched
+            try {
+                // By reading the configuration file here, the user can modify the configurations before
+                // calling PulsarStandalone.start()
+                ServerConfiguration bkServerConf = new ServerConfiguration();
+                bkServerConf.loadConf(new File(pulsarStandalone.getConfigFile()).toURI().toURL());
+                pulsarStandalone.setBkServerConfig(bkServerConf);
 
-            pulsarStandalone.setConfig(PulsarConfigurationLoader.create(
-                    new FileInputStream(pulsarStandalone.getConfigFile()), ServiceConfiguration.class));
-        }
-        catch (IOException | ConfigurationException e) {
-            // IllegalArgumentException seems appropriate here as the config file was used as an "argument"
-            // by using #withConfigFile
-            throw new IllegalArgumentException("Config file could not be read: " + pulsarStandalone.getConfigFile(), e);
+                pulsarStandalone.setConfig(PulsarConfigurationLoader.create(
+                        new FileInputStream(pulsarStandalone.getConfigFile()), ServiceConfiguration.class));
+            } catch (IOException | ConfigurationException e) {
+                // IllegalArgumentException seems appropriate here as the config file was used as an "argument"
+                // by using #withConfigFile
+                throw new IllegalArgumentException("Config file could not be read: " + pulsarStandalone.getConfigFile(), e);
+            }
+        } else {
+            pulsarStandalone.setConfig(new ServiceConfiguration());
         }
 
         if (pulsarStandalone.getConfig().getClusterName() == null) {

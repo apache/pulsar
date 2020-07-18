@@ -36,7 +36,7 @@ public class PulsarStandaloneBuilderTest {
         if (testConfigFile.exists()) {
             testConfigFile.delete();
         }
-        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        PrintWriter printWriter = new PrintWriter(testConfigFile);
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
         printWriter.println("managedLedgerDefaultWriteQuorum=1");
         printWriter.println("managedLedgerDefaultAckQuorum=1");
