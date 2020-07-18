@@ -122,8 +122,15 @@
   <span class="hljs-attr">jobNamespace:</span>
   <span class="hljs-comment"># the docker image to run function instance. by default it is `apachepulsar/pulsar`</span>
   <span class="hljs-attr">pulsarDockerImageName:</span>
-  <span class="hljs-comment"># the root directory of pulsar home directory in `pulsarDockerImageName`.</span>
- <span class="hljs-string">by</span> <span class="hljs-string">default</span> <span class="hljs-string">it</span> <span class="hljs-string">is</span> <span class="hljs-string">`/pulsar`.</span>
+  <span class="hljs-comment"># the docker image to run function instance according to different configurations provided by users.</span>
+  <span class="hljs-comment"># By default it is `apachepulsar/pulsar`.</span>
+  <span class="hljs-comment"># e.g:</span>
+  <span class="hljs-comment"># functionDockerImages:</span>
+  <span class="hljs-comment">#   JAVA: JAVA_IMAGE_NAME</span>
+  <span class="hljs-comment">#   PYTHON: PYTHON_IMAGE_NAME</span>
+  <span class="hljs-comment">#   GO: GO_IMAGE_NAME</span>
+  <span class="hljs-attr">functionDockerImages:</span>
+  <span class="hljs-comment"># the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.</span>
   <span class="hljs-comment"># if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly</span>
   <span class="hljs-attr">pulsarRootDir:</span>
   <span class="hljs-comment"># this setting only takes effects if `k8Uri` is set to null. if your function worker is running as a k8 pod,</span>

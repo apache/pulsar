@@ -153,10 +153,17 @@
 </ul>
 <h5><a class="anchor" aria-hidden="true" id="啟用-tls-transport-encryption"></a><a href="#啟用-tls-transport-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟用 TLS transport encryption</h5>
 <p>要啟用 TLS傳輸加密，請配置以下設定。</p>
-<pre><code class="hljs">tlsEnabled: true
+<pre><code class="hljs">useTLS: true
+pulsarServiceUrl: pulsar+ssl://localhost:6651/
+pulsarWebServiceUrl: https://localhost:8443
+
+tlsEnabled: true
 tlsCertificateFilePath: /path/to/functions-worker.cert.pem
 tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
 tlsTrustCertsFilePath:  /path/to/ca.cert.pem
+
+// The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 </code></pre>
 <p>有關 TLS加 密的詳細訊息，請參閱<a href="/docs/zh-TW/next/security-tls-transport">使用TLS的傳輸加密</a>。</p>
 <h5><a class="anchor" aria-hidden="true" id="啟用-authentication-provider"></a><a href="#啟用-authentication-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟用 Authentication Provider</h5>
@@ -167,76 +174,84 @@ tlsTrustCertsFilePath:  /path/to/ca.cert.pem
 <pre><code class="hljs">authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
 </code></pre>
-<p>對於 <em>SASL Authentication</em> provider，在 <code>properties</code> 下添加 <code>saslJaasClientAllowedIds</code> 和 <code>saslJaasBrokerSectionName</code>。</p>
+<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings. See <a href="/docs/zh-TW/next/security-tls-authentication">TLS Authentication</a> for more details.</p>
+<pre><code class="hljs">brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
+
+authenticationEnabled: true
+authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
+</code></pre>
+<p>For <em>SASL Authentication</em> provider, add <code>saslJaasClientAllowedIds</code> and <code>saslJaasBrokerSectionName</code> under <code>properties</code> if needed.</p>
 <pre><code class="hljs">properties:
   saslJaasClientAllowedIds: .*pulsar.*
   saslJaasBrokerSectionName: Broker
 </code></pre>
-<p>對於 <em>Token Authentication</em> prodivder，在<code>properties</code>下添加所需要的設定。 有關更多詳細信息，請參見 <a href="/docs/zh-TW/next/security-jwt">Token Authentication</a>。</p>
+<p>For <em>Token Authentication</em> prodivder, add necessary settings under <code>properties</code> if needed. 有關更多詳細信息，請參見 <a href="/docs/zh-TW/next/security-jwt">Token Authentication</a>。</p>
 <pre><code class="hljs">properties:
   tokenSecretKey:       file://my/secret.key 
   # If using public/private
   # tokenPublicKey:     file:///path/to/public.key 
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="啟用-authorization-provider"></a><a href="#啟用-authorization-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟用 Authorization Provider</h5>
-<p>對 Functions Worker 啟用授權功能，需要設定 <code>authorizationEnabled</code> 與 <code>configurationStoreServers</code>。 經由 authentication provider 連接到 <code>configurationStoreServers</code> 來取得命名空間授權策略。</p>
+<p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code>, <code>authorizationProvider</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
 <pre><code class="hljs css language-yaml"></code></pre>
 </blockquote>
 <p>authorizationEnabled: true
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 configurationStoreServers: &lt;configuration-store-servers&gt;</p>
 <pre><code class="hljs">
-你應該配置超級用戶角色列表。 超級用戶角色可以訪問任何管理 API。 以下是配置範例。
+You should also configure <span class="hljs-keyword">a</span> list <span class="hljs-keyword">of</span> superuser roles. The superuser roles are able <span class="hljs-built_in">to</span> access <span class="hljs-keyword">any</span> admin API. The following is <span class="hljs-keyword">a</span> configuration example.
 
 ```yaml
 superUserRoles:
-  -<span class="ruby"> role1
-</span>  -<span class="ruby"> role2
-</span>  -<span class="ruby"> role3
-</span></code></pre>
+  - role1
+  - role2
+  - role3
+</code></pre>
 <h4><a class="anchor" aria-hidden="true" id="bookkeeper-認證方式"></a><a href="#bookkeeper-認證方式" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper 認證方式</h4>
-<p>如果在 BookKeeper 群集上啟用了身份驗證，請配置以下 BookKeeper 身份驗證設定。</p>
+<p>If authentication is enabled on the BookKeeper cluster, you should configure the BookKeeper authentication settings as follows:</p>
 <ul>
 <li><code>bookkeeperClientAuthenticationPlugin</code>: BookKeeper 客戶端身份驗證插件名稱。</li>
 <li><code>bookkeeperClientAuthenticationParametersName</code>: BookKeeper 客戶端身份驗證的插件參數名稱。</li>
 <li><code>bookkeeperClientAuthenticationParameters</code>: BookKeeper 客戶端身份驗證的插件參數。</li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="啟動-functions-worker"></a><a href="#啟動-functions-worker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>啟動 Functions-worker</h3>
-<p>完成配置<code>functions_worker.yml</code>設定文件後，可以使用以下命令啟動 <code>functions-worker</code>：</p>
+<p>Once you have finished configuring the <code>functions_worker.yml</code> configuration file, you can use the following command to start a <code>functions-worker</code>:</p>
 <pre><code class="hljs css language-bash">bin/pulsar <span class="hljs-built_in">functions</span>-worker
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="為-functions-worker-配置-proxy"></a><a href="#為-functions-worker-配置-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>為 Functions-worker 配置 Proxy</h3>
-<p>當在分開的群集中運行 <code>functions-worker</code> 與 broker 時，admin rest endpoints 將分別落在兩個群集。 <code>functions</code>、<code>function-worker</code>、<code>source</code> 與 <code>sink</code> endpoints 都將啟動在 <code>functions-worker</code> 集群, 然而其它的 endpoints 啟動在 broker 集群。 因此，需要在使用 <code>pulsar-admin</code> 時指定正確的服務 URL。</p>
-<p>為了解決此不便之處，可以啟動 proxy 群集來相應路由 admin rest請求。 因此，將擁有一個用於 admin rest 服務的集中入口點。</p>
-<p>如果你已經有 proxy 群集，請繼續閱讀。 如果之前沒有設置 proxy 群集，則可以按照<a href="http://pulsar.apache.org/docs/en/administration-proxy/">說明</a>來啟動 proxy 服務。</p>
+<p>When you are running <code>functions-worker</code> in a separate cluster, the admin rest endpoints are split into two clusters. <code>functions</code>, <code>function-worker</code>, <code>source</code> and <code>sink</code> endpoints are now served by the <code>functions-worker</code> cluster, while all the other remaining endpoints are served by the broker cluster. Hence you need to configure your <code>pulsar-admin</code> to use the right service URL accordingly.</p>
+<p>In order to address this inconvenience, you can start a proxy cluster for routing the admin rest requests accordingly. Hence you will have one central entry point for your admin service.</p>
+<p>If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the <a href="http://pulsar.apache.org/docs/en/administration-proxy/">instructions</a> to start proxies.</p>
 <p><img src="assets/functions-worker-separated-proxy.png" alt="assets/functions-worker-separated.png"></p>
-<p>要在 proxy 中啟用 <code>functions-worker</code> 管理 request 的路由，可以在 <code>proxy.conf</code> 文件修改以下設定：</p>
+<p>To enable routing functions related admin requests to <code>functions-worker</code> in a proxy, you can edit the <code>proxy.conf</code> file to modify the following settings:</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">functionWorkerWebServiceURL</span>=&lt;pulsar-functions-worker-web-service-url&gt;
 <span class="hljs-attr">functionWorkerWebServiceURLTLS</span>=&lt;pulsar-functions-worker-web-service-url&gt;
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="run-with-broker-與-run-separately-模式的比較"></a><a href="#run-with-broker-與-run-separately-模式的比較" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Run-with-Broker 與 Run-separately 模式的比較</h2>
-<p>如上所述，你可以與 broker 一起運行 Function-worker，或單獨運行它。 而且，與 broker 一起運行 function-worker 則更方便。 但是，在單獨的群集中運行 function-worker 可以為在 <code>Process</code> 或 <code>Thread</code> 模式下運行的 function 提供更好的資源隔離。</p>
-<p>針對你的案例來使用哪種模式，請參考以下準則進行確定。</p>
-<p>在以下情況，請使用 <code>Run-with-Broker</code> 模式：</p>
+<p>As described above, you can run Function-worker with brokers, or run it separately. And it is more convenient to run functions-workers along with brokers. However, running functions-workers in a separate cluster provides better resource isolation for running functions in <code>Process</code> or <code>Thread</code> mode.</p>
+<p>Use which mode for your cases, refer to the following guidelines to determine.</p>
+<p>Use the <code>Run-with-Broker</code> mode in the following cases:</p>
 <ul>
 <li>a) 如果在 <code>Process</code> 或 <code>Thread</code> 模式下運行 function 時，不需要考量資源隔離；</li>
 <li>b) 如果 functions-worker 被設定跑在 Kubernetes 上來運行（Kubernetes 解決了資源隔離問題）。</li>
 </ul>
-<p>在以下情況，請使用 <code>Run-separately</code> 模式：</p>
+<p>Use the <code>Run-separately</code> mode in the following cases:</p>
 <ul>
 <li>a) 你沒有 Kubernetes 集群;</li>
 <li>b) 如果想要分別運行 function 和 broker。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="故障排除"></a><a href="#故障排除" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>故障排除</h2>
-<p><strong>錯誤信息: Namespace missing local cluster name in clusters list</strong></p>
+<p><strong>Error message: Namespace missing local cluster name in clusters list</strong></p>
 <pre><code class="hljs">Failed to get partitioned topic metadata: org.apache.pulsar.client.api.PulsarClientException$BrokerMetadataException: Namespace missing local cluster name in clusters list: local_cluster=xyz ns=public/functions clusters=[standalone]
 </code></pre>
-<p>出現以下兩種情況時，都會出現以上的錯誤訊息：</p>
+<p>The error message prompts when either of the cases occurs:</p>
 <ul>
 <li>a) 使用 <code>functionsWorkerEnabled = true</code> 來啟動 broker，但是在 <code>conf/functions_worker.yaml</code> 文件中未將 <code>pulsarFunctionsCluster</code> 設定為正確的集群；</li>
 <li>b) 使用 <code>functionsWorkerEnabled = true</code> 設定 geo-replicated Pulsar 集群，其中一個集群的 broker 運行良好，而另一個集群中的 broker 則運行不正常。</li>
 </ul>
-<p><strong>因應措施</strong></p>
-<p>如果發生以上任何一種情況，請按照以下說明來解決：</p>
+<p><strong>Workaround</strong></p>
+<p>If any of these cases happens, follow the instructions below to fix the problem:</p>
 <ol>
 <li>取得當前擁有 <code>public/functions</code> 命名空間的群集列表。</li>
 </ol>

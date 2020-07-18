@@ -153,11 +153,18 @@ In this mode, make sure <code>functionsWorkerEnabled</code> is set to <code>fals
 </ul>
 <h5><a class="anchor" aria-hidden="true" id="enable-tls-transport-encryption"></a><a href="#enable-tls-transport-encryption" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable TLS transport encryption</h5>
 <p>To enable TLS transport encryption, configure the following settings.</p>
-<pre><code class="hljs">tlsEnabled: <span class="hljs-keyword">true</span>
+<pre><code class="hljs"><span class="hljs-attribute">useTLS</span>: true
+<span class="hljs-attribute">pulsarServiceUrl</span>: pulsar+ssl://localhost:6651/
+<span class="hljs-attribute">pulsarWebServiceUrl</span>: https://localhost:8443
+
+<span class="pgsql">tlsEnabled: <span class="hljs-keyword">true</span>
 tlsCertificateFilePath: /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.cert.pem
 tlsKeyFilePath:         /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/<span class="hljs-keyword">functions</span>-worker.key-pk8.pem
 tlsTrustCertsFilePath:  /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/ca.cert.pem
-</code></pre>
+
+// The <span class="hljs-type">path</span> <span class="hljs-keyword">to</span> <span class="hljs-keyword">trusted</span> certificates used <span class="hljs-keyword">by</span> the Pulsar client <span class="hljs-keyword">to</span> authenticate <span class="hljs-keyword">with</span> Pulsar brokers
+brokerClientTrustCertsFilePath: /<span class="hljs-type">path</span>/<span class="hljs-keyword">to</span>/ca.cert.pem
+</span></code></pre>
 <p>For details on TLS encryption, refer to <a href="/docs/en/next/security-tls-transport">Transport Encryption using TLS</a>.</p>
 <h5><a class="anchor" aria-hidden="true" id="enable-authentication-provider"></a><a href="#enable-authentication-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authentication Provider</h5>
 <p>To enable authentication on Functions Worker, configure the following settings.</p>
@@ -167,6 +174,14 @@ Substitute the <em>providers list</em> with the providers you want to enable.</p
 </blockquote>
 <pre><code class="hljs"><span class="hljs-attr">authenticationEnabled:</span> <span class="hljs-literal">true</span>
 <span class="hljs-attr">authenticationProviders:</span> <span class="hljs-string">[</span> <span class="hljs-string">provider1,</span> <span class="hljs-string">provider2</span> <span class="hljs-string">]</span>
+</code></pre>
+<p>For <em>TLS Authentication</em> provider, follow the example below to add the necessary settings.
+See <a href="/docs/en/next/security-tls-authentication">TLS Authentication</a> for more details.</p>
+<pre><code class="hljs">brokerClientAuthenticationPlugin: org<span class="hljs-selector-class">.apache</span><span class="hljs-selector-class">.pulsar</span><span class="hljs-selector-class">.client</span><span class="hljs-selector-class">.impl</span><span class="hljs-selector-class">.auth</span><span class="hljs-selector-class">.AuthenticationTls</span>
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin<span class="hljs-selector-class">.cert</span><span class="hljs-selector-class">.pem</span>,tlsKeyFile:/path/to/admin<span class="hljs-selector-class">.key-pk8</span><span class="hljs-selector-class">.pem</span>
+
+authenticationEnabled: true
+authenticationProviders: [<span class="hljs-string">'org.apache.pulsar.broker.authentication.AuthenticationProviderTls'</span>]
 </code></pre>
 <p>For <em>SASL Authentication</em> provider, add <code>saslJaasClientAllowedIds</code> and <code>saslJaasBrokerSectionName</code>
 under <code>properties</code> if needed.</p>
@@ -182,8 +197,9 @@ See <a href="/docs/en/next/security-jwt">Token Authentication</a> for more detai
   # <span class="hljs-attribute">tokenPublicKey</span>:     <span class="hljs-attribute">file</span>:<span class="hljs-comment">///path/to/public.key </span>
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="enable-authorization-provider"></a><a href="#enable-authorization-provider" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Enable Authorization Provider</h5>
-<p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
+<p>To enable authorization on Functions Worker, you need to configure <code>authorizationEnabled</code>, <code>authorizationProvider</code> and <code>configurationStoreServers</code>. The authentication provider connects to <code>configurationStoreServers</code> to receive namespace policies.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">authorizationEnabled:</span> <span class="hljs-literal">true</span>
+<span class="hljs-attr">authorizationProvider:</span> <span class="hljs-string">org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</span>
 <span class="hljs-attr">configurationStoreServers:</span> <span class="hljs-string">&lt;configuration-store-servers&gt;</span>
 </code></pre>
 <p>You should also configure a list of superuser roles. The superuser roles are able to access any admin API. The following is a configuration example.</p>
