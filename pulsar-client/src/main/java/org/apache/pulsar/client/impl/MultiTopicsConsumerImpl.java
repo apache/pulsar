@@ -728,10 +728,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private boolean topicNameValid(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
-        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
-
-        return true;
+        return TopicName.isValid(topicName) && !topics.containsKey(topicName);
     }
 
     // subscribe one more given topic
