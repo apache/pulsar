@@ -56,7 +56,7 @@ jobs:
           args: site2 .github deployment .asf.yaml .ci ct.yaml
 
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: ${{ matrix.go-version }}
