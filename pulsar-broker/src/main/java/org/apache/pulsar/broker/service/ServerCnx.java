@@ -18,13 +18,39 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
+import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
+import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
+
+import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.stream.Collectors;
+
+import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
+
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -108,29 +134,6 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.naming.AuthenticationException;
-import javax.net.ssl.SSLSession;
-import java.io.IOException;
-import java.net.SocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.stream.Collectors;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
-import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
-import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
-import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
-
 public class ServerCnx extends PulsarHandler {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
@@ -181,7 +184,7 @@ public class ServerCnx extends PulsarHandler {
         Start, Connected, Failed, Connecting
     }
 
-    public ServerCnx(PulsarService pulsar) throws IOException {
+    public ServerCnx(PulsarService pulsar) {
         super(pulsar.getBrokerService().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = pulsar.getBrokerService();
         this.schemaService = pulsar.getSchemaRegistryService();
@@ -1695,7 +1698,7 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleAddPartitionToTxn(PulsarApi.CommandAddPartitionToTxn command) {
-        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+            TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         if (log.isDebugEnabled()) {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}", command.getRequestId(), remoteAddress, txnID);
         }
@@ -1740,32 +1743,31 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("Receive end txn by {} request {} from {} with txnId {}", newStatus, command.getRequestId(), remoteAddress, txnID);
         }
+        final long requestId = command.getRequestId();
         service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-            .whenComplete((v, ex) -> {
-                if (ex == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Send response success for end txn request {}", command.getRequestId());
-                    }
-                    updateTBStatus(txnID, newStatus).whenComplete((ignored, throwable) -> {
-                        if (throwable != null) {
-                            log.error("Failed to get txn `" + txnID + "` txnMeta.", throwable);
-                            ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
-                                    BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
-                            return;
-                        }
-                        service.pulsar().getTransactionMetadataStoreService()
-                                .updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.OPEN);
-                        ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(),
-                                txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                    });
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Send response error for end txn request {}", command.getRequestId());
-                    }
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(ex), ex.getMessage()));
+            .thenRun(() -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Send response success for end txn request {}", command.getRequestId());
                 }
-            });
+                updateTBStatus(txnID, newStatus).thenRun(() -> {
+                    service.pulsar().getTransactionMetadataStoreService()
+                            .updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING);
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                }).exceptionally(throwable -> {
+                    log.error("Failed to get txn `" + txnID + "` txnMeta.", throwable);
+                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
+                            BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
+                    return null;
+                });
+            }).exceptionally(throwable -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Send response error for end txn request {}", command.getRequestId());
+                }
+                ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                        BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
+                return null;
+        });
     }
 
     private CompletableFuture<Void> updateTBStatus(TxnID txnID, TxnStatus newStatus) {
@@ -1777,31 +1779,40 @@ public class ServerCnx extends PulsarHandler {
                 return;
             }
             txnMeta.producedPartitions().forEach(partition -> {
-                transactionBuffers.get(partition).whenComplete((tb, tbThrowable) -> {
-                    if (tbThrowable != null) {
-                        resultFuture.completeExceptionally(tbThrowable);
+                TopicName topicName = TopicName.get(partition);
+                service.getTopics().get(topicName.toString()).whenComplete((topic, t) -> {
+                    if (!topic.isPresent()) {
                         return;
                     }
-                    if (TxnStatus.COMMITTING.equals(newStatus)) {
-                        CompletableFuture<Void> commitFuture = tb.committingTxn(txnID)
-                                .thenCompose(ignored -> tb.commitPartitionTopic(txnID))
-                                .thenCompose(position -> tb.commitTxn(txnID,
-                                        ((PositionImpl) position).getLedgerId(),
-                                        ((PositionImpl) position).getEntryId()));
-                        commitFutureList.add(commitFuture);
-                    } else if (TxnStatus.ABORTING.equals(newStatus)) {
-                        tb.abortTxn(txnID);
-                    }
+                    topic.get().getTransactionBuffer(false).thenAccept(tb -> {
+                        if (TxnStatus.COMMITTING.equals(newStatus)) {
+                            CompletableFuture<Void> commitFuture = tb.committingTxn(txnID)
+                                    .thenCompose(ignored -> tb.commitPartitionTopic(txnID))
+                                    .thenCompose(position -> tb.commitTxn(txnID,
+                                            ((PositionImpl) position).getLedgerId(),
+                                            ((PositionImpl) position).getEntryId()));
+                            commitFutureList.add(commitFuture);
+                        } else if (TxnStatus.ABORTING.equals(newStatus)) {
+                            tb.abortTxn(txnID);
+                        }
+                    }).exceptionally(tbThrowable -> {
+                        resultFuture.completeExceptionally(tbThrowable);
+                        return null;
+                    });
                 });
             });
         });
-        FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, throwable) -> {
-            if (throwable != null) {
-                resultFuture.completeExceptionally(throwable);
-                return;
-            }
-            resultFuture.complete(null);
-        });
+        try {
+            FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, throwable) -> {
+                if (throwable != null) {
+                    resultFuture.completeExceptionally(throwable);
+                    return;
+                }
+                resultFuture.complete(null);
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         return resultFuture;
     }
 

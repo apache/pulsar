@@ -136,14 +136,14 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
         // TODO wait a moment for adding publish partition to transaction, need to be fixed
         Thread.sleep(1000 * 5);
 
-//        ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, 0);
-//        Assert.assertNotNull(originTopicCursor);
+        ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, 0);
+        Assert.assertNotNull(originTopicCursor);
 
         ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, 0).get();
         Assert.assertNotNull(tbTopicCursor);
 
-//        List<Entry> entries = originTopicCursor.readEntries(10);
-//        Assert.assertEquals(0, entries.size());
+        List<Entry> entries = originTopicCursor.readEntries(10);
+        Assert.assertEquals(0, entries.size());
 
         futureList.forEach(messageIdFuture -> {
             try {
@@ -172,7 +172,10 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
             }
         });
 
-        List<Entry> entries = tbTopicCursor.readEntries(10);
+        entries = originTopicCursor.readEntries(10);
+        Assert.assertEquals(1, entries.size());
+
+        entries = tbTopicCursor.readEntries(10);
         for (int i = 0; i < messageCnt; i++) {
             PulsarApi.MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(i).getDataBuffer());
             Assert.assertEquals(messageMetadata.getTxnidMostBits(), txnIdMostBits);

@@ -146,9 +146,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             }
 
             long sequenceId = meta.lastSequenceId() + 1;
+            MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
             ByteBuf committingMarker = Markers.newTxnCommittingMarker(
-                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null
-            );
+                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
             publishMessage(txnID, committingMarker, sequenceId).whenComplete((position, publishThrowable) -> {
                 if (publishThrowable != null) {
                     completableFuture.completeExceptionally(publishThrowable);
@@ -166,8 +166,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         CompletableFuture<Position> positionFuture = new CompletableFuture<>();
         // TODO How to generate sequenceId for commit marker in partitioned topic
         long ptSequenceId = -1;
+        MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
         ByteBuf commitMarker = Markers.newTxnCommitMarker(
-                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null);
+                ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
 
         originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
             positionFuture.complete(new PositionImpl(ledgerId, entryId));

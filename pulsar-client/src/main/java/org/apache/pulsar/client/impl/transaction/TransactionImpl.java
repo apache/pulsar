@@ -31,15 +31,11 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MultiMessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -112,7 +108,7 @@ public class TransactionImpl implements Transaction {
             if (messageId instanceof MessageIdImpl) {
                 int partitionIndex = ((MessageIdImpl) messageId).getPartitionIndex();
                 String partition = topic;
-                if (partitionIndex > 0) {
+                if (partitionIndex >= 0) {
                     partition += TopicName.PARTITIONED_TOPIC_SUFFIX + partitionIndex;
                 }
                 if (partitions.add(partition)) {
