@@ -34,11 +34,13 @@ on:
 
 jobs:
   build:
-    name: Build
+
+    name: Go ${{ matrix.go-version }} Functions style check
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version: [1.11, 1.12, 1.13, 1.14]
+
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2

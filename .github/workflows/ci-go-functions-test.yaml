@@ -33,9 +33,9 @@ on:
       - 'pulsar-function-go/**'
 
 jobs:
+  build:
 
-  go-functions-tests:
-    name:
+    name: Go ${{ matrix.go-version }} Functions Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: checkout
+      - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -62,7 +62,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
         id: go
 
-      - name: run tests
+      - name: Run tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
