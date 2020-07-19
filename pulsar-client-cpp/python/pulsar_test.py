@@ -27,7 +27,7 @@ from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
             AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition, \
-            CryptoKeyReader
+            CryptoKeyReader, PulsarException
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -150,7 +150,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         consumer.unsubscribe()
@@ -192,7 +192,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(1000)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         # Message should be published now
@@ -216,7 +216,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(1000)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         # Message should be published in the next 500ms
@@ -253,7 +253,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         consumer.unsubscribe()
@@ -323,7 +323,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         client.close()
@@ -353,7 +353,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         client.close()
@@ -402,7 +402,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         client.close()
@@ -421,7 +421,7 @@ class PulsarTest(TestCase):
             client.subscribe('my-python-topic-producer-consumer',
                              'my-sub',
                              consumer_type=ConsumerType.Shared)
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
     def test_message_listener(self):
@@ -465,7 +465,7 @@ class PulsarTest(TestCase):
         try:
             msg = reader.read_next(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         reader.close()
@@ -622,7 +622,7 @@ class PulsarTest(TestCase):
             # No other messages should be received
             consumer.receive(timeout_millis=1000)
             self.assertTrue(False)
-        except:
+        except PulsarException:
             # Exception is expected
             pass
 
@@ -640,7 +640,7 @@ class PulsarTest(TestCase):
             # No other messages should be received
             consumer.receive(timeout_millis=1000)
             self.assertTrue(False)
-        except:
+        except PulsarException:
             # Exception is expected
             pass
 
@@ -876,7 +876,7 @@ class PulsarTest(TestCase):
         try:
             msg = reader.read_next(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         # earliest
@@ -928,7 +928,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         client.close()
@@ -976,7 +976,7 @@ class PulsarTest(TestCase):
         # No other messages should be received
             consumer.receive(timeout_millis=500)
             self.assertTrue(False)
-        except:
+        except PulsarException:
             # Exception is expected
             pass
         client.close()
@@ -1031,7 +1031,7 @@ class PulsarTest(TestCase):
             # No other messages should be received
             consumer.receive(timeout_millis=500)
             self.assertTrue(False)
-        except:
+        except PulsarException:
             # Exception is expected
             pass
         client.close()
@@ -1113,7 +1113,7 @@ class PulsarTest(TestCase):
         try:
             msg = consumer.receive(100)
             self.assertTrue(False)  # Should not reach this point
-        except:
+        except PulsarException:
             pass  # Exception is expected
 
         consumer.unsubscribe()
@@ -1180,7 +1180,7 @@ class PulsarTest(TestCase):
             # No more messages expected
             msg = consumer.receive(100)
             self.assertTrue(False)
-        except:
+        except PulsarException:
             pass  # Exception is expected
         client.close()
 
