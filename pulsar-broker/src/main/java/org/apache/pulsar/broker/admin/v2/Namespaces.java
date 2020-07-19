@@ -133,7 +133,6 @@ public class Namespaces extends NamespacesBase {
     public void createNamespace(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @ApiParam(value = "Policies for the namespace") Policies policies) {
         validateNamespaceName(tenant, namespace);
-        validateTenantOperation(tenant, TenantOperation.CREATE_NAMESPACE);
         policies = getDefaultPolicesIfNull(policies);
         internalCreateNamespace(policies);
     }
@@ -250,7 +249,6 @@ public class Namespaces extends NamespacesBase {
     public Set<String> getNamespaceReplicationClusters(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.REPLICATION, PolicyOperation.READ);
         return internalGetNamespaceReplicationClusters();
     }
 
