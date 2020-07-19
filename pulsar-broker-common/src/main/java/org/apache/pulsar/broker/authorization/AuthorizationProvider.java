@@ -228,10 +228,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                             TenantOperation operation,
                                                             AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-                String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization" +
-                                " provider you are using.",
-                        operation.toString(), tenantName)));
+        return isTenantAdmin(tenantName, role, null, authData);
     }
 
     default Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation,
