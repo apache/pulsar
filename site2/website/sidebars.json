@@ -88,7 +88,7 @@
       "security-jwt",
       "security-athenz",
       "security-kerberos",
-      "security-oauth"
+      "security-oauth",
       "security-authorization",
       "security-encryption",
       "security-extending",

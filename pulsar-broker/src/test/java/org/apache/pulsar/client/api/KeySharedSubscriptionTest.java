@@ -397,7 +397,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         receiveAndCheck(checkList);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
+    @Test(expectedExceptions = PulsarClientException.NotAllowedException.class)
     public void testDisableKeySharedSubscription() throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(false);
         String topic = "persistent://public/default/key_shared_disabled";
@@ -716,6 +716,63 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         consumer3.close();
         consumer4.close();
         Assert.assertFalse(dispatcher.isConsumerConnected());
+    }
+
+    @Test
+    public void testWithMessageCompression() throws Exception {
+        final String topic = "testWithMessageCompression" + UUID.randomUUID().toString();
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .compressionType(CompressionType.LZ4)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        final int messages = 10;
+        for (int i = 0; i < messages; i++) {
+            producer.send(("Hello Pulsar > " + i).getBytes());
+        }
+        List<Message<byte[]>> receives = new ArrayList<>();
+        for (int i = 0; i < messages; i++) {
+            Message<byte[]> received = consumer.receive();
+            receives.add(received);
+            consumer.acknowledge(received);
+        }
+        Assert.assertEquals(receives.size(), messages);
+        producer.close();
+        consumer.close();
+    }
+
+    @Test
+    public void testAttachKeyToMessageMetadata()
+            throws PulsarClientException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer2 = createConsumer(topic);
+
+        @Cleanup
+        Consumer<Integer> consumer3 = createConsumer(topic);
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+        }
+
+        receiveAndCheckDistribution(Lists.newArrayList(consumer1, consumer2, consumer3));
     }
 
     private Consumer<String> createFixedHashRangesConsumer(String topic, String subscription, Range... ranges) throws PulsarClientException {

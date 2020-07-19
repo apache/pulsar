@@ -42,7 +42,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc-shaded</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
