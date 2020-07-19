@@ -20,9 +20,7 @@ package org.apache.pulsar.io.core;
 
 import org.apache.pulsar.functions.api.Record;
 
-import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.function.Consumer;
 
 /**
  * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
@@ -32,8 +30,16 @@ import java.util.function.Consumer;
  */
 public abstract class BatchPushSource<T> implements BatchSource<T> {
 
+    private static class NullRecord implements Record {
+        @Override
+        public Object getValue() {
+            return null;
+        }
+    }
+
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
+    private final NullRecord nullRecord = new NullRecord();
 
     public BatchPushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
@@ -41,17 +47,26 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
 
     @Override
     public Record<T> readNext() throws Exception {
-        return queue.take();
+        Record<T> record = queue.take();
+        if (record instanceof NullRecord) {
+            return null;
+        } else {
+            return record;
+        }
     }
 
     /**
      * Send this message to be written to Pulsar.
-     *
+     * Pass null if you you are done with this task
      * @param record next message from source which should be sent to a Pulsar topic
      */
     public void consume(Record<T> record) {
         try {
-            queue.put(record);
+            if (record != null) {
+                queue.put(record);
+            } else {
+                queue.put(nullRecord);
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
