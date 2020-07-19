@@ -33,7 +33,7 @@ on:
       - 'pulsar-function-go/**'
 
 jobs:
-  build:
+  check-style:
 
     name: Go ${{ matrix.go-version }} Functions style check
     runs-on: ubuntu-latest
