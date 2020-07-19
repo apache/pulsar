@@ -284,11 +284,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
                                                                           PolicyOperation operation, String originalRole,
                                                                           String role, AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-                new IllegalStateException(
-                        String.format("NamespacePolicyOperation(%s) on namespace(%s) by role(%s) is not supported" +
-                                " by the Authorization provider you are using.", operation.toString(),
-                                namespaceName.toString(), role == null ? "null" : role)));
+        return isTenantAdmin(namespaceName.getTenant(), role, null, authData);
     }
 
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation,
