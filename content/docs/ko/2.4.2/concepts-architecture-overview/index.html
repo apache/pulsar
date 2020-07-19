@@ -79,7 +79,7 @@
 <ul>
 <li>하나 이상의 브로커는 프로듀서로부터 들어오는 메시지들을 처리하고 로드밸런싱하여 소지자에게 전송 합니다. 다양항 조정 작업들을 처리하기 위해 구성 된 저장소와 상호 작용하고 BookKeeper 인스턴스 (일명 Bookies) 에 메시지를 저장합니다. 그리고 클러스터에 특화 된 특정 작업 등을 위해 ZooKeeper 클러스터에 의존합니다.</li>
 <li>하나 이상의 bookies로 구성된 BookKeeper 클러스터는 메시지의 <a href="#persistent-storage">영구 저장</a>을 처리합니다.</li>
-<li>Zookeeper 클러스터는 해당 Pulsar 클러스터를 운영하기 위하여 반드시 필요합니다.</li>
+<li>A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.</li>
 </ul>
 <p>아래 다이어그램은 Pulsar 클러스터를 보여줍니다:</p>
 <p><img src="/docs/assets/pulsar-system-architecture.png" alt="Pulsar architecture diagram"></p>

@@ -1608,15 +1608,13 @@
         "Message": {
             "type": "object",
             "properties": {
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1625,8 +1623,24 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "keyBytes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
                 },
                 "publishTime": {
                     "type": "integer",
@@ -1636,32 +1650,18 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
-                "keyBytes": {
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "orderingKey": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "replicatedFrom": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",

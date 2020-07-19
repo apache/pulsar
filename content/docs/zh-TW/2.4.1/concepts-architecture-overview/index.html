@@ -79,7 +79,7 @@
 <ul>
 <li>一個或者多個 brokers 負責處理和負載均衡從 producer 源源不斷發送出的信息，並將他們發送給 consumer。它與信息存儲元交互來處理相應的任務，Pulsar 將信息資料存儲在 BookKeeper 實例中 (又稱之為 bookies)。它依賴 ZooKeeper 集群處理特定的任務。</li>
 <li>包含一個或者多個 Bookies 的 BookKeeper 集群，它主要負責信息的<a href="#persistent-storage">持久化存儲</a>。</li>
-<li>用於 Pulsar 集群協調操作的 ZooKeeper 集群。</li>
+<li>A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.</li>
 </ul>
 <p>下圖展示了一個 Pulsar 集群：</p>
 <p><img src="/docs/assets/pulsar-system-architecture.png" alt="Pulsar architecture diagram"></p>

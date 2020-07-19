@@ -9,29 +9,13 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
+                "swaggerfunctions",
                 "swaggersource"
             ]
         }
     ],
     "2.3.1": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.4.0": [
         {
             "version": "v2",
             "fileName": [
@@ -73,6 +57,22 @@
         {
             "version": "v3",
             "fileName": [
+                "swaggersink",
+                "swaggersource",
+                "swaggerfunctions"
+            ]
+        }
+    ],
+    "2.4.0": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
@@ -89,9 +89,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggerfunctions"
             ]
         }
     ],
@@ -106,8 +106,8 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
+                "swaggersource",
+                "swaggersink"
             ]
         }
     ],
@@ -143,7 +143,7 @@
             ]
         }
     ],
-    "2.6.0": [
+    "master": [
         {
             "version": "v2",
             "fileName": [
@@ -175,7 +175,7 @@
             ]
         }
     ],
-    "master": [
+    "2.6.0": [
         {
             "version": "v2",
             "fileName": [
