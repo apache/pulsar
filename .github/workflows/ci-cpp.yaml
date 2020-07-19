@@ -72,7 +72,7 @@ jobs:
 
       - name: build package
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR package -DskipTests
+        run: mvn -B -ntp -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -pl distribution/server package -am package -DskipTests
 
       - name: build cpp artifacts
         if: steps.docs.outputs.changed_only == 'no'
