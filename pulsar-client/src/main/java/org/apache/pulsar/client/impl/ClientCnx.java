@@ -884,14 +884,6 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleAddSubscriptionToTxnResponse(PulsarApi.CommandAddSubscriptionToTxnResponse command) {
-        TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
-        if (handler != null) {
-            handler.handleAddSubscriptionToTxnResponse(command);
-        }
-    }
-
-    @Override
     protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {

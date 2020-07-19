@@ -482,14 +482,6 @@ public class Producer {
         return metadata;
     }
 
-    public String getAppId() {
-        return appId;
-    }
-
-    public boolean isEncrypted() {
-        return isEncrypted;
-    }
-
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this).add("topic", topic).add("client", cnx.clientAddress())

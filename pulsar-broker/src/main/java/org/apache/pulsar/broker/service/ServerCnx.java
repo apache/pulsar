@@ -1242,7 +1242,7 @@ public class ServerCnx extends PulsarHandler {
                     })
                     .exceptionally(throwable -> {
                         ctx.writeAndFlush(Commands.newSendError(producer.getProducerId(),
-                                send.getSequenceId(), ServerError.UnknownError, ""));
+                                send.getSequenceId(), ServerError.UnknownError, throwable.getMessage()));
                         return null;
                     });
             return;

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of {@link Transaction}.
@@ -137,6 +138,6 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits));
+        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
     }
 }

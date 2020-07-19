@@ -50,7 +50,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public CompletableFuture<Transaction> build() {
-        // TODO: talk to TC to begin a transaction
+        // talk to TC to begin a transaction
         //       the builder is responsible for locating the transaction coorindator (TC)
         //       and start the transaction to get the transaction id.
         //       After getting the transaction id, all the operations are handled by the

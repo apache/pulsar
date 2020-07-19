@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
-    private final static String TB_TOPIC_NAME_SUFFIX = "_txnlog";
+    private final static String TB_TOPIC_NAME_SUFFIX = "/_txnlog";
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
     private Topic originTopic;
@@ -198,55 +198,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                                                           meta.id().getLeastSigBits(), messageIdData);
         Marker marker = Marker.builder().sequenceId(sequenceId).marker(commitMarker).build();
         return marker;
-    }
-
-    public CompletableFuture<Void> commitTxn(TxnID txnID) {
-        return txnCursor.getTxnMeta(txnID, false).thenApply((meta -> {
-
-            // append committing marker to TB
-            long sequenceId = meta.lastSequenceId() + 1;
-            ByteBuf committingMarker = Markers.newTxnCommittingMarker(
-                    sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null
-            );
-
-            CompletableFuture<Marker> tempFuture = new CompletableFuture<>();
-            publishMessage(txnID, committingMarker, sequenceId).whenComplete((position, throwable) -> {
-                tempFuture.complete(new Marker(sequenceId, null));
-            });
-            return tempFuture;
-
-        })).thenCompose(preMarkerFuture -> {
-
-            CompletableFuture<Marker> nextMarkerFuture = new CompletableFuture<>();
-            preMarkerFuture.whenComplete((preMarker, committingThrowable) -> {
-                // append committed marker to partitioned topic
-                // TODO How to generate sequenceId for commit marker in partitioned topic
-                long ptSequenceId = -1;
-                ByteBuf commitMarker = Markers.newTxnCommitMarker(
-                        ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), null);
-
-                originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
-                    MessageIdData messageIdData = MessageIdData.newBuilder()
-                            .setLedgerId(ledgerId)
-                            .setEntryId(entryId)
-                            .build();
-                    ByteBuf tbCommitMarker = Markers.newTxnCommitMarker(preMarker.sequenceId,
-                            txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
-                    nextMarkerFuture.complete(new Marker(preMarker.sequenceId, tbCommitMarker));
-                });
-
-            });
-            return nextMarkerFuture;
-
-        }).thenCompose(preMarkerFuture -> {
-            // append committed marker to TB
-            CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-            publishMessage(txnID, preMarkerFuture.marker, preMarkerFuture.sequenceId).whenComplete(
-                    (position, throwable) -> {
-                resultFuture.complete(null);
-            });
-            return resultFuture;
-        });
     }
 
     @Override
