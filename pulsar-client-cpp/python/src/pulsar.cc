@@ -29,16 +29,33 @@ void export_authentication();
 void export_schema();
 void export_cryptoKeyReader();
 
+static PyObject* pulsarException = nullptr;
+
+PyObject* createExceptionClass(const char* name, PyObject* baseTypeObj = PyExc_Exception) {
+    using std::string;
+    namespace bp = boost::python;
+
+    string qualifiedName0 = "_pulsar.";
+    qualifiedName0 += name;
+    char* qualifiedName1 = const_cast<char*>(qualifiedName0.c_str());
+
+    PyObject* typeObj = PyErr_NewException(qualifiedName1, baseTypeObj, nullptr);
+    if (!typeObj) bp::throw_error_already_set();
+    bp::scope().attr(name) = bp::handle<>(bp::borrowed(typeObj));
+    return typeObj;
+}
+
 
 static void translateException(const PulsarException& ex) {
     std::string err = "Pulsar error: ";
     err += strResult(ex._result);
 
-    PyErr_SetString(PyExc_Exception, err.c_str());
+    PyErr_SetString(pulsarException, err.c_str());
 }
 
-BOOST_PYTHON_MODULE(_pulsar)
-{
+BOOST_PYTHON_MODULE(_pulsar) {
+    pulsarException = createExceptionClass("PulsarException");
+
     py::register_exception_translator<PulsarException>(translateException);
 
     // Initialize thread support so that we can grab the GIL mutex
