@@ -42,7 +42,6 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -1246,17 +1245,6 @@ public class ServerCnx extends PulsarHandler {
                                 send.getSequenceId(), ServerError.UnknownError, ""));
                         return null;
                     });
-//            tbFuture.whenComplete((tb, throwable) -> {
-//                if (throwable != null) {
-//                    log.error("Get transactionBuffer error. produceId: " + send.getProducerId(), throwable);
-//                    return;
-//                }
-//                if (tb == null) {
-//                    log.error("The transactionBuffer is not exist. produceId: " + send.getProducerId());
-//                    return;
-//                }
-//                tb.appendBufferToTxn(txnID, send.getSequenceId(), headersAndPayload);
-//            });
             return;
         }
 
@@ -1779,9 +1767,10 @@ public class ServerCnx extends PulsarHandler {
                 return;
             }
             txnMeta.producedPartitions().forEach(partition -> {
-                TopicName topicName = TopicName.get(partition);
-                service.getTopics().get(topicName.toString()).whenComplete((topic, t) -> {
+                service.getTopics().get(partition).whenComplete((topic, t) -> {
                     if (!topic.isPresent()) {
+                        resultFuture.completeExceptionally(
+                                new TopicNotFoundException("Topic " + partition + " is not found."));
                         return;
                     }
                     topic.get().getTransactionBuffer(false).thenAccept(tb -> {

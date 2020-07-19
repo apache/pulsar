@@ -19,16 +19,6 @@
 package org.apache.pulsar.broker.transaction;
 
 import com.google.common.collect.Sets;
-
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -47,16 +37,24 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.protocol.Markers;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -138,16 +136,12 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
 
         ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, 0);
         Assert.assertNotNull(originTopicCursor);
-
-        ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, 0).get();
-        Assert.assertNotNull(tbTopicCursor);
-
-        List<Entry> entries = originTopicCursor.readEntries(10);
-        Assert.assertEquals(0, entries.size());
+        Assert.assertFalse(originTopicCursor.hasMoreEntries());
+        originTopicCursor.close();
 
         futureList.forEach(messageIdFuture -> {
             try {
-                MessageId messageId = messageIdFuture.get(1, TimeUnit.SECONDS);
+                messageIdFuture.get(1, TimeUnit.SECONDS);
                 Assert.fail("MessageId shouldn't be get before txn commit.");
             } catch (Exception e) {
                 if (e instanceof TimeoutException) {
@@ -172,12 +166,25 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
             }
         });
 
-        entries = originTopicCursor.readEntries(10);
+        originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, 0);
+        Assert.assertNotNull(originTopicCursor);
+        Assert.assertTrue(originTopicCursor.hasMoreEntries());
+        List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
         Assert.assertEquals(1, entries.size());
+        PulsarApi.MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(0).getDataBuffer());
+        Assert.assertEquals(PulsarMarkers.MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
+        long commitMarkerLedgerId = entries.get(0).getLedgerId();
+        long commitMarkerEntryId = entries.get(0).getEntryId();
 
-        entries = tbTopicCursor.readEntries(10);
+        ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, 0).get();
+        Assert.assertNotNull(tbTopicCursor);
+        Assert.assertTrue(tbTopicCursor.hasMoreEntries());
+        long tbEntriesCnt = tbTopicCursor.getNumberOfEntries();
+        log.info("transaction buffer entries count: {}", tbEntriesCnt);
+        Assert.assertEquals(messageCnt + 2, tbEntriesCnt);
+        entries = tbTopicCursor.readEntries((int) tbEntriesCnt);
         for (int i = 0; i < messageCnt; i++) {
-            PulsarApi.MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(i).getDataBuffer());
+            messageMetadata = Commands.parseMessageMetadata(entries.get(i).getDataBuffer());
             Assert.assertEquals(messageMetadata.getTxnidMostBits(), txnIdMostBits);
             Assert.assertEquals(messageMetadata.getTxnidLeastBits(), txnIdLeastBits);
 
@@ -186,6 +193,17 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
             System.out.println(new String(bytes));
             Assert.assertEquals(new String(bytes), content + i);
         }
+
+        messageMetadata = Commands.parseMessageMetadata(entries.get(messageCnt).getDataBuffer());
+        Assert.assertEquals(PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE, messageMetadata.getMarkerType());
+
+        messageMetadata = Commands.parseMessageMetadata(entries.get(messageCnt + 1).getDataBuffer());
+        Assert.assertEquals(PulsarMarkers.MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
+        PulsarMarkers.TxnCommitMarker commitMarker = Markers.parseCommitMarker(entries.get(messageCnt + 1).getDataBuffer());
+        Assert.assertEquals(commitMarkerLedgerId, commitMarker.getMessageId().getLedgerId());
+        Assert.assertEquals(commitMarkerEntryId, commitMarker.getMessageId().getEntryId());
+
+        System.out.println("finish test");
     }
 
     private CompletableFuture<ReadOnlyCursor> getTBTopicCursor(String topic, int partition) {

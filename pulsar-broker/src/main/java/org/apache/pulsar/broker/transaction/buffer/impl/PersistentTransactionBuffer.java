@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSeal
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -272,11 +271,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     private CompletableFuture<Position> publishMessage(TxnID txnID, ByteBuf msg, long sequenceId) {
         CompletableFuture<Position> publishFuture = new CompletableFuture<>();
-
-//        Commands.parseMessageMetadata(msg);
-//        byte[] bytes = new byte[msg.readableBytes()];
-//        msg.readBytes(bytes);
-//        log.info("[publishMessage] txnId: {}, msg: {}, sequenceId: {}", txnID, new String(bytes), sequenceId);
 
         publishMessage(msg, new TxnCtx(txnID.toString(), sequenceId, publishFuture) {
             @Override
