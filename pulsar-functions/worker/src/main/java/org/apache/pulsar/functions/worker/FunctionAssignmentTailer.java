@@ -143,7 +143,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         Thread t = new Thread(() -> {
             while (isRunning) {
                 try {
-                    Message<byte[]> msg = reader.readNext(5, TimeUnit.SECONDS);
+                    Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
                     if (msg == null) {
                         if (exitOnEndOfTopic && !reader.hasMessageAvailable()) {
                             break;
@@ -166,7 +166,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                     }
                 }
             }
-            log.info("tailer thread exiting");
+            log.info("assignment tailer thread exiting");
             exitFuture.complete(null);
         });
         t.setName("assignment-tailer-thread");
