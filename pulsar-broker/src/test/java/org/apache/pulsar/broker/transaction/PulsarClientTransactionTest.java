@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -90,7 +91,11 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
         if (isTcpLookup) {
             lookupUrl = new URI(pulsar.getBrokerServiceUrl());
         }
-        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .enableTransaction(true)
+                .build();
 
         Thread.sleep(1000 * 3);
     }

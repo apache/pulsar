@@ -123,7 +123,7 @@ public class PulsarClientImpl implements PulsarClient {
     private final Clock clientClock;
 
     @Getter
-    private final TransactionCoordinatorClientImpl tcClient;
+    private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
         this(conf, getEventLoopGroup(conf));
@@ -154,12 +154,16 @@ public class PulsarClientImpl implements PulsarClient {
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
 
-        tcClient = new TransactionCoordinatorClientImpl(this);
-        try {
-            tcClient.start();
-        } catch (TransactionCoordinatorClientException e) {
-            e.printStackTrace();
+        if (conf.isEnableTransaction()) {
+            tcClient = new TransactionCoordinatorClientImpl(this);
+            try {
+                tcClient.start();
+            } catch (Throwable e) {
+                log.error("Start transactionCoordinatorClient error.", e);
+                throw new PulsarClientException(e);
+            }
         }
+
         state.set(State.Open);
     }
 
