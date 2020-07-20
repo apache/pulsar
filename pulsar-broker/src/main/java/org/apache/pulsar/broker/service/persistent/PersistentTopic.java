@@ -1831,11 +1831,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public BacklogQuota getBacklogQuota() {
         TopicName topicName = TopicName.get(this.getName());
-        String namespace = topicName.getNamespace();
-        String policyPath = AdminResource.path(POLICIES, namespace);
-
-        BacklogQuota backlogQuota = brokerService.getBacklogQuotaManager().getBacklogQuota(namespace, policyPath);
-        return backlogQuota;
+        return brokerService.getBacklogQuotaManager().getBacklogQuota(topicName);
     }
 
     /**
@@ -1866,7 +1862,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     public boolean isBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
-        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName.getNamespace());
+        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName);
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }
