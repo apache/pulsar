@@ -230,15 +230,15 @@ public class WorkerImpl {
         }
     }
 
-    public String isLeaderReady(final String clientRole) {
+    public Boolean isLeaderReady(final String clientRole) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
         if (worker().getLeaderService().isLeader()) {
-            return "ready";
+            return true;
         } else {
             throwUnavailableException();
-            return "notready";
+            return false; // make compiler happy
         }
     }
 }
