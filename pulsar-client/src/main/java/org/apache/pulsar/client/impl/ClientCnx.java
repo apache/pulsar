@@ -52,7 +52,6 @@ import javax.net.ssl.SSLSession;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -60,6 +59,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
@@ -141,7 +141,7 @@ public class ClientCnx extends PulsarHandler {
     protected String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
 
-    private static final DefaultHostnameVerifier HOSTNAME_VERIFIER = new DefaultHostnameVerifier();
+    private static final TlsHostnameVerifier HOSTNAME_VERIFIER = new TlsHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
 
