@@ -2225,7 +2225,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
-        if (transactionBuffer == null) {
+        if (transactionBuffer == null && createIfMissing) {
             transactionBuffer = brokerService.getPulsar().getTransactionBufferProvider()
                     .newTransactionBuffer(this);
         }

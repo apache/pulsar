@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
-import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -56,8 +53,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
+/**
+ * Pulsar client transaction test.
+ */
 @Slf4j
 public class PulsarClientTransactionTest extends BrokerTestBase {
 
@@ -176,7 +174,7 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
         long commitMarkerLedgerId = entries.get(0).getLedgerId();
         long commitMarkerEntryId = entries.get(0).getEntryId();
 
-        ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, 0).get();
+        ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, 0);
         Assert.assertNotNull(tbTopicCursor);
         Assert.assertTrue(tbTopicCursor.hasMoreEntries());
         long tbEntriesCnt = tbTopicCursor.getNumberOfEntries();
@@ -206,30 +204,19 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
         System.out.println("finish test");
     }
 
-    private CompletableFuture<ReadOnlyCursor> getTBTopicCursor(String topic, int partition) {
-        CompletableFuture<ReadOnlyCursor> cursorFuture = new CompletableFuture<>();
+    private ReadOnlyCursor getTBTopicCursor(String topic, int partition) {
         try {
             String tbTopicName = PersistentTransactionBuffer.getTransactionBufferTopicName(
                     TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition);
 
-            pulsar.getManagedLedgerFactory().asyncOpenReadOnlyCursor(
+            return pulsar.getManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(tbTopicName).getPersistenceNamingEncoding(),
-                    PositionImpl.earliest, new ManagedLedgerConfig(), new AsyncCallbacks.OpenReadOnlyCursorCallback() {
-                        @Override
-                        public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
-                            cursorFuture.complete(cursor);
-                        }
-
-                        @Override
-                        public void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx) {
-                            cursorFuture.completeExceptionally(exception);
-                        }
-                    }, null);
+                    PositionImpl.earliest, new ManagedLedgerConfig());
         } catch (Exception e) {
-            e.printStackTrace();
-            cursorFuture.completeExceptionally(e);
+            log.error("Failed to get transaction buffer topic readonly cursor.", e);
+            Assert.fail("Failed to get transaction buffer topic readonly cursor.");
+            return null;
         }
-        return cursorFuture;
     }
 
     private ReadOnlyCursor getOriginTopicCursor(String topic, int partition) {
@@ -240,72 +227,10 @@ public class PulsarClientTransactionTest extends BrokerTestBase {
                     PositionImpl.earliest, new ManagedLedgerConfig());
             return readOnlyCursor;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Failed to get origin topic readonly cursor.", e);
+            Assert.fail("Failed to get origin topic readonly cursor.");
             return null;
         }
-    }
-
-//    @Test
-    public void clientTest() throws Exception {
-        PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
-        Transaction tnx = pulsarClientImpl.newTransaction()
-                .withTransactionTimeout(5, TimeUnit.SECONDS)
-                .build().get();
-
-        String input1 = NAMESPACE1 + "/input1";
-        String input2 = NAMESPACE1 + "/input2";
-        String output = NAMESPACE1 + "/output";
-
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClientImpl
-                .newConsumer()
-                .topic(input1)
-                .subscriptionName("test")
-                .subscribe();
-
-        ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClientImpl
-                .newConsumer()
-                .topic(input2)
-                .subscriptionName("test")
-                .subscribe();
-
-        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) pulsarClientImpl
-                .newProducer()
-                .topic(input1)
-                .create();
-
-        producer1.newMessage().value("Hello Tnx1".getBytes()).send();
-
-        ProducerImpl<byte[]> producer2 = (ProducerImpl<byte[]>) pulsarClientImpl
-                .newProducer()
-                .topic(input2)
-                .create();
-
-        producer2.newMessage().value("Hello Tnx1".getBytes()).send();
-
-        Message<byte[]> inComingMsg1 = consumer1.receive();
-        CompletableFuture<Void> ackFuture1 = consumer1.acknowledgeAsync(inComingMsg1.getMessageId(), tnx);
-
-        Message<byte[]> inComingMsg2 = consumer2.receive();
-        CompletableFuture<Void> ackFuture2 = consumer2.acknowledgeAsync(inComingMsg2.getMessageId(), tnx);
-
-        ProducerImpl<byte[]> outProducer = (ProducerImpl<byte[]>) pulsarClientImpl
-                .newProducer()
-                .topic(output)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create();
-
-        CompletableFuture<MessageId> outFuture1 = outProducer
-                .newMessage(tnx).value(inComingMsg1.getData()).sendAsync();
-
-        CompletableFuture<MessageId> outFuture2 = outProducer
-                .newMessage(tnx).value(inComingMsg2.getData()).sendAsync();
-
-        tnx.abort().get();
-
-        ackFuture1.whenComplete((i, t) -> log.info("finish ack1"));
-        ackFuture2.whenComplete((i, t) -> log.info("finish ack2"));
-        outFuture1.whenComplete((id, t) -> log.info("finish out1 msgId: {}", id));
-        outFuture2.whenComplete((id, t) -> log.info("finish out2 msgId: {}", id));
     }
 
 }
