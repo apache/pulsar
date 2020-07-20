@@ -119,6 +119,12 @@ Oauth2Flow::Oauth2Flow() {}
 Oauth2Flow::~Oauth2Flow() {}
 
 // ClientCredentialFlow
+static std::string readFromFile(const std::string& credentialsFilePath) {
+    std::ifstream input(credentialsFilePath);
+    std::stringstream buffer;
+    buffer << input.rdbuf();
+    return buffer.str();
+}
 
 ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
                                            const std::string& clientSecret, const std::string& audience) {
@@ -126,6 +132,33 @@ ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl, const s
     clientId_ = clientId;
     clientSecret_ = clientSecret;
     audience_ = audience;
+}
+
+// read clientId/clientSecret from passed in `credentialsFilePath`
+ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl,
+                                           const std::string& credentialsFilePath,
+                                           const std::string& audience) {
+    issuerUrl_ = issuerUrl;
+    audience_ = audience;
+
+    boost::property_tree::ptree loadPtreeRoot;
+    try {
+        boost::property_tree::read_json(credentialsFilePath, loadPtreeRoot);
+    } catch (boost::property_tree::json_parser_error& e) {
+        LOG_ERROR("Failed to parse json input file for credentialsFilePath: " << credentialsFilePath
+                                                                              << "with error:" << e.what());
+        return;
+    }
+
+    const std::string defaultNotFoundString = "Client Id / Secret Not Found";
+
+    clientId_ = loadPtreeRoot.get<std::string>("client_id", defaultNotFoundString);
+    clientSecret_ = loadPtreeRoot.get<std::string>("client_secret", defaultNotFoundString);
+
+    if (clientId_ == defaultNotFoundString || clientSecret_ == defaultNotFoundString) {
+        LOG_ERROR("Not get valid clientId / clientSecret: " << clientId_ << "/" << clientSecret_);
+        return;
+    }
 }
 
 void ClientCredentialFlow::initialize() {}
@@ -225,8 +258,16 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 // AuthOauth2
 
 AuthOauth2::AuthOauth2(ParamMap& params) {
-    flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
-                                                params["client_secret"], params["audience"]));
+    std::map<std::string, std::string>::iterator it;
+    it = params.find("keyfile_path");
+
+    if (it != params.end()) {
+        flowPtr_ = FlowPtr(
+            new ClientCredentialFlow(params["issuer_url"], params["keyfile_path"], params["audience"]));
+    } else {
+        flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
+                                                    params["client_secret"], params["audience"]));
+    }
 }
 
 AuthOauth2::~AuthOauth2() {}
