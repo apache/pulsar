@@ -2242,6 +2242,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertNotNull(urlEncodedLookupData.getBrokerUrl());
         assertEquals(urlEncodedLookupData.getBrokerUrl(), uriEncodedLookupData.getBrokerUrl());
 
+        // partitioned topic lookup
+        Map<String, String> lookupDataList = lookup.lookupPartitionedTopic(topic1);
+        assertEquals(numOfPartitions, lookupDataList.keySet().size());
+
         // (3) Get Topic Stats
         final CompletableFuture<TopicStats> urlStats = new CompletableFuture<>();
         // (a) Url encoding

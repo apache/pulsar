@@ -207,7 +207,7 @@ public class PulsarAdmin implements Closeable {
         this.topics = new TopicsImpl(root, auth, readTimeoutMs);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth, readTimeoutMs);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth, readTimeoutMs);
-        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs);
+        this.lookups = new LookupImpl(root, auth, useTls, readTimeoutMs, topics);
         this.functions = new FunctionsImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         this.sources = new SourcesImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);
         this.sinks = new SinksImpl(root, auth, asyncHttpConnector.getHttpClient(), readTimeoutMs);

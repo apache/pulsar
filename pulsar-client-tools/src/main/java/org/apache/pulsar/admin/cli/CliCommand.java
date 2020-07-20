@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -172,6 +173,12 @@ abstract class CliCommand {
     <T> void print(List<T> items) {
         for (T item : items) {
             print(item);
+        }
+    }
+
+    <K,V> void print(Map<K,V> items) {
+        for(Map.Entry<K,V> entry : items.entrySet()) {
+            print(entry.getKey() + "    " + entry.getValue());
         }
     }
 
