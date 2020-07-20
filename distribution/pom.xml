@@ -33,28 +33,34 @@
   <packaging>pom</packaging>
   <name>Pulsar :: Distribution</name>
 
-  <profiles>
+  <modules>
+    <module>server</module>
+    <module>io</module>
+    <module>offloaders</module>
+  </modules>
 
-    <profile>
-      <id>main</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <modules>
-        <module>server</module>
-        <module>io</module>
-        <module>offloaders</module>
-      </modules>
-    </profile>
+<!--  <profiles>-->
 
-    <profile>
-      <id>core-modules</id>
-      <modules>
-        <module>server</module>
-      </modules>
-    </profile>
+<!--    <profile>-->
+<!--      <id>main</id>-->
+<!--      <activation>-->
+<!--        <activeByDefault>true</activeByDefault>-->
+<!--      </activation>-->
+<!--      <modules>-->
+<!--        <module>server</module>-->
+<!--        <module>io</module>-->
+<!--        <module>offloaders</module>-->
+<!--      </modules>-->
+<!--    </profile>-->
 
-  </profiles>
+<!--    <profile>-->
+<!--      <id>core-modules</id>-->
+<!--      <modules>-->
+<!--        <module>server</module>-->
+<!--      </modules>-->
+<!--    </profile>-->
+
+<!--  </profiles>-->
 
   <build>
     <plugins>
