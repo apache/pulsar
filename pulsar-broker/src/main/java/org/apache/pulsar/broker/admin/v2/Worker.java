@@ -139,7 +139,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             @ApiResponse(code = 401, message = "The requester is not authenticated"),
             @ApiResponse(code = 503, message = "Worker service is not running")
     })
-    @Path("/cluster/leaderready")
+    @Path("/cluster/leader/ready")
     @Produces(MediaType.APPLICATION_JSON)
     public String isLeaderReady() {
         return worker.isLeaderReady(clientAppId());
