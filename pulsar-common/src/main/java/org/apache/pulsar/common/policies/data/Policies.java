@@ -122,7 +122,7 @@ public class Policies {
                 autoSubscriptionCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
                 message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
-                encryption_required, delayed_delivery_policies,inactive_topic_policies,
+                encryption_required, delayed_delivery_policies, inactive_topic_policies,
                 subscription_auth_mode,
                 antiAffinityGroup, max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
