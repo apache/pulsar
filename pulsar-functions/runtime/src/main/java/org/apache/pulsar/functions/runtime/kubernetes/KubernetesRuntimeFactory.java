@@ -67,6 +67,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String k8Uri;
     private String jobNamespace;
     private String pulsarDockerImageName;
+    private Map<String, String> functionDockerImages;
     private String imagePullPolicy;
     private String pulsarRootDir;
     private String configAdminCLI;
@@ -143,6 +144,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.pulsarDockerImageName = "apachepulsar/pulsar";
         }
+        this.functionDockerImages = factoryConfig.getFunctionDockerImages();
         if (!isEmpty(factoryConfig.getImagePullPolicy())) {
             this.imagePullPolicy = factoryConfig.getImagePullPolicy();
         } else {
@@ -272,6 +274,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             pythonDependencyRepository,
             pythonExtraDependencyRepository,
             pulsarDockerImageName,
+            functionDockerImages,
             imagePullPolicy,
             pulsarRootDir,
             instanceConfig,

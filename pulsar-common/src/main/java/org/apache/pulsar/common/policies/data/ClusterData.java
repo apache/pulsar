@@ -26,6 +26,8 @@ import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 
+import org.apache.pulsar.client.api.ProxyProtocol;
+
 /**
  * The configuration data for a cluster.
  */
@@ -58,6 +60,20 @@ public class ClusterData {
         example = "pulsar+ssl://pulsar.example.com:6651"
     )
     private String brokerServiceUrlTls;
+    @ApiModelProperty(
+        name = "proxyServiceUrl",
+        value = "Proxy-service url when client would like to connect to broker via proxy.",
+        example = "pulsar+ssl://ats-proxy.example.com:4443 or "
+                    + "pulsar://ats-proxy.example.com:4080"
+    )
+    private String proxyServiceUrl;
+    @ApiModelProperty(
+        name = "proxyProtocol",
+        value = "protocol to decide type of proxy routing eg: SNI-routing",
+        example = "SNI"
+    )
+    private ProxyProtocol proxyProtocol;
+
     // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
     // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
     @ApiModelProperty(
@@ -85,12 +101,24 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
+    public ClusterData(String serviceUrl, String serviceUrlTls, String brokerServiceUrl, String brokerServiceUrlTls,
+            String proxyServiceUrl, ProxyProtocol proxyProtocol) {
+        this.serviceUrl = serviceUrl;
+        this.serviceUrlTls = serviceUrlTls;
+        this.brokerServiceUrl = brokerServiceUrl;
+        this.brokerServiceUrlTls = brokerServiceUrlTls;
+        this.proxyServiceUrl = proxyServiceUrl;
+        this.proxyProtocol = proxyProtocol;
+    }
+
     public void update(ClusterData other) {
         checkNotNull(other);
         this.serviceUrl = other.serviceUrl;
         this.serviceUrlTls = other.serviceUrlTls;
         this.brokerServiceUrl = other.brokerServiceUrl;
         this.brokerServiceUrlTls = other.brokerServiceUrlTls;
+        this.proxyServiceUrl = other.proxyServiceUrl;
+        this.proxyProtocol = other.proxyProtocol;
     }
 
     public String getServiceUrl() {
@@ -125,6 +153,22 @@ public class ClusterData {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
+    public String getProxyServiceUrl() {
+        return proxyServiceUrl;
+    }
+
+    public void setProxyServiceUrl(String proxyServiceUrl) {
+        this.proxyServiceUrl = proxyServiceUrl;
+    }
+
+    public ProxyProtocol getProxyProtocol() {
+        return proxyProtocol;
+    }
+
+    public void setProxyProtocol(ProxyProtocol proxyProtocol) {
+        this.proxyProtocol = proxyProtocol;
+    }
+
     public LinkedHashSet<String> getPeerClusterNames() {
         return peerClusterNames;
     }
@@ -139,7 +183,9 @@ public class ClusterData {
             ClusterData other = (ClusterData) obj;
             return Objects.equals(serviceUrl, other.serviceUrl) && Objects.equals(serviceUrlTls, other.serviceUrlTls)
                     && Objects.equals(brokerServiceUrl, other.brokerServiceUrl)
-                    && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls);
+                    && Objects.equals(brokerServiceUrlTls, other.brokerServiceUrlTls)
+                    && Objects.equals(proxyServiceUrl, other.proxyServiceUrl)
+                    && Objects.equals(proxyProtocol, other.proxyProtocol);
         }
 
         return false;
@@ -154,6 +200,7 @@ public class ClusterData {
     public String toString() {
         return MoreObjects.toStringHelper(this).add("serviceUrl", serviceUrl).add("serviceUrlTls", serviceUrlTls)
                 .add("brokerServiceUrl", brokerServiceUrl).add("brokerServiceUrlTls", brokerServiceUrlTls)
+                .add("proxyServiceUrl", proxyServiceUrl).add("proxyProtocol", proxyProtocol)
                 .add("peerClusterNames", peerClusterNames).toString();
     }
 

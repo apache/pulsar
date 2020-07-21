@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-all-docker-image</artifactId>
@@ -32,14 +32,14 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-distribution</artifactId>
       <version>${project.parent.version}</version>
       <type>pom</type>
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-offloader-distribution</artifactId>
       <version>${project.parent.version}</version>
       <classifier>bin</classifier>
@@ -54,9 +54,9 @@
       <!-- include the docker image only when docker profile is active -->
       <dependencies>
         <dependency>
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-docker-image</artifactId>
-          <version>${project.parent.version}</version>
+          <version>${project.version}</version>
           <classifier>docker-info</classifier>
         </dependency>
       </dependencies>

@@ -78,7 +78,7 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
         Runtime runtime = mock(Runtime.class);
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
@@ -124,7 +124,7 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
@@ -186,7 +186,7 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
 
 
         String pkgPathLocation = "http://invalid/my-file.jar";

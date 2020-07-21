@@ -252,9 +252,8 @@ public class PersistentTopics extends PersistentTopicsBase {
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
      *
      * @param tenant
-     * @param cluster
      * @param namespace
-     * @param topic
+     * @param encodedTopic
      * @param numPartitions
      */
     @POST
@@ -278,10 +277,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "The number of partitions for the topic", required = true, type = "int", defaultValue = "0")
             int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly);
+        validatePartitionedTopicMetadata(tenant, namespace, encodedTopic);
+        internalUpdatePartitionedTopic(numPartitions, updateLocalTopicOnly, authoritative);
     }
 
 
@@ -1000,6 +1002,32 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalTerminate(authoritative);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/terminate/partitions")
+    @ApiOperation(value = "Terminate all partitioned topic. A topic that is terminated will not accept any more "
+            + "messages to be published and will let consumer to drain existing messages in backlog")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
+                    "subscriber is not authorized to access this operation"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Termination of a partitioned topic is not allowed"),
+            @ApiResponse(code = 412, message = "Topic name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
+    public void terminatePartitionedTopic( @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalTerminatePartitionedTopic(asyncResponse, authoritative);
     }
 
     @PUT

@@ -299,14 +299,13 @@ public class PulsarStandalone implements AutoCloseable {
             workerConfig.setZooKeeperSessionTimeoutMillis(config.getZooKeeperSessionTimeoutMillis());
             workerConfig.setZooKeeperOperationTimeoutSeconds(config.getZooKeeperOperationTimeoutSeconds());
 
-            workerConfig.setTlsHostnameVerificationEnable(false);
-
             workerConfig.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-            workerConfig.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+            workerConfig.setTlsEnableHostnameVerification(false);
+            workerConfig.setBrokerClientTrustCertsFilePath(config.getTlsTrustCertsFilePath());
 
             // client in worker will use this config to authenticate with broker
-            workerConfig.setClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
-            workerConfig.setClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
+            workerConfig.setBrokerClientAuthenticationPlugin(config.getBrokerClientAuthenticationPlugin());
+            workerConfig.setBrokerClientAuthenticationParameters(config.getBrokerClientAuthenticationParameters());
 
             // inherit super users
             workerConfig.setSuperUserRoles(config.getSuperUserRoles());
@@ -315,7 +314,12 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         // Start Broker
-        broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
+        broker = new PulsarService(config,
+                                   Optional.ofNullable(fnWorkerService),
+                                   (exitCode) -> {
+                                       log.info("Halting standalone process with code {}", exitCode);
+                                       Runtime.getRuntime().halt(exitCode);
+                                   });
         broker.start();
 
         broker.getTransactionMetadataStoreService().addTransactionMetadataStore(TransactionCoordinatorID.get(0));

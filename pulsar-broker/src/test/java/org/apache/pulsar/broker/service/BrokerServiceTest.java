@@ -574,7 +574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -636,7 +636,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -654,7 +654,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -697,7 +697,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -779,7 +779,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // disable namespace-bundle
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
-        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
@@ -919,7 +919,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
      * version.
-     * 
+     *
      * @throws Exception
      */
     @Test

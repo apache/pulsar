@@ -37,16 +37,14 @@ import static org.testng.Assert.fail;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.buffer.Unpooled;
 
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +53,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -65,7 +64,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
-import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -75,6 +73,7 @@ import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -97,21 +96,19 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.zookeeper.ZKMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
@@ -1170,6 +1167,119 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testUpdateProperties() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        properties.put("key2", "value2");
+        properties.put("key3", "value3");
+        ledger.setProperties(properties);
+        assertEquals(ledger.getProperties(), properties);
+
+        properties.put("key4", "value4");
+        ledger.setProperty("key4", "value4");
+        assertEquals(ledger.getProperties(), properties);
+
+        ledger.deleteProperty("key4");
+        properties.remove("key4");
+        assertEquals(ledger.getProperties(), properties);
+
+        Map<String, String> newProperties = new HashMap<>();
+        newProperties.put("key5", "value5");
+        newProperties.put("key1", "value6");
+        newProperties.putAll(properties);
+        ledger.setProperties(newProperties);
+        assertEquals(ledger.getProperties(), newProperties);
+    }
+
+    @Test
+    public void testAsyncUpdateProperties() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(3);
+        ManagedLedger ledger = factory.open("my_test_ledger");
+        Map<String, String> prop = new HashMap<>();
+        prop.put("key1", "value1");
+        prop.put("key2", "value2");
+        prop.put("key3", "value3");
+        ledger.asyncSetProperties(prop, new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                assertEquals(prop, properties);
+                latch.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+
+        ledger.asyncSetProperty("key4", "value4", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                assertNotNull(properties.get("key4"));
+                assertEquals("value4", properties.get("key4"));
+                latch.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+
+        prop.remove("key1");
+        ledger.asyncDeleteProperty("key1", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                assertNull(properties.get("key1"));
+                latch.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+        assertTrue(latch.await(60, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testConcurrentAsyncSetProperties() throws Exception {
+        final CountDownLatch latch = new CountDownLatch(1000);
+        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(1));
+        ExecutorService executor = Executors.newCachedThreadPool();
+        for (int i = 0; i < 1000; i++) {
+            final int finalI = i;
+            executor.execute(() -> {
+                Map<String, String> newProperties = new HashMap<>();
+                newProperties.put("key0", String.valueOf(finalI));
+                newProperties.put("key1", "value1");
+                newProperties.put("key2", "value2");
+                newProperties.put("key3", "value3");
+                ledger.asyncSetProperties(newProperties, new AsyncCallbacks.UpdatePropertiesCallback() {
+                    @Override
+                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        assertEquals(properties, newProperties);
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    }
+                }, null);
+            });
+        }
+        try {
+            for (int i = 0; i < 100; i++) {
+                ledger.addEntry("data".getBytes(Encoding));
+                Thread.sleep(300);
+            }
+        } catch (Exception e) {
+            fail(e.getMessage());
+        }
+        assertTrue(latch.await(300, TimeUnit.SECONDS));
+        executor.shutdown();
+        factory.shutdown();
+    }
+
+    @Test
     public void ledgersList() throws Exception {
         MetaStore store = factory.getMetaStore();
 
@@ -1418,7 +1528,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
         bkc.failNow(BKException.Code.NoBookieAvailableException);
-        zkc.failNow(Code.CONNECTIONLOSS);
+        zkc.failConditional(Code.CONNECTIONLOSS, (op, path) -> {
+                return path.equals("/managed-ledgers/my_test_ledger")
+                    && op == MockZooKeeper.Op.SET;
+            });
+
         try {
             ledger.addEntry("entry".getBytes());
             fail("Should have received exception");
@@ -1918,6 +2032,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(ledger.getNextValidPosition((PositionImpl) c1.getMarkDeletedPosition()), p1);
         assertEquals(ledger.getNextValidPosition(p1), p2);
         assertEquals(ledger.getNextValidPosition(p3), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
+        assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1)), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
+        assertEquals(ledger.getNextValidPosition(PositionImpl.get(p3.getLedgerId() + 1, p3.getEntryId() + 1)), PositionImpl.get(p3.getLedgerId(), p3.getEntryId() + 1));
     }
 
     /**
@@ -2277,16 +2393,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
         AtomicInteger response = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(1);
-        ledger.asyncCreateLedger(bk, config, null, new CreateCallback() {
-            @Override
-            public void createComplete(int rc, LedgerHandle lh, Object ctx) {
-                response.set(rc);
-                latch.countDown();
-            }
+        AtomicReference<Object> ctxHolder = new AtomicReference<>();
+        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {
+            response.set(rc);
+            latch.countDown();
+            ctxHolder.set(ctx);
         }, Collections.emptyMap());
 
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
+        assertTrue(ctxHolder.get() instanceof AtomicBoolean);
+        AtomicBoolean ledgerCreated = (AtomicBoolean) ctxHolder.get();
+        assertFalse(ledgerCreated.get());
 
         ledger.close();
     }
@@ -2458,7 +2576,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     /**
      * It verifies that managed-cursor can recover metadata-version if it fails to update due to version conflict. This
      * test verifies that version recovery happens if checkOwnership supplier is passed while creating managed-ledger.
-     * 
+     *
      * @param checkOwnershipFlag
      * @throws Exception
      */
@@ -2522,6 +2640,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         return failed.getValue();
     }
 
+
+    @Test
+    public void testPropertiesForMeta() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+
+        final String mLName = "properties_test";
+        factory.open(mLName);
+        MetaStore store = new MetaStoreImpl(new ZKMetadataStore(zkc), executor);
+
+        ManagedLedgerInfo.Builder builder = ManagedLedgerInfo.newBuilder();
+        builder.addProperties(MLDataFormats.KeyValue.newBuilder().setKey("key1").setValue("value1").build());
+        builder.addProperties(MLDataFormats.KeyValue.newBuilder().setKey("key2").setValue("value2").build());
+
+        CountDownLatch l2 = new CountDownLatch(1);
+        store.asyncUpdateLedgerIds(mLName, builder.build(),
+                new Stat(1, 0, 0),
+                new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat version) {
+                l2.countDown();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                fail("on asyncUpdateLedgerIds");
+            }
+        });
+
+        // get ManagedLedgerInfo from meta store
+        org.apache.bookkeeper.mledger.ManagedLedgerInfo managedLedgerInfo = factory.getManagedLedgerInfo(mLName);
+        Map<String, String> properties = managedLedgerInfo.properties;
+        assertEquals(properties.get("key1"), "value1");
+        assertEquals(properties.get("key2"), "value2");
+
+        factory.shutdown();
+        factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+
+        // reopen managedLedger
+        ManagedLedger ml = factory.open(mLName);
+        properties = ml.getProperties();
+        assertEquals(properties.get("key1"), "value1");
+        assertEquals(properties.get("key2"), "value2");
+    }
+
     private void createLedger(ManagedLedgerFactoryImpl factory, MutableObject<ManagedLedger> ledger1,
             MutableObject<ManagedCursorImpl> cursor1, boolean checkOwnershipFlag) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
@@ -2547,6 +2709,24 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, checkOwnershipFlag ? () -> true : null, null);
         latch.await();
+    }
+
+    @Test
+    public void deleteWithoutOpen() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger");
+
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        assertEquals(ledger.getNumberOfEntries(), 1);
+        ledger.close();
+
+        factory.delete("my_test_ledger");
+
+        try {
+            factory.open("my_test_ledger", new ManagedLedgerConfig().setCreateIfMissing(false));
+            fail("Should have failed");
+        } catch (ManagedLedgerNotFoundException e) {
+            // Expected
+        }
     }
 
     private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {

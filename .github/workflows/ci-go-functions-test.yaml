@@ -25,12 +25,21 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
+  push:
+    branches:
+      - branch-*
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
 
-  cpp-tests:
+  go-functions-tests:
     name:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.11, 1.12, 1.13, 1.14]
     timeout-minutes: 120
 
     steps:
@@ -46,15 +55,15 @@ jobs:
         with:
           args: site2 .github deployment .asf.yaml .ci ct.yaml
 
-      - name: Set up Go 1.12
+      - name: Set up Go
         uses: actions/setup-go@v1
         if: steps.docs.outputs.changed_only == 'no'
         with:
-          go-version: 1.12
+          go-version: ${{ matrix.go-version }}
         id: go
 
       - name: run tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
-          go test -v $(go list ./... | grep -v examples)
+          go test -v $(go list ./... | grep -v examples) ${{ matrix.go-version }}

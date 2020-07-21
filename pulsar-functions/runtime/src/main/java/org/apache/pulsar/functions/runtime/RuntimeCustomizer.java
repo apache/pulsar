@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime;
 
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import java.util.Map;
 

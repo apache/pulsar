@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.functions.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +30,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
@@ -44,16 +47,20 @@ import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
-import static org.apache.pulsar.functions.utils.FunctionCommon.loadJar;
+import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
 
 @Slf4j
 public class FunctionConfigUtils {
-	
+
 	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = Integer.valueOf(1000);
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
-	
+
+    private static final ObjectMapper OBJECT_MAPPER = ObjectMapperFactory.create();
+
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
+        
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
@@ -95,12 +102,19 @@ public class FunctionConfigUtils {
             });
         }
         if (functionConfig.getCustomSchemaInputs() != null) {
-            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                sourceSpecBuilder.putInputSpecs(topicName,
-                        Function.ConsumerSpec.newBuilder()
-                                .setSchemaType(schemaType)
-                                .setIsRegexPattern(false)
-                                .build());
+            functionConfig.getCustomSchemaInputs().forEach((topicName, conf) -> {
+                try {
+                    ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                    sourceSpecBuilder.putInputSpecs(topicName,
+                            Function.ConsumerSpec.newBuilder()
+                                    .setSchemaType(consumerConfig.getSchemaType())
+                                    .putAllSchemaProperties(consumerConfig.getSchemaProperties())
+                                    .putAllConsumerProperties(consumerConfig.getConsumerProperties())
+                                    .setIsRegexPattern(false)
+                                    .build());
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException(String.format("Incorrect custom schema inputs ,Topic %s ", topicName));
+                }
             });
         }
         if (functionConfig.getInputSpecs() != null) {
@@ -116,6 +130,10 @@ public class FunctionConfigUtils {
                     bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
                             .setValue(consumerConf.getReceiverQueueSize()).build());
                 }
+                if (consumerConf.getSchemaProperties() != null) {
+                    bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
+                }
+                bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
                 sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
@@ -136,6 +154,8 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            // We use negative acks for fast tracking failures
+            sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(functionConfig.getTimeoutMs());
         }
         if (functionConfig.getCleanupSubscription() != null) {
             sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
@@ -158,7 +178,18 @@ public class FunctionConfigUtils {
         if (functionConfig.getForwardSourceMessageProperty() != null) {
             sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
-
+        if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
+            String conf = functionConfig.getCustomSchemaOutputs().get(functionConfig.getOutput());
+            try {
+                if (StringUtils.isNotEmpty(conf)) {
+                    ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                    sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getSchemaProperties());
+                    sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
+                }
+            } catch (JsonProcessingException e) {
+                throw new IllegalArgumentException(String.format("Incorrect custom schema outputs ,Topic %s ", functionConfig.getOutput()));
+            }
+        }
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
@@ -249,6 +280,11 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
         }
 
+        if (isBuiltin) {
+            String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
+            functionDetailsBuilder.setBuiltin(builtin);
+        }
+
         return functionDetailsBuilder.build();
     }
 
@@ -272,6 +308,7 @@ public class FunctionConfigUtils {
                 consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
             }
             consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
+            consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
@@ -371,11 +408,11 @@ public class FunctionConfigUtils {
         if (functionConfig.getParallelism() == null) {
             functionConfig.setParallelism(1);
         }
-        
+
         if (functionConfig.getMaxPendingAsyncRequests() == null) {
         	functionConfig.setMaxPendingAsyncRequests(MAX_PENDING_ASYNC_REQUESTS_DEFAULT);
         }
-        
+
         if (functionConfig.getForwardSourceMessageProperty() == null) {
         	functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
         }
@@ -432,8 +469,15 @@ public class FunctionConfigUtils {
         // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
         // implements SerDe class
         if (functionConfig.getCustomSchemaInputs() != null) {
-            functionConfig.getCustomSchemaInputs().forEach((topicName, schemaType) -> {
-                ValidatorUtils.validateSchema(schemaType, typeArgs[0], clsLoader, true);
+            functionConfig.getCustomSchemaInputs().forEach((topicName, conf) -> {
+                ConsumerConfig consumerConfig;
+                try {
+                    consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
+                } catch (JsonProcessingException e) {
+                    throw new IllegalArgumentException(String.format("Topic %s has an incorrect schema Info", topicName));
+                }
+                ValidatorUtils.validateSchema(consumerConfig.getSchemaType(), typeArgs[0], clsLoader, true);
+
             });
         }
 
@@ -596,12 +640,6 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
         }
 
-        if (!isEmpty(functionConfig.getJar()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
-                && functionConfig.getJar().startsWith(BUILTIN)) {
-            if (!new File(functionConfig.getJar()).exists()) {
-                throw new IllegalArgumentException("The supplied jar file does not exist");
-            }
-        }
         if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
                 && functionConfig.getPy().startsWith(BUILTIN)) {
             if (!new File(functionConfig.getPy()).exists()) {
@@ -696,6 +734,10 @@ public class FunctionConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getClassName())) {
             mergedConfig.setClassName(newConfig.getClassName());
+        }
+
+        if (!StringUtils.isEmpty(newConfig.getJar())) {
+            mergedConfig.setJar(newConfig.getJar());
         }
 
         if (newConfig.getInputSpecs() == null) {

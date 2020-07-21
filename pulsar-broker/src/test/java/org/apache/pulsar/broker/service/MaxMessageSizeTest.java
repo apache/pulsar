@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -70,7 +69,6 @@ public class MaxMessageSizeTest {
             configuration.setMaxMessageSize(10 * 1024 * 1024);
 
             pulsar = new PulsarService(configuration);
-            pulsar.setShutdownService(new NoOpShutdownService());
             pulsar.start();
 
             String url = "http://127.0.0.1:" + pulsar.getListenPortHTTP().get();

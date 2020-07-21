@@ -49,7 +49,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -58,12 +57,12 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
@@ -105,7 +104,6 @@ public class PersistentSubscriptionTest {
 
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         pulsarMock = spy(new PulsarService(svcConfig));
-        pulsarMock.setShutdownService(new NoOpShutdownService());
         doReturn(svcConfig).when(pulsarMock).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
 

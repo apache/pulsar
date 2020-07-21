@@ -25,7 +25,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.Sets;
 
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.Collections;
 import java.util.Map;
@@ -34,12 +33,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -49,6 +50,7 @@ import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.KeeperException.NoNodeException;
+import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
@@ -143,7 +145,7 @@ public abstract class ZooKeeperCache implements Watcher {
             // ZookeeperCache instance then ZkChildrenCache may not invalidate for it's parent. Therefore, invalidate
             // cache for parent if child is created/deleted
             if (event.getType().equals(EventType.NodeCreated) || event.getType().equals(EventType.NodeDeleted)) {
-                childrenCache.synchronous().invalidate(Paths.get(path).getParent().toString());
+                childrenCache.synchronous().invalidate(ZkUtils.getParentForPath(path));
             }
             existsCache.synchronous().invalidate(path);
             if (executor != null && updater != null) {
@@ -503,4 +505,49 @@ public abstract class ZooKeeperCache implements Watcher {
 
         this.backgroundExecutor.shutdown();
     }
+
+    public boolean checkRegNodeAndWaitExpired(String regPath) throws IOException {
+        final CountDownLatch prevNodeLatch = new CountDownLatch(1);
+        Watcher zkPrevRegNodewatcher = new Watcher() {
+            @Override
+            public void process(WatchedEvent event) {
+                // Check for prev znode deletion. Connection expiration is
+                // not handling, since bookie has logic to shutdown.
+                if (EventType.NodeDeleted == event.getType()) {
+                    prevNodeLatch.countDown();
+                }
+            }
+        };
+        try {
+            Stat stat = getZooKeeper().exists(regPath, zkPrevRegNodewatcher);
+            if (null != stat) {
+                // if the ephemeral owner isn't current zookeeper client
+                // wait for it to be expired.
+                if (stat.getEphemeralOwner() != getZooKeeper().getSessionId()) {
+                    log.info("Previous bookie registration znode: {} exists, so waiting zk sessiontimeout:"
+                        + " {} ms for znode deletion", regPath, getZooKeeper().getSessionTimeout());
+                    // waiting for the previous bookie reg znode deletion
+                    if (!prevNodeLatch.await(getZooKeeper().getSessionTimeout(), TimeUnit.MILLISECONDS)) {
+                        throw new NodeExistsException(regPath);
+                    } else {
+                        return false;
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        } catch (KeeperException ke) {
+            log.error("ZK exception checking and wait ephemeral znode {} expired : ", regPath, ke);
+            throw new IOException("ZK exception checking and wait ephemeral znode "
+                + regPath + " expired", ke);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.error("Interrupted checking and wait ephemeral znode {} expired : ", regPath, ie);
+            throw new IOException("Interrupted checking and wait ephemeral znode "
+                + regPath + " expired", ie);
+        }
+    }
+
+    private static Logger log = LoggerFactory.getLogger(ZooKeeperCache.class);
 }

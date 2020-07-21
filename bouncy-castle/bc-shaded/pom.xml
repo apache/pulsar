@@ -22,20 +22,19 @@
   <parent>
     <artifactId>bouncy-castle-parent</artifactId>
     <groupId>org.apache.pulsar</groupId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>bouncy-castle-bc-shaded</artifactId>
   <packaging>jar</packaging>
   <name>Apache Pulsar :: Bouncy Castle :: BC Shaded</name>
-  <version>2.6.0-SNAPSHOT</version>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
-      <version>2.6.0-SNAPSHOT</version>
+      <version>${project.version}</version>
       <optional>true</optional>
     </dependency>
   </dependencies>

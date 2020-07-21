@@ -90,6 +90,8 @@ class ProducerImpl : public HandlerBase,
 
     uint64_t getProducerId() const;
 
+    int32_t partition() const noexcept { return partition_; }
+
     virtual void start();
 
     virtual void shutdown();
@@ -166,6 +168,10 @@ class ProducerImpl : public HandlerBase,
     void handleSendTimeout(const boost::system::error_code& err);
 
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
+
+    struct PendingCallbacks;
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailed();
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
 
     void failPendingMessages(Result result);
 

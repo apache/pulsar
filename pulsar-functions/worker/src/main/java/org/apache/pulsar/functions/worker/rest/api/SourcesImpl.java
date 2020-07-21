@@ -26,6 +26,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.io.ConfigFieldDefinition;
+import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
@@ -49,10 +51,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Supplier;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -224,12 +223,12 @@ public class SourcesImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
-
-            if (!(sourcePkgUrl != null && sourcePkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if (sourcePkgUrl == null || !sourcePkgUrl.startsWith(Utils.FILE)) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
@@ -415,11 +414,12 @@ public class SourcesImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
-            if (!(sourcePkgUrl != null && sourcePkgUrl.startsWith(Utils.FILE))
-                    && componentPackageFile != null && componentPackageFile.exists()) {
-                componentPackageFile.delete();
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if ((sourcePkgUrl != null && !sourcePkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
+                    componentPackageFile.delete();
+                }
             }
         }
     }
@@ -661,6 +661,28 @@ public class SourcesImpl extends ComponentImpl {
         return config;
     }
 
+    public List<ConnectorDefinition> getSourceList() {
+        List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
+        List<ConnectorDefinition> retval = new ArrayList<>();
+        for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
+            if (!org.apache.commons.lang.StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
+                retval.add(connectorDefinition);
+            }
+        }
+        return retval;
+    }
+
+    public List<ConfigFieldDefinition> getSourceConfigDefinition(String name) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+        List<ConfigFieldDefinition> retval = this.worker().getConnectorsManager().getSourceConfigDefinition(name);
+        if (retval == null) {
+            throw new RestException(Response.Status.NOT_FOUND, "builtin source does not exist");
+        }
+        return retval;
+    }
+
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String sourceName,
@@ -685,7 +707,8 @@ public class SourcesImpl extends ComponentImpl {
             }
         }
         SourceConfigUtils.ExtractedSourceDetails sourceDetails = SourceConfigUtils.validate(sourceConfig, archivePath,
-                sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory(),
+                worker().getWorkerConfig().getValidateConnectorConfig());
         return SourceConfigUtils.convert(sourceConfig, sourceDetails);
     }
 }

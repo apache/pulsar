@@ -20,15 +20,15 @@ package org.apache.pulsar.sql.presto;
 
 import static java.util.Objects.requireNonNull;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorSplit;
-import com.facebook.presto.spi.HostAddress;
-import com.facebook.presto.spi.predicate.TupleDomain;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
+import io.prestosql.spi.HostAddress;
+import io.prestosql.spi.connector.ColumnHandle;
+import io.prestosql.spi.connector.ConnectorSplit;
+import io.prestosql.spi.predicate.TupleDomain;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;

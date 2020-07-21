@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/format.hpp>
 
@@ -57,7 +58,8 @@ class SimpleLogger : public Logger {
         std::stringstream ss;
 
         printTimestamp(ss);
-        ss << " " << level << " " << _logger << ":" << line << " | " << message << "\n";
+        ss << " " << level << " [" << std::this_thread::get_id() << "] " << _logger << ":" << line << " | "
+           << message << "\n";
 
         std::cout << ss.str();
         std::cout.flush();
@@ -80,5 +82,7 @@ class SimpleLogger : public Logger {
 
 Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file); }
 
-LoggerFactoryPtr SimpleLoggerFactory::create() { return LoggerFactoryPtr(new SimpleLoggerFactory); }
+std::unique_ptr<LoggerFactory> SimpleLoggerFactory::create() {
+    return std::unique_ptr<LoggerFactory>(new SimpleLoggerFactory());
+}
 }  // namespace pulsar

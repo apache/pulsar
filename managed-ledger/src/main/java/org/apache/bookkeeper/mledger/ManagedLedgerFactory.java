@@ -22,9 +22,11 @@ import com.google.common.annotations.Beta;
 
 import java.util.function.Supplier;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.stats.StatsProvider;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -132,6 +134,24 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx);
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    void delete(String name) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    void asyncDelete(String name, DeleteLedgerCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.

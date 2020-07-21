@@ -214,6 +214,7 @@ public class RuntimeUtils {
         }
 
         goInstanceConfig.setKillAfterIdleMs(0);
+        goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();

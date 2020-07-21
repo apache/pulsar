@@ -20,6 +20,7 @@
 #include <lib/ProducerImpl.h>
 #include <lib/PartitionedProducerImpl.h>
 #include <lib/ConsumerImpl.h>
+#include <lib/ClientImpl.h>
 #include <string>
 
 using std::string;
@@ -79,6 +80,12 @@ class PulsarFriend {
     static ConsumerImpl& getConsumerImpl(Consumer consumer) {
         ConsumerImpl* consumerImpl = static_cast<ConsumerImpl*>(consumer.impl_.get());
         return *consumerImpl;
+    }
+
+    static std::shared_ptr<ClientImpl> getClientImplPtr(Client client) { return client.impl_; }
+
+    static void setNegativeAckEnabled(Consumer consumer, bool enabled) {
+        consumer.impl_->setNegativeAcknowledgeEnabledForTesting(enabled);
     }
 
     static ClientConnectionWeakPtr getClientConnection(HandlerBase& handler) { return handler.connection_; }

@@ -22,6 +22,9 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - branch-*
 
 jobs:
 
@@ -37,6 +40,14 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
       - name: Check if this pull request only changes documentation
         id:   docs
@@ -59,9 +70,9 @@ jobs:
           docker rmi $(docker images -q) -f
           df -h
 
-      - name: build pacakge
+      - name: build package
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR package -DskipTests
+        run: mvn -B -ntp -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR -pl distribution/server package -am package -DskipTests
 
       - name: build cpp artifacts
         if: steps.docs.outputs.changed_only == 'no'

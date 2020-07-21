@@ -24,6 +24,7 @@ import org.apache.commons.lang3.StringUtils;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 
@@ -69,10 +70,17 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
         private String brokerServiceUrlTls;
 
+        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
+        private String proxyServiceUrl;
+
+        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
+        private ProxyProtocol proxyProtocol;
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
             admin.clusters().createCluster(cluster,
-                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls));
+                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls, proxyServiceUrl,
+                            proxyProtocol));
         }
     }
 
@@ -93,10 +101,16 @@ public class CmdClusters extends CmdBase {
         @Parameter(names = "--broker-url-secure", description = "broker-service-url for secure connection", required = false)
         private String brokerServiceUrlTls;
 
+        @Parameter(names = "--proxy-url", description = "Proxy-service url when client would like to connect to broker via proxy.", required = false)
+        private String proxyServiceUrl;
+
+        @Parameter(names = "--proxy-protocol", description = "protocol to decide type of proxy routing eg: SNI", required = false)
+        private ProxyProtocol proxyProtocol;
+
         void run() throws PulsarAdminException {
             String cluster = getOneArgument(params);
-            admin.clusters().updateCluster(cluster,
-                    new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl, brokerServiceUrlTls));
+            admin.clusters().updateCluster(cluster, new ClusterData(serviceUrl, serviceUrlTls, brokerServiceUrl,
+                    brokerServiceUrlTls, proxyServiceUrl, proxyProtocol));
         }
     }
 

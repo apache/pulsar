@@ -105,10 +105,17 @@ If you want to enable security on functions workers, you *should*:
 To enable TLS transport encryption, configure the following settings.
 
 ```
+useTLS: true
+pulsarServiceUrl: pulsar+ssl://localhost:6651/
+pulsarWebServiceUrl: https://localhost:8443
+
 tlsEnabled: true
 tlsCertificateFilePath: /path/to/functions-worker.cert.pem
 tlsKeyFilePath:         /path/to/functions-worker.key-pk8.pem
 tlsTrustCertsFilePath:  /path/to/ca.cert.pem
+
+// The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+brokerClientTrustCertsFilePath: /path/to/ca.cert.pem
 ```
 
 For details on TLS encryption, refer to [Transport Encryption using TLS](security-tls-transport.md).
@@ -122,6 +129,16 @@ Substitute the *providers list* with the providers you want to enable.
 ```
 authenticationEnabled: true
 authenticationProviders: [ provider1, provider2 ]
+```
+
+For *TLS Authentication* provider, follow the example below to add the necessary settings.
+See [TLS Authentication](security-tls-authentication.md) for more details.
+```
+brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
+brokerClientAuthenticationParameters: tlsCertFile:/path/to/admin.cert.pem,tlsKeyFile:/path/to/admin.key-pk8.pem
+
+authenticationEnabled: true
+authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
 ```
 
 For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
@@ -144,10 +161,11 @@ properties:
 
 ##### Enable Authorization Provider
 
-To enable authorization on Functions Worker, you need to configure `authorizationEnabled` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
+To enable authorization on Functions Worker, you need to configure `authorizationEnabled`, `authorizationProvider` and `configurationStoreServers`. The authentication provider connects to `configurationStoreServers` to receive namespace policies.
 
 ```yaml
 authorizationEnabled: true
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 configurationStoreServers: <configuration-store-servers>
 ```
 

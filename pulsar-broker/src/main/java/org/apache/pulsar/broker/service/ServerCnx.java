@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -123,7 +124,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,6 +159,9 @@ public class ServerCnx extends PulsarHandler {
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
+    private boolean preciseDispatcherFlowControl;
+
+    private boolean preciseTopicPublishRateLimitingEnable;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
     private volatile boolean autoReadDisabledRateLimiting = false;
@@ -189,8 +192,10 @@ public class ServerCnx extends PulsarHandler {
         this.authenticateOriginalAuthData = service.pulsar().getConfiguration().isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = pulsar.getConfiguration().isSchemaValidationEnforced();
         this.maxMessageSize = pulsar.getConfiguration().getMaxMessageSize();
-        this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishdRequestsPerConnection();
+        this.maxPendingSendRequests = pulsar.getConfiguration().getMaxPendingPublishRequestsPerConnection();
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
+        this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
+        this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
     }
 
     @Override
@@ -273,6 +278,7 @@ public class ServerCnx extends PulsarHandler {
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.getAuthoritative();
+        final String advertisedListenerName = lookup.getAdvertisedListenerName();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
@@ -304,7 +310,7 @@ public class ServerCnx extends PulsarHandler {
                 if (isProxyAuthorized) {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
-                            requestId).handle((lookupResponse, ex) -> {
+                            requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
                                 } else {
@@ -1204,14 +1210,15 @@ public class ServerCnx extends PulsarHandler {
             }
         }
 
-        startSendOperation(producer, headersAndPayload.readableBytes());
+        startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
 
         // Persist the message
         if (send.hasHighestSequenceId() && send.getSequenceId() <= send.getHighestSequenceId()) {
             producer.publishMessage(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(),
-                    headersAndPayload, send.getNumMessages());
+                    headersAndPayload, send.getNumMessages(), send.getIsChunk());
         } else {
-            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload, send.getNumMessages());
+            producer.publishMessage(send.getProducerId(), send.getSequenceId(), headersAndPayload,
+                    send.getNumMessages(), send.getIsChunk());
         }
     }
 
@@ -1351,9 +1358,8 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
-            log.warn("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
-                    "Producer was not registered on the connection"));
+            log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1394,8 +1400,8 @@ public class ServerCnx extends PulsarHandler {
 
         CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
         if (consumerFuture == null) {
-            log.warn("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, "Consumer not found"));
+            log.info("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
+            ctx.writeAndFlush(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1473,6 +1479,7 @@ public class ServerCnx extends PulsarHandler {
                     .setPartition(partitionIndex).build();
 
             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+            return;
         }
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
@@ -1736,6 +1743,13 @@ public class ServerCnx extends PulsarHandler {
         return ctx;
     }
 
+    @Override
+    protected void onCommand(PulsarApi.BaseCommand command) throws Exception {
+        if (getBrokerService().getInterceptor() != null) {
+            getBrokerService().getInterceptor().onPulsarCommand(command, this);
+        }
+    }
+
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
         if (log.isDebugEnabled()) {
@@ -1800,9 +1814,21 @@ public class ServerCnx extends PulsarHandler {
         return ctx.channel().isWritable();
     }
 
-    public void startSendOperation(Producer producer, int msgSize) {
+
+    public void startSendOperation(Producer producer, int msgSize, int numMessages) {
         MSG_PUBLISH_BUFFER_SIZE_UPDATER.getAndAdd(this, msgSize);
-        boolean isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        boolean isPublishRateExceeded = false;
+        if (preciseTopicPublishRateLimitingEnable) {
+            boolean isPreciseTopicPublishRateExceeded = producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
+            if (isPreciseTopicPublishRateExceeded) {
+                producer.getTopic().disableCnxAutoRead();
+                return;
+            }
+            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+        } else {
+            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+        }
+
         if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
@@ -1961,5 +1987,29 @@ public class ServerCnx extends PulsarHandler {
     @VisibleForTesting
     void setAutoReadDisabledRateLimiting(boolean isLimiting) {
         this.autoReadDisabledRateLimiting = isLimiting;
+    }
+
+    public boolean isPreciseDispatcherFlowControl() {
+        return preciseDispatcherFlowControl;
+    }
+
+    public AuthenticationState getAuthState() {
+        return authState;
+    }
+
+    public AuthenticationDataSource getAuthenticationData() {
+        return authenticationData;
+    }
+
+    public AuthenticationProvider getAuthenticationProvider() {
+        return authenticationProvider;
+    }
+
+    public String getAuthRole() {
+        return authRole;
+    }
+
+    public String getAuthMethod() {
+        return authMethod;
     }
 }
