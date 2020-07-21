@@ -100,7 +100,7 @@
 <tr><td>consumerName</td><td>由客户端库生成的 consumer 的内部标识符。</td></tr>
 <tr><td>availablePermits</td><td>Consumer 在客户端监听队列中所能容纳的最大消息数。 值为 0 意味着客户端库队列已满，receive() 不再被调用。 非零值意味着 consumer 可以接收消息。</td></tr>
 <tr><td>replication</td><td>Topic 上 cross-colo 复制的统计信息。</td></tr>
-<tr><td>replicationBacklog</td><td>出站复制积压的消息数。</td></tr>
+<tr><td>replicationBacklog</td><td>待复制到远程集群的消息数。</td></tr>
 <tr><td>connected</td><td>出站复制器是否已连接。</td></tr>
 <tr><td>replicationDelayInSeconds</td><td>已连接状态下，若通过此连接发送最旧的消息，则此消息已经等待的时间。</td></tr>
 <tr><td>inboundConnection</td><td>远程集群到此集群 producer 连接中，broker 的 IP 和端口。</td></tr>
@@ -121,20 +121,20 @@
 <tr><td>lastLedgerCreatedTimestamp</td><td>上一个 ledger 的创建时间。</td></tr>
 <tr><td>lastLedgerCreationFailureTimestamp</td><td>上一次 ledger 创建失败的时间。</td></tr>
 <tr><td>waitingCursorsCount</td><td>跟上消息发布的进度，正在等待新消息发布的游标数量。</td></tr>
-<tr><td>pendingAddEntriesCount</td><td>有写入请求（异步）并且请求正在等待完成的消息数。</td></tr>
+<tr><td>pendingAddEntriesCount</td><td>正在等待完成（异步）写入请求的消息数。</td></tr>
 <tr><td>lastConfirmedEntry</td><td>The ledgerid:entryid of the last message successfully written. If the entryid is -1, then the ledger is opened or is being currently opened but has no entries written yet.</td></tr>
 <tr><td>state</td><td>The state of the cursor ledger. Open means you have a cursor ledger for saving updates of the markDeletePosition.</td></tr>
-<tr><td>ledgers</td><td>本主题保存消息的所有 ledger 的有序列表。</td></tr>
+<tr><td>ledgers</td><td>Topic 上用于保存消息的所有 ledger 的有序列表。</td></tr>
 <tr><td>cursors</td><td>The list of all cursors on this topic. Every subscription you saw in the topic stats has one.</td></tr>
-<tr><td>markDeletePosition</td><td>The ack position: 最后一条被订阅者确认收到的消息。</td></tr>
-<tr><td>readPosition</td><td>订阅者阅读消息的最新位置。</td></tr>
-<tr><td>waitingReadOp</td><td>当订阅者已经读取了发布到主题的最新消息，并且等待新消息发布时，值为 true。</td></tr>
-<tr><td>pendingReadOps</td><td>已经发往 BookKeeper 的读请求数量计数器。</td></tr>
-<tr><td>messagesConsumedCounter</td><td>从 broker 载入本主题后此游标已确认的消息总数。</td></tr>
-<tr><td>cursorLedger</td><td>用于持久化存储当前 markDeletePosition 的  ledger。</td></tr>
-<tr><td>cursorLedgerLastEntry</td><td>最后一个用于持久化存储当前 markDeletePosition 的 entryid。</td></tr>
-<tr><td>individuallyDeletedMessages</td><td>如果消息的确认是乱序的，则显示在 markDeletePosition 和 read-position 范围内的已确认消息。</td></tr>
-<tr><td>lastLedgerSwitchTimestamp</td><td>游标 ledger 的上一次回滚时间。</td></tr>
+<tr><td>markDeletePosition</td><td>The ack position：订阅者确认的最后一条消息。</td></tr>
+<tr><td>readPosition</td><td>订阅者最后读取消息的位置。</td></tr>
+<tr><td>waitingReadOp</td><td>若订阅已读取发布到 topic 的最新消息，并且正在等待新消息的发布，则值为 true。</td></tr>
+<tr><td>pendingReadOps</td><td>BookKeeper 中正在处理的读取请求数量计数。</td></tr>
+<tr><td>messagesConsumedCounter</td><td>Broker 加载 topic 后，此游标已确认的消息总数。</td></tr>
+<tr><td>cursorLedger</td><td>用于持久存储当前 markDeletePosition 的 ledger。</td></tr>
+<tr><td>cursorLedgerLastEntry</td><td>最后一个用于持久存储当前 markDeletePosition 的 entryid。</td></tr>
+<tr><td>individuallyDeletedMessages</td><td>如果消息被乱序确认，则显示在 markDeletePosition 和 read-position 之间已确认消息的范围。</td></tr>
+<tr><td>lastLedgerSwitchTimestamp</td><td>游标 ledger 上一次轮询的时间。</td></tr>
 </tbody>
 </table>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/administration-pulsar-manager"><span class="arrow-prev">← </span><span>Pulsar Manager</span></a><a class="docs-next button" href="/docs/zh-CN/administration-load-balance"><span>负载均衡</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#分区-topic">分区 topic</a></li><li><a href="#topic">Topic</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

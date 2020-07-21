@@ -97,7 +97,7 @@
 <pre><code class="hljs css language-java">admin.namespaces().createNamespace(namespace);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="获取策略"></a><a href="#获取策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取策略</h3>
-<p>用户可以随时获取当前与命名空间关联的策略。</p>
+<p>用户可以随时获取与命名空间相关的现有策略。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>使用 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#namespaces-policies"><code>policies</code></a> 子命令，指定命名空间：</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin namespaces policies <span class="hljs-built_in">test</span>-tenant/<span class="hljs-built_in">test</span>-namespace</span>
@@ -159,7 +159,7 @@ test-tenant/ns2
 <pre><code class="hljs css language-java">admin.namespaces().deleteNamespace(namespace);
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置复制集群"></a><a href="#设置复制集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置复制集群</h4>
-<p>它为命名空间设置复制集群，因此Pulsar可以在内部将发布消息从一个colo复制到另一个colo。</p>
+<p>为命名空间设置复制集群，因此 Pulsar 可以从一个 colo 复制消息到另一个 colo。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli"></a><a href="#cli" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-clusters test-tenant/ns1 \
   --clusters cl1
@@ -171,7 +171,7 @@ test-tenant/ns2
 <pre><code class="hljs css language-java">admin.namespaces().setNamespaceReplicationClusters(namespace, clusters);
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取复制集群"></a><a href="#获取复制集群" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取复制集群</h4>
-<p>它为给定的命名空间提供一个复制集群列表。</p>
+<p>获取给定命名空间复制集群的列表。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-1"></a><a href="#cli-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-clusters test-tenant/cl1/ns1
 
@@ -185,12 +185,12 @@ cl2
 <pre><code class="hljs css language-java">admin.namespaces().getNamespaceReplicationClusters(namespace)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置积压配额政策"></a><a href="#设置积压配额政策" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置积压配额政策</h4>
-<p>积压配额可帮助代理在达到特定阈值限制之前限制命名空间的带宽/存储。管理员可以在达到限制后设置此限制并执行以下操作之一。</p>
+<p>积压配额有助于 broker 在达到特定阈值前限制命名空间的带宽/存储。在达到阈值后，管理员可以更改此阈值，并进行以下任一操作。</p>
 <ol>
-<li><p>阻塞生产者请求：代理会阻塞并不持久生产者请求</p></li>
-<li><p>生产者异常：代理会抛出异常并和客户端断开连接</p></li>
-<li><p>消费者积压抛弃：代理会开始抛弃积压的消息</p>
-<p>积压配额限制可以通过定义backlog-quota-type: destination_storage来限制</p></li>
+<li><p>producer_request_hold：broker 暂停运行，并不再持久化生产请求负载</p></li>
+<li><p>producer_exception：broker 抛出异常，并与客户端断开连接</p></li>
+<li><p>consumer_backlog_eviction：broker 丢弃积压消息</p>
+<p>可以通过定义 backlog-quota-type: destination_storage 来限制积压配额</p></li>
 </ol>
 <h6><a class="anchor" aria-hidden="true" id="cli-2"></a><a href="#cli-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-tenant/ns1
@@ -205,7 +205,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setBacklogQuota(namespace, <span class="hljs-keyword">new</span> BacklogQuota(limit, policy))
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="查看积压配额策略"></a><a href="#查看积压配额策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查看积压配额策略</h4>
-<p>它显示给定命名空间的已配置积压配额。</p>
+<p>查看给定命名空间已配置的积压配额。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-3"></a><a href="#cli-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-backlog-quotas test-tenant/ns1
 </code></pre>
@@ -237,12 +237,12 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().removeBacklogQuota(namespace, backlogQuotaType)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置持久化策略"></a><a href="#设置持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置持久化策略</h4>
-<p>持久化策略可以为给定命名空间下的所有主题消息配置持久等级。</p>
+<p>持久化策略可以为给定命名空间下 topic 上的所有消息配置持久等级。</p>
 <ul>
-<li><p>Bookkeeper-ack-quorum：每个条目中等待的 acks（有保证的副本）数量，默认值：0</p></li>
-<li><p>Bookkeeper-ensemble：对一个主题使用的 bookie 数量，默认值：0</p></li>
-<li><p>Bookkeeper-write-quorum：对每个条目进行多少次写入，默认值：0</p></li>
-<li><p>Ml-mark-delete-max-rate：标记-删除操作的配额限制速率（0表示无限制），默认：0.0</p></li>
+<li><p>Bookkeeper-ack-quorum：每个 entry 在等待的 acks（有保证的副本）数量，默认值：0</p></li>
+<li><p>Bookkeeper-ensemble：单个 topic 使用的 bookie 数量，默认值：0</p></li>
+<li><p>Bookkeeper-write-quorum：每个 entry 要写入的次数，默认值：0</p></li>
+<li><p>Ml-mark-delete-max-rate：标记-删除操作的限制速率（0表示无限制），默认值：0.0</p></li>
 </ul>
 <h6><a class="anchor" aria-hidden="true" id="cli-5"></a><a href="#cli-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-tenant/ns1
@@ -257,7 +257,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setPersistence(namespace,<span class="hljs-keyword">new</span> PersistencePolicies(bookkeeperEnsemble, bookkeeperWriteQuorum,bookkeeperAckQuorum,managedLedgerMaxMarkDeleteRate))
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取持久化策略"></a><a href="#获取持久化策略" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取持久化策略</h4>
-<p>下面展示了查看指定命名空间的持久化策略的方式</p>
+<p>可通过以下方式查看指定命名空间已配置的持久化策略。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-6"></a><a href="#cli-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-persistence test-tenant/ns1
 </code></pre>
@@ -275,7 +275,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().getPersistence(namespace)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="卸载命名空间"></a><a href="#卸载命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载命名空间</h4>
-<p>命名空间包(Namespace bundle)是属于同一命名空间(Namespace)的虚拟主题(topic)组。 如果broker因为包的数量过多而过载，此命令可以帮助该broker卸载负载重的包(heavy bundle)，以转移到其他负载小的broker上为其提供服务。 命名空间包被定义为一个起始和结束数值范围比如0x00000000 and 0xffffffff。</p>
+<p>命名空间包是虚拟的 topic 组，这些 topic 来自于同一个命名空间。 如果 broker 因为包的数量过多而过载，则可通过以下命令进行卸载，并由其他负载较小的 broker 提供服务。 以起始值和结束值之间的范围来定义命名空间包，如 0x00000000 和 0xffffffff。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-7"></a><a href="#cli-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-tenant/ns1
 
@@ -289,7 +289,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().unloadNamespaceBundle(namespace, bundle)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="set-message-ttl"></a><a href="#set-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>set message-ttl</h4>
-<p>配置消息的存活时间 (以秒为单位)。</p>
+<p>配置消息存活时间 (以秒为单位)。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-8"></a><a href="#cli-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-tenant/ns1
 
@@ -303,7 +303,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setNamespaceMessageTTL(namespace, messageTTL)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="get-message-ttl"></a><a href="#get-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>get message-ttl</h4>
-<p>获取命名空间的消息存活时间（ttl）。</p>
+<p>获取命名空间中消息的存活时间（ttl）。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-9"></a><a href="#cli-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-message-ttl test-tenant/ns1
 
@@ -317,7 +317,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().getNamespaceReplicationClusters(namespace)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="分割包（bundle）"></a><a href="#分割包（bundle）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分割包（bundle）</h4>
-<p>每个命名空间包可以包含多个主题, 但每个包只能由一个broker提供服务。 如果这broker创建一个较多活动的主题（topics）构成的包，以至于包负载过重, 为了解决此问题, 管理员可以使用此命令分割包。</p>
+<p>命名空间包可以包含多个 topic，但只能由一个 broker 来提供服务。 如果由于 broker 创建的包中活跃 topic 较多，而使包负载过重，则管理员可以使用以下命令分包，来解决这一问题。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-10"></a><a href="#cli-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-tenant/ns1
 
@@ -331,7 +331,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().splitNamespaceBundle(namespace, bundle)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="清除消息堆积"></a><a href="#清除消息堆积" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>清除消息堆积</h4>
-<p>此命令可以清除指定的命名空间上所有主题积压的消息，你还可以清除一个特定订阅积压的消息。</p>
+<p>为指定命名空间上的所有 topic 清除积压的消息。也可以为指定订阅清除积压的消息。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-11"></a><a href="#cli-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces clear-backlog --sub my-subscription test-tenant/ns1
 
@@ -345,7 +345,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="清除包消息堆积"></a><a href="#清除包消息堆积" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>清除包消息堆积</h4>
-<p>此命令可以清除指定命名空间包（NamespaceBundle）下所有主题（topics）积压的消息，你也可以清除一个特定订阅积压的消息。</p>
+<p>为指定命名空间包中所有 topic 清除积压的消息。也可以为指定订阅清除积压的消息。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-12"></a><a href="#cli-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-tenant/ns1
 
@@ -359,7 +359,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, subscription)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置消息存留参数"></a><a href="#设置消息存留参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置消息存留参数</h4>
-<p>每个命名空间包含多个主题（topic）, 每个主题（topic）的保留大小 (存储空间) 不应超过特定的阈值, 或应将其存储直到特定时间。 此命令帮助配置指定命名空间中主题（topic）的存储空间和保留时间。</p>
+<p>命名空间包含多个 topic，每个 topic 的保留大小（存储大小）不应超过特定阈值，否则其存储时间会受到限制。 可通过以下命令配置指定命名空间中 topic 的保留大小和保留时间。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-13"></a><a href="#cli-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin set-retention --size 10 --time 100 test-tenant/ns1
 
@@ -373,7 +373,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setRetention(namespace, <span class="hljs-keyword">new</span> RetentionPolicies(retentionTimeInMin, retentionSizeInMB))
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取消息存留参数"></a><a href="#获取消息存留参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取消息存留参数</h4>
-<p>获取指定命名空间的存留参数信息。</p>
+<p>获取指定命名空间的保留参数信息。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-14"></a><a href="#cli-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-retention test-tenant/ns1
 </code></pre>
@@ -389,7 +389,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().getRetention(namespace)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="设置消息分发速率"></a><a href="#设置消息分发速率" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>设置消息分发速率</h4>
-<p>为给定命名空间下所有的主题（topic）设置消息分发速率。 分发速率通过每X秒消息数(<code>msg-dispatch-rate</code>) 或者每x秒消息字节数来限制 (<code>byte-dispatch-rate</code>)。 分发速率是按照秒级别来设置的，通过<code>dispatch-rate-period</code>来配置。 <code>msg-dispatch-rate</code> 和 <code>byte-dispatch-rate</code>默认值均为-1，这代表禁用配额限制。</p>
+<p>为给定命名空间下所有 topic 设置消息派发速率。 通过每 X 秒消息数（<code>msg-dispatch-rate</code>)）或者每 X 秒消息字节数来限制（<code>byte-dispatch-rate</code>）派发速率。 派发速率指每秒派发的消息数，可通过 <code>dispatch-rate-period</code> 来配置。 <code>msg-dispatch-rate</code> 和 <code>byte-dispatch-rate</code> 的默认值均为 -1，即禁用配额限制。</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-15"></a><a href="#cli-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
   --msg-dispatch-rate 1000 \
@@ -403,7 +403,7 @@ N/A
 <pre><code class="hljs css language-java">admin.namespaces().setDispatchRate(namespace, <span class="hljs-number">1000</span>, <span class="hljs-number">1048576</span>, <span class="hljs-number">1</span>)
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="获取消息分发速率配置"></a><a href="#获取消息分发速率配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取消息分发速率配置</h4>
-<p>它能显示命名空间已配置的消息分发速率（该命名空间下的主题每秒能够分发多少条消息）</p>
+<p>获取命名空间中已配置的消息派发速率（该命名空间下 topic 发送消息数 / 秒）</p>
 <h6><a class="anchor" aria-hidden="true" id="cli-16"></a><a href="#cli-16" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>CLI</h6>
 <pre><code class="hljs">$ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 </code></pre>
@@ -421,7 +421,7 @@ N/A
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="命名空间隔离"></a><a href="#命名空间隔离" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>命名空间隔离</h3>
 <p>敬请期待。</p>
-<h3><a class="anchor" aria-hidden="true" id="从broker上卸载命名空间。"></a><a href="#从broker上卸载命名空间。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>从broker上卸载命名空间。</h3>
+<h3><a class="anchor" aria-hidden="true" id="从-broker上卸载命名空间"></a><a href="#从-broker上卸载命名空间" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>从 broker上卸载命名空间</h3>
 <p>你能从这Pulsar <a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#broker">broker</a> 管理上卸载一个命名空间，或一个 <a href="/docs/zh-CN/2.1.1-incubating/reference-terminology#namespace-bundle">命名空间包</a>。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>用 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#namespaces"><code>namespaces</code></a> 的子命令 <a href="/docs/zh-CN/2.1.1-incubating/pulsar-admin#namespaces-unload"><code>unload</code></a> 。</p>
@@ -430,7 +430,7 @@ N/A
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="rest-api-3"></a><a href="#rest-api-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>REST API</h4>
 <h4><a class="anchor" aria-hidden="true" id="java-22"></a><a href="#java-22" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/admin-api-brokers"><span class="arrow-prev">← </span><span>Brokers</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/admin-api-permissions"><span>Permissions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#命名空间资源">命名空间资源</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#获取策略">获取策略</a></li><li><a href="#列出租户下的命名空间">列出租户下的命名空间</a></li><li><a href="#删除">删除</a></li><li><a href="#命名空间隔离">命名空间隔离</a></li><li><a href="#从broker上卸载命名空间。">从broker上卸载命名空间。</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.1.1-incubating/admin-api-brokers"><span class="arrow-prev">← </span><span>Brokers</span></a><a class="docs-next button" href="/docs/zh-CN/2.1.1-incubating/admin-api-permissions"><span>Permissions</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#命名空间资源">命名空间资源</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#获取策略">获取策略</a></li><li><a href="#列出租户下的命名空间">列出租户下的命名空间</a></li><li><a href="#删除">删除</a></li><li><a href="#命名空间隔离">命名空间隔离</a></li><li><a href="#从-broker上卸载命名空间">从 broker上卸载命名空间</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
