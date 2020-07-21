@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -37,7 +37,7 @@ public interface TransactionBufferHandler {
      * @return TxnId
      */
     CompletableFuture<TxnID> endTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits,
-        PulsarApi.TxnAction action);
+                                           PulsarApi.TxnAction action);
 
     /**
      * End transaction on subscription.

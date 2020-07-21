@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api.transaction;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * The transaction buffer client to commit and abort transactions on topics or subscription.
