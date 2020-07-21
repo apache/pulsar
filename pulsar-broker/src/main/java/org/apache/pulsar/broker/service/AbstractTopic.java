@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -63,8 +64,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
-    // When set to false, this inactive topic can not be deleted
-    protected boolean deleteWhileInactive;
+    // Inactive topic policies
+    protected InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies();
 
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
@@ -98,8 +99,7 @@ public abstract class AbstractTopic implements Topic {
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
-        this.deleteWhileInactive =
-                brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled();
+        this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -132,12 +132,14 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
+    @Override
     public void disableCnxAutoRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
         }
     }
 
+    @Override
     public void enableCnxAutoRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
@@ -466,11 +468,11 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public boolean isDeleteWhileInactive() {
-        return deleteWhileInactive;
+        return this.inactiveTopicPolicies.isDeleteWhileInactive();
     }
 
     public void setDeleteWhileInactive(boolean deleteWhileInactive) {
-        this.deleteWhileInactive = deleteWhileInactive;
+        this.inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);

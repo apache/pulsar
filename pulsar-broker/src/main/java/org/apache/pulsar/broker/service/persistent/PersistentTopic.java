@@ -1628,11 +1628,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (!deleteWhileInactive) {
+    public void checkGC(int maxInactiveDurationSeconds, InactiveTopicDeleteMode inactiveTopicDeleteMode) {
+        if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
             return;
         }
+        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode() == null
+                ? inactiveTopicDeleteMode
+                : inactiveTopicPolicies.getInactiveTopicDeleteMode();
+        int maxInactiveDurationInSec = inactiveTopicPolicies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() == 0
+                ? maxInactiveDurationSeconds
+                : inactiveTopicPolicies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
         if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
         } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
@@ -1786,6 +1792,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (data.delayed_delivery_policies != null) {
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
             delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
+        }
+        if (data.inactive_topic_policies != null) {
+            this.inactiveTopicPolicies = data.inactive_topic_policies;
         }
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));

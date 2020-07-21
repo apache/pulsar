@@ -68,6 +68,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.slf4j.Logger;
@@ -857,6 +858,30 @@ public class Namespaces extends NamespacesBase {
             @ApiParam(value = "Delayed delivery policies for the specified namespace") DelayedDeliveryPolicies deliveryPolicies) {
         validateNamespaceName(tenant, namespace);
         internalSetDelayedDelivery(deliveryPolicies);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/inactiveTopic")
+    @ApiOperation(value = "Get inactive topic messages config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"), })
+    public InactiveTopicPolicies getInactiveTopicPolicies(@PathParam("tenant") String tenant,
+                                                              @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        return internalGetInactiveTopic();
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/inactiveTopic")
+    @ApiOperation(value = "Set inactive topic messages config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
+    public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Inactive topic policies for the specified namespace") InactiveTopicPolicies inactiveTopicPolicies) {
+        validateNamespaceName(tenant, namespace);
+        internalSetInactiveTopic(inactiveTopicPolicies);
     }
 
     @GET

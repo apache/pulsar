@@ -420,7 +420,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
-     * 
+     *
      * @param closeWithoutWaitingClientDisconnect
      *            don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
@@ -829,11 +829,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (!deleteWhileInactive) {
+    public void checkGC(int maxInactiveDurationSeconds, InactiveTopicDeleteMode inactiveTopicDeleteMode) {
+        if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
             return;
         }
+        int maxInactiveDurationInSec = inactiveTopicPolicies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() == 0
+                ? maxInactiveDurationSeconds
+                : inactiveTopicPolicies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {
@@ -889,6 +892,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         setSchemaCompatibilityStrategy(data);
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
+        if (data.inactive_topic_policies != null) {
+            this.inactiveTopicPolicies = data.inactive_topic_policies;
+        }
 
         producers.values().forEach(producer -> {
             producer.checkPermissions();
