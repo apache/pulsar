@@ -2208,7 +2208,7 @@ public interface Namespaces {
             String namespace, DelayedDeliveryPolicies delayedDeliveryPolicies);
 
     /**
-     * Get the inactive deletion strategy for all topics within a namespace synchronously
+     * Get the inactive deletion strategy for all topics within a namespace synchronously.
      * @param namespace
      * @return
      * @throws PulsarAdminException
