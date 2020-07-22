@@ -315,27 +315,29 @@ public class Consumer {
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
                 MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(entry.getLedgerId())
-                    .setEntryId(entry.getEntryId())
-                    .setPartition(partitionIdx)
-                    .build();
+                        .setLedgerId(entry.getLedgerId())
+                        .setEntryId(entry.getEntryId())
+                        .setPartition(partitionIdx)
+                        .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 metadataAndPayload.retain();
 
                 // take a look at message and filter it out if necessary
-                metadataAndPayload.markReaderIndex();
-                Commands.skipMessageMetadata(metadataAndPayload);
-                metadataAndPayload.skipBytes(metadataAndPayload.readInt());
-                if (this.filter != null && !this.filter.matches(metadataAndPayload)) {
-                    filteredEntries.add(entry.getPosition());
-                    messageId.recycle();
-                    messageIdBuilder.recycle();
-                    entry.release();
-                    continue;
+                if (filter != null) {
+                    metadataAndPayload.markReaderIndex();
+                    Commands.skipMessageMetadata(metadataAndPayload);
+                    metadataAndPayload.skipBytes(metadataAndPayload.readInt());
+                    if (!filter.matches(metadataAndPayload)) {
+                        filteredEntries.add(entry.getPosition());
+                        messageId.recycle();
+                        messageIdBuilder.recycle();
+                        entry.release();
+                        continue;
+                    }
+                    metadataAndPayload.resetReaderIndex();
                 }
-                metadataAndPayload.resetReaderIndex();
 
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
