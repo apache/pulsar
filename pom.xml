@@ -1422,16 +1422,16 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>${maven-surefire-plugin.version}</version>
-<!--          <configuration>-->
-<!--            <includes>-->
-<!--                <include>${include}</include>-->
-<!--            </includes>-->
-<!--            <excludes>-->
-<!--                <exclude>${exclude}</exclude>-->
-<!--            </excludes>-->
-<!--            <groups>${groups}</groups>-->
-<!--            <excludedGroups>${excludedGroups}</excludedGroups>-->
-<!--          </configuration>-->
+          <configuration>
+            <includes>
+                <include>${include}</include>
+            </includes>
+            <excludes>
+                <exclude>${exclude}</exclude>
+            </excludes>
+            <groups>${groups}</groups>
+            <excludedGroups>${excludedGroups}</excludedGroups>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
