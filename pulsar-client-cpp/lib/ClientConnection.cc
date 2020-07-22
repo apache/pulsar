@@ -25,7 +25,6 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/date_time/gregorian/gregorian.hpp>
 #include <climits>
-// #include <unistd.h>
 
 #include "ExecutorService.h"
 #include "Commands.h"
@@ -118,6 +117,9 @@ static Result getResult(ServerError serverError) {
 
         case InvalidTxnStatus:
             return ResultInvalidTxnStatusError;
+
+        case NotAllowedError:
+            return ResultNotAllowedError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -288,7 +290,7 @@ void ClientConnection::startConsumerStatsTimer(std::vector<uint64_t> consumerSta
 
     // If the close operation has reset the consumerStatsRequestTimer_ then the use_count will be zero
     // Check if we have a timer still before we set the request timer to pop again.
-    if (consumerStatsRequestTimer_.use_count() > 0) {
+    if (consumerStatsRequestTimer_) {
         consumerStatsRequestTimer_->expires_from_now(operationsTimeout_);
         consumerStatsRequestTimer_->async_wait(std::bind(&ClientConnection::handleConsumerStatsTimeout,
                                                          shared_from_this(), std::placeholders::_1,
@@ -413,6 +415,15 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
 
     // Schedule the reading of CONNECTED command from broker
     readNextCommand();
+}
+
+void ClientConnection::handleSentAuthResponse(const boost::system::error_code& err,
+                                              const SharedBuffer& buffer) {
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to send auth response: " << err.message());
+        close();
+        return;
+    }
 }
 
 /*
@@ -1027,6 +1038,15 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::AUTH_CHALLENGE: {
+                    LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
+
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    asyncWrite(buffer.const_asio_buffer(),
+                               std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
+                                         std::placeholders::_1, buffer));
+                }
+
                 case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
                     LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
                     // ignore this message for now.
@@ -1326,7 +1346,7 @@ void ClientConnection::handleKeepAliveTimeout() {
 
         // If the close operation has already called the keepAliveTimer_.reset() then the use_count will be zero And we do not attempt
         // to dereference the pointer.
-        if (keepAliveTimer_.use_count() > 0) {
+        if (keepAliveTimer_) {
             keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
             keepAliveTimer_->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
         }
