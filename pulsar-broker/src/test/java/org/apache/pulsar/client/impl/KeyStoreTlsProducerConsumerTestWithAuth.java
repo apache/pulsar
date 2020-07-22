@@ -200,7 +200,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 300000)
+    @Test
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -225,15 +225,15 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         // Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
 
-        try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-        } catch (Exception ex) {
-            Assert.fail("Should not fail since certs are sent.");
-        }
+        // Should not fail since certs are sent
+        pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -256,12 +256,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
 
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
-        try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-        } catch (Exception ex) {
-            Assert.fail("Should not fail since certs are sent.");
-        }
+        // Should not fail since certs are sent
+        pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
     }
 
 }
