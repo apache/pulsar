@@ -2216,6 +2216,20 @@ public interface Namespaces {
     InactiveTopicPolicies getInactiveTopicPolicies(String namespace) throws PulsarAdminException;
 
     /**
+     * remove InactiveTopicPolicies from a namespace asynchronously.
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String namespace);
+
+    /**
+     * Remove inactive topic policies from a namespace.
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeInactiveTopicPolicies(String namespace) throws PulsarAdminException;
+
+    /**
      * Get the inactive deletion strategy for all topics within a namespace asynchronously.
      * @param namespace
      * @return

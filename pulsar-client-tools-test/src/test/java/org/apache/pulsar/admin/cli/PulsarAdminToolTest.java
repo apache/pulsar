@@ -408,12 +408,15 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
 
-        namespaces.run(split("set-inactive-topic myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
+        namespaces.run(split("set-inactive-topic-policies myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
         verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1"
                 , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,true));
 
-        namespaces.run(split("get-inactive-topic myprop/clust/ns1"));
+        namespaces.run(split("get-inactive-topic-policies myprop/clust/ns1"));
         verify(mockNamespaces).getInactiveTopicPolicies("myprop/clust/ns1");
+
+        namespaces.run(split("remove-inactive-topic-policies myprop/clust/ns1"));
+        verify(mockNamespaces).removeInactiveTopicPolicies("myprop/clust/ns1");
 
         namespaces.run(split("clear-backlog myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBacklog("myprop/clust/ns1");

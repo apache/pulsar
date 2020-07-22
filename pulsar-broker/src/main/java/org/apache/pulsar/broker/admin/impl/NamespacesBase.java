@@ -1867,21 +1867,21 @@ public abstract class NamespacesBase extends AdminResource {
 
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated {} messages configuration: namespace={}, value={}", clientAppId(), fieldName,
+            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
                     namespaceName, jsonMapper().writeValueAsString(value));
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update {} messages configuration for namespace {}: does not exist", clientAppId(),
+            log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist", clientAppId(),
                     fieldName, namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update {} messages configuration for namespace {}: concurrent modification",
+            log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
                     clientAppId(), fieldName, namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update {} messages configuration for namespace {}", clientAppId(), fieldName
+            log.error("[{}] Failed to update {} configuration for namespace {}", clientAppId(), fieldName
                     , namespaceName, e);
             throw new RestException(e);
         }

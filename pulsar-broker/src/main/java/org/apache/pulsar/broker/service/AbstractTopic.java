@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -100,6 +101,8 @@ public abstract class AbstractTopic implements Topic {
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled());
+        this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
+        this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -476,4 +479,15 @@ public abstract class AbstractTopic implements Topic {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
+
+    public InactiveTopicPolicies getInactiveTopicPolicies() {
+        return inactiveTopicPolicies;
+    }
+
+    public void resetInactiveTopicPolicies(InactiveTopicDeleteMode inactiveTopicDeleteMode
+            , int maxInactiveDurationSeconds, boolean deleteWhileInactive) {
+        inactiveTopicPolicies.setInactiveTopicDeleteMode(inactiveTopicDeleteMode);
+        inactiveTopicPolicies.setMaxInactiveDurationSeconds(maxInactiveDurationSeconds);
+        inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
+    }
 }

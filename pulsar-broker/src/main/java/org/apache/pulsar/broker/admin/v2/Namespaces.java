@@ -861,8 +861,8 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/inactiveTopic")
-    @ApiOperation(value = "Get inactive topic messages config on a namespace.")
+    @Path("/{tenant}/{namespace}/inactiveTopicPolicies")
+    @ApiOperation(value = "Get inactive topic policies config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
@@ -872,9 +872,20 @@ public class Namespaces extends NamespacesBase {
         return internalGetInactiveTopic();
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/inactiveTopicPolicies")
+    @ApiOperation(value = "Remove inactive topic policies from a namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeInactiveTopicPolicies(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetInactiveTopic( null);
+    }
+
     @POST
-    @Path("/{tenant}/{namespace}/inactiveTopic")
-    @ApiOperation(value = "Set inactive topic messages config on a namespace.")
+    @Path("/{tenant}/{namespace}/inactiveTopicPolicies")
+    @ApiOperation(value = "Set inactive topic policies config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"), })
     public void setInactiveTopicPolicies(@PathParam("tenant") String tenant,

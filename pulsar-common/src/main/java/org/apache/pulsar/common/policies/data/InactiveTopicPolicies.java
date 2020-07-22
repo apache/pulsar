@@ -30,6 +30,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class InactiveTopicPolicies {
     private InactiveTopicDeleteMode inactiveTopicDeleteMode;
-    private int brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
+    private int maxInactiveDurationSeconds;
     private boolean deleteWhileInactive;
 }

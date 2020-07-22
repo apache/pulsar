@@ -957,6 +957,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void removeInactiveTopicPolicies(String namespace) throws PulsarAdminException {
+        try {
+            removeInactiveTopicPoliciesAsync(namespace).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "inactiveTopicPolicies");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public CompletableFuture<Void> removeBacklogQuotaAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota")
@@ -1793,7 +1815,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "inactiveTopic");
+        WebTarget path = namespacePath(ns, "inactiveTopicPolicies");
         final CompletableFuture<InactiveTopicPolicies> future = new CompletableFuture<>();
         asyncGetRequest(path, new InvocationCallback<InactiveTopicPolicies>() {
                     @Override
@@ -1829,7 +1851,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> setInactiveTopicPoliciesAsync(
             String namespace, InactiveTopicPolicies inactiveTopicPolicies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "inactiveTopic");
+        WebTarget path = namespacePath(ns, "inactiveTopicPolicies");
         return asyncPostRequest(path, Entity.entity(inactiveTopicPolicies, MediaType.APPLICATION_JSON));
     }
 

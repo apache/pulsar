@@ -76,15 +76,20 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
-    public void testDeletePolicyUpdate() throws Exception {
+    @Test(timeOut = 20000)
+    public void testTopicPolicyUpdateAndClean() throws Exception {
         final String namespace = "prop/ns-abc";
         final String namespace2 = "prop/ns-abc2";
         final String namespace3 = "prop/ns-abc3";
         List<String> namespaceList = Arrays.asList(namespace2, namespace3);
 
+        super.resetConfig();
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        InactiveTopicPolicies defaultPolicy = new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions
+                , 1000, true);
+
         super.baseSetup();
 
         for (String ns : namespaceList) {
@@ -116,24 +121,46 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             if (policies.isDeleteWhileInactive()) {
                 break;
             }
-            Thread.sleep(500);
+            Thread.sleep(1000);
         }
 
         Assert.assertTrue(policies.isDeleteWhileInactive());
         Assert.assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        Assert.assertEquals(policies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 1);
+        Assert.assertEquals(policies.getMaxInactiveDurationSeconds(), 1);
         Assert.assertEquals(policies, admin.namespaces().getInactiveTopicPolicies(namespace));
+
+        admin.namespaces().removeInactiveTopicPolicies(namespace);
+        while (true) {
+            Thread.sleep(500);
+            policies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies;
+            if (policies.getMaxInactiveDurationSeconds() == 1000) {
+                break;
+            }
+        }
+        Assert.assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get()).inactiveTopicPolicies
+                , defaultPolicy);
 
         policies = ((PersistentTopic)pulsar.getBrokerService().getTopic(topic2,false).get().get()).inactiveTopicPolicies;
         Assert.assertTrue(policies.isDeleteWhileInactive());
         Assert.assertEquals(policies.getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        Assert.assertEquals(policies.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 1);
+        Assert.assertEquals(policies.getMaxInactiveDurationSeconds(), 1);
         Assert.assertEquals(policies, admin.namespaces().getInactiveTopicPolicies(namespace2));
+
+        admin.namespaces().removeInactiveTopicPolicies(namespace2);
+        while (true) {
+            Thread.sleep(500);
+            policies = ((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get().get()).inactiveTopicPolicies;
+            if (policies.getMaxInactiveDurationSeconds() == 1000) {
+                break;
+            }
+        }
+        Assert.assertEquals(((PersistentTopic) pulsar.getBrokerService().getTopic(topic2, false).get().get()).inactiveTopicPolicies
+                , defaultPolicy);
 
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    @Test(timeOut = 20000)
     public void testDeleteWhenNoSubscriptionsWithMultiConfig() throws Exception {
         final String namespace = "prop/ns-abc";
         final String namespace2 = "prop/ns-abc2";
