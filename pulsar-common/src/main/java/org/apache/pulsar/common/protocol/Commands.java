@@ -42,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageFilterPolicy;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
@@ -546,14 +547,17 @@ public class Commands {
             boolean createTopicIfDoesNotExist) {
                 return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                         isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
-                        startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null);
+                        startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-               SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-               Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
-               InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
-               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy) {
+                                       SubType subType, int priorityLevel, String consumerName, boolean isDurable,
+                                       MessageIdData startMessageId, Map<String, String> metadata,
+                                       boolean readCompacted, boolean isReplicated,
+                                       InitialPosition subscriptionInitialPosition,
+                                       long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
+                                       boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
+                                       MessageFilterPolicy filterPolicy) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -584,6 +588,14 @@ public class Commands {
             }
 
             subscribeBuilder.setKeySharedMeta(keySharedMetaBuilder.build());
+        }
+
+        if (filterPolicy != null) {
+            PulsarApi.FilterMeta.Builder filterMetaBuilder = PulsarApi.FilterMeta.newBuilder();
+            filterMetaBuilder.setFilterClassName(filterPolicy.getFilterClassName());
+            filterPolicy.getProperties().forEach((s, s2) ->
+                    filterMetaBuilder.addFilterProperties(KeyValue.newBuilder().setKey(s).setValue(s2).build()));
+            subscribeBuilder.setFilterMeta(filterMetaBuilder.build());
         }
 
         if (startMessageId != null) {

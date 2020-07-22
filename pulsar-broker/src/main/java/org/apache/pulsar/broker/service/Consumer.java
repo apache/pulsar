@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -30,11 +27,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.lang.reflect.InvocationTargetException;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -46,12 +44,14 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.filtering.Filter;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
@@ -62,6 +62,10 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * A Consumer is a consumer currently connected and associated with a Subscription
@@ -116,6 +120,8 @@ public class Consumer {
 
     private final PulsarApi.KeySharedMeta keySharedMeta;
 
+    private final Filter filter;
+
     /**
      * It starts keep tracking the average messages per entry.
      * The initial value is 1000, when new value comes, it will update with
@@ -132,7 +138,7 @@ public class Consumer {
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition,
-                    PulsarApi.KeySharedMeta keySharedMeta) throws BrokerServiceException {
+                    PulsarApi.KeySharedMeta keySharedMeta, PulsarApi.FilterMeta filterMeta) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -169,11 +175,36 @@ public class Consumer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
+        // no multi-version support, per message schema, etc
+        // gotta check how pulsar client consumers themselves do it
+
         if (Subscription.isIndividualAckMode(subType)) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
         } else {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
+        }
+        if (filterMeta != null) {
+            Filter tempFilter = null;
+            try {
+                Properties filterProperties = new Properties();
+                filterMeta.getFilterPropertiesList().forEach(kv -> filterProperties.put(kv.getKey(), kv.getValue()));
+
+                Class filterClazz = Class.forName(filterMeta.getFilterClassName());
+                tempFilter = (Filter) filterClazz.getConstructor(Properties.class).newInstance(filterProperties);
+                if (tempFilter.isSchemaAware()) {
+                    Schema<GenericRecord> genericRecordSchema = Schema.AUTO_CONSUME();
+                    genericRecordSchema.configureSchemaInfo(topicName, "", cnx.getBrokerService().getPulsar().getSchemaRegistryService()
+                            .getSchema(TopicName.get(topicName).getSchemaName()).get().schema.toSchemaInfo());
+                    tempFilter.setSchema(genericRecordSchema);
+                }
+            } catch (InstantiationException | InvocationTargetException | NoSuchMethodException | IllegalAccessException | ClassNotFoundException | NullPointerException | InterruptedException | ExecutionException e) {
+                log.warn("Setting up filtered schema on " + topicName + " for consumer " + consumerName + " failed", e);
+                ctx().writeAndFlush(Commands.newError(0, PulsarApi.ServerError.UnknownError, e.getCause().getMessage()));
+            }
+            filter = tempFilter;
+        } else {
+            filter = null;
         }
     }
 
@@ -263,6 +294,7 @@ public class Consumer {
         chuckedMessageRate.recordMultipleEvents(totalChunkedMessages, 0);
 
         ctx.channel().eventLoop().execute(() -> {
+            ArrayList<Position> filteredEntries = new ArrayList<>();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 if (entry == null) {
@@ -291,6 +323,20 @@ public class Consumer {
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 metadataAndPayload.retain();
+
+                // take a look at message and filter it out if necessary
+                metadataAndPayload.markReaderIndex();
+                Commands.skipMessageMetadata(metadataAndPayload);
+                metadataAndPayload.skipBytes(metadataAndPayload.readInt());
+                if (this.filter != null && !this.filter.matches(metadataAndPayload)) {
+                    filteredEntries.add(entry.getPosition());
+                    messageId.recycle();
+                    messageIdBuilder.recycle();
+                    entry.release();
+                    continue;
+                }
+                metadataAndPayload.resetReaderIndex();
+
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     Commands.skipChecksumIfPresent(metadataAndPayload);
@@ -313,6 +359,9 @@ public class Consumer {
                 entry.release();
             }
 
+            if (filteredEntries.size() > 0) {
+                subscription.acknowledgeMessage(filteredEntries, AckType.Individual, null);
+            }
             // Use an empty write here so that we can just tie the flush with the write promise for last entry
             ctx.writeAndFlush(Unpooled.EMPTY_BUFFER, writePromise);
             batchSizes.recyle();

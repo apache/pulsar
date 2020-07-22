@@ -34,18 +34,7 @@ import java.util.regex.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
-import org.apache.pulsar.client.api.ConsumerEventListener;
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.KeySharedPolicy;
-import org.apache.pulsar.client.api.MessageCrypto;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.RegexSubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 
 @Data
 @NoArgsConstructor
@@ -124,6 +113,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean resetIncludeHead = false;
 
     private KeySharedPolicy keySharedPolicy;
+
+    private MessageFilterPolicy messageFilterPolicy;
 
     @JsonIgnore
     public String getSingleTopic() {

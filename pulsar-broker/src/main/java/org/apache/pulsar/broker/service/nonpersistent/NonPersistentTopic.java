@@ -235,9 +235,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
-            long resetStartMessageBackInSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
+                                                 SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+                                                 Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+                                                 long resetStartMessageBackInSec, boolean replicateSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta, PulsarApi.FilterMeta filterMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -288,7 +288,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
-                    cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
+                    cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta, filterMeta);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();

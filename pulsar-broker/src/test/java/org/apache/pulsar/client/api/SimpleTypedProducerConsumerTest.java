@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -52,6 +48,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.*;
 
 public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
@@ -672,6 +670,62 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         } catch (RuntimeException e) {
             // expected
         }
+    }
+
+    @Test
+    public void testFilteredAvroProducerConsumer() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        AvroSchema<AvroEncodedPojo> avroSchema =
+                AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
+                        withPojo(AvroEncodedPojo.class).build());
+
+        Consumer<AvroEncodedPojo> consumer = pulsarClient
+                .newConsumer(avroSchema)
+                .messageFilterPolicy(new MessageFilterPolicy("org.apache.pulsar.broker.service.filtering.BasicAvroFilter") {
+                    @Override
+                    public Map<String, String> getProperties() {
+                        HashMap<String, String> map = new HashMap<>();
+                        map.put("message", "my-message-3");
+                        return map;
+                    }
+                })
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        Producer<AvroEncodedPojo> producer = pulsarClient
+                .newProducer(avroSchema)
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
+
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            producer.send(new AvroEncodedPojo(message));
+        }
+
+        Message<AvroEncodedPojo> msg = null;
+        Set<AvroEncodedPojo> messageSet = Sets.newHashSet();
+        for (int i = 3; i < 4; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            AvroEncodedPojo receivedMessage = msg.getValue();
+            log.debug("Received message: [{}]", receivedMessage);
+            AvroEncodedPojo expectedMessage = new AvroEncodedPojo("my-message-" + i);
+            testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+        consumer.close();
+
+        SchemaRegistry.SchemaAndMetadata storedSchema = pulsar.getSchemaRegistryService()
+                .getSchema("my-property/my-ns/my-topic1")
+                .get();
+
+        Assert.assertEquals(storedSchema.schema.getData(), avroSchema.getSchemaInfo().getSchema());
+
+        log.info("-- Exiting {} test --", methodName);
+
     }
 
 }

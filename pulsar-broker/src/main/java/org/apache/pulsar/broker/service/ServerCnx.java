@@ -765,6 +765,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState() && subscribe.getReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.getForceTopicCreation();
         final PulsarApi.KeySharedMeta keySharedMeta = subscribe.hasKeySharedMeta() ? subscribe.getKeySharedMeta() : null;
+        final PulsarApi.FilterMeta filterMeta = subscribe.hasFilterMeta() ? subscribe.getFilterMeta() : null;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -861,12 +862,12 @@ public class ServerCnx extends PulsarHandler {
                                             .thenCompose(v -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                     subType, priorityLevel, consumerName, isDurable,
                                                     startMessageId, metadata,
-                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated, keySharedMeta));
+                                                    readCompacted, initialPosition, startMessageRollbackDurationSec, isReplicated, keySharedMeta, filterMeta));
                                     } else {
                                         return topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                             subType, priorityLevel, consumerName, isDurable,
                                             startMessageId, metadata, readCompacted, initialPosition,
-                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta);
+                                            startMessageRollbackDurationSec, isReplicated, keySharedMeta, filterMeta);
                                     }
                                 })
                                 .thenAccept(consumer -> {
