@@ -257,8 +257,13 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
     if (serverProtocolVersion_ >= v1) {
         // Only send keep-alive probes if the broker supports it
         keepAliveTimer_ = executor_->createDeadlineTimer();
-        keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
-        keepAliveTimer_->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        Lock lock(mutex_);
+        if (keepAliveTimer_) {
+            keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
+            keepAliveTimer_->async_wait(
+                std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+        }
+        lock.unlock();
     }
 
     if (serverProtocolVersion_ >= v8) {
@@ -1344,12 +1349,15 @@ void ClientConnection::handleKeepAliveTimeout() {
         havePendingPingRequest_ = true;
         sendCommand(Commands::newPing());
 
-        // If the close operation has already called the keepAliveTimer_.reset() then the use_count will be zero And we do not attempt
-        // to dereference the pointer.
+        // If the close operation has already called the keepAliveTimer_.reset() then the use_count will be
+        // zero And we do not attempt to dereference the pointer.
+        Lock lock(mutex_);
         if (keepAliveTimer_) {
             keepAliveTimer_->expires_from_now(boost::posix_time::seconds(KeepAliveIntervalInSeconds));
-            keepAliveTimer_->async_wait(std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
+            keepAliveTimer_->async_wait(
+                std::bind(&ClientConnection::handleKeepAliveTimeout, shared_from_this()));
         }
+        lock.unlock();
     }
 }
 
@@ -1367,7 +1375,7 @@ void ClientConnection::close() {
     if (isClosed()) {
         return;
     }
-    // Use a sleep to stress the timers when the pop to find the race conditions with close(). 
+    // Use a sleep to stress the timers when the pop to find the race conditions with close().
     // sleep(30);
     state_ = Disconnected;
     boost::system::error_code err;
@@ -1381,13 +1389,17 @@ void ClientConnection::close() {
     LOG_INFO(cnxString_ << "Connection closed");
 
     if (keepAliveTimer_) {
+        lock.lock();
         keepAliveTimer_->cancel();
         keepAliveTimer_.reset();
+        lock.unlock();
     }
 
     if (consumerStatsRequestTimer_) {
+        lock.lock();
         consumerStatsRequestTimer_->cancel();
         consumerStatsRequestTimer_.reset();
+        lock.unlock();
     }
 
     for (ProducersMap::iterator it = producers.begin(); it != producers.end(); ++it) {
