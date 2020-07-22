@@ -388,7 +388,7 @@ TEST(AuthPluginTest, testOauth2CredentialFile) {
     std::string params = R"({
         "type": "client_credentials",
         "issuer_url": "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
-        "keyfile_path": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
+        "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
         "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
 
     int expectedTokenLength = 3379;

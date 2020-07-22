@@ -259,11 +259,11 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
 
 AuthOauth2::AuthOauth2(ParamMap& params) {
     std::map<std::string, std::string>::iterator it;
-    it = params.find("keyfile_path");
+    it = params.find("private_key");
 
     if (it != params.end()) {
         flowPtr_ = FlowPtr(
-            new ClientCredentialFlow(params["issuer_url"], params["keyfile_path"], params["audience"]));
+            new ClientCredentialFlow(params["issuer_url"], params["private_key"], params["audience"]));
     } else {
         flowPtr_ = FlowPtr(new ClientCredentialFlow(params["issuer_url"], params["client_id"],
                                                     params["client_secret"], params["audience"]));
