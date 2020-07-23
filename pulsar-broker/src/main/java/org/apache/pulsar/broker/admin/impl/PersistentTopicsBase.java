@@ -2031,11 +2031,12 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn(
                     "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
                     clientAppId(), topicName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Backlog Quota exceeds configured retention quota for topic. Please increase retention quota and retry");
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                    "Backlog Quota exceeds configured retention quota for topic. " +
+                            "Please increase retention quota and retry"));
         }
 
-        if(backlogQuota!=null){
+        if(backlogQuota != null){
             topicPolicies.getBackLogQuotaMap().put(backlogQuotaType.name(), backlogQuota);
         }else {
             topicPolicies.getBackLogQuotaMap().remove(backlogQuotaType.name());
