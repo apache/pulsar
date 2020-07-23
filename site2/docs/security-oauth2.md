@@ -96,7 +96,7 @@ PulsarClient client = PulsarClient.builder()
     .build();
 ```
 
-### CPP
+### C++ client
 
 Cpp client is similar to java client. user need to provide parameters of issuerUrl, private_key(which is the credentials file path), and audience.
 
