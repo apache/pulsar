@@ -183,7 +183,7 @@ public abstract class MockedPulsarServiceBaseTest {
         startBroker();
     }
 
-    protected final void internalCleanup() throws Exception {
+    protected final void internalCleanup() {
         try {
             // if init fails, some of these could be null, and if so would throw
             // an NPE in shutdown, obscuring the real error
@@ -204,11 +204,25 @@ public abstract class MockedPulsarServiceBaseTest {
             if (mockZooKeeper != null) {
                 mockZooKeeper.shutdown();
             }
-            if (sameThreadOrderedSafeExecutor != null) {
-                sameThreadOrderedSafeExecutor.shutdown();
+            if(sameThreadOrderedSafeExecutor != null) {
+                try {
+                    sameThreadOrderedSafeExecutor.shutdownNow();
+                    sameThreadOrderedSafeExecutor.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    log.error("sameThreadOrderedSafeExecutor shutdown had error", ex);
+                    Thread.currentThread().interrupt();
+                }
+                sameThreadOrderedSafeExecutor = null;
             }
-            if (bkExecutor != null) {
-                bkExecutor.shutdown();
+            if(bkExecutor != null) {
+                try {
+                    bkExecutor.shutdownNow();
+                    bkExecutor.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    log.error("bkExecutor shutdown had error", ex);
+                    Thread.currentThread().interrupt();
+                }
+                bkExecutor = null;
             }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
@@ -278,8 +292,7 @@ public abstract class MockedPulsarServiceBaseTest {
         }
         Set<String> allowedClusters = Sets.newHashSet();
         allowedClusters.add(configClusterName);
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(), allowedClusters);
-        return tenantInfo;
+        return new TenantInfo(Sets.newHashSet(), allowedClusters);
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {
@@ -331,7 +344,7 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
+    private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
