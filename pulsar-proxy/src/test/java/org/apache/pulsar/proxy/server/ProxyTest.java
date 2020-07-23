@@ -221,7 +221,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic1")
+                .topic("persistent://sample/test/local/regex-sub-topic1")
                 .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));
