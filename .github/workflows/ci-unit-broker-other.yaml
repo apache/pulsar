@@ -43,7 +43,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: build modules
-        run: mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: run unit tests for pulsar-broker exlcude "org/apache/pulsar/broker", "org/apache/pulsar/client"
         run: mvn -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'

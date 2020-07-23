@@ -43,7 +43,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: build package
-        run: mvn -B -ntp -q package -pl distribution/server -am -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: build cpp artifacts
         run: |
