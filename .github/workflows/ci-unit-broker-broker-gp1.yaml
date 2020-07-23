@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - CPP, Python Tests
+name: CI - Unit - Brokers - Broker Group 1
 on:
   pull_request:
     branches:
@@ -28,7 +28,7 @@ on:
 
 jobs:
 
-  cpp-tests:
+  unit-tests:
     name:
     runs-on: ubuntu-latest
     container:
@@ -42,14 +42,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: build package
-        run: mvn -B -ntp -q package -pl distribution/server -am -DskipTests
+      - name: build modules
+        run: mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
 
-      - name: build cpp artifacts
+      - name: run unit tests for pulsar-broker
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
+
+      - name: run flaky test
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
+
+      - name: package surefire artifacts
+        if: failure()
         run: |
-          echo "Build C++ client library"
-          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
-          pulsar-client-cpp/docker-build.sh
+          rm -rf artifacts
+          mkdir artifacts
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
+          zip -r artifacts.zip artifacts
 
-      - name: run c++ tests
-        run: pulsar-client-cpp/docker-tests.sh
+      - uses: actions/upload-artifact@master
+        name: upload surefire-artifacts
+        if: failure()
+        with:
+          name: surefire-artifacts
+          path: artifacts.zip
