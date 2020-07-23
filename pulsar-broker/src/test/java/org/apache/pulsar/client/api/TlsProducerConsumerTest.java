@@ -18,13 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
+import org.apache.commons.compress.utils.IOUtils;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import lombok.Cleanup;
 
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerTest.class);
@@ -123,5 +135,104 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testTlsCertsFromDynamicStream() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
+        AtomicInteger index = new AtomicInteger(0);
+
+        ByteArrayInputStream certStream = createByteInputStream(TLS_CLIENT_CERT_FILE_PATH);
+        ByteArrayInputStream keyStream = createByteInputStream(TLS_CLIENT_KEY_FILE_PATH);
+
+        Supplier<ByteArrayInputStream> certProvider = () -> getStream(index, certStream);
+        Supplier<ByteArrayInputStream> keyProvider = () -> getStream(index, keyStream);
+        AuthenticationTls auth = new AuthenticationTls(certProvider, keyProvider);
+        clientBuilder.authentication(auth);
+        @Cleanup
+        PulsarClient pulsarClient = clientBuilder.build();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        // unload the topic so, new connection will be made and read the cert streams again
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        topicRef.close(false);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .createAsync().get(30, TimeUnit.SECONDS);
+        for (int i = 0; i < 10; i++) {
+            producer.send(("test" + i).getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        for (int i = 0; i < 10; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String exepctedMsg = "test" + i;
+            Assert.assertEquals(exepctedMsg.getBytes(), msg.getData());
+        }
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * It verifies that AuthenticationTls provides cert refresh functionality.
+     *
+     * <pre>
+     *  a. Create Auth with invalid cert
+     *  b. Consumer fails with invalid tls certs
+     *  c. refresh cert in provider
+     *  d. Consumer successfully gets created
+     * </pre>
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS);
+        AtomicInteger certIndex = new AtomicInteger(1);
+        AtomicInteger keyIndex = new AtomicInteger(0);
+        ByteArrayInputStream certStream = createByteInputStream(TLS_CLIENT_CERT_FILE_PATH);
+        ByteArrayInputStream keyStream = createByteInputStream(TLS_CLIENT_KEY_FILE_PATH);
+        Supplier<ByteArrayInputStream> certProvider = () -> getStream(certIndex, certStream,
+                keyStream/* invalid cert file */);
+        Supplier<ByteArrayInputStream> keyProvider = () -> getStream(keyIndex, keyStream);
+        AuthenticationTls auth = new AuthenticationTls(certProvider, keyProvider);
+        clientBuilder.authentication(auth);
+        @Cleanup
+        PulsarClient pulsarClient = clientBuilder.build();
+        Consumer<byte[]> consumer = null;
+        try {
+            consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+                    .subscriptionName("my-subscriber-name").subscribe();
+            Assert.fail("should have failed due to invalid tls cert");
+        } catch (PulsarClientException e) {
+            // Ok..
+        }
+
+        certIndex.set(0);
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribe();
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    private ByteArrayInputStream createByteInputStream(String filePath) throws IOException {
+        InputStream inStream = new FileInputStream(filePath);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        IOUtils.copy(inStream, baos);
+        return new ByteArrayInputStream(baos.toByteArray());
+    }
+
+    private ByteArrayInputStream getStream(AtomicInteger index, ByteArrayInputStream... streams) {
+        return streams[index.intValue()];
     }
 }

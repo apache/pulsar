@@ -22,8 +22,8 @@ import com.google.common.annotations.Beta;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * The metadata for the transaction in the transaction buffer.

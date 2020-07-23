@@ -29,6 +29,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.WorkerImpl;
 
 import javax.ws.rs.GET;
+import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
@@ -113,5 +114,19 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return worker.getListOfConnectors(clientAppId());
+    }
+
+    @PUT
+    @ApiOperation(
+            value = "Triggers a rebalance of functions to workers"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/rebalance")
+    public void rebalance() {
+        worker.rebalance(uri.getRequestUri(), clientAppId());
     }
 }

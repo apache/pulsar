@@ -25,26 +25,38 @@ on:
     paths:
       - '.github/workflows/**'
       - 'pulsar-function-go/**'
+  push:
+    branches:
+      - branch-*
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.11, 1.12, 1.13, 1.14]
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if this pull request only changes documentation
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml
+          args: site2 .github deployment .asf.yaml .ci ct.yaml
 
-      - name: Set up Go 1.12
+      - name: Set up Go
         uses: actions/setup-go@v1
         if: steps.docs.outputs.changed_only == 'no'
         with:
-          go-version: 1.12
+          go-version: ${{ matrix.go-version }}
         id: go
 
       - name: InstallTool
@@ -58,7 +70,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
-          go build ./pf
+          go build ./...
 
       - name: CheckStyle
         if: steps.docs.outputs.changed_only == 'no'

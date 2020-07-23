@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.

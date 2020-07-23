@@ -21,15 +21,20 @@ package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -66,12 +71,17 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
-            SendMessageInfo sendMessageInfo) {
+             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor) {
         int totalMessages = 0;
         long totalBytes = 0;
+        int totalChunkedMessages = 0;
 
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
+            if (entry == null) {
+                continue;
+            }
+
             ByteBuf metadataAndPayload = entry.getDataBuffer();
 
             MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
@@ -101,7 +111,16 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 int batchSize = msgMetadata.getNumMessagesInBatch();
                 totalMessages += batchSize;
                 totalBytes += metadataAndPayload.readableBytes();
+                totalChunkedMessages += msgMetadata.hasChunkId() ? 1: 0;
                 batchSizes.setBatchSize(i, batchSize);
+                if (indexesAcks != null && cursor != null) {
+                    long[] ackSet = cursor.getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                    if (ackSet != null) {
+                        indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    } else {
+                        indexesAcks.setIndexesAcks(i,null);
+                    }
+                }
             } finally {
                 msgMetadata.recycle();
             }
@@ -109,6 +128,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
+        sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
     }
 
     private void processReplicatedSubscriptionSnapshot(PositionImpl pos, ByteBuf headersAndPayload) {
@@ -129,18 +149,18 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     }
 
     public static final String NONE_KEY = "NONE_KEY";
+
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         metadataAndPayload.markReaderIndex();
         PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
         metadataAndPayload.resetReaderIndex();
-        String key = metadata.getPartitionKey();
-        if (log.isDebugEnabled()) {
-            log.debug("Parse message metadata, partition key is {}, ordering key is {}", key, metadata.getOrderingKey());
-        }
-        if (StringUtils.isNotBlank(key) || metadata.hasOrderingKey()) {
-            return metadata.hasOrderingKey() ? metadata.getOrderingKey().toByteArray() : key.getBytes();
+        byte[] key = NONE_KEY.getBytes();
+        if (metadata.hasOrderingKey()) {
+            return metadata.getOrderingKey().toByteArray();
+        } else if (metadata.hasPartitionKey()) {
+            return metadata.getPartitionKey().getBytes();
         }
         metadata.recycle();
-        return NONE_KEY.getBytes();
+        return key;
     }
 }

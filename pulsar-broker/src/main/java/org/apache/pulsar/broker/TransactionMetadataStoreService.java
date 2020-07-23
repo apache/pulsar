@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -31,8 +32,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvide
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,7 +118,7 @@ public class TransactionMetadataStoreService {
         if (metadataStore != null) {
             metadataStore.closeAsync().whenComplete((v, ex) -> {
                 if (ex != null) {
-                    LOG.error("Close transaction metadata store with id {} error", ex);
+                    LOG.error("Close transaction metadata store with id " + tcId, ex);
                 } else {
                     LOG.info("Removed and closed transaction meta store {}", tcId);
                 }

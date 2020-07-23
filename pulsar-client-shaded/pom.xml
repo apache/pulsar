@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -36,7 +36,13 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 
@@ -58,7 +64,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -67,7 +73,7 @@
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
                 </artifactItem>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -137,13 +143,24 @@
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
-
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
+                <filter>
+                  <!-- Shading signed JARs will fail without
+                      this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
@@ -249,10 +266,6 @@
                 <relocation>
                   <pattern>com.thoughtworks.paranamer</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.commons</pattern>

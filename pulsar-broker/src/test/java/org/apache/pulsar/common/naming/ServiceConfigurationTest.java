@@ -63,6 +63,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBrokerDeleteInactiveTopicsMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         assertEquals(config.getDefaultNamespaceBundleSplitAlgorithm(), "topic_count_equally_divide");
         assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
+        assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
     }
 
     @Test

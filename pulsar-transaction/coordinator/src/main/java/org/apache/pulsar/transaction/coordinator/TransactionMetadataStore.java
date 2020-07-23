@@ -23,8 +23,8 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A store for storing all the transaction metadata.

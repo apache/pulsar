@@ -69,10 +69,10 @@ import org.jclouds.googlecloud.GoogleCredentialsFromJson;
 import org.jclouds.googlecloudstorage.GoogleCloudStorageProviderMetadata;
 import org.jclouds.io.Payload;
 import org.jclouds.io.Payloads;
-import org.jclouds.osgi.ProviderRegistry;
-import org.jclouds.s3.reference.S3Constants;
 import org.jclouds.osgi.ApiRegistry;
+import org.jclouds.osgi.ProviderRegistry;
 import org.jclouds.s3.S3ApiMetadata;
+import org.jclouds.s3.reference.S3Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -481,12 +481,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 addVersionInfo(blobBuilder, userMetadata);
                 Payload indexPayload = Payloads.newInputStreamPayload(indexStream);
-                indexPayload.getContentMetadata().setContentLength((long)indexStream.getStreamSize());
+                indexPayload.getContentMetadata().setContentLength(indexStream.getStreamSize());
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
                 Blob blob = blobBuilder
                     .payload(indexPayload)
-                    .contentLength((long)indexStream.getStreamSize())
+                    .contentLength(indexStream.getStreamSize())
                     .build();
 
                 writeBlobStore.putBlob(writeBucket, blob);

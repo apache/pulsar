@@ -74,6 +74,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("info-internal", new GetInternalInfo());
 
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+        jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
 
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("clear-backlog", new ClearBacklog());
@@ -89,6 +90,7 @@ public class CmdTopics extends CmdBase {
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
+        jcommander.addCommand("get-message-by-id", new GetMessageById());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -354,13 +356,17 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+            "--force" }, description = "Disconnect and close all consumers and delete subscription forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
         private String subName;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            topics.deleteSubscription(topic, subName);
+            topics.deleteSubscription(topic, subName, force);
         }
     }
 
@@ -370,10 +376,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getStats(topic));
+            print(topics.getStats(topic, getPreciseBacklog));
         }
     }
 
@@ -412,10 +422,27 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--per-partition", description = "Get per partition stats")
         private boolean perPartition = false;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(topics.getPartitionedStats(topic, perPartition));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the internal stats for the partitioned topic and its connected producers and consumers. \n"
+            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    private class GetPartitionedStatsInternal extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(topics.getPartitionedInternalStats(topic));
         }
     }
 
@@ -605,6 +632,32 @@ public class CmdTopics extends CmdBase {
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(data));
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message by its ledgerId and entryId")
+    private class GetMessageById extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--ledgerId" },
+            description = "ledger id pointing to the desired ledger",
+            required = true)
+        private long ledgerId;
+
+        @Parameter(names = { "-e", "--entryId" },
+            description = "entry id pointing to the desired entry",
+            required = true)
+        private long entryId;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            Message<byte[]> message = topics.getMessageById(persistentTopic, ledgerId, entryId);
+
+            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(date));
         }
     }
 

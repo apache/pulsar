@@ -229,6 +229,21 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
+     * Select the subscription mode to be used when subscribing to the topic.
+     *
+     * <p>Options are:
+     * <ul>
+     *  <li>{@link SubscriptionMode#Durable} (Default)</li>
+     *  <li>{@link SubscriptionMode#NonDurable}</li>
+     * </ul>
+     *
+     * @param subscriptionMode
+     *            the subscription mode value
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> subscriptionMode(SubscriptionMode subscriptionMode);
+
+    /**
      * Sets a {@link MessageListener} for the consumer
      *
      * <p>When a {@link MessageListener} is set, application will receive messages through it. Calls to
@@ -250,6 +265,17 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return the consumer builder instance
      */
     ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+
+    /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto
+     *            MessageCrypto object
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified.
@@ -542,7 +568,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>Or
      * <pre>
      * client.newConsumer()
-     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange().hashRangeTotal(100))
+     *          .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
      *          .subscribe();
      * </pre>
      * Details about auto split hash range policy, please see {@link KeySharedPolicy.KeySharedPolicyAutoSplit}.
@@ -573,4 +599,59 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * </pre>
      */
     ConsumerBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy);
+
+    /**
+     * If enabled, the consumer will auto retry message.
+     * default unabled.
+     *
+     * @param retryEnable
+     *            whether to auto retry message
+     */
+    ConsumerBuilder<T> enableRetry(boolean retryEnable);
+
+    /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
+     * consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed
+     * with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different
+     * messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or
+     * publisher failed to publish all chunks of the messages.
+     *
+     * <pre>
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 messages belong to M2 message.
+     * </pre>
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChuckedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
+     * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+     *
+     * @default 100
+     *
+     * @param maxPendingChuckedMessage
+     * @return
+     */
+    ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage);
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChuckedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking if autoAckOldestChunkedMessageOnQueueFull is true else it
+     * marks them for redelivery.
+     *
+     * @default false
+     *
+     * @param autoAckOldestChunkedMessageOnQueueFull
+     * @return
+     */
+    ConsumerBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull);
+
+    /**
+     * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
+     * won't be able to receive all chunks in expire times (default 1 hour).
+     *
+     * @param duration
+     * @param unit
+     * @return
+     */
+    ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
 }

@@ -137,19 +137,18 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             }
         }
 
-        ReadOnlyCursorImpl cursor = new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
-        return cursor;
+        return new ReadOnlyCursorImpl(bookKeeper, config, this, startPosition, "read-only-cursor");
     }
 
     @Override
     public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
-            this.getLedgerHandle(position.getLedgerId()).thenAccept((ledger) -> {
-                asyncReadEntry(ledger, position, callback, ctx);
-            }).exceptionally((ex) -> {
-                log.error("[{}] Error opening ledger for reading at position {} - {}", new Object[]{this.name, position, ex.getMessage()});
-                callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
-                return null;
-            });
+            this.getLedgerHandle(position.getLedgerId())
+                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                    .exceptionally((ex) -> {
+                        log.error("[{}] Error opening ledger for reading at position {} - {}", this.name, position, ex.getMessage());
+                        callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
+                        return null;
+                    });
     }
 
     @Override
@@ -157,6 +156,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return getNumberOfEntries(Range.openClosed(PositionImpl.earliest, getLastPosition()));
     }
 
+    @Override
     protected boolean isReadOnly() {
         return true;
     }

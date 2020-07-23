@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.transaction.coordinator.exceptions;
 
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * The base exception for exceptions thrown from coordinator.

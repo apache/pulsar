@@ -22,15 +22,15 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.IntegerType;
-import com.facebook.presto.spi.type.TimestampType;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarcharType;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.VarcharType;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -218,11 +218,12 @@ public abstract class PulsarInternalColumn {
                 getName(),
                 getType(),
                 hidden,
-                true, null, null);
+                true, null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
     }
 
     PulsarColumnMetadata getColumnMetadata(boolean hidden) {
-        return new PulsarColumnMetadata(name, type, comment, null, hidden, true, null, null);
+        return new PulsarColumnMetadata(name, type, comment, null, hidden, true, null, null,
+                PulsarColumnHandle.HandleKeyValueType.NONE);
     }
 
     public static Set<PulsarInternalColumn> getInternalFields() {

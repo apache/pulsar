@@ -93,7 +93,7 @@ public class SaslRoleTokenSigner {
      */
     protected String computeSignature(String str) {
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA");
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
 
             md.update(str.getBytes());
 

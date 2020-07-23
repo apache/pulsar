@@ -82,7 +82,7 @@ public class DiscoveryService implements Closeable {
     }
 
     /**
-     * Starts discovery service by initializing zookkeeper and server
+     * Starts discovery service by initializing ZooKeeper and server
      *
      * @throws Exception
      */

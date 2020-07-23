@@ -40,9 +40,11 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
@@ -58,6 +60,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private String subscriptionName;
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+
+    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
     private MessageListener<T> messageListener;
@@ -80,9 +84,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private long tickDurationMillis = 1000;
 
     private int priorityLevel = 0;
+    
+    // max pending chunked message to avoid sitting incomplete message into the queue and memory
+    private int maxPendingChuckedMessage = 10;
+    
+    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
+
+    @JsonIgnore
+    private MessageCrypto messageCrypto = null;
 
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
@@ -97,6 +111,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     private DeadLetterPolicy deadLetterPolicy;
+
+    private boolean retryEnable = false;
 
     @JsonIgnore
     private BatchReceivePolicy batchReceivePolicy;

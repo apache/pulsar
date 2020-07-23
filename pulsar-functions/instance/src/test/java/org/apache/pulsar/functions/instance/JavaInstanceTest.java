@@ -22,10 +22,19 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class JavaInstanceTest {
 
     /**
@@ -33,14 +42,98 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testLambda() {
+    public void testLambda() throws Exception {
         JavaInstance instance = new JavaInstance(
-            mock(ContextImpl.class),
-            (Function<String, String>) (input, context) -> input + "-lambda");
+                mock(ContextImpl.class),
+                (Function<String, String>) (input, context) -> input + "-lambda",
+                new InstanceConfig());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(mock(Record.class), testString);
-        assertNotNull(result.getResult());
-        assertEquals(new String(testString + "-lambda"), result.getResult());
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNotNull(result.get().getResult());
+        assertEquals(new String(testString + "-lambda"), result.get().getResult());
         instance.close();
+    }
+
+    @Test
+    public void testAsyncFunction() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<String>> function = (input, context) -> {
+            log.info("input string: {}", input);
+            CompletableFuture<String> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+                try {
+                    Thread.sleep(500);
+                    result.complete(String.format("%s-lambda", input));
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+        CompletableFuture<JavaExecutionResult> result = instance.handleMessage(mock(Record.class), testString);
+        assertNotNull(result.get().getResult());
+        assertEquals(new String(testString + "-lambda"), result.get().getResult());
+        instance.close();
+        executor.shutdownNow();
+    }
+
+    @Test
+    public void testAsyncFunctionMaxPending() throws Exception {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        int pendingQueueSize = 3;
+        instanceConfig.setMaxPendingAsyncRequests(pendingQueueSize);
+        ExecutorService executor = Executors.newCachedThreadPool();
+
+        Function<String, CompletableFuture<String>> function = (input, context) -> {
+            log.info("input string: {}", input);
+            CompletableFuture<String> result  = new CompletableFuture<>();
+            executor.submit(() -> {
+                try {
+                    Thread.sleep(500);
+                    result.complete(String.format("%s-lambda", input));
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            });
+
+            return result;
+        };
+
+        JavaInstance instance = new JavaInstance(
+                mock(ContextImpl.class),
+                function,
+                instanceConfig);
+        String testString = "ABC123";
+
+        long startTime = System.currentTimeMillis();
+        assertEquals(pendingQueueSize, instance.getPendingAsyncRequests().remainingCapacity());
+        CompletableFuture<JavaExecutionResult> result1 = instance.handleMessage(mock(Record.class), testString);
+        assertEquals(pendingQueueSize - 1, instance.getPendingAsyncRequests().remainingCapacity());
+        CompletableFuture<JavaExecutionResult> result2 = instance.handleMessage(mock(Record.class), testString);
+        assertEquals(pendingQueueSize - 2, instance.getPendingAsyncRequests().remainingCapacity());
+        CompletableFuture<JavaExecutionResult> result3 = instance.handleMessage(mock(Record.class), testString);
+        // no space left
+        assertEquals(0, instance.getPendingAsyncRequests().remainingCapacity());
+
+        instance.getPendingAsyncRequests().remainingCapacity();
+        assertNotNull(result1.get().getResult());
+        assertNotNull(result2.get().getResult());
+        assertNotNull(result3.get().getResult());
+
+        assertEquals(new String(testString + "-lambda"), result1.get().getResult());
+        long endTime = System.currentTimeMillis();
+
+        log.info("start:{} end:{} during:{}", startTime, endTime, endTime - startTime);
+        instance.close();
+        executor.shutdownNow();
     }
 }

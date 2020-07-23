@@ -28,12 +28,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 
 /**
  * A class represents the metadata of a transaction stored in

@@ -244,6 +244,53 @@ public interface Consumer<T> extends Closeable {
     void negativeAcknowledge(Messages<?> messages);
 
     /**
+     * reconsumeLater the consumption of {@link Messages}.
+     *
+     *<p>When a message is "reconsumeLater" it will be marked for redelivery after
+     * some custom delay.
+     *
+     * <p>Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message&lt;String&gt; msg = consumer.receive();
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.reconsumeLater(msg, 1000 , TimeUnit.MILLISECONDS);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            the {@code Message} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
+     * reconsumeLater the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            the {@code messages} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *              if the consumer was already closed
+     */
+    void reconsumeLater(Messages<?> messages, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
      * Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
      *
      * <p>This method will block until the acknowledge has been sent to the broker. After that, the messages will not be
@@ -278,6 +325,20 @@ public interface Consumer<T> extends Closeable {
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
     /**
+     * reconsumeLater the reception of all the messages in the stream up to (and including) the provided message.
+     *
+     * @param message
+     *            The {@code message} to be cumulatively reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     */
+    void reconsumeLaterCumulative(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException;
+
+    /**
      * Asynchronously acknowledge the consumption of a single message.
      *
      * @param message
@@ -305,6 +366,32 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
 
     /**
+     * Asynchronously reconsumeLater the consumption of a single message.
+     *
+     * @param message
+     *            The {@code Message} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit);
+
+    /**
+     * Asynchronously reconsumeLater the consumption of {@link Messages}.
+     *
+     * @param messages
+     *            The {@link Messages} to be reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterAsync(Messages<?> messages, long delayTime, TimeUnit unit);
+
+    /**
      * Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
      * message.
      *
@@ -327,6 +414,22 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId);
+
+    /**
+     * Asynchronously ReconsumeLater the reception of all the messages in the stream up to (and including) the provided
+     * message.
+     *
+     * <p>Cumulative reconsumeLater cannot be used when the consumer type is set to ConsumerShared.
+     *
+     * @param message
+     *            The {@code message} to be cumulatively reconsumeLater
+     * @param delayTime
+     *            the amount of delay before the message will be delivered
+     * @param unit
+     *            the time unit for the delay
+     * @return a future that can be used to track the completion of the operation
+     */
+    CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit);
 
     /**
      * Get statistics for the consumer.

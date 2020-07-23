@@ -117,6 +117,9 @@ static Result getResult(ServerError serverError) {
 
         case InvalidTxnStatus:
             return ResultInvalidTxnStatusError;
+
+        case NotAllowedError:
+            return ResultNotAllowedError;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -412,6 +415,15 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
 
     // Schedule the reading of CONNECTED command from broker
     readNextCommand();
+}
+
+void ClientConnection::handleSentAuthResponse(const boost::system::error_code& err,
+                                              const SharedBuffer& buffer) {
+    if (err) {
+        LOG_WARN(cnxString_ << "Failed to send auth response: " << err.message());
+        close();
+        return;
+    }
 }
 
 /*
@@ -1024,6 +1036,15 @@ void ClientConnection::handleIncomingCommand() {
                     LOG_DEBUG(cnxString_ << "Received response to ping message");
                     havePendingPingRequest_ = false;
                     break;
+                }
+
+                case BaseCommand::AUTH_CHALLENGE: {
+                    LOG_DEBUG(cnxString_ << "Received auth challenge from broker");
+
+                    SharedBuffer buffer = Commands::newAuthResponse(authentication_);
+                    asyncWrite(buffer.const_asio_buffer(),
+                               std::bind(&ClientConnection::handleSentAuthResponse, shared_from_this(),
+                                         std::placeholders::_1, buffer));
                 }
 
                 case BaseCommand::ACTIVE_CONSUMER_CHANGE: {

@@ -63,7 +63,7 @@ public class JavaInstanceMain {
         // Get classpath for function instance
         String functionInstanceClasspath = System.getProperty(FUNCTIONS_INSTANCE_CLASSPATH);
         if (functionInstanceClasspath == null) {
-            throw new IllegalArgumentException("Propery " + FUNCTIONS_INSTANCE_CLASSPATH + " is not set!");
+            throw new IllegalArgumentException("Property " + FUNCTIONS_INSTANCE_CLASSPATH + " is not set!");
         }
 
         List<File> files = new LinkedList<>();

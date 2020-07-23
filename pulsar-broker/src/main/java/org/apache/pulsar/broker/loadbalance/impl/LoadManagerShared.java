@@ -118,7 +118,7 @@ public class LoadManagerShared {
             try {
                 brokerUrl = new URL(brokerUrlString);
             } catch (MalformedURLException e) {
-                log.error("Unable to parse brokerUrl from ResourceUnitId - [{}]", e);
+                log.error("Unable to parse brokerUrl from ResourceUnitId", e);
                 continue;
             }
             // todo: in future check if the resource unit has resources to take the namespace
@@ -209,7 +209,7 @@ public class LoadManagerShared {
         // the bundle format is property/cluster/namespace/0x00000000_0xFFFFFFFF
         int pos = bundleName.lastIndexOf("/");
         checkArgument(pos != -1);
-        return bundleName.substring(pos + 1, bundleName.length());
+        return bundleName.substring(pos + 1);
     }
 
     // From a full bundle name, extract the namespace name.

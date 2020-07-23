@@ -36,6 +36,9 @@ public class InstanceConfig {
     private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
+    // Max pending async requests per instance to avoid large number of concurrent requests.
+    // Only used in AsyncFunction. Default: 1000
+    private int maxPendingAsyncRequests = 1000;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.
@@ -44,5 +47,9 @@ public class InstanceConfig {
      */
     public String getInstanceName() {
         return "" + instanceId;
+    }
+
+    public FunctionDetails getFunctionDetails() {
+        return functionDetails;
     }
 }

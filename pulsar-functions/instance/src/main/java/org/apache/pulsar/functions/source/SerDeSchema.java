@@ -49,4 +49,8 @@ public class SerDeSchema<T> implements Schema<T> {
         return null;
     }
 
+    @Override
+    public Schema<T> clone() {
+        return this;
+    }
 }

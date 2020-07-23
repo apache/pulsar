@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.cli;
 
-import java.net.MalformedURLException;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -29,14 +28,12 @@ import java.util.concurrent.Executors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.cli.PulsarClientTool;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test
 public class PulsarClientToolTest extends BrokerTestBase {
 
     @BeforeClass
@@ -52,7 +49,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test
-    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException, PulsarAdminException {
+    public void testInitialzation() throws InterruptedException, ExecutionException, PulsarAdminException {
 
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -60,7 +57,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         String tenantName = UUID.randomUUID().toString();
 
-        admin.tenants().createTenant(tenantName, new TenantInfo());
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant(tenantName, tenantInfo);
 
         String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
 

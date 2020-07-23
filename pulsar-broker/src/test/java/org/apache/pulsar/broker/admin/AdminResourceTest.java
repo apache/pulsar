@@ -22,14 +22,29 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.util.Codec;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * Unit test {@link AdminResource}.
  */
-public class AdminResourceTest {
+public class AdminResourceTest extends BrokerTestBase {
+
+    @BeforeClass
+    @Override
+    public void setup() throws Exception {
+        super.baseSetup();
+    }
+
+    @AfterClass
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
 
     private static AdminResource mockResource() {
         return new AdminResource() {
@@ -66,4 +81,32 @@ public class AdminResourceTest {
         }
     }
 
+    @Test
+    public void testValidatePartitionedTopicMetadata() throws Exception {
+        String tenant = "prop";
+        String namespace = "ns-abc";
+        String partitionedTopic = "partitionedTopic";
+        String nonPartitionedTopic = "notPartitionedTopic";
+        int partitions = 3;
+
+        String completePartitionedTopic = tenant + "/" + namespace + "/" + partitionedTopic;
+        String completeNonPartitionedTopic = tenant + "/" + namespace + "/" + nonPartitionedTopic;
+
+        admin.topics().createNonPartitionedTopic(completeNonPartitionedTopic);
+        admin.topics().createPartitionedTopic(completePartitionedTopic, partitions);
+
+        AdminResource resource = mockResource();
+        resource.setPulsar(pulsar);
+        // validate should pass when topic is partitioned topic
+        resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(partitionedTopic));
+        resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(partitionedTopic));
+        // validate should failed when topic is non-partitioned topic
+        resource.validatePartitionedTopicName(tenant, namespace, Codec.encode(nonPartitionedTopic));
+        try {
+            resource.validatePartitionedTopicMetadata(tenant, namespace, Codec.encode(nonPartitionedTopic));
+            fail("Should fail validation on non-partitioned topic");
+        } catch (RestException re) {
+            assertEquals(Status.CONFLICT.getStatusCode(), re.getResponse().getStatus());
+        }
+    }
 }

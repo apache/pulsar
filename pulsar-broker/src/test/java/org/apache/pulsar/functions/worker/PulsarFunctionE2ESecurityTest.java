@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -157,8 +156,7 @@ public class PulsarFunctionE2ESecurityTest {
                 "token:" +  adminToken);
         functionsWorkerService = createPulsarFunctionWorker(config);
         Optional<WorkerService> functionWorkerService = Optional.of(functionsWorkerService);
-        pulsar = new PulsarService(config, functionWorkerService);
-        pulsar.setShutdownService(new NoOpShutdownService());
+        pulsar = new PulsarService(config, functionWorkerService, (exitCode) -> {});
         pulsar.start();
 
         brokerServiceUrl = pulsar.getWebServiceAddress();
@@ -179,10 +177,10 @@ public class PulsarFunctionE2ESecurityTest {
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
-        if (isNotBlank(workerConfig.getClientAuthenticationPlugin())
-                && isNotBlank(workerConfig.getClientAuthenticationParameters())) {
-            clientBuilder.authentication(workerConfig.getClientAuthenticationPlugin(),
-                    workerConfig.getClientAuthenticationParameters());
+        if (isNotBlank(workerConfig.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(workerConfig.getBrokerClientAuthenticationParameters())) {
+            clientBuilder.authentication(workerConfig.getBrokerClientAuthenticationPlugin(),
+                    workerConfig.getBrokerClientAuthenticationParameters());
         }
         pulsarClient = clientBuilder.build();
 
@@ -203,7 +201,9 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace( TENANT2 + "/" + NAMESPACE);
 
-        Thread.sleep(100);
+        while (!functionWorkerService.get().getLeaderService().isLeader()) {
+            Thread.sleep(1000);
+        }
     }
 
     @AfterMethod
@@ -244,8 +244,8 @@ public class PulsarFunctionE2ESecurityTest {
         workerConfig.setWorkerHostname(hostname);
         workerConfig.setWorkerId(workerId);
 
-        workerConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        workerConfig.setClientAuthenticationParameters(
+        workerConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        workerConfig.setBrokerClientAuthenticationParameters(
                 String.format("token:%s", adminToken));
 
         workerConfig.setAuthenticationEnabled(config.isAuthenticationEnabled());
@@ -511,7 +511,12 @@ public class PulsarFunctionE2ESecurityTest {
 
                 }
 
-                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                try {
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                } catch (PulsarAdminException e) {
+                    // This happens because the request becomes outdated. Lets retry again
+                    admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+                }
 
                 assertTrue(retryStrategically((test) -> {
                     try {
@@ -783,7 +788,12 @@ public class PulsarFunctionE2ESecurityTest {
 
             }
 
-            admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            try {
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            } catch (PulsarAdminException e) {
+                // This happens because the request becomes outdated. Lets retry again
+                admin1.functions().deleteFunction(TENANT, NAMESPACE, functionName);
+            }
 
             assertTrue(retryStrategically((test) -> {
                 try {

@@ -32,8 +32,17 @@ public class ConsumerStats {
     /** Total throughput delivered to the consumer (bytes/s). */
     public double msgThroughputOut;
 
+    /** Total bytes delivered to consumer (bytes). */
+    public long bytesOutCounter;
+
+    /** Total messages delivered to consumer (msg). */
+    public long msgOutCounter;
+
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
+
+    /** Total chunked messages dispatched. */
+    public double chuckedMessageRate;
 
     /** Name of the consumer. */
     public String consumerName;
@@ -43,6 +52,9 @@ public class ConsumerStats {
 
     /** Number of unacknowledged messages for the consumer. */
     public int unackedMessages;
+
+    /** Number of average messages per entry for the consumer consumed. */
+    public int avgMessagesPerEntry;
 
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
@@ -75,6 +87,8 @@ public class ConsumerStats {
         checkNotNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
+        this.bytesOutCounter += stats.bytesOutCounter;
+        this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;

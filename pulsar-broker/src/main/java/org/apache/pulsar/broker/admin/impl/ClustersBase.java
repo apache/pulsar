@@ -897,9 +897,7 @@ public class ClustersBase extends AdminResource {
                 try {
                     Optional<FailureDomain> domain = failureDomainCache()
                             .get(joinPath(failureDomainRootPath, domainName));
-                    if (domain.isPresent()) {
-                        domains.put(domainName, domain.get());
-                    }
+                    domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
                 } catch (Exception e) {
                     log.warn("Failed to get domain {}", domainName, e);
                 }

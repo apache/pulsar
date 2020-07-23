@@ -153,7 +153,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -171,7 +171,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -208,7 +208,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
@@ -221,13 +221,13 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats().storageSize, 0);
+        assertEquals(topicRef.getStats(false).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats().storageSize > 0);
+        assertTrue(topicRef.getStats(false).storageSize > 0);
     }
 
     @Test
@@ -246,7 +246,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -264,7 +264,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -299,7 +299,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
         assertTrue(subStats.msgRateRedeliver > 0.0);
         assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
@@ -313,7 +313,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
@@ -574,7 +574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -636,7 +636,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -654,7 +654,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -697,7 +697,7 @@ public class BrokerServiceTest extends BrokerTestBase {
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -779,7 +779,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // disable namespace-bundle
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
-        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
@@ -919,7 +919,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     /**
      * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
      * version.
-     * 
+     *
      * @throws Exception
      */
     @Test

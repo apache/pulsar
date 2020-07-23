@@ -19,7 +19,9 @@
 
 FROM apachepulsar/pulsar-all:latest
 
-RUN apt-get update && apt-get install -y supervisor vim procps
+RUN rm -rf /var/lib/apt/lists/* && apt update
+
+RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl git
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/ && mkdir -p /pulsar/ssl
 
@@ -43,10 +45,33 @@ COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
 
 RUN mkdir -p /pulsar/instances/deps
 
+ENV GOLANG_VERSION 1.13.3
+
+RUN curl -sSL https://storage.googleapis.com/golang/go$GOLANG_VERSION.linux-amd64.tar.gz \
+		| tar -v -C /usr/local -xz
+
+# RUN wget https://dl.google.com/go/go1.13.3.linux-amd64.tar.gz && tar -xvf go1.13.3.linux-amd64.tar.gz && mv go /usr/local
+# RUN export GOROOT=/usr/local/go && export GOPATH=$HOME/go && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH
+# RUN echo "export GOROOT=/usr/local/go" >> ~/.profile && echo "export GOPATH=$HOME/go" >> ~/.profile && echo "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH" >> ~/.profile
+
+ENV PATH /usr/local/go/bin:$PATH
+
+RUN mkdir -p /go/src /go/bin && chmod -R 777 /go
+ENV GOROOT /usr/local/go
+ENV GOPATH /go
+ENV PATH /go/bin:$PATH
+
 COPY python-examples/exclamation_lib.py /pulsar/instances/deps/
 COPY python-examples/exclamation_with_extra_deps.py /pulsar/examples/python-examples/
 COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
 COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/exception_function.py /pulsar/examples/python-examples/
+
+COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
+RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
+
 COPY target/java-test-functions.jar /pulsar/examples/
+RUN cp -a /go/bin/. /pulsar/examples/go-examples/

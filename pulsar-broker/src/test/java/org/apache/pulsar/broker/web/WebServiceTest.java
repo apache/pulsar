@@ -22,6 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 
@@ -57,7 +58,6 @@ import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -70,6 +70,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -228,8 +229,14 @@ public class WebServiceTest {
         // This should have failed
         assertEquals(response.getStatusLine().getStatusCode(), 400);
 
+        // Create local cluster
+        String localCluster = "test";
+        String clusterPath = PulsarWebResource.path("clusters", localCluster);
+        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new ClusterData());
+        pulsar.getGlobalZkCache().getZooKeeper().create(clusterPath, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         TenantInfo info2 = new TenantInfo();
         info2.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)));
+        info2.setAllowedClusters(Sets.newHashSet(localCluster));
         httpPut.setEntity(new ByteArrayEntity(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2)));
 
         response = client.execute(httpPut);
@@ -307,7 +314,6 @@ public class WebServiceTest {
         config.setZookeeperServers("localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
         pulsar = spy(new PulsarService(config));
-        pulsar.setShutdownService(new NoOpShutdownService());
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();

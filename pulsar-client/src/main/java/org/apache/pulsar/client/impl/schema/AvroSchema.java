@@ -20,8 +20,10 @@ package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversions;
+import org.apache.avro.data.JodaTimeConversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
@@ -41,33 +43,14 @@ import java.util.Map;
 public class AvroSchema<T> extends StructSchema<T> {
     private static final Logger LOG = LoggerFactory.getLogger(AvroSchema.class);
 
-    // the aim to fix avro's bug
-    // https://issues.apache.org/jira/browse/AVRO-1891 bug address explain
-    // fix the avro logical type read and write
-    static {
-        ReflectData reflectDataAllowNull = ReflectData.AllowNull.get();
+    private ClassLoader pojoClassLoader;
 
-        reflectDataAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-        reflectDataAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-
-        ReflectData reflectDataNotAllowNull = ReflectData.get();
-
-        reflectDataNotAllowNull.addLogicalTypeConversion(new Conversions.DecimalConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.DateConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-        reflectDataNotAllowNull.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-    }
-
-    private AvroSchema(SchemaInfo schemaInfo) {
+    private AvroSchema(SchemaInfo schemaInfo, ClassLoader pojoClassLoader) {
         super(schemaInfo);
-        setReader(new AvroReader<>(schema));
-        setWriter(new AvroWriter<>(schema));
+        this.pojoClassLoader = pojoClassLoader;
+        boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+        setReader(new AvroReader<>(schema, pojoClassLoader, jsr310ConversionEnabled));
+        setWriter(new AvroWriter<>(schema, jsr310ConversionEnabled));
     }
 
     @Override
@@ -75,8 +58,21 @@ public class AvroSchema<T> extends StructSchema<T> {
         return true;
     }
 
+    @Override
+    public Schema<T> clone() {
+        Schema<T> schema = new AvroSchema<>(schemaInfo, pojoClassLoader);
+        if (schemaInfoProvider != null) {
+            schema.setSchemaInfoProvider(schemaInfoProvider);
+        }
+        return schema;
+    }
+
     public static <T> AvroSchema<T> of(SchemaDefinition<T> schemaDefinition) {
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        ClassLoader pojoClassLoader = null;
+        if (schemaDefinition.getPojo() != null) {
+            pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
+        }
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo) {
@@ -84,23 +80,54 @@ public class AvroSchema<T> extends StructSchema<T> {
     }
 
     public static <T> AvroSchema<T> of(Class<T> pojo, Map<String, String> properties) {
+        ClassLoader pojoClassLoader = null;
+        if (pojo != null) {
+            pojoClassLoader = pojo.getClassLoader();
+        }
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build();
-        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
+        return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
 
     @Override
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}",
+            log.info("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                schemaInfo.getSchemaDefinition());
-            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema);
+                schemaInfo.getSchemaDefinition(), schemaInfo.toString());
+            boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+            return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()), schema, pojoClassLoader, jsr310ConversionEnabled);
         } else {
             log.warn("No schema found for version({}), use latest schema : {}",
                 SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
                 this.schemaInfo.getSchemaDefinition());
             return reader;
+        }
+    }
+
+    private static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
+        if (schemaInfo != null) {
+            return Boolean.parseBoolean(schemaInfo.getProperties()
+                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
+        }
+        return false;
+    }
+
+    public static void addLogicalTypeConversions(ReflectData reflectData, boolean jsr310ConversionEnabled) {
+        reflectData.addLogicalTypeConversion(new Conversions.DecimalConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
+        if (jsr310ConversionEnabled) {
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
+        } else {
+            try {
+                Class.forName("org.joda.time.DateTime");
+                reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
+            } catch (ClassNotFoundException e) {
+                // Skip if have not provide joda-time dependency.
+            }
         }
     }
 
