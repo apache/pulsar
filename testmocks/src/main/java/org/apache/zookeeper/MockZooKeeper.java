@@ -33,6 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiPredicate;
@@ -852,7 +853,12 @@ public class MockZooKeeper extends ZooKeeper {
             stopped = true;
             tree.clear();
             watchers.clear();
-            executor.shutdown();
+            try {
+                executor.shutdownNow();
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                log.error("MockZooKeeper shutdown had error", ex);
+            }
         } finally {
             mutex.unlock();
         }
