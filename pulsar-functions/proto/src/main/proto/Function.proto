@@ -32,6 +32,7 @@ enum ProcessingGuarantees {
 enum SubscriptionType {
     SHARED = 0;
     FAILOVER = 1;
+    KEY_SHARED = 2;
 }
 
 enum SubscriptionPosition {

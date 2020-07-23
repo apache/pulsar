@@ -142,6 +142,8 @@ public class FunctionConfigUtils {
         Function.SubscriptionType subType = ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
                 ? Function.SubscriptionType.FAILOVER
+                : (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering())
+                ? Function.SubscriptionType.KEY_SHARED
                 : Function.SubscriptionType.SHARED;
         sourceSpecBuilder.setSubscriptionType(subType);
 
@@ -317,9 +319,15 @@ public class FunctionConfigUtils {
         }
         if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
             functionConfig.setRetainOrdering(true);
+            functionConfig.setRetainKeyOrdering(false);
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
+        } else if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.KEY_SHARED) {
+            functionConfig.setRetainOrdering(false);
+            functionConfig.setRetainKeyOrdering(true);
+            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         } else {
             functionConfig.setRetainOrdering(false);
+            functionConfig.setRetainKeyOrdering(false);
             functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         }
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
@@ -532,6 +540,10 @@ public class FunctionConfigUtils {
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in python");
         }
+
+        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
+            throw new IllegalArgumentException("Retain Key Orderering not yet supported in python");
+        }
     }
 
     private static void doGolangChecks(FunctionConfig functionConfig) {
@@ -545,6 +557,10 @@ public class FunctionConfigUtils {
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
             throw new IllegalArgumentException("Message retries not yet supported in Go function");
+        }
+
+        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
+            throw new IllegalArgumentException("Retain Key Orderering not yet supported in Go function");
         }
     }
 
@@ -638,6 +654,16 @@ public class FunctionConfigUtils {
         }
         if ((functionConfig.getMaxMessageRetries() == null || functionConfig.getMaxMessageRetries() < 0) && !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getDeadLetterTopic())) {
             throw new IllegalArgumentException("Dead Letter Topic specified, however max retries is set to infinity");
+        }
+        if (functionConfig.getRetainKeyOrdering() != null
+                && functionConfig.getRetainKeyOrdering()
+                && functionConfig.getProcessingGuarantees() != null
+                && functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            throw new IllegalArgumentException("When effectively once processing guarantee is specified, retain Key ordering cannot be set");
+        }
+        if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()
+                && functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering()) {
+            throw new IllegalArgumentException("Only one of retain ordering or retain key ordering can be set");
         }
 
         if (!isEmpty(functionConfig.getPy()) && !org.apache.pulsar.common.functions.Utils.isFunctionPackageUrlSupported(functionConfig.getPy())
@@ -803,6 +829,9 @@ public class FunctionConfigUtils {
         }
         if (newConfig.getRetainOrdering() != null && !newConfig.getRetainOrdering().equals(existingConfig.getRetainOrdering())) {
             throw new IllegalArgumentException("Retain Ordering cannot be altered");
+        }
+        if (newConfig.getRetainKeyOrdering() != null && !newConfig.getRetainKeyOrdering().equals(existingConfig.getRetainKeyOrdering())) {
+            throw new IllegalArgumentException("Retain Key Ordering cannot be altered");
         }
         if (!StringUtils.isEmpty(newConfig.getOutput())) {
             mergedConfig.setOutput(newConfig.getOutput());

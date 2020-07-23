@@ -87,6 +87,7 @@ public class FunctionConfig {
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
     private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
