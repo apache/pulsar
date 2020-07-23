@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -986,12 +987,19 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic policy does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
-    public Map<String, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         return getTopicPolicies(topicName)
                 .map(TopicPolicies::getBackLogQuotaMap)
+                .map(map -> {
+                    HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
+                    map.forEach((key,value) -> {
+                        hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key),value);
+                    });
+                    return hashMap;
+                })
                 .orElse(Maps.newHashMap());
     }
 
