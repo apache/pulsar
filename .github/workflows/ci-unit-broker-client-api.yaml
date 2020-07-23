@@ -17,30 +17,22 @@
 # under the License.
 #
 
-name: CI - Go Functions Tests
+name: CI - Unit - Brokers - Client Api
 on:
   pull_request:
     branches:
       - master
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
   push:
     branches:
       - branch-*
-    paths:
-      - '.github/workflows/**'
-      - 'pulsar-function-go/**'
 
 jobs:
 
-  go-functions-tests:
-    name: Run Go Tests
-    strategy:
-      matrix:
-        go-version: [1.11.x, 1.12.x, 1.13.x, 1.14.x]
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+  unit-tests:
+    name:
+    runs-on: ubuntu-latest
+    container:
+      image: apachepulsar/pulsar-build:latest
     timeout-minutes: 120
 
     steps:
@@ -50,21 +42,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
+      - name: build modules
+        run:  mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
 
-      - name: Set up Go
-        uses: actions/setup-go@v1
-        if: steps.docs.outputs.changed_only == 'no'
-        with:
-          go-version: ${{ matrix.go-version }}
-        id: go
+      - name: run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/client/api/**/*.java' -Dexclude='**/DispatcherBlockConsumerTest.java'
 
-      - name: run tests
-        if: steps.docs.outputs.changed_only == 'no'
+      - name: run flay test
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='**/DispatcherBlockConsumerTest.java' -DtestForkCount=1 -DtestReuseFork=true
+
+      - name: package surefire artifacts
+        if: failure()
         run: |
-          cd pulsar-function-go
-          go test -v $(go list ./... | grep -v examples)
+          rm -rf artifacts
+          mkdir artifacts
+          find . -type d -name "*surefire*" -exec cp --parents -R {} artifacts/ \;
+          zip -r artifacts.zip artifacts
+
+      - uses: actions/upload-artifact@master
+        name: upload surefire-artifacts
+        if: failure()
+        with:
+          name: surefire-artifacts
+          path: artifacts.zip
