@@ -47,7 +47,7 @@ public class BacklogQuotaManager {
     private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManager.class);
     private final BacklogQuota defaultQuota;
     private final ZooKeeperDataCache<Policies> zkCache;
-    private final TopicPoliciesService topicPoliciesService;
+    private final PulsarService pulsar;
     private final boolean isTopicLevelPoliciesEnable;
 
 
@@ -57,7 +57,7 @@ public class BacklogQuotaManager {
                 pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB() * 1024 * 1024 * 1024,
                 pulsar.getConfiguration().getBacklogQuotaDefaultRetentionPolicy());
         this.zkCache = pulsar.getConfigurationCache().policiesCache();
-        this.topicPoliciesService = pulsar.getTopicPoliciesService();
+        this.pulsar = pulsar;
     }
 
     public BacklogQuota getDefaultQuota() {
@@ -81,14 +81,15 @@ public class BacklogQuotaManager {
             return getBacklogQuota(topicName.getNamespace(),policyPath);
         }
 
-        Optional<BacklogQuota> optional = Optional.empty();
         try {
-            TopicPolicies topicPolicies = topicPoliciesService.getTopicPolicies(topicName);
-            optional = Optional.ofNullable(topicPolicies.getBackLogQuotaMap().get(BacklogQuotaType.destination_storage.name()));
+            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName))
+                    .map(TopicPolicies::getBackLogQuotaMap)
+                    .map(map -> map.get(BacklogQuotaType.destination_storage.name()))
+                    .orElseGet(() -> getBacklogQuota(topicName.getNamespace(),policyPath));
         } catch (Exception e) {
             log.error("Failed to read policies data, will apply the default backlog quota: topicName={}", topicName, e);
         }
-        return optional.orElseGet(() -> getBacklogQuota(topicName.getNamespace(),policyPath));
+        return getBacklogQuota(topicName.getNamespace(),policyPath);
     }
 
     public long getBacklogQuotaLimit(TopicName topicName) {
