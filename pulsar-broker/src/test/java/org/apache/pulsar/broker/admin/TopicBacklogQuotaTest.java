@@ -159,7 +159,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-
+        Thread.sleep(3000);
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 + 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
@@ -169,7 +169,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
-
+        Thread.sleep(3000);
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 - 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
