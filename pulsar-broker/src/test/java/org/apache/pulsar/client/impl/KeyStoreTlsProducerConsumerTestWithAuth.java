@@ -85,7 +85,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         super.internalCleanup();
     }
 
-    protected void internalSetUpForBroker() throws Exception {
+    protected void internalSetUpForBroker() {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsEnabledWithKeyStore(true);
@@ -169,7 +169,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage"
                            + System.currentTimeMillis();
 
@@ -205,7 +205,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol"
                            + System.currentTimeMillis();
 
@@ -238,7 +238,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol"
                            + System.currentTimeMillis();
 
