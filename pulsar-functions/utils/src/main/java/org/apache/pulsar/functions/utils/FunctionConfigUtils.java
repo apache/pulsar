@@ -138,13 +138,16 @@ public class FunctionConfigUtils {
             });
         }
 
-        // Set subscription type based on ordering and EFFECTIVELY_ONCE semantics
-        Function.SubscriptionType subType = ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
-                || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees()))
-                ? Function.SubscriptionType.FAILOVER
-                : (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering())
-                ? Function.SubscriptionType.KEY_SHARED
-                : Function.SubscriptionType.SHARED;
+        // Set subscription type
+        Function.SubscriptionType subType;
+        if ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
+                || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE.equals(functionConfig.getProcessingGuarantees())) {
+            subType = Function.SubscriptionType.FAILOVER;
+        } else if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
+            subType = Function.SubscriptionType.KEY_SHARED;
+        } else {
+            subType = Function.SubscriptionType.SHARED;
+        }
         sourceSpecBuilder.setSubscriptionType(subType);
 
         if (isNotBlank(functionConfig.getSubName())) {
@@ -215,6 +218,12 @@ public class FunctionConfigUtils {
         if (functionConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
                     FunctionCommon.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
+        }
+        if (functionConfig.getRetainKeyOrdering() != null) {
+            functionDetailsBuilder.setRetainKeyOrdering(functionConfig.getRetainKeyOrdering());
+        }
+        if (functionConfig.getRetainOrdering() != null) {
+            functionDetailsBuilder.setRetainOrdering(functionConfig.getRetainOrdering());
         }
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
@@ -317,19 +326,9 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
         }
-        if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.FAILOVER) {
-            functionConfig.setRetainOrdering(true);
-            functionConfig.setRetainKeyOrdering(false);
-            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE);
-        } else if (functionDetails.getSource().getSubscriptionType() == Function.SubscriptionType.KEY_SHARED) {
-            functionConfig.setRetainOrdering(false);
-            functionConfig.setRetainKeyOrdering(true);
-            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        } else {
-            functionConfig.setRetainOrdering(false);
-            functionConfig.setRetainKeyOrdering(false);
-            functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        }
+        functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
+        functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());
+
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());
         if (functionDetails.getSource().getTimeoutMs() != 0) {
@@ -349,7 +348,6 @@ public class FunctionConfigUtils {
         }
         functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
-        functionConfig.setProcessingGuarantees(FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         if (functionDetails.hasRetryDetails()) {
             functionConfig.setMaxMessageRetries(functionDetails.getRetryDetails().getMaxMessageRetries());
             if (!isEmpty(functionDetails.getRetryDetails().getDeadLetterTopic())) {

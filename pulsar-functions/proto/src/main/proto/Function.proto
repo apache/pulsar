@@ -85,6 +85,8 @@ message FunctionDetails {
     /* If specified, this will refer to an archive that is
      * already present in the server */
     string builtin = 20;
+    bool retainOrdering = 21;
+    bool retainKeyOrdering = 22;
 }
 
 message ConsumerSpec {
