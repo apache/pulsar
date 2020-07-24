@@ -86,7 +86,11 @@ public class FunctionConfig {
     private String outputSerdeClassName;
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
+    // Do we want function instances to process data in the same order as in the input topics
+    // This essentially means that every partition of input topic is consumed by only one instance
     private Boolean retainOrdering;
+    // Do we want the same function instance to process all data keyed by the input topic's message key
+    private Boolean retainKeyOrdering;
     private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
