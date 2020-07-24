@@ -32,7 +32,7 @@ class Stats(object):
   exception_metrics_label_names = metrics_label_names + ['error', 'ts']
 
   PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_"
-  USER_METRIC_PREFIX = "user_metric_";
+  USER_METRIC_PREFIX = "user_metric_"
 
   TOTAL_SUCCESSFULLY_PROCESSED = 'processed_successfully_total'
   TOTAL_SYSTEM_EXCEPTIONS = 'system_exceptions_total'
@@ -86,7 +86,7 @@ class Stats(object):
   latest_sys_exception = []
 
   def __init__(self, metrics_labels):
-    self.metrics_labels = metrics_labels;
+    self.metrics_labels = metrics_labels
     self.process_start_time = None
 
     # as optimization
@@ -106,16 +106,16 @@ class Stats(object):
     util.FixedTimer(60, self.reset, name="windowed-metrics-timer").start()
 
   def get_total_received(self):
-    return self._stat_total_received._value.get();
+    return self._stat_total_received._value.get()
 
   def get_total_processed_successfully(self):
-    return self._stat_total_processed_successfully._value.get();
+    return self._stat_total_processed_successfully._value.get()
 
   def get_total_sys_exceptions(self):
-    return self._stat_total_sys_exceptions._value.get();
+    return self._stat_total_sys_exceptions._value.get()
 
   def get_total_user_exceptions(self):
-    return self._stat_total_user_exceptions._value.get();
+    return self._stat_total_user_exceptions._value.get()
 
   def get_avg_process_latency(self):
     process_latency_ms_count = self._stat_process_latency_ms._count.get()
@@ -165,7 +165,7 @@ class Stats(object):
     self._stat_total_received_1min.inc()
 
   def process_time_start(self):
-    self.process_start_time = time.time();
+    self.process_start_time = time.time()
 
   def process_time_end(self):
     if self.process_start_time:
