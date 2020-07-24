@@ -1,5 +1,5 @@
 ---
-id: security-oauth
+id: security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
 sidebar_label: Authentication using OAuth 2.0 access tokens
 ---
@@ -74,10 +74,14 @@ You can use the Oauth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com/oauth/token";
+String credentialsUrl = "file:///path/to/KeyFile.json";
+String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
-        AuthenticationFactoryOAuth2.clientCredentials(this.issuerUrl, this.credentialsUrl, this.audience))
+        AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience))
     .build();
 ```
 
@@ -85,9 +89,27 @@ In addition, you can also use the encoded parameters to configure authentication
 
 ```java
 Authentication auth = AuthenticationFactory
-    .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"...","issuerUrl":"...","audience":"..."}");
+    .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"./key/path/..","issuerUrl":"...","audience":"..."}");
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(auth)
     .build();
+```
+
+### C++ client
+
+The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and the audience.
+
+```c++
+#include <pulsar/Client.h>
+
+pulsar::ClientConfiguration config;
+std::string params = R"({
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+    "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})";
+    
+config.setAuth(pulsar::AuthOauth2::create(params));
+
+pulsar::Client client("pulsar://broker.example.com:6650/", config);
 ```
