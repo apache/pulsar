@@ -43,12 +43,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: build modules
-        run:  mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
         run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/client/api/**/*.java' -Dexclude='**/DispatcherBlockConsumerTest.java'
 
-      - name: run flay test
+      - name: run flaky test
         run: mvn -B -ntp test -pl pulsar-broker -Dinclude='**/DispatcherBlockConsumerTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: package surefire artifacts

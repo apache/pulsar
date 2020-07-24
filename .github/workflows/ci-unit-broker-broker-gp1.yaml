@@ -43,13 +43,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: build modules
-        run: mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
-
-      - name: run unit tests for pulsar-broker
-        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
+        run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
       - name: run flaky test
-        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
+
+      - name: run unit tests for pulsar-broker
+        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
 
       - name: package surefire artifacts
         if: failure()
