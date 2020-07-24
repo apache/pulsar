@@ -127,7 +127,8 @@ public class SchedulerManagerTest {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-test"));
         errorNotifier = spy(ErrorNotifier.getDefaultImpl());
-        schedulerManager = spy(new SchedulerManager(workerConfig, pulsarClient, null, errorNotifier));
+        schedulerManager = spy(new SchedulerManager(workerConfig, pulsarClient,
+          null, mock(WorkerStatsManager.class), errorNotifier));
         functionRuntimeManager = mock(FunctionRuntimeManager.class);
         functionMetaDataManager = mock(FunctionMetaDataManager.class);
         membershipManager = mock(MembershipManager.class);

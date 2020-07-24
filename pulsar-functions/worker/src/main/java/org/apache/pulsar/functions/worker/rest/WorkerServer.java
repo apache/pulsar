@@ -19,21 +19,8 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import java.net.BindException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.TimeZone;
-
-import javax.servlet.DispatcherType;
-
-import io.prometheus.client.exporter.MetricsServlet;
+import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -49,12 +36,23 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
+
+import java.net.BindException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.TimeZone;
+
+import javax.servlet.DispatcherType;
 
 @Slf4j
 public class WorkerServer {
@@ -121,7 +119,17 @@ public class WorkerServer {
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-        server.setHandler(handlerCollection);
+
+        // Metrics handler
+        StatisticsHandler stats = new StatisticsHandler();
+        stats.setHandler(handlerCollection);
+        try {
+            new JettyStatisticsCollector(stats).register();
+        } catch (IllegalArgumentException e) {
+            // Already registered. Eg: in unit tests
+        }
+        handlers.add(stats);
+        server.setHandler(stats);
 
         if (this.workerConfig.getWorkerPortTls() != null) {
             try {
