@@ -207,7 +207,7 @@ All the ManagedLedgerCache metrics are labelled with the following labels:
 | pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second. |
 | pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
 | pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the cache in byte/s |
+| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is retrieved from the bookie in byte/s |
 | pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
 | pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
 | pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
