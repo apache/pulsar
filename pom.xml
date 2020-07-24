@@ -87,6 +87,8 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+    <testReuseFork>true</testReuseFork>
+    <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <docker.organization>apachepulsar</docker.organization>
@@ -160,6 +162,25 @@ flexible messaging model and an intuitive client API.</description>
     <aircompressor.version>0.16</aircompressor.version>
     <httpcomponents.version>4.5.5</httpcomponents.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
+    <jcommander.version>1.48</jcommander.version>
+    <commons-lang3.version>3.6</commons-lang3.version>
+    <commons-configuration.version>1.10</commons-configuration.version>
+    <commons-io.version>2.5</commons-io.version>
+    <commons-codec.version>1.10</commons-codec.version>
+    <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
+    <log4j.version>1.2.17</log4j.version>
+    <hdrHistogram.version>2.1.9</hdrHistogram.version>
+    <javax.servlet-api>3.1.0</javax.servlet-api>
+    <caffeine.version>2.6.2</caffeine.version>
+    <java-semver.version>0.9.0</java-semver.version>
+    <hppc.version>0.7.3</hppc.version>
+    <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
+    <assertj-core.version>3.11.1</assertj-core.version>
+    <lombok.version>1.18.10</lombok.version>
+    <javax.annotation-api.version>1.2</javax.annotation-api.version>
+    <jaxb-api>2.3.1</jaxb-api>
+    <javax.activation.version>1.2.0</javax.activation.version>
+    <jna.version>4.2.0</jna.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -179,6 +200,22 @@ flexible messaging model and an intuitive client API.</description>
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
     <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
     <aspectj-maven-plugin.version>1.11.1</aspectj-maven-plugin.version>
+    <license-maven-plugin.version>3.0</license-maven-plugin.version>
+    <maven-enforcer-plugin.version>3.0.0-M2</maven-enforcer-plugin.version>
+    <maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
+    <maven-dependency-plugin.version>2.10</maven-dependency-plugin.version>
+    <maven-clean-plugin.version>2.4.1</maven-clean-plugin.version>
+    <maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
+    <maven-shade-plugin>3.2.4</maven-shade-plugin>
+    <maven-javadoc-plugin.version>2.10.3</maven-javadoc-plugin.version>
+    <exec-maven-plugin.version>1.6.0</exec-maven-plugin.version>
+    <maven-archiver.version>2.5</maven-archiver.version>
+    <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
+    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <git-commit-id-plugin.version>3.0.0</git-commit-id-plugin.version>
+    <wagon-ssh-external.version>2.10</wagon-ssh-external.version>
+    <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.3</jacoco-maven-plugin.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -397,105 +434,13 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jetty-util</artifactId>
         <version>${jetty.version}</version>
       </dependency>
-
+      
       <dependency>
         <groupId>io.netty</groupId>
-        <artifactId>netty-buffer</artifactId>
+        <artifactId>netty-bom</artifactId>
         <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-common</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-handler</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport-native-epoll</artifactId>
-        <version>${netty.version}</version>
-        <classifier>linux-x86_64</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport-native-epoll</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport-native-unix-common</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport-native-unix-common</artifactId>
-        <version>${netty.version}</version>
-        <classifier>linux-x86_64</classifier>
-      </dependency>
-
-      <!-- `netty-codec-http2` is a dependency of grpc, set the version to
-           be aligned with the netty version defined here -->
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-http2</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-http</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-handler-proxy</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-socks</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-resolver</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-resolver-dns</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-dns</artifactId>
-        <version>${netty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
       <dependency>
@@ -505,15 +450,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty</artifactId>
-        <version>3.10.6.Final</version>
-      </dependency>
-
-      <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
-        <version>1.48</version>
+        <version>${jcommander.version}</version>
       </dependency>
 
       <dependency>
@@ -525,7 +464,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.6</version>
+        <version>${commons-lang3.version}</version>
       </dependency>
 
       <dependency>
@@ -537,13 +476,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>commons-configuration</groupId>
         <artifactId>commons-configuration</artifactId>
-        <version>1.10</version>
+        <version>${commons-configuration.version}</version>
       </dependency>
 
       <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
-        <version>2.5</version>
+        <version>${commons-io.version}</version>
       </dependency>
 
       <dependency>
@@ -611,7 +550,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>commons-codec</groupId>
         <artifactId>commons-codec</artifactId>
-        <version>1.10</version>
+        <version>${commons-codec.version}</version>
       </dependency>
 
       <dependency>
@@ -647,7 +586,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>javax.ws.rs</groupId>
         <artifactId>javax.ws.rs-api</artifactId>
-        <version>2.1</version>
+        <version>${javax.ws.rs-api.version}</version>
       </dependency>
 
       <dependency>
@@ -665,7 +604,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>net.java.dev.jna</groupId>
         <artifactId>jna</artifactId>
-        <version>4.2.0</version>
+        <version>${jna.version}</version>
       </dependency>
 
       <dependency>
@@ -779,7 +718,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <artifactId>log4j</artifactId>
         <groupId>log4j</groupId>
-        <version>1.2.17</version>
+        <version>${log4j.version}</version>
         <exclusions>
           <exclusion>
             <groupId>com.sun.jmx</groupId>
@@ -791,7 +730,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.hdrhistogram</groupId>
         <artifactId>HdrHistogram</artifactId>
-        <version>2.1.9</version>
+        <version>${hdrHistogram.version}</version>
       </dependency>
 
       <dependency>
@@ -809,13 +748,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>javax.servlet</groupId>
         <artifactId>javax.servlet-api</artifactId>
-        <version>3.1.0</version>
+        <version>${javax.servlet-api}</version>
       </dependency>
 
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
         <artifactId>caffeine</artifactId>
-        <version>2.6.2</version>
+        <version>${caffeine.version}</version>
       </dependency>
 
       <dependency>
@@ -833,7 +772,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.github.zafarkhaja</groupId>
         <artifactId>java-semver</artifactId>
-        <version>0.9.0</version>
+        <version>${java-semver.version}</version>
       </dependency>
 
       <dependency>
@@ -875,13 +814,13 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.carrotsearch</groupId>
         <artifactId>hppc</artifactId>
-        <version>0.7.3</version>
+        <version>${hppc.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-streaming_2.10</artifactId>
-        <version>2.1.0</version>
+        <version>${spark-streaming_2.10.version}</version>
         <exclusions>
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -1047,31 +986,31 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
     	<groupId>org.assertj</groupId>
     	<artifactId>assertj-core</artifactId>
-    	<version>3.11.1</version>
+    	<version>${assertj-core.version}</version>
 	  </dependency>
 
       <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
-        <version>1.18.10</version>
+        <version>${lombok.version}</version>
       </dependency>
 
       <dependency>
         <groupId>javax.annotation</groupId>
         <artifactId>javax.annotation-api</artifactId>
-        <version>1.2</version>
+        <version>${javax.annotation-api.version}</version>
       </dependency>
 
       <dependency>
         <groupId>javax.xml.bind</groupId>
         <artifactId>jaxb-api</artifactId>
-        <version>2.3.1</version>
+        <version>${jaxb-api}</version>
       </dependency>
 
       <dependency>
         <groupId>com.sun.activation</groupId>
         <artifactId>javax.activation</artifactId>
-        <version>1.2.0</version>
+        <version>${javax.activation.version}</version>
       </dependency>
 
       <dependency>
@@ -1235,8 +1174,8 @@ flexible messaging model and an intuitive client API.</description>
             -Dpulsar.allocator.exit_on_oom=false
             -Dlog4j.configurationFile=log4j2.xml
           </argLine>
-          <reuseForks>true</reuseForks>
-          <forkCount>4</forkCount>
+          <reuseForks>${testReuseFork}</reuseForks>
+          <forkCount>${testForkCount}</forkCount>
           <shutdown>kill</shutdown>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
@@ -1260,7 +1199,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
+        <version>${license-maven-plugin.version}</version>
         <configuration>
           <header>src/license-header.txt</header>
 
@@ -1463,7 +1402,7 @@ flexible messaging model and an intuitive client API.</description>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.0.0-M2</version>
+        <version>${maven-enforcer-plugin.version}</version>
         <executions>
             <execution>
                 <id>enforce-maven</id>
@@ -1490,7 +1429,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>3.0.0-M3</version>
+          <version>${maven-surefire-plugin.version}</version>
           <configuration>
             <includes>
                 <include>${include}</include>
@@ -1505,28 +1444,24 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>2.10</version>
+          <version>${maven-dependency-plugin.version}</version>
         </plugin>
         <plugin>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>2.4.1</version>
+          <version>${maven-clean-plugin.version}</version>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.8.0</version>
+          <version>${maven-compiler-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.2.4</version>
-        </plugin>
-        <plugin>
-          <artifactId>maven-enforcer-plugin</artifactId>
-          <version>1.0.1</version>
+          <version>${maven-shade-plugin}</version>
         </plugin>
         <plugin>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.3</version>
+          <version>${maven-javadoc-plugin.version}</version>
           <configuration>
             <additionalparam>-Xdoclint:none</additionalparam>
           </configuration>
@@ -1534,17 +1469,17 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
-          <version>1.6.0</version>
+          <version>${exec-maven-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven</groupId>
           <artifactId>maven-archiver</artifactId>
-          <version>2.5</version>
+          <version>${maven-archiver.version}</version>
         </plugin>
         <plugin>
           <groupId>org.apache.nifi</groupId>
           <artifactId>nifi-nar-maven-plugin</artifactId>
-          <version>1.2.0</version>
+          <version>${nifi-nar-maven-plugin.version}</version>
           <extensions>true</extensions>
           <configuration>
             <finalName>${project.artifactId}-${project.version}</finalName>
@@ -1562,7 +1497,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-checkstyle-plugin.version}</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
@@ -1579,7 +1514,7 @@ flexible messaging model and an intuitive client API.</description>
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${git-commit-id-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1587,12 +1522,12 @@ flexible messaging model and an intuitive client API.</description>
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>2.10</version>
+        <version>${wagon-ssh-external.version}</version>
       </extension>
       <extension>
         <groupId>kr.motd.maven</groupId>
         <artifactId>os-maven-plugin</artifactId>
-        <version>1.4.1.Final</version>
+        <version>${os-maven-plugin.version}</version>
       </extension>
     </extensions>
   </build>
@@ -1605,7 +1540,7 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
-            <version>0.8.3</version>
+            <version>${jacoco-maven-plugin.version}</version>
             <executions>
               <execution>
                 <id>pre-unit-test</id>
@@ -1719,7 +1654,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- Primary Module profile -->
     </profile>
-      <profile>
+    <profile>
       <id>main</id>
       <activation>
         <activeByDefault>true</activeByDefault>
@@ -1799,14 +1734,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-admin</module>
-        <module>pulsar-client-admin-shaded</module>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-test</module>
-        <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-discovery-service</module>
@@ -1861,4 +1793,6 @@ flexible messaging model and an intuitive client API.</description>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
+  
 </project>
+
