@@ -43,22 +43,22 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: build modules pulsar-proxy
-        run:  mvn -B -q -ntp install -pl pulsar-proxy -am -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: run flaky test
-        run:  mvn -B -ntp install -pl pulsar-proxy -Dexclude="**/ProxyRolesEnforcementTest.java,**/ProxyAuthenticationTest.java,**/ProxyTest.java,**/MessagePublishBufferThrottleTest.java"
+        run: mvn -B -ntp install -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dexclude="**/ProxyRolesEnforcementTest.java,**/ProxyAuthenticationTest.java,**/ProxyTest.java,**/MessagePublishBufferThrottleTest.java"
 
       - name: run flaky test
-        run:  mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyRolesEnforcementTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyRolesEnforcementTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
-        run:  mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyAuthenticationTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyAuthenticationTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
-        run:  mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
-        run:  mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/MessagePublishBufferThrottleTest.java" -DtestForkCount=1 -DtestReuseFork=true
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/MessagePublishBufferThrottleTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
       - name: package surefire artifacts
         if: failure()
