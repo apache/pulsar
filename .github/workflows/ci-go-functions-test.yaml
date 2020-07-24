@@ -33,13 +33,14 @@ on:
       - 'pulsar-function-go/**'
 
 jobs:
-  test:
 
-    name: Go ${{ matrix.go-version }} Functions Tests
-    runs-on: ubuntu-latest
+  go-functions-tests:
+    name: Run Go Tests
     strategy:
       matrix:
-        go-version: [1.11, 1.12, 1.13, 1.14]
+        go-version: [1.11.x, 1.12.x, 1.13.x, 1.14.x]
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
     timeout-minutes: 120
 
     steps:

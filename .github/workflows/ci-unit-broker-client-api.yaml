@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: CI - Unit
+name: CI - Unit - Brokers - Client Api
 on:
   pull_request:
     branches:
@@ -42,23 +42,14 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: build and run unit tests exclude pulsar-broker and pulsar-proxy
-        run: ./build/retry.sh mvn -B -ntp install -PbrokerSkipTest -Dexclude="org/apache/pulsar/proxy/**/*.java,**/KafkaProducerSimpleConsumerTest.java,**/ManagedLedgerTest.java,**/TestPulsarKeyValueSchemaHandler.java,**/PrimitiveSchemaTest.java,**/BlobStoreManagedLedgerOffloaderTest.java"
+      - name: build modules
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
-      - name: run flaky test "**/ManagedLedgerTest.java"
-        run: ./build/retry.sh mvn -B -ntp test -pl managed-ledger -Dinclude="**/ManagedLedgerTest.java" -DtestForkCount=1 -DtestReuseFork=true
+      - name: run unit tests for pulsar-broker "org/apache/pulsar/client/impl"
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/client/api/**/*.java' -Dexclude='**/DispatcherBlockConsumerTest.java'
 
-      - name: run flaky test "**/KafkaProducerSimpleConsumerTest.java"
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-client-kafka-compat/pulsar-client-kafka_0_8 -Dinclude="**/KafkaProducerSimpleConsumerTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/TestPulsarKeyValueSchemaHandler.java"
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-sql/presto-pulsar-plugin -Dinclude="**/TestPulsarKeyValueSchemaHandler.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/PrimitiveSchemaTest.java"
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-client -Dinclude="**/PrimitiveSchemaTest.java" -DtestForkCount=1 -DtestReuseFork=true
-
-      - name: run flaky test "**/BlobStoreManagedLedgerOffloaderTest.java"
-        run: ./build/retry.sh mvn -B -ntp test -pl tiered-storage/jcloud -Dinclude="**/BlobStoreManagedLedgerOffloaderTest.java" -DtestForkCount=1 -DtestReuseFork=true
+      - name: run flaky test
+        run: mvn -B -ntp test -pl pulsar-broker -Dinclude='**/DispatcherBlockConsumerTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: package surefire artifacts
         if: failure()
