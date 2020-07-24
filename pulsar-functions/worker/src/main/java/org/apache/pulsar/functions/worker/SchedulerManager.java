@@ -81,6 +81,7 @@ public class SchedulerManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
     private final ErrorNotifier errorNotifier;
+    private final WorkerStatsManager workerStatsManager;
     private ThreadPoolExecutor executorService;
     private final PulsarClient pulsarClient;
 
@@ -124,14 +125,15 @@ public class SchedulerManager implements AutoCloseable {
     public SchedulerManager(WorkerConfig workerConfig,
                             PulsarClient pulsarClient,
                             PulsarAdmin admin,
+                            WorkerStatsManager workerStatsManager,
                             ErrorNotifier errorNotifier) {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
         this.admin = admin;
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
+        this.workerStatsManager = workerStatsManager;
         this.errorNotifier = errorNotifier;
-        
     }
 
     private static Producer<byte[]> createProducer(PulsarClient client, WorkerConfig config) {
@@ -225,11 +227,19 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public Future<?> schedule() {
-        return scheduleInternal(() -> invokeScheduler(), "Encountered error when invoking scheduler");
+        return scheduleInternal(() -> {
+            workerStatsManager.scheduleTotalExecTimeStart();
+            invokeScheduler();
+            workerStatsManager.scheduleTotalExecTimeEnd();
+        }, "Encountered error when invoking scheduler");
     }
 
     private Future<?> rebalance() {
-        return scheduleInternal(() -> invokeRebalance(), "Encountered error when invoking rebalance");
+        return scheduleInternal(() -> {
+            workerStatsManager.rebalanceTotalExecTimeStart();
+            invokeRebalance();
+            workerStatsManager.rebalanceTotalExecTimeEnd();
+        }, "Encountered error when invoking rebalance");
     }
 
     public Future<?> rebalanceIfNotInprogress() {
@@ -325,7 +335,10 @@ public class SchedulerManager implements AutoCloseable {
         Pair<List<Function.Instance>, List<Assignment>> unassignedInstances 
                 = getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
 
+        workerStatsManager.scheduleStrategyExecTimeStartStart();
         List<Assignment> assignments = scheduler.schedule(unassignedInstances.getLeft(), currentAssignments, currentMembership);
+        workerStatsManager.scheduleStrategyExecTimeStartEnd();
+
         assignments.addAll(unassignedInstances.getRight());
 
         if (log.isDebugEnabled()) {
@@ -379,8 +392,9 @@ public class SchedulerManager implements AutoCloseable {
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream())
                 .collect(Collectors.toList());
 
-
+        workerStatsManager.rebalanceStrategyExecTimeStart();
         List<Assignment> rebalancedAssignments = scheduler.rebalance(currentAssignments, currentMembership);
+        workerStatsManager.rebalanceStrategyExecTimeEnd();
 
         for (Assignment assignment : rebalancedAssignments) {
             MessageId messageId = publishNewAssignment(assignment, false);
