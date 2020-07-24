@@ -105,6 +105,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -1308,6 +1309,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleToDeadLetter = new ArrayList<>();
         }
         int skippedMessages = 0;
+        BitSetRecyclable ackBitSet = null;
+        if (ackSet != null && ackSet.size() > 0) {
+            ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+        }
         try {
             for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
@@ -1341,7 +1346,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
 
-                if (ackSet != null && BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)).get(i)) {
+                if (ackBitSet != null && !ackBitSet.get(i)) {
                     singleMessagePayload.release();
                     singleMessageMetadataBuilder.recycle();
                     ++skippedMessages;
@@ -1370,6 +1375,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 singleMessagePayload.release();
                 singleMessageMetadataBuilder.recycle();
+            }
+            if (ackBitSet != null) {
+                ackBitSet.recycle();
             }
         } catch (IOException e) {
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);
