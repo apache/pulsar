@@ -78,6 +78,7 @@ jobs:
       - name: build cpp artifacts
         if: steps.docs.outputs.changed_only == 'no'
         run: |
+          docker -v
           echo "Build C++ client library"
           export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
           pulsar-client-cpp/docker-build.sh
