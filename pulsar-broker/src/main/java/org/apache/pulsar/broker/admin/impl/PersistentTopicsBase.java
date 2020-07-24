@@ -2027,7 +2027,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
 
         RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
-        if(!checkQuotas(backlogQuota,retentionPolicies)){
+        if(!checkBacklogQuota(backlogQuota,retentionPolicies)){
             log.warn(
                     "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
                     clientAppId(), topicName);
@@ -2077,20 +2077,6 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalRemoveBacklogQuota(AsyncResponse asyncResponse,
             BacklogQuota.BacklogQuotaType backlogQuotaType) {
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
-    }
-
-    private boolean checkQuotas(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention==null||retention.getRetentionSizeInMB() == 0 ||
-                retention.getRetentionSizeInMB() == -1) {
-            return true;
-        }
-        if (quota == null) {
-            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
-        }
-        if (quota.getLimit() >= ( retention.getRetentionSizeInMB() * 1024 * 1024)) {
-            return false;
-        }
-        return true;
     }
 
     protected MessageId internalTerminate(boolean authoritative) {

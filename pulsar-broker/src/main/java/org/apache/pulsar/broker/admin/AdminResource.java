@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -520,6 +521,20 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
             throw new RestException(e);
         }
+    }
+
+    protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
+        if (retention == null || retention.getRetentionSizeInMB() == 0 ||
+                retention.getRetentionSizeInMB() == -1) {
+            return true;
+        }
+        if (quota == null) {
+            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
+        }
+        if (quota.getLimit() >= ( retention.getRetentionSizeInMB() * 1024 * 1024)) {
+            return false;
+        }
+        return true;
     }
 
     protected void checkTopicLevelPolicyEnable() {
