@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,27 +18,26 @@
 # under the License.
 #
 
-name: Pulsar Bot
-on:
-  issue_comment:
-    types: [created]
+function fail {
+  echo $1 >&2
+  exit 1
+}
 
-jobs:
+function retry {
+  local n=1
+  local max=3
+  local delay=10
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++))
+        echo "Command failed. Attempt $n/$max:"
+        sleep $delay;
+      else
+        fail "The command has failed after $n attempts."
+      fi
+    }
+  done
+}
 
-  action-runner:
-    name:
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Execute pulsarbot command
-        id:   pulsarbot
-        env:
-          GITHUB_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
-        uses: apache/pulsar-test-infra/pulsarbot@master
+retry $@
