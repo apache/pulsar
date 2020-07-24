@@ -54,7 +54,7 @@ jobs:
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
+          args: site2 deployment .asf.yaml .ci ct.yaml
 
       - name: Set up Go
         uses: actions/setup-go@v2
