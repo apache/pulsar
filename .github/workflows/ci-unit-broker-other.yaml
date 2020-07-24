@@ -42,10 +42,26 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 deployment .asf.yaml .ci ct.yaml
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
       - name: build modules
-        run: mvn -B -q -ntp install -pl pulsar-broker -am -DskipTests
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
       - name: run unit tests for pulsar-broker exlcude "org/apache/pulsar/broker", "org/apache/pulsar/client"
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'
 
       - name: package surefire artifacts
