@@ -774,7 +774,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final Object ctx) {
         final ManagedCursorImpl cursor = (ManagedCursorImpl) cursors.get(consumerName);
         if (cursor == null) {
-            callback.deleteCursorFailed(new ManagedLedgerException("ManagedCursor not found: " + consumerName), ctx);
+            callback.deleteCursorFailed(new ManagedLedgerException.CursorNotFoundException("ManagedCursor not found: "
+                    + consumerName), ctx);
             return;
         } else if (!cursor.isDurable()) {
             cursors.removeCursor(consumerName);
