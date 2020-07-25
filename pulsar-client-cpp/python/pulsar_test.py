@@ -976,8 +976,9 @@ class PulsarTest(TestCase):
         # No other messages should be received
             consumer.receive(timeout_millis=500)
             self.assertTrue(False)
-        except PulsarException:
+        except Exception:
             # Exception is expected
+            # Also checks that PulsarException inherits Exception
             pass
         client.close()
 
@@ -1031,8 +1032,9 @@ class PulsarTest(TestCase):
             # No other messages should be received
             consumer.receive(timeout_millis=500)
             self.assertTrue(False)
-        except PulsarException:
+        except Exception:
             # Exception is expected
+            # Also checks that PulsarException inherits Exception
             pass
         client.close()
 
@@ -1180,8 +1182,10 @@ class PulsarTest(TestCase):
             # No more messages expected
             msg = consumer.receive(100)
             self.assertTrue(False)
-        except PulsarException:
-            pass  # Exception is expected
+        except Exception:
+            # Exception is expected
+            # Also checks that PulsarException inherits Exception
+            pass
         client.close()
 
     def _check_value_error(self, fun):
