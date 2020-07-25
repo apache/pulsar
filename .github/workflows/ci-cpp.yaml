@@ -49,12 +49,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Check if this pull request only changes documentation
-        id:   docs
-        uses: apache/pulsar-test-infra/diff-only@master
-        with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
-
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         if: steps.docs.outputs.changed_only == 'no'
@@ -62,7 +56,6 @@ jobs:
           java-version: 1.8
 
       - name: clean disk
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           sudo swapoff -a
           sudo rm -f /swapfile
@@ -71,16 +64,13 @@ jobs:
           df -h
 
       - name: build package
-        if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -Dorg.slf4j.simpleLogger.defaultLogLevel=ERROR package -DskipTests
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: build cpp artifacts
-        if: steps.docs.outputs.changed_only == 'no'
         run: |
           echo "Build C++ client library"
           export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
-        if: steps.docs.outputs.changed_only == 'no'
         run: pulsar-client-cpp/docker-tests.sh
