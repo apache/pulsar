@@ -333,6 +333,13 @@
 
     <!-- transaction related dependencies (end) -->
 
+     <dependency>
+       <groupId>org.bouncycastle</groupId>
+       <artifactId>bc-fips</artifactId>
+       <version>${bouncycastlefips.version}</version>
+       <scope>test</scope>
+     </dependency>
+
   </dependencies>
 
   <build>
