@@ -44,7 +44,7 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - name: checkout
+      - name: Check out code into the Go module directory
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
@@ -57,13 +57,13 @@ jobs:
           args: site2 deployment .asf.yaml .ci ct.yaml
 
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v2
         if: steps.docs.outputs.changed_only == 'no'
         with:
           go-version: ${{ matrix.go-version }}
         id: go
 
-      - name: run tests
+      - name: Run tests
         if: steps.docs.outputs.changed_only == 'no'
         run: |
           cd pulsar-function-go
