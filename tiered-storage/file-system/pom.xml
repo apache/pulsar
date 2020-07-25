@@ -52,14 +52,12 @@
             <artifactId>protobuf-java</artifactId>
             <version>${protobuf3.version}</version>
         </dependency>
-
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>testmocks</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-minicluster</artifactId>
@@ -68,39 +66,26 @@
             <exclusions>
               <exclusion>
                 <groupId>io.netty</groupId>
-                <artifactId>netty-all</artifactId>
+                <artifactId>netty</artifactId>
               </exclusion>
             </exclusions>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-server</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-servlet</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-util</artifactId>
-            <version>${org.eclipse.jetty-hdfs-offload}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-    
-    <dependencyManagement>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.guava</groupId>
-          <artifactId>guava</artifactId>
-          <version>21.0</version>
-        </dependency>
-      </dependencies>
-    </dependencyManagement>
     
     <build>
         <plugins>

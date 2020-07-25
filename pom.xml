@@ -143,9 +143,7 @@ flexible messaging model and an intuitive client API.</description>
     <postgresql-jdbc.version>42.2.12</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
-    <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
+    <hdfs-offload-version3>3.3.0</hdfs-offload-version3>
     <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
@@ -407,32 +405,10 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-server</artifactId>
+        <artifactId>jetty-bom</artifactId>
         <version>${jetty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-servlet</artifactId>
-        <version>${jetty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-servlets</artifactId>
-        <version>${jetty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-proxy</artifactId>
-        <version>${jetty.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.eclipse.jetty</groupId>
-        <artifactId>jetty-util</artifactId>
-        <version>${jetty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       
       <dependency>
