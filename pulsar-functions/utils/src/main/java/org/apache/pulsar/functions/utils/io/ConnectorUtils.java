@@ -66,7 +66,7 @@ public class ConnectorUtils {
         try {
             // Try to load source class and check it implements Source interface
             Class sourceClass = ncl.loadClass(conf.getSourceClass());
-            if (!(Source.class.isAssignableFrom(sourceClass)) || !(BatchSource.class.isAssignableFrom(sourceClass))) {
+            if (!(Source.class.isAssignableFrom(sourceClass) || BatchSource.class.isAssignableFrom(sourceClass))) {
                 throw new IOException(String.format("Class %s does not implement interface %s or %s",
                   conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
             }
