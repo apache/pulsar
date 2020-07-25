@@ -38,7 +38,7 @@ MESSAGE(STATUS "BUILD_PYTHON_WRAPPER:  " ${BUILD_PYTHON_WRAPPER})
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
 
-option(USE_LOG4CXX "Build with Log4cxx support" OFF)
+option(USE_LOG4CXX "Build with Log4cxx support" ON)
 MESSAGE(STATUS "USE_LOG4CXX:  " ${USE_LOG4CXX})
 
 IF (CMAKE_BUILD_TYPE STREQUAL "")
