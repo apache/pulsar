@@ -3353,10 +3353,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 10000)
+    @Test(timeOut = 5000)
     public void testReceiveAsyncCompletedWhenClosing() throws Exception {
-        String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
-        String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";
+        final String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
+        final String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";
+        final String errorMsg = "cleaning and closing the consumers";
         BatchReceivePolicy batchReceivePolicy
                 = BatchReceivePolicy.builder().maxNumBytes(10 * 1024).maxNumMessages(10).timeout(-1, TimeUnit.SECONDS).build();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -3369,10 +3370,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.receiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch.countDown();
             }
         }).start();
-        Thread.sleep(500);
         new Thread(() -> {
             try {
                 consumer.close();
@@ -3383,19 +3384,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 2) Test batchReceiveAsync is interrupted
         CountDownLatch countDownLatch2 = new CountDownLatch(1);
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("my-subscriber-name")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
-                Messages<String> message = consumer.batchReceiveAsync().get();
-                consumer.acknowledge(message);
+                consumer2.batchReceiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch2.countDown();
             }
         }).start();
-        Thread.sleep(500);
         new Thread(() -> {
             try {
-                consumer.close();
+                consumer2.close();
             } catch (PulsarClientException ignore) {
             }
         }).start();
@@ -3408,14 +3411,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .batchReceivePolicy(batchReceivePolicy).subscribe();
         new Thread(() -> {
             try {
-                Messages<String> message = partitionedTopicConsumer.batchReceiveAsync().get();
-                partitionedTopicConsumer.acknowledge(message);
+                partitionedTopicConsumer.batchReceiveAsync().get();
                 Assert.fail("should be interrupted");
             } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
                 countDownLatch3.countDown();
             }
         }).start();
-        Thread.sleep(500);
         new Thread(() -> {
             try {
                 partitionedTopicConsumer.close();
