@@ -84,22 +84,35 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(futures).get();
 
+        List<MessageId> acked = new ArrayList<>(50);
         for (int i = 0; i < messages; i++) {
+            Message<Integer> msg = consumer.receive();
             if (i % 2 == 0) {
-                consumer.acknowledge(consumer.receive());
+                consumer.acknowledge(msg);
+                acked.add(msg.getMessageId());
             } else {
                 consumer.negativeAcknowledge(consumer.receive());
             }
         }
 
-        List<Message<Integer>> received = new ArrayList<>(50);
+        List<MessageId> received = new ArrayList<>(50);
         for (int i = 0; i < 50; i++) {
-            received.add(consumer.receive());
+            received.add(consumer.receive().getMessageId());
         }
 
         Assert.assertEquals(received.size(), 50);
+        acked.retainAll(received);
+        Assert.assertEquals(acked.size(), 0);
 
-        Message<Integer> moreMessage = consumer.receive(1, TimeUnit.SECONDS);
+        for (MessageId messageId : received) {
+            consumer.acknowledge(messageId);
+        }
+
+        Thread.sleep(1000);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        Message<Integer> moreMessage = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(moreMessage);
 
         futures.clear();
@@ -109,7 +122,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         FutureUtil.waitForAll(futures).get();
 
         for (int i = 0; i < 50; i++) {
-            received.add(consumer.receive());
+            received.add(consumer.receive().getMessageId());
         }
 
         // Ensure the flow permit is work well since the client skip the acked batch index,
