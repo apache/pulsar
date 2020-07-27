@@ -208,10 +208,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                             TenantOperation operation,
                                                             AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-                String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization" +
-                                " provider you are using.",
-                        operation.toString(), tenantName)));
+        return isTenantAdmin(tenantName, role, null, authData);
     }
 
     default Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation,
@@ -267,11 +264,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
                                                                           PolicyOperation operation, String originalRole,
                                                                           String role, AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-                new IllegalStateException(
-                        String.format("NamespacePolicyOperation(%s) on namespace(%s) by role(%s) is not supported" +
-                                " by the Authorization provider you are using.", operation.toString(),
-                                namespaceName.toString(), role == null ? "null" : role)));
+        return isTenantAdmin(namespaceName.getTenant(), role, null, authData);
     }
 
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation,
@@ -298,11 +291,20 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role,
                                                              TopicOperation operation,
                                                              AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-            new IllegalStateException(
-                    String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
-                            " by the Authorization provider you are using.",
-                            operation.toString(), topic.toString(), role == null ? "null" : null)));
+        switch (operation) {
+            case PRODUCE:
+                return canProduceAsync(topic, role, authData);
+            case CONSUME:
+                return canConsumeAsync(topic, role, authData, null);
+            case LOOKUP:
+                return canLookupAsync(topic, role, authData);
+            default:
+                return FutureUtil.failedFuture(
+                        new IllegalStateException(
+                                String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
+                                                " by the Authorization provider you are using.",
+                                        operation.toString(), topic.toString(), role == null ? "null" : null)));
+        }
     }
 
     default Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation,
