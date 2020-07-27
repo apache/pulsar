@@ -49,9 +49,8 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     protected static final String[] exceptionMetricsLabelNames;
 
     static {
-        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 2);
+        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 1);
         exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
-        exceptionMetricsLabelNames[metricsLabelNames.length + 1] = "ts";
     }
 
     public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
