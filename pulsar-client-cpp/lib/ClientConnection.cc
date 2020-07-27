@@ -1375,8 +1375,6 @@ void ClientConnection::close() {
     if (isClosed()) {
         return;
     }
-    // Use a sleep to stress the timers when the pop to find the race conditions with close().
-    // sleep(30);
     state_ = Disconnected;
     boost::system::error_code err;
     socket_->close(err);
