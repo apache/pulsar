@@ -89,6 +89,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,6 +148,7 @@ public class ClientCnx extends PulsarHandler {
 
     // Added for mutual authentication.
     protected AuthenticationDataProvider authenticationDataProvider;
+    private TransactionBufferHandler transactionBufferHandler;
 
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -866,6 +868,22 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleEndTxnOnPartitionResponse(PulsarApi.CommandEndTxnOnPartitionResponse command) {
+        TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
+        if (handler != null) {
+            handler.handleEndTxnOnTopicResponse(command.getRequestId(), command);
+        }
+    }
+
+    @Override
+    protected void handleEndTxnOnSubscriptionResponse(PulsarApi.CommandEndTxnOnSubscriptionResponse command) {
+        TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
+        if (handler != null) {
+            handler.handleEndTxnOnSubscriptionResponse(command.getRequestId(), command);
+        }
+    }
+
+    @Override
     protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
@@ -880,6 +898,14 @@ public class ClientCnx extends PulsarHandler {
             log.warn("Close the channel since can't get the transaction meta store handler, will reconnect later.");
         }
         return handler;
+    }
+
+    private TransactionBufferHandler checkAndGetTransactionBufferHandler() {
+        if (transactionBufferHandler == null) {
+            channel().close();
+            log.warn("Close the channel since can't get the transaction buffer handler.");
+        }
+        return transactionBufferHandler;
     }
 
     /**
@@ -954,6 +980,10 @@ public class ClientCnx extends PulsarHandler {
 
     void registerTransactionMetaStoreHandler(final long transactionMetaStoreId, final TransactionMetaStoreHandler handler) {
         transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
+    }
+
+    public void registerTransactionBufferHandler(final TransactionBufferHandler handler) {
+        transactionBufferHandler = handler;
     }
 
     void removeProducer(final long producerId) {
