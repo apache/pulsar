@@ -107,7 +107,11 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
 
     @Override
     public void close() throws IOException {
-        flow.close();
+        try {
+            flow.close();
+        } catch (Exception e) {
+            throw new IOException(e);
+        }
     }
 
     @Data
