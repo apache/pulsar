@@ -229,4 +229,16 @@ public class WorkerImpl {
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
+
+    public Boolean isLeaderReady(final String clientRole) {
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+        if (worker().getLeaderService().isLeader()) {
+            return true;
+        } else {
+            throwUnavailableException();
+            return false; // make compiler happy
+        }
+    }
 }
