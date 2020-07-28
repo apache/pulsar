@@ -373,8 +373,9 @@ public class NamespaceService {
                             future.completeExceptionally(
                                     new PulsarServerException("the broker do not have " + options.getAdvertisedListenerName() + " listener"));
                         } else {
+                            URI urlTls = listener.getBrokerServiceUrlTls();
                             future.complete(Optional.of(new LookupResult(nsData.get(),
-                                    listener.getBrokerServiceUrl().toString(), listener.getBrokerServiceUrlTls().toString())));
+                                    listener.getBrokerServiceUrl().toString(), urlTls == null ? null : urlTls.toString())));
                         }
                         return;
                     } else {
@@ -471,8 +472,9 @@ public class NamespaceService {
                                         new PulsarServerException("the broker do not have " + options.getAdvertisedListenerName() + " listener"));
                                 return;
                             } else {
+                                URI urlTls = listener.getBrokerServiceUrlTls();
                                 lookupFuture.complete(Optional.of(new LookupResult(ownerInfo, listener.getBrokerServiceUrl().toString(),
-                                        listener.getBrokerServiceUrlTls().toString())));
+                                        urlTls == null ? null : urlTls.toString())));
                                 return;
                             }
                         } else {
