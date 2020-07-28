@@ -124,7 +124,7 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
-    void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode);
+    void checkGC();
 
     void checkInactiveSubscriptions();
 

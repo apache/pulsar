@@ -38,14 +38,14 @@ public class TransactionMetaStoreTestBase {
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
+    protected PulsarClient pulsarClient;
     protected static final int BROKER_COUNT = 5;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 
     protected TransactionCoordinatorClient transactionCoordinatorClient;
 
-    @BeforeClass
-    void setup() throws Exception {
+    protected void setup() throws Exception {
         log.info("---- Initializing SLAMonitoringTest -----");
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -80,10 +80,10 @@ public class TransactionMetaStoreTestBase {
 
         Thread.sleep(100);
 
-        PulsarClient client = PulsarClient.builder().
+        pulsarClient = PulsarClient.builder().
             serviceUrl(pulsarServices[0].getBrokerServiceUrl())
             .build();
-        transactionCoordinatorClient = new TransactionCoordinatorClientImpl(client);
+        transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
         transactionCoordinatorClient.start();
 
         Thread.sleep(3000);

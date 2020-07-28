@@ -105,7 +105,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                 if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
                     deadLetterPolicyBuilder.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
                 }
-                cb = cb.enableRetry(true).deadLetterPolicy(deadLetterPolicyBuilder.build());
+                cb = cb.deadLetterPolicy(deadLetterPolicyBuilder.build());
             }
 
             Consumer<T> consumer = cb.subscribeAsync().join();

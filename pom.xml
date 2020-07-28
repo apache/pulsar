@@ -160,7 +160,6 @@ flexible messaging model and an intuitive client API.</description>
     <confluent.version>5.3.2</confluent.version>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
-    <httpcomponents.version>4.5.5</httpcomponents.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.48</jcommander.version>
     <commons-lang3.version>3.6</commons-lang3.version>
@@ -234,12 +233,6 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>${httpcomponents.version}</version>
       </dependency>
 
       <dependency>
@@ -1734,14 +1727,11 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-common</module>
         <module>pulsar-broker-common</module>
         <module>pulsar-broker</module>
-        <module>pulsar-broker-shaded</module>
         <module>pulsar-client-api</module>
         <module>pulsar-client</module>
         <module>pulsar-client-admin</module>
-        <module>pulsar-client-admin-shaded</module>
         <module>pulsar-client-tools</module>
         <module>pulsar-client-tools-test</module>
-        <module>pulsar-client-all</module>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-discovery-service</module>

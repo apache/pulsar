@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.coordinator;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -27,6 +28,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TransactionMetaStoreAssignmentTest extends TransactionMetaStoreTestBase {
+
+    @BeforeClass
+    public void init() throws Exception {
+        super.setup();
+    }
 
     @Test
     public void testTransactionMetaStoreAssignAndFailover() throws IOException, InterruptedException {
