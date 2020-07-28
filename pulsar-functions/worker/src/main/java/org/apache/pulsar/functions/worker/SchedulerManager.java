@@ -189,7 +189,9 @@ public class SchedulerManager implements AutoCloseable {
                     new LinkedBlockingQueue<>(5));
             executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
             scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
-            scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
+            if (workerConfig.getTopicCompactionFrequencySec() > 0) {
+                scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
+            }
 
             isRunning = true;
             lastMessageProduced = null;
