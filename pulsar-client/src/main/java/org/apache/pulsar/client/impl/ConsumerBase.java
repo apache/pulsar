@@ -195,6 +195,30 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected void failPendingReceives(ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives) {
+        while (!pendingReceives.isEmpty()) {
+            CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
+            if (receiveFuture == null) {
+                break;
+            }
+            receiveFuture.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
+        }
+    }
+
+    protected void failPendingBatchReceives(ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives) {
+        while (!pendingBatchReceives.isEmpty()) {
+            OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
+            if (opBatchReceive == null || opBatchReceive.future == null) {
+                break;
+            }
+            opBatchReceive.future.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
+        }
+    }
+
     abstract protected Messages<T> internalBatchReceive() throws PulsarClientException;
 
     abstract protected CompletableFuture<Messages<T>> internalBatchReceiveAsync();
@@ -405,7 +429,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                              TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                                Map<String,Long> properties, 
+                                                                Map<String,Long> properties,
                                                                 long delayTime,
                                                                 TimeUnit unit);
 
