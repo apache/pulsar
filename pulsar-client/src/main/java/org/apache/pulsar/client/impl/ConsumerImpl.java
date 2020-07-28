@@ -729,6 +729,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            setState(State.Closed);
+            closeConsumerTasks();
+            client.cleanupConsumer(this);
+            failPendingReceive();
+            clearReceiverQueue();
+            return;
+        }
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
