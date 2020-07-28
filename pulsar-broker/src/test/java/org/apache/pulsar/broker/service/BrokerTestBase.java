@@ -55,7 +55,12 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
 
     void runGC() {
         try {
-            pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkGC(0)).get();
+            pulsar.getBrokerService().forEachTopic(topic -> {
+                if (topic instanceof AbstractTopic) {
+                    ((AbstractTopic) topic).getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
+                }
+            });
+            pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkGC()).get();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
             LOG.error("GC executor error", e);

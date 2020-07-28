@@ -141,7 +141,6 @@
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
-                  <include>org.apache.httpcomponents:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.google.auth:*</include>
                   <include>org.jvnet.mimepull:*</include>
@@ -167,12 +166,6 @@
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
                 </filter>
               </filters>
               <relocations>
@@ -214,10 +207,6 @@
                 <relocation>
                   <pattern>com.yahoo</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.eclipse.jetty</pattern>
@@ -282,10 +271,6 @@
                 <relocation>
                     <pattern>org.eclipse.jetty</pattern>
                     <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>org.apache.http</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.objenesis</pattern>

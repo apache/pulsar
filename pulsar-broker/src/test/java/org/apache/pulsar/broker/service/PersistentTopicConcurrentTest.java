@@ -196,7 +196,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                     // Thread.sleep(5,0);
                     log.info("{} forcing topic GC ", Thread.currentThread());
                     for (int i = 0; i < 2000; i++) {
-                        topic.checkGC(0, InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                        topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
+                        topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                        topic.checkGC();
                     }
                     log.info("GC done..");
                 } catch (Exception e) {
