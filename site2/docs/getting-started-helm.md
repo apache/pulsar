@@ -220,7 +220,7 @@ Then you can find the IP address and exposed ports of your Minikube server by ru
 minikube service pulsar-mini-proxy -n pulsar
 ```
 
-Example output which shows the exposed ip and ports in the second table
+**Output**
 
 ```bash
 |-----------|-------------------|-------------|-------------------------|
