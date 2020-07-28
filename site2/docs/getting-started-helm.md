@@ -200,7 +200,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 
 You can use the Pulsar client to create producers and consumers to produce and consume messages.
 
-By default, the Pulsar Helm chart exposes the Pulsar cluster through a Kubernetes `LoadBalancer`. In Minikube, you can use the following command to view the proxy service.
+By default, the Pulsar Helm chart exposes the Pulsar cluster through a Kubernetes `LoadBalancer`. In Minikube, you can use the following command to check the proxy service.
 
 ```bash
 kubectl get services -n pulsar | grep pulsar-mini-proxy
