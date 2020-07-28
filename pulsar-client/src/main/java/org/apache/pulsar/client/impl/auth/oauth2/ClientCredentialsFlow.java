@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.entity.ContentType;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 /**
@@ -98,7 +97,7 @@ class ClientCredentialsFlow extends FlowBase {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
         exchanger.close();
     }
 
@@ -130,7 +129,7 @@ class ClientCredentialsFlow extends FlowBase {
 
             String protocol = urlConnection.getURL().getProtocol();
             String contentType = urlConnection.getContentType();
-            if ("data".equals(protocol) && !ContentType.APPLICATION_JSON.getMimeType().equals(contentType)) {
+            if ("data".equals(protocol) && !"application/json".equals(contentType)) {
                 throw new IllegalArgumentException(
                         "Unsupported media type or encoding format: " + urlConnection.getContentType());
             }

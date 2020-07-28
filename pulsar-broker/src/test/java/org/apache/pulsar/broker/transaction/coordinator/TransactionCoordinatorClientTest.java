@@ -24,9 +24,15 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.Sta
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
+
+    @BeforeClass
+    public void init() throws Exception {
+        super.setup();
+    }
 
     @Test
     public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {

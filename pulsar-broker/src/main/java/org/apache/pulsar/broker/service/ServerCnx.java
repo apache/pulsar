@@ -1705,6 +1705,16 @@ public class ServerCnx extends PulsarHandler {
             });
     }
 
+    @Override
+    protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
+        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+    }
+
+    @Override
+    protected void handleEndTxnOnSubscription(PulsarApi.CommandEndTxnOnSubscription command) {
+        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+    }
+
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
         if (schema != null) {
             return topic.addSchema(schema);

@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl.transaction;
+package org.apache.pulsar.client.api.transaction;
 
 import java.util.concurrent.CompletableFuture;
 
 /**
- * The transaction buffer client to commit and abort transactions on topics.
+ * The transaction buffer client to commit and abort transactions on topics or subscription.
+ * The transaction buffer client is used by transaction coordinator to end transactions.
  */
 public interface TransactionBufferClient {
 
@@ -33,9 +34,9 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the commit result
      */
-    CompletableFuture<Void> commitTxnOnTopic(String topic,
-                                             long txnIdMostBits,
-                                             long txnIdLeastBits);
+    CompletableFuture<TxnID> commitTxnOnTopic(String topic,
+                                              long txnIdMostBits,
+                                              long txnIdLeastBits);
 
     /**
      * Abort the transaction associated with the topic.
@@ -45,7 +46,7 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the abort result
      */
-    CompletableFuture<Void> abortTxnOnTopic(String topic,
+    CompletableFuture<TxnID> abortTxnOnTopic(String topic,
                                             long txnIdMostBits,
                                             long txnIdLeastBits);
 
@@ -58,7 +59,7 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the commit result
      */
-    CompletableFuture<Void> commitTxnOnSubscription(String topic,
+    CompletableFuture<TxnID> commitTxnOnSubscription(String topic,
                                                     String subscription,
                                                     long txnIdMostBits,
                                                     long txnIdLeastBits);
@@ -72,7 +73,7 @@ public interface TransactionBufferClient {
      * @param txnIdLeastBits the least bits of txn id
      * @return the future represents the abort result
      */
-    CompletableFuture<Void> abortTxnOnSubscription(String topic,
+    CompletableFuture<TxnID> abortTxnOnSubscription(String topic,
                                                    String subscription,
                                                    long txnIdMostBits,
                                                    long txnIdLeastBits);
