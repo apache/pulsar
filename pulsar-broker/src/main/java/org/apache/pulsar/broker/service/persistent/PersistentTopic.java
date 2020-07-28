@@ -2278,13 +2278,4 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    @Override
-    public void commitPartition() {
-
-    }
-
-    @Override
-    public void abortPartition() {
-
-    }
 }

@@ -979,13 +979,4 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         throw new UnsupportedOperationException("publishTxnMessage is not supported on non-persistent topic");
     }
 
-    @Override
-    public void commitPartition() {
-        throw new UnsupportedOperationException("commitPartition is not supported on non-persistent topic");
-    }
-
-    @Override
-    public void abortPartition() {
-        throw new UnsupportedOperationException("abortPartition is not supported on non-persistent topic");
-    }
 }

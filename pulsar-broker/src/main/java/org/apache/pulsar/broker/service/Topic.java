@@ -229,8 +229,4 @@ public interface Topic {
 
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
-    void commitPartition();
-
-    void abortPartition();
-
 }
