@@ -80,14 +80,22 @@ RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
     make
 
 # Installation
+ARG MAVEN_VERSION="3.6.1"
 ARG MAVEN_FILENAME="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
 ARG MAVEN_URL="http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_FILENAME}"
 ARG MAVEN_TMP="/tmp/${MAVEN_FILENAME}"
+ARG MAVEN_HOME="/opt/apache-maven-${MAVEN_VERSION}"
 RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL} 
 
 # Cleanup
 RUN tar xzf ${MAVEN_TMP}  -C /opt/ \
-        && ln -s /opt/apache-maven-${MAVEN_VERSION} ${MAVEN_HOME} \
-        && ln -s ${MAVEN_HOME}/bin/mvn /usr/local/bin 
+        && ln -s ${MAVEN_HOME}/bin/mvn /usr/local/bin/mvn 
+
+# Check out just master branch and get maven dependencies
+RUN git clone https://github.com/apache/pulsar.git -b master --single-branch /pulsar/pulsar-src \
+    && cd /pulsar/pulsar-src \
+    && mvn -B -ntp package -P main -DskipTests \
+    && cd / \
+    && rm -r /pulsar/pulsar-src 
 
 RUN unset MAVEN_VERSION
