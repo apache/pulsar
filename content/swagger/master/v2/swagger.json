@@ -2740,6 +2740,137 @@
                 }
             }
         },
+        "/namespaces/{tenant}/{namespace}/inactiveTopicPolicies": {
+            "get": {
+                "tags": [
+                    "namespaces"
+                ],
+                "summary": "Get inactive topic policies config on a namespace.",
+                "description": "",
+                "operationId": "getInactiveTopicPolicies",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "$ref": "#/definitions/InactiveTopicPolicies"
+                        }
+                    },
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Tenant or cluster or namespace doesn't exist"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "namespaces"
+                ],
+                "summary": "Set inactive topic policies config on a namespace.",
+                "description": "",
+                "operationId": "setInactiveTopicPolicies",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Inactive topic policies for the specified namespace",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/InactiveTopicPolicies"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Tenant or cluster or namespace doesn't exist"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "namespaces"
+                ],
+                "summary": "Remove inactive topic policies from a namespace.",
+                "description": "",
+                "operationId": "removeInactiveTopicPolicies",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Namespace does not exist"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
         "/namespaces/{tenant}/{namespace}/isAllowAutoUpdateSchema": {
             "get": {
                 "tags": [
@@ -7213,7 +7344,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -12318,6 +12449,25 @@
                 }
             }
         },
+        "InactiveTopicPolicies": {
+            "type": "object",
+            "properties": {
+                "inactiveTopicDeleteMode": {
+                    "type": "string",
+                    "enum": [
+                        "delete_when_no_subscriptions",
+                        "delete_when_subscriptions_caught_up"
+                    ]
+                },
+                "maxInactiveDurationSeconds": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "deleteWhileInactive": {
+                    "type": "boolean"
+                }
+            }
+        },
         "InternalConfigurationData": {
             "type": "object",
             "properties": {
@@ -12522,15 +12672,11 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
+                "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -12545,18 +12691,22 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "loadReportType": {
-                    "type": "string"
-                },
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 },
-                "memory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -13344,6 +13494,9 @@
                 "delayed_delivery_policies": {
                     "$ref": "#/definitions/DelayedDeliveryPolicies"
                 },
+                "inactive_topic_policies": {
+                    "$ref": "#/definitions/InactiveTopicPolicies"
+                },
                 "subscription_auth_mode": {
                     "type": "string",
                     "enum": [
@@ -13748,11 +13901,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },

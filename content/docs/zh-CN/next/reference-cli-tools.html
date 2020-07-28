@@ -307,6 +307,7 @@ $ pulsar command
 <tbody>
 <tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</td></tr>
 <tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td>org.apache.pulsar.client.impl.auth.AuthenticationSasl</td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
 <tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a> </br> <a href="ws://localhost:8080">ws://localhost:8080</a></td></tr>
 </tbody>
 </table>
@@ -405,6 +406,7 @@ $ pulsar command
 <tbody>
 <tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
 <tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
 <tr><td><code>--acks-delay-millis</code></td><td>Acknowlegments grouping delay in millis</td><td>100</td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The private key name to decrypt payload</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the private key to decrypt payload</td><td></td></tr>
@@ -437,6 +439,7 @@ $ pulsar command
 <tbody>
 <tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
 <tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
 <tr><td><code>-b</code>, <code>--batch-time-window</code></td><td>Batch messages in a window of the specified number of milliseconds</td><td>1</td></tr>
 <tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
@@ -474,6 +477,7 @@ $ pulsar command
 <tbody>
 <tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
 <tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--listener-name</code></td><td>Listener name for the broker</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
