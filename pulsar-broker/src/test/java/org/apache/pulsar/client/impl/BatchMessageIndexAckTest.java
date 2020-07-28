@@ -83,22 +83,35 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(futures).get();
 
+        List<MessageId> acked = new ArrayList<>(50);
         for (int i = 0; i < messages; i++) {
+            Message<Integer> msg = consumer.receive();
             if (i % 2 == 0) {
-                consumer.acknowledge(consumer.receive());
+                consumer.acknowledge(msg);
+                acked.add(msg.getMessageId());
             } else {
                 consumer.negativeAcknowledge(consumer.receive());
             }
         }
 
-        List<Message<Integer>> received = new ArrayList<>(50);
+        List<MessageId> received = new ArrayList<>(50);
         for (int i = 0; i < 50; i++) {
-            received.add(consumer.receive());
+            received.add(consumer.receive().getMessageId());
         }
 
         Assert.assertEquals(received.size(), 50);
+        acked.retainAll(received);
+        Assert.assertEquals(acked.size(), 0);
 
-        Message<Integer> moreMessage = consumer.receive(1, TimeUnit.SECONDS);
+        for (MessageId messageId : received) {
+            consumer.acknowledge(messageId);
+        }
+
+        Thread.sleep(1000);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        Message<Integer> moreMessage = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(moreMessage);
 
         futures.clear();
@@ -108,7 +121,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         FutureUtil.waitForAll(futures).get();
 
         for (int i = 0; i < 50; i++) {
-            received.add(consumer.receive());
+            received.add(consumer.receive().getMessageId());
         }
 
         // Ensure the flow permit is work well since the client skip the acked batch index,
@@ -180,5 +193,36 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         // Ensure the flow permit is work well since the client skip the acked batch index,
         // broker also need to handle the available permits.
         Assert.assertEquals(received.size(), 100);
+    }
+
+    @Test
+    public void testDoNotRecycleAckSetMultipleTimes() throws Exception  {
+        final String topic = "persistent://my-property/my-ns/testSafeAckSetRecycle";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .batchingMaxMessages(10)
+                .blockIfQueueFull(true).topic(topic)
+                .create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 100;
+        for (int i = 0; i < messages; i++) {
+            producer.sendAsync("Hello Pulsar".getBytes());
+        }
+
+        // Should not throw an exception.
+        for (int i = 0; i < messages; i++) {
+            consumer.acknowledgeCumulative(consumer.receive());
+            // make sure the group ack flushed.
+            Thread.sleep(2);
+        }
+
+        producer.close();
+        consumer.close();
     }
 }

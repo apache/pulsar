@@ -39,6 +39,14 @@ Pulsar schemas are fairly simple data structures that consist of:
 
 ## Schema versions
 
+Each schema stored with a topic has a version. Schema version manages schema changes happening within a topic.
+
+Messages produced with a given schema is tagged with a schema version. Therefore, when a message is consumed by a Pulsar client, the Pulsar client can use the schema version to retrieve the corresponding schema and deserialize data.
+
+Schemas are versioned in succession.The schema is stored in a broker that handles the associated topics, so that version assignments can be made.
+
+Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
+
 In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
@@ -62,6 +70,12 @@ A schema already exists; the producer connects using a new schema that is compat
 
 > Schemas are versioned in succession. Schema storage happens in the broker that handles the associated topic so that version assignments can be made. Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
 
+If you do not know the schema type of a Pulsar topic in advance, you can use AUTO schema to produce or consume generic records to or from brokers.
+
+- `AUTO_PRODUCE` schema helps a producer validate whether the bytes sent by the producer is compatible with the schema of a topic. 
+- `AUTO_CONSUME` schema helps a Pulsar topic validate whether the bytes sent by a Pulsar topic is compatible with a consumer, that is, the Pulsar topic deserializes messages into language-specific objects using the schema retrieved from broker-side.  
+
+In `AUTO_CONSUME` mode, you can set the `useProvidedSchemaAsReaderSchema` flag to `false`. Therefore, the messages can be decoded based on the schema associated with the messages.
 
 ## Supported schema formats
 
@@ -78,6 +92,28 @@ For usage instructions, see the documentation for your preferred client library:
 * [Java](client-libraries-java.md#schemas)
 
 > Support for other schema formats will be added in future releases of Pulsar.
+
+The following example shows how to define an Avro schema using the `GenericSchemaBuilder`, generate a generic Avro schema using `GenericRecordBuilder`, and consume messages into `GenericRecord`.
+
+**Example** 
+
+1. Use the `RecordSchemaBuilder` to build a schema.
+
+    ```java
+    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+
+    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+    ```
+
+2. Use `RecordBuilder` to build the generic records.
+
+    ```java
+    producer.newMessage().value(schema.newRecordBuilder()
+                .set("intField", 32)
+                .build()).send();
+    ```
 
 ## Managing Schemas
 

@@ -63,6 +63,7 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.RequestBuilder;
+import org.asynchttpclient.request.body.multipart.ByteArrayPart;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
@@ -356,6 +357,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {
@@ -471,6 +476,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -754,6 +763,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
@@ -843,24 +856,29 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             }
                         }).toCompletableFuture();
 
-            statusFuture.thenAccept(status -> {
-                try {
-                    os.close();
-                } catch (Exception e) {
-                    future.completeExceptionally(getApiException(e));
-                    return;
-                }
+            statusFuture
+                    .thenAccept(status -> {
+                        try {
+                            os.close();
+                        } catch (Exception e) {
+                            future.completeExceptionally(getApiException(e));
+                            return;
+                        }
 
-                if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
-                    future.completeExceptionally(
-                            getApiException(Response
-                                    .status(status.getStatusCode())
-                                    .entity(status.getStatusText())
-                                    .build()));
-                } else {
-                    future.complete(null);
-                }
-            });
+                        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(status.getStatusCode())
+                                            .entity(status.getStatusText())
+                                            .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
         } catch (Exception e) {
             future.completeExceptionally(getApiException(e));
         }
@@ -977,6 +995,61 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         } else {
                             future.complete(null);
                         }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    public void updateOnWorkerLeader(String tenant, String namespace,
+                                     String function, byte[] functionMetaData,
+                                     boolean delete) throws PulsarAdminException {
+        try {
+            updateOnWorkerLeaderAsync(tenant, namespace, function,
+                    functionMetaData, delete).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    public CompletableFuture<Void> updateOnWorkerLeaderAsync(String tenant, String namespace,
+                                                             String function, byte[] functionMetaData,
+                                                             boolean delete) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            RequestBuilder builder =
+                    put(functions.path("leader").path(tenant).path(namespace)
+                            .path(function).getUri().toASCIIString())
+                            .addBodyPart(new ByteArrayPart("functionMetaData", functionMetaData))
+                    .addBodyPart(new StringPart("delete", Boolean.toString(delete)));
+
+            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
+                    .toCompletableFuture()
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+                            future.completeExceptionally(
+                                    getApiException(Response
+                                            .status(response.getStatusCode())
+                                            .entity(response.getResponseBody())
+                                            .build()));
+                        } else {
+                            future.complete(null);
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        future.completeExceptionally(getApiException(throwable));
+                        return null;
                     });
 
         } catch (Exception e) {

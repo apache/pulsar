@@ -82,6 +82,7 @@ public final class PulsarApi {
     ConsumerAssignError(19, 19),
     TransactionCoordinatorNotFound(20, 20),
     InvalidTxnStatus(21, 21),
+    NotAllowedError(22, 22),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -106,6 +107,7 @@ public final class PulsarApi {
     public static final int ConsumerAssignError_VALUE = 19;
     public static final int TransactionCoordinatorNotFound_VALUE = 20;
     public static final int InvalidTxnStatus_VALUE = 21;
+    public static final int NotAllowedError_VALUE = 22;
     
     
     public final int getNumber() { return value; }
@@ -134,6 +136,7 @@ public final class PulsarApi {
         case 19: return ConsumerAssignError;
         case 20: return TransactionCoordinatorNotFound;
         case 21: return InvalidTxnStatus;
+        case 22: return NotAllowedError;
         default: return null;
       }
     }
@@ -1573,6 +1576,15 @@ public final class PulsarApi {
             case 40: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 42: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
               break;
             }
           }
@@ -18855,6 +18867,15 @@ public final class PulsarApi {
             case 32: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 34: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
               break;
             }
           }

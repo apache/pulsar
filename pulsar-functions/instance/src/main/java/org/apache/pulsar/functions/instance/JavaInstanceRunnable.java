@@ -683,6 +683,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
                 consumerConfig.setSchemaProperties(conf.getSchemaPropertiesMap());
+                consumerConfig.setConsumerProperties(conf.getConsumerPropertiesMap());
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
@@ -720,6 +721,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             switch (sourceSpec.getSubscriptionType()) {
                 case FAILOVER:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
+                    break;
+                case KEY_SHARED:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Key_Shared);
                     break;
                 default:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);

@@ -27,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * A {@link TransactionBufferReader} implementation that reads entries from {@link InMemTransactionBuffer}.

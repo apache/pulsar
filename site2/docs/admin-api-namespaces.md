@@ -554,10 +554,17 @@ admin.namespaces().getRetention(namespace)
 
 #### set dispatch throttling
 
-It sets message dispatch rate for all the topics under a given namespace.
+It sets message dispatch rate for all the topics under a given namespace. 
 Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
+
+#### Note
+> - If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
+> >
+> - If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
+> > 
+> - If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
 
 ###### CLI
 
@@ -669,7 +676,7 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 admin.namespaces().getSubscriptionDispatchRate(namespace)
 ```
 
-#### set dispatch throttling for subscription
+#### set dispatch throttling for replicator
 
 It sets message dispatch rate for all the replicator between replication clusters under a given namespace.
 Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).

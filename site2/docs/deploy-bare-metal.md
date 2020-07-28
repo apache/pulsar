@@ -285,7 +285,7 @@ $ bin/pulsar-daemon start bookie
 To start the bookie in the foreground:
 
 ```bash
-$ bin/bookkeeper bookie
+$ bin/pulsar bookie
 ```
 
 You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):

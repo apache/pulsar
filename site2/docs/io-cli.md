@@ -557,6 +557,8 @@ $ pulsar-admin sinks localrun options
 | `--client-auth-plugin` | Client authentication plugin using which function-process can connect to broker.
 |`--cpu`|The CPU (in cores) that needs to be allocated per sink instance (applicable only to the Docker runtime).
 | `--custom-schema-inputs` | The map of input topics to Schema types or class names (as a JSON string).
+| `--max-redeliver-count` | Maximum number of times that a message is redelivered before being sent to the dead letter queue.
+| `--dead-letter-topic` | Name of the dead letter topic where the failing messages are sent.
 | `--custom-serde-inputs` | The map of input topics to SerDe class names (as a JSON string).
 |`--disk`|The disk (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).|
 |`--hostname-verification-enabled`|Enable hostname verification.<br>**Default value: false**.
@@ -573,6 +575,7 @@ $ pulsar-admin sinks localrun options
 |`--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 |`--tenant`|The sink’s tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
+| `--negative-ack-redelivery-delay-ms` | The negatively-acknowledged message redelivery delay in milliseconds. |
 |`--tls-allow-insecure`|Allow insecure tls connection.<br>**Default value: false**.
 |`--tls-trust-cert-path`|The tls trust cert file path.
 | `--topics-pattern` | TopicsPattern to consume from list of topics under a namespace that match the pattern. <br>`--input` and `--topics-Pattern` are mutually exclusive. <br>Add SerDe class name for a pattern in `--customSerdeInputs` (supported for java fun only).

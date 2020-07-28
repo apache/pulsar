@@ -32,6 +32,7 @@ enum ProcessingGuarantees {
 enum SubscriptionType {
     SHARED = 0;
     FAILOVER = 1;
+    KEY_SHARED = 2;
 }
 
 enum SubscriptionPosition {
@@ -84,6 +85,8 @@ message FunctionDetails {
     /* If specified, this will refer to an archive that is
      * already present in the server */
     string builtin = 20;
+    bool retainOrdering = 21;
+    bool retainKeyOrdering = 22;
 }
 
 message ConsumerSpec {
@@ -95,6 +98,7 @@ message ConsumerSpec {
     }
     ReceiverQueueSize receiverQueueSize = 4;
     map<string, string> schemaProperties = 5;
+    map<string, string> consumerProperties = 6;
 }
 
 message SourceSpec {
@@ -149,6 +153,8 @@ message SinkSpec {
     bool forwardSourceMessageProperty = 8;
 
     map<string, string> schemaProperties = 9;
+
+    map<string, string> consumerProperties = 10;
 }
 
 message PackageLocationMetaData {

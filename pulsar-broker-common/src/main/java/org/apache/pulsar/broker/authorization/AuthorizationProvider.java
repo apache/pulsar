@@ -47,17 +47,6 @@ public interface AuthorizationProvider extends Closeable {
     /**
      * Check if specified role is a super user
      * @param role the role to check
-     * @return a CompletableFuture containing a boolean in which true means the role is a super user
-     * and false if it is not
-     */
-    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
-        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
-    }
-
-    /**
-     * Check if specified role is a super user
-     * @param role the role to check
      * @param authenticationData authentication data related to the role
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
      * and false if it is not
@@ -65,7 +54,20 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> isSuperUser(String role,
                                                    AuthenticationDataSource authenticationData,
                                                    ServiceConfiguration serviceConfiguration) {
-        return isSuperUser(role, serviceConfiguration);
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
+    }
+
+    /**
+     * @deprecated Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}
+     * Check if specified role is a super user
+     * @param role the role to check
+     * @return a CompletableFuture containing a boolean in which true means the role is a super user
+     * and false if it is not
+     */
+    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
+        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
     }
 
     /**
@@ -140,6 +142,26 @@ public interface AuthorizationProvider extends Closeable {
                                                      AuthenticationDataSource authenticationData);
 
     /**
+     * Allow all source operations with in this namespace
+     * @param namespaceName The namespace that the sources operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
+                                                   AuthenticationDataSource authenticationData);
+
+    /**
+     * Allow all sink operations with in this namespace
+     * @param namespaceName The namespace that the sink operations can be executed in
+     * @param role The role to check
+     * @param authenticationData authentication data related to the role
+     * @return a boolean to determine whether authorized or not
+     */
+    CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
+                                                 AuthenticationDataSource authenticationData);
+
+    /**
      *
      * Grant authorization-action permission on a namespace to the given client
      *
@@ -206,10 +228,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
                                                             TenantOperation operation,
                                                             AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(new IllegalStateException(
-                String.format("allowTenantOperation(%s) on tenant %s is not supported by the Authorization" +
-                                " provider you are using.",
-                        operation.toString(), tenantName)));
+        return isTenantAdmin(tenantName, role, null, authData);
     }
 
     default Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation,
@@ -236,7 +255,10 @@ public interface AuthorizationProvider extends Closeable {
                                                                  String role, NamespaceOperation operation,
                                                                  AuthenticationDataSource authData) {
         return FutureUtil.failedFuture(
-            new IllegalStateException("NamespaceOperation is not supported by the Authorization provider you are using."));
+            new IllegalStateException(
+                    String.format("NamespaceOperation(%s) on namespace(%s) by role(%s) is not supported" +
+                    " by the Authorization provider you are using.",
+                            operation.toString(), namespaceName.toString(), role == null ? "null" : role)));
     }
 
     default Boolean allowNamespaceOperation(NamespaceName namespaceName, String originalRole, String role,
@@ -262,8 +284,7 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
                                                                           PolicyOperation operation, String originalRole,
                                                                           String role, AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-                new IllegalStateException("NamespacePolicyOperation is not supported by the Authorization provider you are using."));
+        return isTenantAdmin(namespaceName.getTenant(), role, null, authData);
     }
 
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation,
@@ -290,8 +311,20 @@ public interface AuthorizationProvider extends Closeable {
     default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role,
                                                              TopicOperation operation,
                                                              AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-            new IllegalStateException("TopicOperation is not supported by the Authorization provider you are using."));
+        switch (operation) {
+            case PRODUCE:
+                return canProduceAsync(topic, role, authData);
+            case CONSUME:
+                return canConsumeAsync(topic, role, authData, null);
+            case LOOKUP:
+                return canLookupAsync(topic, role, authData);
+            default:
+                return FutureUtil.failedFuture(
+                        new IllegalStateException(
+                                String.format("TopicOperation(%s) on topic(%s) by role(%s) is not supported" +
+                                                " by the Authorization provider you are using.",
+                                        operation.toString(), topic.toString(), role == null ? "null" : null)));
+        }
     }
 
     default Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation,

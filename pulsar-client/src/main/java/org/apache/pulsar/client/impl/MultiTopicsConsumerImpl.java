@@ -566,15 +566,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         lock.readLock().lock();
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
-                while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
-                    if (receiveFuture != null) {
-                        receiveFuture.completeExceptionally(
-                                new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
-                    } else {
-                        break;
-                    }
-                }
+                failPendingReceives(pendingReceives);
+                failPendingBatchReceives(pendingBatchReceives);
             }
         } finally {
             lock.readLock().unlock();
@@ -728,10 +721,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private boolean topicNameValid(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
-        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
-
-        return true;
+        return TopicName.isValid(topicName) && !topics.containsKey(topicName);
     }
 
     // subscribe one more given topic
@@ -750,7 +740,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         client.getPartitionedTopicMetadata(topicName)
                 .thenAccept(metadata -> subscribeTopicPartitions(subscribeResult, topicName, metadata.partitions,
-                        createTopicIfDoesNotExist))
+                    createTopicIfDoesNotExist))
                 .exceptionally(ex1 -> {
                     log.warn("[{}] Failed to get partitioned topic metadata: {}", topicName, ex1.getMessage());
                     subscribeResult.completeExceptionally(ex1);
@@ -792,7 +782,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic, but already know the numberPartitions
-    private CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
+    @VisibleForTesting
+    CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         if (!topicNameValid(topicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
@@ -881,12 +872,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     consumers.values().stream()
                         .filter(consumer1 -> {
                             String consumerTopicName = consumer1.getTopic();
-                            if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
-                                    TopicName.get(topicName).getPartitionedTopicName())) {
-                                return true;
-                            } else {
-                                return false;
-                            }
+                            return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                    TopicName.get(topicName).getPartitionedTopicName());
                         })
                         .collect(Collectors.toList()));
 
@@ -904,12 +891,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // handling failure during subscribe new topic, unsubscribe success created partitions
     private void handleSubscribeOneTopicError(String topicName, Throwable error, CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
-
         client.externalExecutorProvider().getExecutor().submit(() -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(TopicName.get(topicName).getPartitionedTopicName())) {
                     toCloseNum.incrementAndGet();
                     return true;
                 } else {
@@ -924,7 +910,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer, subscribe error: {}",
                             topic, topicName, error.getMessage());
                         topics.remove(topicName);
-                        checkState(allTopicPartitionsNumber.get() == consumers.values().size());
                         subscribeFuture.completeExceptionally(error);
                     }
                     return;
@@ -953,11 +938,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<ConsumerImpl<T>> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
 
         List<CompletableFuture<Void>> futureList = consumersToUnsub.stream()
@@ -1005,11 +986,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         List<ConsumerImpl<T>> consumersToClose = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
-                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
-                    return true;
-                } else {
-                    return false;
-                }
+                return TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName);
             }).collect(Collectors.toList());
 
         List<CompletableFuture<Void>> futureList = consumersToClose.stream()

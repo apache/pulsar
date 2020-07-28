@@ -96,6 +96,13 @@ const MessageId& Message::getMessageId() const {
     }
 }
 
+void Message::setMessageId(const MessageId& messageID) const {
+    if (impl_) {
+        impl_->messageId = messageID;
+    }
+    return;
+}
+
 bool Message::hasPartitionKey() const {
     if (impl_) {
         return impl_->hasPartitionKey();

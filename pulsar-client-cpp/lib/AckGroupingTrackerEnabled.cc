@@ -49,8 +49,8 @@ AckGroupingTrackerEnabled::AckGroupingTrackerEnabled(ClientImplPtr clientPtr, Ha
       executor_(clientPtr->getIOExecutorProvider()->get()),
       timer_(),
       mutexTimer_() {
-    LOG_INFO("ACK grouping is enabled, grouping time " << ackGroupingTimeMs << "ms, grouping max size "
-                                                       << ackGroupingMaxSize);
+    LOG_DEBUG("ACK grouping is enabled, grouping time " << ackGroupingTimeMs << "ms, grouping max size "
+                                                        << ackGroupingMaxSize);
     this->scheduleTimer();
 }
 
@@ -96,7 +96,7 @@ void AckGroupingTrackerEnabled::close() {
 void AckGroupingTrackerEnabled::flush() {
     auto cnx = this->handler_.getCnx().lock();
     if (cnx == nullptr) {
-        LOG_WARN("Connection is not ready, grouping ACK failed.");
+        LOG_DEBUG("Connection is not ready, grouping ACK failed.");
         return;
     }
 

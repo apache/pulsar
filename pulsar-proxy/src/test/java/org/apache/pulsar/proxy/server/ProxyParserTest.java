@@ -214,7 +214,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    private void testProtocolVersionAdvertisement() throws Exception {
+    public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";
 
