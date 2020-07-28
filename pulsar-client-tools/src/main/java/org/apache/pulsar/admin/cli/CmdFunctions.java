@@ -618,6 +618,8 @@ public class CmdFunctions extends CmdBase {
         protected Integer DEPRECATED_instanceIdOffset = null;
         @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset")
         protected Integer instanceIdOffset = 0;
+        @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions")
+        protected String runtime = "THREAD";
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;
