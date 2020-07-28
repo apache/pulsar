@@ -17,30 +17,15 @@
  * under the License.
  */
 
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.client.impl.tls;
 
 /**
- * PolicyName authorization operations.
+ * Domain types differentiated by Mozilla Public Suffix List.
+ *
+ * @since 4.5
  */
-public enum PolicyName {
-    ALL,
-    ANTI_AFFINITY,
-    BACKLOG,
-    COMPACTION,
-    DELAYED_DELIVERY,
-    INACTIVE_TOPIC,
-    DEDUPLICATION,
-    MAX_CONSUMERS,
-    MAX_PRODUCERS,
-    MAX_UNACKED,
-    OFFLOAD,
-    PERSISTENCE,
-    RATE,
-    RETENTION,
-    REPLICATION,
-    REPLICATION_RATE,
-    SCHEMA_COMPATIBILITY_STRATEGY,
-    SUBSCRIPTION_AUTH_MODE,
-    ENCRYPTION,
-    TTL,
+public enum DomainType {
+
+    UNKNOWN, ICANN, PRIVATE
+
 }

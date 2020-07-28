@@ -124,7 +124,6 @@
                                     <include>javax.annotation:*</include>
                                     <include>org.glassfish.hk2*:*</include>
 
-                                    <include>org.apache.httpcomponents:*</include>
                                     <include>org.eclipse.jetty:*</include>
 
                                 </includes>
@@ -157,10 +156,6 @@
                                 <relocation>
                                     <pattern>org.eclipse.jetty</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.apache.http</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                                 </relocation>
 
                             </relocations>
