@@ -42,6 +42,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -177,8 +178,6 @@ public class ServerCnx extends PulsarHandler {
             AtomicLongFieldUpdater.newUpdater(ServerCnx.class, "messagePublishBufferSize");
     private volatile long messagePublishBufferSize = 0;
 
-    private final ConcurrentHashMap<String, CompletableFuture<TransactionBuffer>> transactionBuffers;
-
     enum State {
         Start, Connected, Failed, Connecting
     }
@@ -203,8 +202,6 @@ public class ServerCnx extends PulsarHandler {
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = pulsar.getConfiguration().isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
-
-        this.transactionBuffers = new ConcurrentHashMap<>(8, 1);
     }
 
     @Override
@@ -1221,30 +1218,10 @@ public class ServerCnx extends PulsarHandler {
 
         startSendOperation(producer, headersAndPayload.readableBytes(), send.getNumMessages());
 
-        final long produceId = producer.getProducerId();
-        final long sequenceId = send.getSequenceId();
-        final long highSequenceId = send.getHighestSequenceId();
-
         if (send.hasTxnidMostBits() && send.hasTxnidLeastBits()) {
             TxnID txnID = new TxnID(send.getTxnidMostBits(), send.getTxnidLeastBits());
-
-            producer.getTopic()
-                    .getTransactionBuffer(true)
-                    .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(txnID, send.getSequenceId(), headersAndPayload))
-                    .thenAccept(position -> {
-                        ctx.writeAndFlush(
-                                Commands.newSendReceipt(
-                                        produceId,
-                                        sequenceId,
-                                        highSequenceId,
-                                        ((PositionImpl) position).getLedgerId(),
-                                        ((PositionImpl) position).getEntryId()));
-                    })
-                    .exceptionally(throwable -> {
-                        ctx.writeAndFlush(Commands.newSendError(producer.getProducerId(),
-                                send.getSequenceId(), ServerError.UnknownError, throwable.getMessage()));
-                        return null;
-                    });
+            producer.publishTxnMessage(txnID, producer.getProducerId(), send.getSequenceId(),
+                    send.getHighestSequenceId(), headersAndPayload, send.getNumMessages(), send.getIsChunk());
             return;
         }
 
@@ -1698,7 +1675,6 @@ public class ServerCnx extends PulsarHandler {
                     }
                     ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
                             txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                    log.info("handle add partition to txn finish.");
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("Send response error for add published partition to txn request {}",  command.getRequestId(), ex);
@@ -1760,54 +1736,78 @@ public class ServerCnx extends PulsarHandler {
 
     private CompletableFuture<Void> updateTBStatus(TxnID txnID, TxnStatus newStatus) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<Void>> commitFutureList = new ArrayList<>();
+        List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
         service.pulsar().getTransactionMetadataStoreService().getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
             if (throwable != null) {
                 resultFuture.completeExceptionally(throwable);
                 return;
             }
             txnMeta.producedPartitions().forEach(partition -> {
-                service.getTopics().get(partition).whenComplete((topic, t) -> {
-                    if (!topic.isPresent()) {
-                        resultFuture.completeExceptionally(
-                                new TopicNotFoundException("Topic " + partition + " is not found."));
+                CompletableFuture<TxnID> commitFuture = new CompletableFuture<>();
+                if (TxnStatus.COMMITTING.equals(newStatus)) {
+                    commitFuture = service.getPulsar().getTransactionBufferClient()
+                            .commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else if (TxnStatus.ABORTING.equals(newStatus)) {
+                    // TODO
+                    commitFuture.completeExceptionally(new Throwable("Unsupported exception."));
+                } else {
+                    // Unsupported txnStatus
+                    commitFuture.completeExceptionally(new Throwable(""));
+                }
+                commitFutureList.add(commitFuture);
+            });
+            try {
+                FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, waitThrowable) -> {
+                    if (waitThrowable != null) {
+                        resultFuture.completeExceptionally(waitThrowable);
                         return;
                     }
-                    topic.get().getTransactionBuffer(false).thenAccept(tb -> {
-                        if (TxnStatus.COMMITTING.equals(newStatus)) {
-                            CompletableFuture<Void> commitFuture = tb.committingTxn(txnID)
-                                    .thenCompose(ignored -> tb.commitPartitionTopic(txnID))
-                                    .thenCompose(position -> tb.commitTxn(txnID,
-                                            ((PositionImpl) position).getLedgerId(),
-                                            ((PositionImpl) position).getEntryId()));
-                            commitFutureList.add(commitFuture);
-                        } else if (TxnStatus.ABORTING.equals(newStatus)) {
-                            tb.abortTxn(txnID);
-                        }
-                    }).exceptionally(tbThrowable -> {
-                        resultFuture.completeExceptionally(tbThrowable);
-                        return null;
-                    });
+                    resultFuture.complete(null);
                 });
-            });
+            } catch (Exception e) {
+                resultFuture.completeExceptionally(e);
+            }
         });
-        try {
-            FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, throwable) -> {
-                if (throwable != null) {
-                    resultFuture.completeExceptionally(throwable);
-                    return;
-                }
-                resultFuture.complete(null);
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         return resultFuture;
     }
 
     @Override
     protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
-        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+        log.info("handleEndTxnOnPartition requestId: {}", command.getRequestId());
+        final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final long rquestId = command.getRequestId();
+        service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
+            if (!topic.isPresent()) {
+                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                        command.getRequestId(), ServerError.TopicNotFound,
+                        "Topic " + command.getTopic() + " is not found."));
+                return;
+            }
+            topic.get().getTransactionBuffer(false).thenAccept(tb -> {
+                if (PulsarApi.TxnAction.COMMIT_VALUE == command.getTxnAction().getNumber()) {
+                    CompletableFuture<Void> commitFuture = tb.committingTxn(txnID)
+                            .thenCompose(ignored -> tb.commitPartitionTopic(txnID))
+                            .thenCompose(position -> tb.commitTxn(txnID,
+                                    ((PositionImpl) position).getLedgerId(),
+                                    ((PositionImpl) position).getEntryId()));
+                    commitFuture.whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                    rquestId, ServerError.UnknownError, throwable.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(rquestId,
+                                    command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                        }
+                    });
+                } else if (PulsarApi.TxnAction.ABORT_VALUE == command.getTxnAction().getNumber()) {
+                    tb.abortTxn(txnID);
+                }
+            }).exceptionally(tbThrowable -> {
+                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                        rquestId, ServerError.UnknownError, tbThrowable.getMessage()));
+                return null;
+            });
+        });
     }
 
     @Override
