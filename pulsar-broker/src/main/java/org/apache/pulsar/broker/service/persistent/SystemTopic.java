@@ -46,7 +46,7 @@ public class SystemTopic extends PersistentTopic {
     }
 
     @Override
-    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
+    public void checkGC() {
         // do nothing for system topic
     }
 }

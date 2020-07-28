@@ -44,6 +44,8 @@ import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -658,7 +660,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(names = { "--relative-to-publish-rate",
                 "-rp" }, description = "dispatch rate relative to publish-rate (if publish-relative flag is enabled then broker will apply throttling value to (publish-rate + dispatch rate))\n", required = false)
         private boolean relativeToPublishRate = false;
-        
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
@@ -1011,6 +1013,67 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(admin.namespaces().getDelayedDelivery(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the inactive topic policy for a namespace")
+    private class GetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getInactiveTopicPolicies(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove inactive topic policies from a namespace")
+    private class RemoveInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().removeInactiveTopicPolicies(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Set the inactive topic policies on a namespace")
+    private class SetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable-delete-while-inactive", "-e" }, description = "Enable delete while inactive")
+        private boolean enableDeleteWhileInactive = false;
+
+        @Parameter(names = { "--disable-delete-while-inactive", "-d" }, description = "Disable delete while inactive")
+        private boolean disableDeleteWhileInactive = false;
+
+        @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in seconds" +
+                ",topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        private String deleteInactiveTopicsMaxInactiveDuration;
+
+        @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic" +
+                ",Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
+        private String inactiveTopicDeleteMode;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+
+            if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
+                throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");
+            }
+            InactiveTopicDeleteMode deleteMode = null;
+            try {
+                deleteMode = InactiveTopicDeleteMode.valueOf(inactiveTopicDeleteMode);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or delete_when_subscriptions_caught_up");
+            }
+            admin.namespaces().setInactiveTopicPolicies(namespace, new InactiveTopicPolicies(deleteMode, (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
         }
     }
 
@@ -1662,7 +1725,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
-        
+
         jcommander.addCommand("set-bookie-affinity-group", new SetBookieAffinityGroup());
         jcommander.addCommand("get-bookie-affinity-group", new GetBookieAffinityGroup());
         jcommander.addCommand("delete-bookie-affinity-group", new DeleteBookieAffinityGroup());
@@ -1679,7 +1742,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-subscription-dispatch-rate", new SetSubscriptionDispatchRate());
         jcommander.addCommand("get-subscription-dispatch-rate", new GetSubscriptionDispatchRate());
-        
+
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
 
@@ -1695,6 +1758,10 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+
+        jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
+        jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
+        jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
 
         jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
         jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducersPerTopic());
