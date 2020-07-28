@@ -122,6 +122,9 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        String listenerName = null;
+
         @Parameter(names = { "-ch",
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
         private boolean chunkingAllowed = false;
@@ -426,6 +429,10 @@ public class PerformanceProducer {
 
             if (arguments.tlsAllowInsecureConnection != null) {
                 clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+
+            if (isNotBlank(arguments.listenerName)) {
+                clientBuilder.listenerName(arguments.listenerName);
             }
 
             client = clientBuilder.build();
