@@ -17,36 +17,27 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.service.persistent;
+/**
+ * From Apache HTTP client
+ */
 
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+package org.apache.pulsar.client.impl.tls;
 
-public class SystemTopic extends PersistentTopic {
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLSession;
 
-    public SystemTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws BrokerServiceException.NamingException {
-        super(topic, ledger, brokerService);
-    }
+public class NoopHostnameVerifier implements HostnameVerifier {
 
-    @Override
-    public boolean isBacklogExceeded() {
-        return false;
-    }
+    public static final NoopHostnameVerifier INSTANCE = new NoopHostnameVerifier();
 
     @Override
-    public boolean isSystemTopic() {
+    public boolean verify(final String s, final SSLSession sslSession) {
         return true;
     }
 
     @Override
-    public void checkMessageExpiry() {
-        // do nothing for system topic
+    public final String toString() {
+        return "NO_OP";
     }
 
-    @Override
-    public void checkGC() {
-        // do nothing for system topic
-    }
 }
