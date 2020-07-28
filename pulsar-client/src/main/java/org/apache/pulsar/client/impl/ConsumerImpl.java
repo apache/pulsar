@@ -543,9 +543,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ackType);
                 }
             } else {
-                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-                acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                    batchMessageId.getBatchSize(), ackType, properties);
+                if (conf.isBatchIndexAckEnabled()) {
+                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                    acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
+                            batchMessageId.getBatchSize(), ackType, properties);
+                }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }

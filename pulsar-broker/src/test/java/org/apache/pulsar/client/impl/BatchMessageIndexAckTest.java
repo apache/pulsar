@@ -67,6 +67,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .subscriptionName("sub")
             .receiverQueueSize(100)
             .subscriptionType(SubscriptionType.Shared)
+            .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
             .subscribe();
 
@@ -125,6 +126,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .topic(topic)
             .subscriptionName("sub")
             .receiverQueueSize(100)
+            .enableBatchIndexAcknowledgment(true)
             .subscribe();
 
         @Cleanup
@@ -194,6 +196,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
                 .topic(topic)
+                .enableBatchIndexAcknowledgment(true)
                 .subscriptionName("test")
                 .subscribe();
 

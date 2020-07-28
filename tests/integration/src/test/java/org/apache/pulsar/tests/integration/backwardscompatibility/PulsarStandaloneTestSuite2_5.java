@@ -16,25 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.tests.integration.backwardscompatibility;
 
-import org.testng.annotations.Test;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarStandaloneTestBase;
+import org.testng.ITest;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeSuite;
 
-public class SmokeTest2_2 extends PulsarStandaloneTestSuite2_2 {
+public class PulsarStandaloneTestSuite2_5 extends PulsarStandaloneTestBase implements ITest {
 
-    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testPublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testPublishAndConsume(serviceUrl, isPersistent);
+    @BeforeSuite
+    public void setUpCluster() throws Exception {
+        super.startCluster(PulsarContainer.PULSAR_2_5_IMAGE_NAME);
     }
 
-    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testBatchMessagePublishAndConsume(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testBatchMessagePublishAndConsume(serviceUrl, isPersistent);
+    @AfterSuite
+    public void tearDownCluster() throws Exception {
+        super.stopCluster();
     }
-
-    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
-    public void testBatchIndexAckDisabled(String serviceUrl, boolean isPersistent) throws Exception {
-        super.testBatchIndexAckDisabled(serviceUrl);
+    @Override
+    public String getTestName() {
+        return "pulsar-standalone-suite";
     }
 }

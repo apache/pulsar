@@ -416,6 +416,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled) {
+        conf.setBatchIndexAckEnabled(batchIndexAcknowledgmentEnabled);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
         conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
         return null;
