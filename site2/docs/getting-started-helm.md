@@ -238,7 +238,7 @@ minikube service pulsar-mini-proxy -n pulsar
 |-----------|-------------------|-------------|------------------------|
 ```
 
-At this point, you can get the service URLs to connect to your Pulsar client. Urls for this example:
+At this point, you can get the service URLs to connect to your Pulsar client. Here are URL examples:
 ```
 webServiceUrl=http://127.0.0.1:61853/
 brokerServiceUrl=pulsar://127.0.0.1:61854/
