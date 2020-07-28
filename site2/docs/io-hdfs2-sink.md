@@ -21,7 +21,7 @@ The configuration of the HDFS2 sink connector has the following properties.
 | `compression` | Compression |false |None |The compression code used to compress or de-compress the files on HDFS. <br/><br/>Below are the available options:<br/><li>BZIP2<br/><li>DEFLATE<br/><li>GZIP<br/><li>LZ4<br/><li>SNAPPY|
 | `kerberosUserPrincipal` |String| false| None|The principal account of Kerberos user used for authentication. |
 | `keytab` | String|false|None| The full pathname of the Kerberos keytab file used for authentication. |
-| `filenamePrefix` |String| true if `compression` is None | None |The prefix of the files created inside the HDFS directory.<br/><br/>**Example**<br/> The value of topicA result in files named topicA-. |
+| `filenamePrefix` |String| true, if `compression` is set to `None`. | None |The prefix of the files created inside the HDFS directory.<br/><br/>**Example**<br/> The value of topicA result in files named topicA-. |
 | `fileExtension` | String| true | None | The extension added to the files written to HDFS.<br/><br/>**Example**<br/>'.txt'<br/> '.seq' |
 | `separator` | char|false |None |The character used to separate records in a text file. <br/><br/>If no value is provided, the contents from all records are concatenated together in one continuous byte array. |
 | `syncInterval` | long| false |0| The interval between calls to flush data to HDFS disk in milliseconds. |
