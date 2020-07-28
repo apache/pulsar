@@ -119,6 +119,9 @@ public class PerformanceConsumer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        String listenerName = null;
+
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChuckedMessage = 0;
 
@@ -265,6 +268,10 @@ public class PerformanceConsumer {
 
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+        }
+
+        if (isNotBlank(arguments.listenerName)) {
+            clientBuilder.listenerName(arguments.listenerName);
         }
 
         PulsarClient pulsarClient = clientBuilder.build();
