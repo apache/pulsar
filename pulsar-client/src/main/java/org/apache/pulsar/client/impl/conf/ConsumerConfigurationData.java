@@ -125,6 +125,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private KeySharedPolicy keySharedPolicy;
 
+    private boolean batchIndexAckEnabled = false;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
