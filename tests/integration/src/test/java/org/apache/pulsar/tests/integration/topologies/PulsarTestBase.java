@@ -146,8 +146,8 @@ public class PulsarTestBase {
                     .subscriptionName("sub")
                     .receiverQueueSize(100)
                     .subscriptionType(SubscriptionType.Shared)
-                    .batchIndexAcknowledgmentEnabled(false)
-                    .ackTimeout(3, TimeUnit.SECONDS)
+                    .enableBatchIndexAcknowledgment(false)
+                    .ackTimeout(1, TimeUnit.SECONDS)
                     .subscribe();) {
 
                 try (Producer<Integer> producer = client.newProducer(Schema.INT32)

@@ -416,7 +416,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> batchIndexAcknowledgmentEnabled(boolean batchIndexAcknowledgmentEnabled) {
+    public ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled) {
         conf.setBatchIndexAckEnabled(batchIndexAcknowledgmentEnabled);
         return this;
     }

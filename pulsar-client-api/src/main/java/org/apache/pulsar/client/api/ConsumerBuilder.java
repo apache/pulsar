@@ -613,7 +613,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * Enable or disable the batch index acknowledgment. To enable this feature must ensure batch index acknowledgment
      * feature is enabled at the broker side.
      */
-    ConsumerBuilder<T> batchIndexAcknowledgmentEnabled(boolean batchIndexAcknowledgmentEnabled);
+    ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
 
     /**
      * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
