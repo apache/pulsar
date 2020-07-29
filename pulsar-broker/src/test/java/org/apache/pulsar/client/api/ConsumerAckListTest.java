@@ -1,0 +1,127 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.api;
+
+import lombok.Cleanup;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+public class ConsumerAckListTest extends ProducerConsumerBase {
+
+    @BeforeClass
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup();
+        super.producerBaseSetup();
+    }
+
+    @AfterClass
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Test(timeOut = 20000)
+    public void testBatchListAck() throws Exception {
+        nonPartitionAckBatchMessage(true);
+        nonPartitionAckBatchMessage(false);
+    }
+
+    public void nonPartitionAckBatchMessage(boolean isBatch) throws Exception {
+        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
+        final String subName = "testBatchAck-sub" + UUID.randomUUID();
+        final int messageNum = 100;
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).enableBatching(isBatch).topic(topic);
+        @Cleanup
+        Producer<String> producer = producerBuilder.create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .ackTimeout(1001, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+        sendMessagesAsyncAndWait(producer, messageNum);
+        List<MessageId> messages = new ArrayList<>();
+        for (int i = 0; i < messageNum; i++) {
+            messages.add(consumer.receive().getMessageId());
+        }
+        consumer.acknowledge(messages);
+        consumer.redeliverUnacknowledgedMessages();
+        Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPartitionedTopicAckBatchMessage() throws Exception {
+        partitionedTopicAckBatchMessage(true);
+        partitionedTopicAckBatchMessage(false);
+    }
+
+    public void partitionedTopicAckBatchMessage(boolean isBatch) throws Exception {
+        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
+        final String subName = "testBatchAck-sub" + UUID.randomUUID();
+        final int messageNum = 100;
+        admin.topics().createPartitionedTopic(topic, 3);
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).enableBatching(isBatch).topic(topic);
+        @Cleanup
+        Producer<String> producer = producerBuilder.create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .ackTimeout(1001, TimeUnit.MILLISECONDS)
+                .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+        sendMessagesAsyncAndWait(producer, messageNum);
+
+        List<MessageId> messages = new ArrayList<>();
+        for (int i = 0; i < messageNum; i++) {
+            messages.add(consumer.receive().getMessageId());
+        }
+        consumer.acknowledge(messages);
+        consumer.redeliverUnacknowledgedMessages();
+        Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+    }
+
+    private void sendMessagesAsyncAndWait(Producer<String> producer, int messages) throws Exception {
+        CountDownLatch latch = new CountDownLatch(messages);
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            producer.sendAsync(message).thenAccept(messageId -> {
+                if (messageId != null) {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+    }
+
+}
