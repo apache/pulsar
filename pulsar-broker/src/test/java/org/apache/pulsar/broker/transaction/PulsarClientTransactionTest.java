@@ -264,22 +264,4 @@ public class PulsarClientTransactionTest extends TransactionTestBase {
         }
     }
 
-    @Test
-    public void test() throws PulsarClientException {
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(TOPIC_INPUT_1).create();
-
-        producer.newMessage().value("hello".getBytes()).send();
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(TOPIC_INPUT_1)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .subscribe();
-
-        Message message = consumer.receive();
-        System.out.println("receive msg: " + new String(message.getData()));
-    }
-
 }
