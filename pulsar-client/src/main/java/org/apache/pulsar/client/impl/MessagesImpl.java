@@ -38,13 +38,13 @@ public class MessagesImpl<T> implements Messages<T> {
     private int currentNumberOfMessages;
     private long currentSizeOfMessages;
 
-    protected MessagesImpl(int maxNumberOfMessages, long maxSizeOfMessages) {
+    public MessagesImpl(int maxNumberOfMessages, long maxSizeOfMessages) {
         this.maxNumberOfMessages = maxNumberOfMessages;
         this.maxSizeOfMessages = maxSizeOfMessages;
         messageList = maxNumberOfMessages > 0 ? new ArrayList<>(maxNumberOfMessages) : new ArrayList<>();
     }
 
-    protected boolean canAdd(Message<T> message) {
+    public boolean canAdd(Message<T> message) {
         if (maxNumberOfMessages > 0 && currentNumberOfMessages + 1 > maxNumberOfMessages) {
             return false;
         }
@@ -56,7 +56,7 @@ public class MessagesImpl<T> implements Messages<T> {
         return true;
     }
 
-    protected void add(Message<T> message) {
+    public void add(Message<T> message) {
         if (message == null) {
             return;
         }

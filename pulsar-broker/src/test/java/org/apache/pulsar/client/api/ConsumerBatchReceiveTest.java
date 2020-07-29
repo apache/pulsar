@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import lombok.Cleanup;
+import org.apache.pulsar.client.impl.MessagesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -261,6 +262,31 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 .subscribe();
         sendMessagesAsyncAndWait(producer, 100);
         batchReceiveAndCheck(consumer, 100);
+    }
+
+    @Test(timeOut = 10000)
+    public void testBatchAck() throws Exception {
+        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
+        final String subName = "testBatchAck-sub";
+        final int messageNum = 50;
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
+        @Cleanup
+        Producer<String> producer = producerBuilder.create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .ackTimeout(1,TimeUnit.SECONDS)
+                .subscriptionName(subName)
+                .subscribe();
+        sendMessagesAsyncAndWait(producer, messageNum);
+        MessagesImpl messages = new MessagesImpl(100, 100000);
+        for (int i = 0; i < messageNum; i++) {
+            messages.add(consumer.receive());
+        }
+        consumer.acknowledge(messages);
+        Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
     }
 
     private void testBatchReceiveAsync(String topic, BatchReceivePolicy batchReceivePolicy, boolean batchProduce, int receiverQueueSize) throws Exception {
