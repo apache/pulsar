@@ -34,8 +34,8 @@ and persists the messages to HDFS files.</p>
 <tr><td><code>compression</code></td><td>Compression</td><td>false</td><td>None</td><td>The compression code used to compress or de-compress the files on HDFS. <br/><br/>Below are the available options:<br/><li>BZIP2<br/><li>DEFLATE<br/><li>GZIP<br/><li>LZ4<br/><li>SNAPPY</td></tr>
 <tr><td><code>kerberosUserPrincipal</code></td><td>String</td><td>false</td><td>None</td><td>The principal account of Kerberos user used for authentication.</td></tr>
 <tr><td><code>keytab</code></td><td>String</td><td>false</td><td>None</td><td>The full pathname of the Kerberos keytab file used for authentication.</td></tr>
-<tr><td><code>filenamePrefix</code></td><td>String</td><td>false</td><td>None</td><td>The prefix of the files created inside the HDFS directory.<br/><br/><strong>Example</strong><br/> The value of topicA result in files named topicA-.</td></tr>
-<tr><td><code>fileExtension</code></td><td>String</td><td>false</td><td>None</td><td>The extension added to the files written to HDFS.<br/><br/><strong>Example</strong><br/>'.txt'<br/> '.seq'</td></tr>
+<tr><td><code>filenamePrefix</code></td><td>String</td><td>true, if <code>compression</code> is set to <code>None</code>.</td><td>None</td><td>The prefix of the files created inside the HDFS directory.<br/><br/><strong>Example</strong><br/> The value of topicA result in files named topicA-.</td></tr>
+<tr><td><code>fileExtension</code></td><td>String</td><td>true</td><td>None</td><td>The extension added to the files written to HDFS.<br/><br/><strong>Example</strong><br/>'.txt'<br/> '.seq'</td></tr>
 <tr><td><code>separator</code></td><td>char</td><td>false</td><td>None</td><td>The character used to separate records in a text file. <br/><br/>If no value is provided, the contents from all records are concatenated together in one continuous byte array.</td></tr>
 <tr><td><code>syncInterval</code></td><td>long</td><td>false</td><td>0</td><td>The interval between calls to flush data to HDFS disk in milliseconds.</td></tr>
 <tr><td><code>maxPendingRecords</code></td><td>int</td><td>false</td><td>Integer.MAX_VALUE</td><td>The maximum number of records that hold in memory before acking. <br/><br/>Setting this property to 1 makes every record send to disk before the record is acked.<br/><br/>Setting this property to a higher value allows buffering records before flushing them to disk.</td></tr>
@@ -49,6 +49,7 @@ and persists the messages to HDFS files.</p>
     <span class="hljs-attr">"hdfsConfigResources"</span>: <span class="hljs-string">"core-site.xml"</span>,
     <span class="hljs-attr">"directory"</span>: <span class="hljs-string">"/foo/bar"</span>,
     <span class="hljs-attr">"filenamePrefix"</span>: <span class="hljs-string">"prefix"</span>,
+    <span class="hljs-attr">"fileExtension"</span>: <span class="hljs-string">".log"</span>,
     <span class="hljs-attr">"compression"</span>: <span class="hljs-string">"SNAPPY"</span>
 }
 </code></pre></li>
@@ -57,6 +58,7 @@ and persists the messages to HDFS files.</p>
     <span class="hljs-attr">hdfsConfigResources:</span> <span class="hljs-string">"core-site.xml"</span>
     <span class="hljs-attr">directory:</span> <span class="hljs-string">"/foo/bar"</span>
     <span class="hljs-attr">filenamePrefix:</span> <span class="hljs-string">"prefix"</span>
+    <span class="hljs-attr">fileExtension:</span> <span class="hljs-string">".log"</span>
     <span class="hljs-attr">compression:</span> <span class="hljs-string">"SNAPPY"</span>
 </code></pre></li>
 </ul>

@@ -33,8 +33,8 @@
 <tr><td><code>compression</code></td><td>压缩</td><td>false</td><td>无</td><td>用于压缩或解压缩 HDFS 上文件的压缩代码。 下面是可用的选项：<br/><li>BZIP2<br/><li>DEFLATE<br/><li>GZIP<br/><li>LZ4<br/><li>SNAPPY</td></tr>
 <tr><td><code>kerberosUserPrincipal</code></td><td>String</td><td>false</td><td>无</td><td>用于身份验证的 Kerberos 用户主账户。</td></tr>
 <tr><td><code>keytab</code></td><td>String</td><td>false</td><td>无</td><td>用于身份验证的 Kerberos keytab 文件的完整路径名。</td></tr>
-<tr><td><code>filenamePrefix</code></td><td>String</td><td>false</td><td>无</td><td>在 HDFS 目录中创建的文件的前缀。<br/><br/><strong>示例</strong><br/> 在命名主题A 文件中的主题结果的值。</td></tr>
-<tr><td><code>fileExtension</code></td><td>String</td><td>false</td><td>无</td><td>扩展已添加到写入 HDFS 的文件。<br/><br/><strong>示例</strong><br/>'.txt'<br/> '.seq'</td></tr>
+<tr><td><code>filenamePrefix</code></td><td>String</td><td>true, if <code>compression</code> is set to <code>None</code>.</td><td>无</td><td>在 HDFS 目录中创建的文件的前缀。<br/><br/><strong>示例</strong><br/> 在命名主题A 文件中的主题结果的值。</td></tr>
+<tr><td><code>fileExtension</code></td><td>String</td><td>true</td><td>无</td><td>扩展已添加到写入 HDFS 的文件。<br/><br/><strong>示例</strong><br/>'.txt'<br/> '.seq'</td></tr>
 <tr><td><code>separator</code></td><td>字符</td><td>false</td><td>无</td><td>用于在文本文件中分离记录的字符。 <br/><br/>如果没有提供任何值，所有记录中的内容都会在一个连续的字节数组中集中在一起。</td></tr>
 <tr><td><code>syncInterval</code></td><td>long</td><td>false</td><td>0</td><td>要刷新数据到 HDFS 磁盘以毫秒为单位的通话间隔。</td></tr>
 <tr><td><code>maxPendingRecords</code></td><td>int</td><td>false</td><td>Integer.MAX_VALUE</td><td>处理前内存记录的最大数量。 <br/><br/>将此属性设置为1，每次录制都会在录制之前发送到磁盘。<br/><br/>将此属性设置为更高的值允许在刷新到磁盘之前缓冲记录。</td></tr>
@@ -48,6 +48,7 @@
     <span class="hljs-attr">"hdfsConfigResources"</span>: <span class="hljs-string">"core-site.xml"</span>,
     <span class="hljs-attr">"directory"</span>: <span class="hljs-string">"/foo/bar"</span>,
     <span class="hljs-attr">"filenamePrefix"</span>: <span class="hljs-string">"prefix"</span>,
+    <span class="hljs-attr">"fileExtension"</span>: <span class="hljs-string">".log"</span>,
     <span class="hljs-attr">"compression"</span>: <span class="hljs-string">"SNAPPY"</span>
 }
 </code></pre></li>
@@ -56,6 +57,7 @@
     <span class="hljs-attr">hdfsConfigResources:</span> <span class="hljs-string">"core-site.xml"</span>
     <span class="hljs-attr">directory:</span> <span class="hljs-string">"/foo/bar"</span>
     <span class="hljs-attr">filenamePrefix:</span> <span class="hljs-string">"prefix"</span>
+    <span class="hljs-attr">fileExtension:</span> <span class="hljs-string">".log"</span>
     <span class="hljs-attr">compression:</span> <span class="hljs-string">"SNAPPY"</span>
 </code></pre></li>
 </ul>
