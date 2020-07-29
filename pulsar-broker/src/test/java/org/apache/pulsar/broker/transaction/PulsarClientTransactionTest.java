@@ -138,9 +138,6 @@ public class PulsarClientTransactionTest extends TransactionTestBase {
             futureList.add(produceFuture);
         }
 
-        // wait a moment for adding publish partition to transaction, need to be fixed
-        Thread.sleep(1000 * 5);
-
         // the target topic hasn't the commit marker before commit
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, i);
