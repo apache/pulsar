@@ -204,8 +204,27 @@ public class MessageDeduplication {
                     pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                     return CompletableFuture.completedFuture(null);
                 }
+                if (status == Status.Initialized && !shouldBeEnabled) {
+                    status = Status.Removing;
+                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new DeleteCursorCallback() {
+                        @Override
+                        public void deleteCursorComplete(Object ctx) {
+                            status = Status.Disabled;
+                            log.info("[{}] Deleted deduplication cursor", topic.getName());
+                        }
 
-                if ((status == Status.Initialized || status == Status.Enabled) && !shouldBeEnabled) {
+                        @Override
+                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                status = Status.Disabled;
+                            } else {
+                                log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
+                            }
+                        }
+                    }, null);
+                }
+
+                if (status == Status.Enabled && !shouldBeEnabled) {
                     // Disabled deduping
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     status = Status.Removing;
