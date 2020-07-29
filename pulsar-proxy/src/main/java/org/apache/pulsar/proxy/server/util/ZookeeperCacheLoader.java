@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.proxy.server.util;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -55,6 +59,8 @@ public class ZookeeperCacheLoader implements Closeable {
 
     private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
             .name("pulsar-proxy-ordered-cache").build();
+    private final ExecutorService brokerListUpdater = Executors
+            .newSingleThreadExecutor(new DefaultThreadFactory("pulsar-broker-list-updater"));
 
     public static final String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
@@ -78,11 +84,14 @@ public class ZookeeperCacheLoader implements Closeable {
 
         this.availableBrokersCache = new ZooKeeperChildrenCache(getLocalZkCache(), LOADBALANCE_BROKERS_ROOT);
         this.availableBrokersCache.registerListener((path, brokerNodes, stat) -> {
-            try {
-                updateBrokerList(brokerNodes);
-            } catch (Exception e) {
-                log.warn("Error updating broker info after broker list changed.", e);
-            }
+            // Run in a separate thread to avoid deadlocks
+            brokerListUpdater.execute(() -> {
+                try {
+                    updateBrokerList(brokerNodes);
+                } catch (Exception e) {
+                    log.warn("Error updating broker info after broker list changed.", e);
+                }
+            });
         });
 
         // Do initial fetch of brokers list
@@ -110,6 +119,7 @@ public class ZookeeperCacheLoader implements Closeable {
             throw new IOException(e);
         }
         orderedExecutor.shutdown();
+        brokerListUpdater.shutdownNow();
     }
 
     private void updateBrokerList(Set<String> brokerNodes) throws Exception {
