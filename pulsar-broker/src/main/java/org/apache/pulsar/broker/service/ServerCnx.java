@@ -1775,7 +1775,7 @@ public class ServerCnx extends PulsarHandler {
     protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
         log.info("handleEndTxnOnPartition requestId: {}", command.getRequestId());
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
-        final long rquestId = command.getRequestId();
+        final long requestId = command.getRequestId();
         service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
             if (!topic.isPresent()) {
                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
@@ -1793,18 +1793,25 @@ public class ServerCnx extends PulsarHandler {
                     commitFuture.whenComplete((ignored, throwable) -> {
                         if (throwable != null) {
                             ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                    rquestId, ServerError.UnknownError, throwable.getMessage()));
+                                    requestId, ServerError.UnknownError, throwable.getMessage()));
                         } else {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(rquestId,
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
                                     command.getTxnidLeastBits(), command.getTxnidMostBits()));
                         }
                     });
                 } else if (PulsarApi.TxnAction.ABORT_VALUE == command.getTxnAction().getNumber()) {
-                    tb.abortTxn(txnID);
+                    tb.abortTxn(txnID).whenComplete((ignored, throwable) -> {
+                        if (throwable != null) {
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                    requestId, ServerError.UnknownError, throwable.getMessage()));
+                        } else {
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                    command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                        }                    });
                 }
             }).exceptionally(tbThrowable -> {
                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                        rquestId, ServerError.UnknownError, tbThrowable.getMessage()));
+                        requestId, ServerError.UnknownError, tbThrowable.getMessage()));
                 return null;
             });
         });
