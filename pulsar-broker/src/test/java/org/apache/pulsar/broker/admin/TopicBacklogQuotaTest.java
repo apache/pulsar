@@ -84,6 +84,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
     public void testSetBacklogQuota() throws Exception {
         enableTopicLevelPolicies();
         admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+        Thread.sleep(3000);
 
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
@@ -92,7 +93,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         log.info("Backlog quota set success on topic: {}", backlogQuotaTopic);
 
         Thread.sleep(3000);
-
         BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} get on topic: {}", getBacklogQuota, backlogQuotaTopic);
@@ -110,6 +110,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
     public void testRemoveBacklogQuota() throws Exception {
         enableTopicLevelPolicies();
         admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+        Thread.sleep(3000);
 
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
@@ -117,7 +118,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         log.info("Backlog quota set success on topic: {}", backlogQuotaTopic);
 
         Thread.sleep(3000);
-
         BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota {} get on topic: {}", getBacklogQuota, backlogQuotaTopic);
@@ -146,6 +146,8 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
     public void testCheckQuota() throws Exception {
         enableTopicLevelPolicies();
         admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+        Thread.sleep(3000);
+
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(backlogQuotaTopic).getNamespace();
         admin.namespaces().setRetention(namespace, retentionPolicies);
