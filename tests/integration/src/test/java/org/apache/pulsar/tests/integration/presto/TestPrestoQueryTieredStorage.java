@@ -83,16 +83,16 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
         pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, getOffloadProperties(BUCKET, null, ENDPOINT));
     }
 
-    public static String getOffloadProperties(String bucket, String region, String endpoint) {
+    public String getOffloadProperties(String bucket, String region, String endpoint) {
         checkNotNull(bucket);
-        StringBuilder sb = new StringBuilder("\\\n");
+        StringBuilder sb = new StringBuilder();
         sb.append("{");
-        sb.append("\"s3ManagedLedgerOffloadBucket\":").append("\"").append(bucket).append("\", \\\n");
+        sb.append("\"s3ManagedLedgerOffloadBucket\":").append("\"").append(bucket).append("\",");
         if (StringUtils.isNotEmpty(region)) {
-            sb.append("\"s3ManagedLedgerOffloadRegion\":").append("\"").append(region).append("\", \\\n");
+            sb.append("\"s3ManagedLedgerOffloadRegion\":").append("\"").append(region).append("\",");
         }
         if (StringUtils.isNotEmpty(endpoint)) {
-            sb.append("\"s3ManagedLedgerOffloadServiceEndpoint\":").append("\"").append(endpoint).append("\", \\\n");
+            sb.append("\"s3ManagedLedgerOffloadServiceEndpoint\":").append("\"").append(endpoint).append("\"");
         }
         sb.append("}");
         return sb.toString();
