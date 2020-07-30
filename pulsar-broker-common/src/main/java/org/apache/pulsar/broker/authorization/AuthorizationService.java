@@ -304,7 +304,7 @@ public class AuthorizationService {
                             topicName.toString(), role, ex.getMessage());
                 }
             }
-            canConsumeAsync(topicName, role, null, null).whenComplete((consumeAuthorized, e) -> {
+            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
                 if (e == null) {
                     if (consumeAuthorized) {
                         finalResult.complete(consumeAuthorized);
