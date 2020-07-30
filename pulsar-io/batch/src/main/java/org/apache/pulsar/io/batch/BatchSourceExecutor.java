@@ -122,12 +122,12 @@ public class BatchSourceExecutor<T> implements Source<T> {
     // This is the first thing to do to ensure that any tasks discovered during the discover
     // phase are not lost
     setupInstanceSubscription();
+    batchSource.open(this.config, this.sourceContext);
     if (sourceContext.getInstanceId() == 0) {
       discoveryTriggerer.init(batchSourceConfig.getDiscoveryTriggererConfig(),
                               this.sourceContext);
       discoveryTriggerer.start(this::triggerDiscover);
     }
-    batchSource.open(this.config, this.sourceContext);
   }
 
   private void triggerDiscover(String discoveredEvent) {
