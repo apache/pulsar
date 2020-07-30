@@ -1611,6 +1611,17 @@
         "Message": {
             "type": "object",
             "properties": {
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1620,12 +1631,6 @@
                     "format": "int64"
                 },
                 "topicName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
-                },
-                "producerName": {
                     "type": "string"
                 },
                 "messageId": {
@@ -1645,26 +1650,21 @@
                         "format": "byte"
                     }
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
                 "replicated": {
                     "type": "boolean"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "data": {
                     "type": "array",

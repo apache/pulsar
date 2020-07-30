@@ -75,16 +75,16 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Upgrade Guide</h1></header><article><div><span><h2><a class="anchor" aria-hidden="true" id="升级指南"></a><a href="#升级指南" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级指南</h2>
-<p>Apache Pulsar 包含了 ZooKeeper、bookies 和 brokers 多种组件。 这些组件有些是有状态的，有些是无状态的。 除非有特殊需求，否则不必升级 ZooKeeper 节点。 升级时，需要注意 bookies(有状态的)、brokers 和 proxies (无状态的)。</p>
-<p>以下是升级 Pulsar 集群的指南。 升级前阅读指南。</p>
+<p>Apache Pulsar 包含三种组件：ZooKeeper、bookie 和 broker。 这些组件有些是有状态的，有些是无状态的。 如果没有特殊需求，则不必升级 ZooKeeper 节点。 升级时，需要注意 bookie（有状态）、broker 和 proxy（无状态）。</p>
+<p>以下是升级 Pulsar 集群的指南。 请在升级前详细阅读。</p>
 <ul>
 <li>在升级前备份所有配置文件。</li>
-<li>完整地阅读指南、制定计划、然后执行计划。 制定升级计划时，需要考虑到你的具体要求和环境。</li>
-<li>注意升级组件的命令。 一般来说，不需要升级 Zookeper 或者 配置存储集群 (全球 ZooKeeper 集群)。 首先需要升级 bookies，然后升级 brokers、proxies 和客户端。</li>
-<li>如果<code>autorecovery</code>启动，则需要在升级过程中禁止<code>autorecovery</code>，并且完成这个过程后重新启动。</li>
-<li>认真阅读每一个版本的注释。 版本注释包括可能影响升级的特征、配置变化。</li>
-<li>在升级集群中该类型的所有节点之前，升级每个类型的一小部分节点到 canary 测试新版本。 在升级 canary 节点时，先让其运行一段时间以确保其正确运转。</li>
-<li>如果集群以多集群复制模式运行，那么在升级所有的数据中心前先升级一个数据中心来验证新版本。</li>
+<li>通读升级指南、制定计划，再进行升级。 制定升级计划时，需要考虑具体要求和环境。</li>
+<li>认真阅读升级组件的命令。 一般来说，不需要升级 Zookeper，也不需要配置存储集群（全局 ZooKeeper 集群）。 需要先升级 bookie，再升级 broker、proxy 和客户端。</li>
+<li>如果启用了 <code>autorecovery</code>，则需要在升级时禁用 <code>autorecovery</code>，并在升级后后重新启用。</li>
+<li>认真阅读每一个版本的注释。 注释中包含可能会影响升级的特性、配置变化等。</li>
+<li>在升级集群中某类型的所有节点前，先升级此类型的一小部分节点到 canary 进行新版本测试。 升级 canary 节点后，运行一段时间以确保新版本可以正常运行。</li>
+<li>如果集群以多集群复制模式运行，则在升级所有数据中心前，先升级一个数据中心来测试新版本。</li>
 </ul>
 <blockquote>
 <p>注意：目前 Apache Pulsar 兼容两种版本。</p>
@@ -92,17 +92,17 @@
 <h2><a class="anchor" aria-hidden="true" id="升级序列"></a><a href="#升级序列" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级序列</h2>
 <p>升级 Apache Pulsar 集群时须遵循升级序列。</p>
 <ol>
-<li>升级 ZooKeeper (可选择)。</li>
+<li>升级 ZooKeeper（可选）。</li>
 </ol>
 <ul>
-<li>Canary 测试：以一组或一小部分 ZooKeeper 节点测试升级版本。</li>
-<li>滚动升级：一次性将升级版本逐步部署到所有 ZooKeeper 服务器。 在整个滚动升级过程中监视仪表板。</li>
+<li>Canary 测试：以一组或一小部分 ZooKeeper 节点测试新版本。</li>
+<li>滚动升级：一次性将新版本部署到所有 ZooKeeper 服务器，每次部署一个版本。 滚动升级过程中，需要一直查看仪表板。</li>
 </ul>
 <ol start="2">
-<li>升级bookies</li>
+<li>升级 bookie</li>
 </ol>
 <ul>
-<li>canary 测试：以一组或一小部分 bookies 测试一个升级版本。 - Rolling upgrade: - a. 用以下命令禁用 <code>autorecovery</code> 。
+<li>canary 测试：以一组或一小部分 bookies 测试一个新版本。 - Rolling upgrade: - a. 用以下命令禁用 <code>autorecovery</code> 。
 <code>shell bin/bookkeeper shell autorecovery -disable</code>
 <ul>
 <li>b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.</li>
@@ -124,7 +124,7 @@
 <ul>
 <li>Canary test: test an upgraded version in one or a small set of proxies. - 滚动升级：确定 canary 之后的版本是安全的之后，将升级的版本推广到群集中的所有 proxies。</li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="升级-zookeeper-可选择。"></a><a href="#升级-zookeeper-可选择。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 ZooKeeper (可选择)。</h2>
+<h2><a class="anchor" aria-hidden="true" id="升级-zookeeper（可选）。"></a><a href="#升级-zookeeper（可选）。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 ZooKeeper（可选）。</h2>
 <p>升级 ZooKeeper 服务器时，可以先做 canary 测试，然后升级集群中所有的 ZooKeeper 服务器。</p>
 <h3><a class="anchor" aria-hidden="true" id="canary-测试"></a><a href="#canary-测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 测试</h3>
 <p>升级集群中所有的 ZooKeeper 服务器之前，可以测试其中一个 ZooKeeper 服务器中的升级版本。</p>
@@ -141,7 +141,7 @@
 <h3><a class="anchor" aria-hidden="true" id="升级所有的-zookeeper-服务器"></a><a href="#升级所有的-zookeeper-服务器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 ZooKeeper 服务器</h3>
 <p>用 canary 测试升级集群中的一个 ZooKeeper 后，就可以升级集群中所有的 ZooKeeper 服务器。</p>
 <p>可以根据以下 canary 测试步骤逐个升级所有的 ZooKeeper 服务器。</p>
-<h2><a class="anchor" aria-hidden="true" id="升级bookies"></a><a href="#升级bookies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级bookies</h2>
+<h2><a class="anchor" aria-hidden="true" id="升级-bookie"></a><a href="#升级-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 bookie</h2>
 <p>升级 bookies 时，可以先做 canary 测试，然后升级集群中所有的 bookies。 欲知更多的细节，可以阅读 Apache BookKeeper <a href="http://bookkeeper.apache.org/docs/latest/admin/upgrade">Upgrade guide</a>。</p>
 <h3><a class="anchor" aria-hidden="true" id="canary-测试-1"></a><a href="#canary-测试-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 测试</h3>
 <p>升级集群中所有的 bookies 之前，可以用一组或一小部分 bookies 来测试升级版本。</p>
@@ -195,7 +195,7 @@
 <li>升级软件 (新的二进制或是新的配置文件)。</li>
 <li>启动 broker 或 proxy。</li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/administration-proxy"><span class="arrow-prev">← </span><span>Pulsar proxy</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/security-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#升级指南">升级指南</a></li><li><a href="#升级序列">升级序列</a></li><li><a href="#升级-zookeeper-可选择。">升级 ZooKeeper (可选择)。</a><ul class="toc-headings"><li><a href="#canary-测试">Canary 测试</a></li><li><a href="#升级所有的-zookeeper-服务器">升级所有的 ZooKeeper 服务器</a></li></ul></li><li><a href="#升级bookies">升级bookies</a><ul class="toc-headings"><li><a href="#canary-测试-1">Canary 测试</a></li><li><a href="#升级所有的-bookies">升级所有的 bookies</a></li></ul></li><li><a href="#升级-brokers-和-proxies">升级 brokers 和 proxies</a><ul class="toc-headings"><li><a href="#canary-测试-2">Canary 测试</a></li><li><a href="#升级所有的-bookies-或-proxies">升级所有的 bookies 或 proxies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/administration-proxy"><span class="arrow-prev">← </span><span>Pulsar proxy</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/security-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#升级指南">升级指南</a></li><li><a href="#升级序列">升级序列</a></li><li><a href="#升级-zookeeper（可选）。">升级 ZooKeeper（可选）。</a><ul class="toc-headings"><li><a href="#canary-测试">Canary 测试</a></li><li><a href="#升级所有的-zookeeper-服务器">升级所有的 ZooKeeper 服务器</a></li></ul></li><li><a href="#升级-bookie">升级 bookie</a><ul class="toc-headings"><li><a href="#canary-测试-1">Canary 测试</a></li><li><a href="#升级所有的-bookies">升级所有的 bookies</a></li></ul></li><li><a href="#升级-brokers-和-proxies">升级 brokers 和 proxies</a><ul class="toc-headings"><li><a href="#canary-测试-2">Canary 测试</a></li><li><a href="#升级所有的-bookies-或-proxies">升级所有的 bookies 或 proxies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

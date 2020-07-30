@@ -165,7 +165,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <p><code>pulsar-admin</code> is the CLI tool for Pulsar. In this step, you can use <code>pulsar-admin</code> to create resources including tenants, namespaces, and topics.</p>
 <ol>
 <li><p>Enter the <code>toolset</code> container.</p>
-<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 /bin/bash
+<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
 </code></pre></li>
 <li><p>In the <code>toolset</code> container, create a tenant named <code>apache</code>.</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin tenants create apache

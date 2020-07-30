@@ -167,7 +167,7 @@ pulsar-mini-zookeeper        ClusterIP      None             &lt;none&gt;       
 <p><code>pulsar-admin</code> 是 Pulsar 的 CLI（命令行客户端） 工具。 这一步中，你可以使用 <code>pulsar-admin</code> 来创建资源，包括租户、命名空间和主题。</p>
 <ol>
 <li><p>进入 <code>toolset</code> 容器。</p>
-<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 /bin/bash
+<pre><code class="hljs css language-bash">kubectl <span class="hljs-built_in">exec</span> -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
 </code></pre></li>
 <li><p>在 <code>toolset</code> 容器里，创建一个名为 <code>apache</code> 的租户。</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin tenants create apache
