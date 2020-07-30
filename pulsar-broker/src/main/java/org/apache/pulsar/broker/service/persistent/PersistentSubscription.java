@@ -1010,7 +1010,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer) {
-        ConcurrentLongLongPairHashMap positionMap = consumer.getPendingAcks();
+        Map<ConcurrentLongLongPairHashMap.LongPair, ConcurrentLongLongPairHashMap.LongPair> positionMap = consumer.getPendingAcks();
         // Only check if message is in pending_ack status when there's ongoing transaction.
         if (null != positionMap && ((pendingAckMessages != null && pendingAckMessages.size() != 0)
                                                                             || pendingCumulativeAckMessage != null)) {
@@ -1018,7 +1018,7 @@ public class PersistentSubscription implements Subscription {
             PositionImpl cumulativeAckPosition = (null == this.pendingCumulativeAckMessage) ? null :
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
-            positionMap.asMap().entrySet().forEach(entry -> {
+            positionMap.entrySet().forEach(entry -> {
                 PositionImpl position = new PositionImpl(entry.getKey().first, entry.getKey().second);
                 if ((pendingAckMessages == null || (pendingAckMessages != null &&
                         !this.pendingAckMessages.contains(position))) &&

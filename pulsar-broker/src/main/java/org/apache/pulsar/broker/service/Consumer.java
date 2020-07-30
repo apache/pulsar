@@ -103,7 +103,7 @@ public class Consumer {
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "permitsReceivedWhileConsumerBlocked");
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
-    private final Map<Long, Long> pendingAcks;
+    private final Map<LongPair, LongPair> pendingAcks;
 
     private final ConsumerStats stats;
 
@@ -243,7 +243,7 @@ public class Consumer {
                 Entry entry = entries.get(i);
                 if (entry != null) {
                     int batchSize = batchSizes.getBatchSize(i);
-                    pendingAcks.put(entry.getLedgerId(), entry.getEntryId(), batchSize, 0);
+                    pendingAcks.put(new LongPair(entry.getLedgerId(), entry.getEntryId()), new LongPair(batchSize, 0));
                 }
             }
         }
@@ -589,9 +589,9 @@ public class Consumer {
      */
     private void removePendingAcks(PositionImpl position) {
         Consumer ackOwnedConsumer = null;
-        if (pendingAcks.get(position.getLedgerId(), position.getEntryId()) == null) {
+        if (pendingAcks.get(new LongPair(position.getLedgerId(), position.getEntryId())) == null) {
             for (Consumer consumer : subscription.getConsumers()) {
-                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(position.getLedgerId(), position.getEntryId())) {
+                if (!consumer.equals(this) && consumer.getPendingAcks().containsKey(new LongPair(position.getLedgerId(), position.getEntryId()))) {
                     ackOwnedConsumer = consumer;
                     break;
                 }
@@ -602,11 +602,11 @@ public class Consumer {
 
         // remove pending message from appropriate consumer and unblock unAckMsg-flow if requires
         LongPair ackedPosition = ackOwnedConsumer != null
-                ? ackOwnedConsumer.getPendingAcks().get(position.getLedgerId(), position.getEntryId())
+                ? ackOwnedConsumer.getPendingAcks().get(new LongPair(position.getLedgerId(), position.getEntryId()))
                 : null;
         if (ackedPosition != null) {
             int totalAckedMsgs = (int) ackedPosition.first;
-            if (!ackOwnedConsumer.getPendingAcks().remove(position.getLedgerId(), position.getEntryId())) {
+            if (ackOwnedConsumer.getPendingAcks().remove(new LongPair(position.getLedgerId(), position.getEntryId())) == null) {
                 // Message was already removed by the other consumer
                 return;
             }
@@ -624,7 +624,7 @@ public class Consumer {
         }
     }
 
-    public ConcurrentLongLongPairHashMap getPendingAcks() {
+    public Map<LongPair, LongPair> getPendingAcks() {
         return pendingAcks;
     }
 
@@ -643,9 +643,9 @@ public class Consumer {
         if (pendingAcks != null) {
             List<PositionImpl> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, none) -> {
-                totalRedeliveryMessages.add((int) batchSize);
-                pendingPositions.add(new PositionImpl(ledgerId, entryId));
+            pendingAcks.forEach((pair1, pair2) -> {
+                totalRedeliveryMessages.add((int) pair2.first);
+                pendingPositions.add(new PositionImpl(pair1.first, pair1.second));
             });
 
             for (PositionImpl p : pendingPositions) {
@@ -666,7 +666,7 @@ public class Consumer {
         List<PositionImpl> pendingPositions = Lists.newArrayList();
         for (MessageIdData msg : messageIds) {
             PositionImpl position = PositionImpl.get(msg.getLedgerId(), msg.getEntryId());
-            LongPair batchSize = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            LongPair batchSize = pendingAcks.get(new LongPair(position.getLedgerId(), position.getEntryId()));
             if (batchSize != null) {
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
                 totalRedeliveryMessages += batchSize.first;
