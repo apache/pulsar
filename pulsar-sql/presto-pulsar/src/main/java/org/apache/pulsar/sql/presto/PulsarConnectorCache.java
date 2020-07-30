@@ -26,6 +26,7 @@ import io.airlift.log.Logger;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -40,7 +41,6 @@ import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.OffloaderUtils;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -81,8 +81,12 @@ public class PulsarConnectorCache {
 
         this.statsProvider.start(clientConfiguration);
 
-        OffloadPolicies offloadPolicies = new OffloadPolicies();
-        BeanUtils.copyProperties(offloadPolicies, pulsarConnectorConfig);
+        Properties offloadProperties = new Properties();
+        offloadProperties.putAll(pulsarConnectorConfig.getOffloaderProperties());
+        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
+        offloadPolicies.setManagedLedgerOffloadDriver(pulsarConnectorConfig.getManagedLedgerOffloadDriver());
+        offloadPolicies.setManagedLedgerOffloadMaxThreads(pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
+        offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
         this.defaultOffloader = initManagedLedgerOffloader(offloadPolicies, pulsarConnectorConfig);
     }
 

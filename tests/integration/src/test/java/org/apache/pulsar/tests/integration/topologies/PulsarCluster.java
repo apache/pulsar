@@ -328,6 +328,10 @@ public class PulsarCluster {
     }
 
     public void startPrestoWorker() {
+        startPrestoWorker(null, null);
+    }
+
+    public void startPrestoWorker(String offloadDriver, String offloadProperties) {
         if (null == prestoWorkerContainer) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
                     .withNetwork(network)
@@ -337,6 +341,10 @@ public class PulsarCluster {
                     .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
+            if (offloadDriver != null && offloadProperties != null) {
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
+            }
         }
         log.info("Starting Presto Worker");
         prestoWorkerContainer.start();
