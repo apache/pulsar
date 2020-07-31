@@ -37,7 +37,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TopicPolicies {
 
-    private Map<String, BacklogQuota> backLogQuotaMap =  Maps.newHashMap();
+    private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
     private PersistencePolicies persistence = null;
     private RetentionPolicies retentionPolicies = null;
     private Boolean deduplicationEnabled = null;

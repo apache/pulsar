@@ -45,6 +45,7 @@ import java.util.stream.Stream;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
@@ -69,6 +70,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -1389,6 +1392,41 @@ public class TopicsImpl extends BaseResource implements Topics {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public Map<BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "backlogQuotaMap");
+            return request(path).get(new GenericType<Map<BacklogQuotaType, BacklogQuota>>() {
+            });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "backlogQuota");
+            request(path).post(Entity.entity(backlogQuota, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void removeBacklogQuota(String topic) throws PulsarAdminException {
+        try {
+            TopicName tn = validateTopic(topic);
+            WebTarget path = topicPath(tn, "backlogQuota");
+            request(path.queryParam("backlogQuotaType", BacklogQuotaType.destination_storage.toString()))
+                    .delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
