@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -47,17 +48,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
 
     private final String backlogQuotaTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
-    public void enableTopicLevelPolicies() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-    }
-
     public void disableTopicLevelPolicies() throws Exception {
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
@@ -69,9 +59,18 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
     }
 
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        this.conf.setSystemTopicEnabled(true);
+        this.conf.setTopicLevelPoliciesEnabled(true);
+        super.internalSetup();
 
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
+        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant(this.testTenant, tenantInfo);
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
+        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
     }
 
     @AfterMethod
@@ -82,9 +81,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetBacklogQuota() throws Exception {
-        enableTopicLevelPolicies();
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
-        Thread.sleep(3000);
 
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
@@ -108,10 +104,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemoveBacklogQuota() throws Exception {
-        enableTopicLevelPolicies();
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
-        Thread.sleep(3000);
-
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
         admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
@@ -144,10 +136,6 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCheckQuota() throws Exception {
-        enableTopicLevelPolicies();
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
-        Thread.sleep(3000);
-
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(backlogQuotaTopic).getNamespace();
         admin.namespaces().setRetention(namespace, retentionPolicies);
