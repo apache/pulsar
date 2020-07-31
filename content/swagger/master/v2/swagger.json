@@ -6042,6 +6042,172 @@
                 }
             }
         },
+        "/non-persistent/{tenant}/{namespace}/{topic}/backlogQuota": {
+            "post": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": " Set a backlog quota for a topic.",
+                "description": "",
+                "operationId": "setBacklogQuota",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "backlogQuotaType",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "destination_storage"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    },
+                    "412": {
+                        "description": "Specified backlog quota exceeds retention quota. Increase retention quota and retry request"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Remove a backlog quota policy from a topic.",
+                "description": "",
+                "operationId": "removeBacklogQuota",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "backlogQuotaType",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "destination_storage"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
+        "/non-persistent/{tenant}/{namespace}/{topic}/backlogQuotaMap": {
+            "get": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Get backlog quota map on a topic.",
+                "description": "",
+                "operationId": "getBacklogQuotaMap",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic policy does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    }
+                }
+            }
+        },
         "/non-persistent/{tenant}/{namespace}/{topic}/compaction": {
             "get": {
                 "tags": [
@@ -7344,7 +7510,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/TopicStats"
+                            "$ref": "#/definitions/NonPersistentTopicStats"
                         }
                     },
                     "307": {
@@ -8700,6 +8866,172 @@
                     },
                     "503": {
                         "description": "Failed to validate global cluster configuration"
+                    }
+                }
+            }
+        },
+        "/persistent/{tenant}/{namespace}/{topic}/backlogQuota": {
+            "post": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": " Set a backlog quota for a topic.",
+                "description": "",
+                "operationId": "setBacklogQuota",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "backlogQuotaType",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "destination_storage"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    },
+                    "412": {
+                        "description": "Specified backlog quota exceeds retention quota. Increase retention quota and retry request"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Remove a backlog quota policy from a topic.",
+                "description": "",
+                "operationId": "removeBacklogQuota",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "backlogQuotaType",
+                        "in": "query",
+                        "required": false,
+                        "type": "string",
+                        "enum": [
+                            "destination_storage"
+                        ]
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
+        "/persistent/{tenant}/{namespace}/{topic}/backlogQuotaMap": {
+            "get": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Get backlog quota map on a topic.",
+                "description": "",
+                "operationId": "getBacklogQuotaMap",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "object"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic policy does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, to enable the topic level policy and retry"
                     }
                 }
             }
@@ -12672,24 +13004,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
                 "underLoaded": {
                     "type": "boolean"
                 },
@@ -12702,7 +13016,25 @@
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
                 "memory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "bandwidthIn": {

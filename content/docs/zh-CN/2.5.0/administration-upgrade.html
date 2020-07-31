@@ -89,8 +89,8 @@
 <blockquote>
 <p>注意：目前 Apache Pulsar 兼容两种版本。</p>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="升级序列"></a><a href="#升级序列" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级序列</h2>
-<p>升级 Apache Pulsar 集群时须遵循升级序列。</p>
+<h2><a class="anchor" aria-hidden="true" id="升级顺序"></a><a href="#升级顺序" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级顺序</h2>
+<p>需要按照升级顺序升级 Apache Pulsar 集群。</p>
 <ol>
 <li>升级 ZooKeeper（可选）。</li>
 </ol>
@@ -106,7 +106,7 @@
 <code>shell bin/bookkeeper shell autorecovery -disable</code>
 <ul>
 <li>b. Rollout the upgraded version to all bookies in the cluster after you determine that a version is safe after canary.</li>
-<li>c. 升级所有的 bookies 之后，用以下命令重新启动 <code>autorecovery</code>。
+<li>c. 升级所有的 bookie 后，使用以下命令重新启用 <code>autorecovery</code>。
 <pre><code class="hljs css language-shell">bin/bookkeeper shell autorecovery -enable
 </code></pre></li>
 </ul></li>
@@ -122,80 +122,80 @@
 <li>Upgrade proxies</li>
 </ol>
 <ul>
-<li>Canary test: test an upgraded version in one or a small set of proxies. - 滚动升级：确定 canary 之后的版本是安全的之后，将升级的版本推广到群集中的所有 proxies。</li>
+<li>Canary test: test an upgraded version in one or a small set of proxies. - 滚动升级：确定 canary 之后新版本的安全性后，为集群中所有的 proxy 部署新版本。</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="升级-zookeeper（可选）。"></a><a href="#升级-zookeeper（可选）。" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 ZooKeeper（可选）。</h2>
-<p>升级 ZooKeeper 服务器时，可以先做 canary 测试，然后升级集群中所有的 ZooKeeper 服务器。</p>
+<p>升级 ZooKeeper 服务器时，可以先做 canary 测试，再升级集群中所有的 ZooKeeper 服务器。</p>
 <h3><a class="anchor" aria-hidden="true" id="canary-测试"></a><a href="#canary-测试" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 测试</h3>
-<p>升级集群中所有的 ZooKeeper 服务器之前，可以测试其中一个 ZooKeeper 服务器中的升级版本。</p>
-<p>升级 ZooKeeper 服务器至新的版本需完成以下步骤：</p>
+<p>升级集群中所有的 ZooKeeper 服务器之前，可以先在一个 ZooKeeper 服务器中测试新版本。</p>
+<p>升级 ZooKeeper 服务器的步骤如下：</p>
 <ol>
-<li>停止 ZooKeeper 服务器。</li>
-<li>升级二进制和配置文件。</li>
+<li>终止 ZooKeeper 服务器。</li>
+<li>升级二进制文件和配置文件。</li>
 <li>用新的二进制文件启动 ZooKeeper 服务器。</li>
-<li>用 <code>pulsar zookeeper-shell</code> 连接新升级的 ZooKeeper 服务器，然后运行新的命令来验证它是否如预期的那样运转。</li>
-<li>运行 ZooKeeper 服务器几天，观察并且确保 ZooKeeper 集群运行的很好。</li>
+<li>用 <code>pulsar zookeeper-shell</code> 连接新的 ZooKeeper 服务器，并运行命令测试其运行状态。</li>
+<li>运行 ZooKeeper 服务器几天，观察 ZooKeeper 集群的运行状态，确保可以正常运行。</li>
 </ol>
 <h4><a class="anchor" aria-hidden="true" id="canary-回转"></a><a href="#canary-回转" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 回转</h4>
-<p>如果在 canary 测试过程中出现了问题，那么可以关闭有问题的 ZooKeeper 节点，恢复二进制和配置，使用还原的二进制重新启动 ZooKeeper。</p>
+<p>如果在 canary 测试过程中出现异常，则可以关闭出故障的 ZooKeeper 节点，恢复二进制文件和配置文件，使用还原的二进制文件重新启动 ZooKeeper。</p>
 <h3><a class="anchor" aria-hidden="true" id="升级所有的-zookeeper-服务器"></a><a href="#升级所有的-zookeeper-服务器" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 ZooKeeper 服务器</h3>
-<p>用 canary 测试升级集群中的一个 ZooKeeper 后，就可以升级集群中所有的 ZooKeeper 服务器。</p>
-<p>可以根据以下 canary 测试步骤逐个升级所有的 ZooKeeper 服务器。</p>
+<p>先在 canary 测试中升级集群中的一个 ZooKeeper后，再升级集群中所有的 ZooKeeper 服务器。</p>
+<p>在 canary 测试中，逐个升级 ZooKeeper 服务器的操作步骤如下。</p>
 <h2><a class="anchor" aria-hidden="true" id="升级-bookie"></a><a href="#升级-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 bookie</h2>
-<p>升级 bookies 时，可以先做 canary 测试，然后升级集群中所有的 bookies。 欲知更多的细节，可以阅读 Apache BookKeeper <a href="http://bookkeeper.apache.org/docs/latest/admin/upgrade">Upgrade guide</a>。</p>
+<p>升级 bookie 时，可以先进行 canary 测试，再升级集群中所有的 bookie。 更多详细信息，参阅 Apache BookKeeper <a href="http://bookkeeper.apache.org/docs/latest/admin/upgrade">升级指南</a>。</p>
 <h3><a class="anchor" aria-hidden="true" id="canary-测试-1"></a><a href="#canary-测试-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 测试</h3>
-<p>升级集群中所有的 bookies 之前，可以用一组或一小部分 bookies 来测试升级版本。</p>
-<p>升级 bookies 至新的版本需完成以下步骤：</p>
+<p>升级集群中所有 bookie 前，可以先用一组或一小部分 bookie 来测试新版本。</p>
+<p>升级 bookie 的步骤如下：</p>
 <ol>
-<li>停止 bookies。</li>
-<li>升级二进制和配置文件。</li>
-<li>以 <code>ReadOnly</code> 模式启动bookie，以验证此新版本的bookie在读取工作量方面是否运行良好。
+<li>终止 bookie。</li>
+<li>升级二进制文件和配置文件。</li>
+<li>以<code>只读</code>模式启动 bookie，以验证此新版本 bookie 的读性能。
 <pre><code class="hljs css language-shell">bin/pulsar bookie --readOnly
 </code></pre></li>
-<li>当 bookies 以 <code>ReadOnly</code> 模式成功运行时，停止 bookies 并以 <code>Write/Read</code> 模式重新启动。
+<li>当 bookie 以<code>只读</code>模式成功运行时，终止 bookie 并以<code>写入/读取</code>模式重新启动 bookie。
 <pre><code class="hljs css language-shell">bin/pulsar bookie
 </code></pre></li>
-<li>观察且确保集群服务器同时提供读写流量。</li>
+<li>观察集群服务器的运行状态，确保集群服务器可以正常服务于读写操作。</li>
 </ol>
 <h4><a class="anchor" aria-hidden="true" id="canary-回转-1"></a><a href="#canary-回转-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 回转</h4>
-<p>如果在 canary 测试中出现了问题，那么可以关闭有问题的 bookies 节点。 其他集群中的 bookies 用 autorecovery 替换这个有问题的 bookies 节点。</p>
-<h3><a class="anchor" aria-hidden="true" id="升级所有的-bookies"></a><a href="#升级所有的-bookies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 bookies</h3>
+<p>如果在 canary 测试中出现异常，则可以关闭出故障的 bookie 节点。 通过 autorecovery 用其他集群中的 bookie 来替换出现异常的 bookie 节点。</p>
+<h3><a class="anchor" aria-hidden="true" id="升级所有的-bookie"></a><a href="#升级所有的-bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 bookie</h3>
 <p>用 canary 测试升级集群中的一些 bookies之后，就可以升级集群中所有的 bookies。</p>
-<p>升级之前，必须决定是否一次升级整个集群，包括停机时间和滚动升级脚本。</p>
-<p>在滚动升级脚本中，一次升级一个 bookies。 在停机时间升级脚本中，先关闭全部集群，升级每个 bookies，然后启动集群。</p>
-<p>在两个脚本下进行升级时，每个Bookie的过程都相同。</p>
+<p>升级前，需要确定是否一次性升级整个集群，包括停机时间升级和滚动升级。</p>
+<p>在滚动升级中，一次升级一个 bookie。 在停机时间升级中，需先关闭全部集群，升级所有 bookie 后再启动集群。</p>
+<p>在上述两个升级场景下，单个 bookie 的升级过程相同。</p>
 <ol>
-<li>停止 bookies。</li>
-<li>升级软件 (新的二进制或是新的配置文件)。</li>
-<li>启动 bookies。</li>
+<li>终止 bookie。</li>
+<li>升级软件（通过更新的二进制文件或更新的配置文件）。</li>
+<li>启动 bookie。</li>
 </ol>
 <blockquote>
-<p><strong>Advanced operations</strong> When you upgrade a large BookKeeper cluster in a rolling upgrade scenario, upgrading one bookie at a time is slow. 如果你配置机架感知或区域感知放置策略，则可以按机架或按区域升级 bookies，从而加快了整个升级过程。</p>
+<p><strong>Advanced operations</strong> When you upgrade a large BookKeeper cluster in a rolling upgrade scenario, upgrading one bookie at a time is slow. 如果配置了机架感知或区域感知放置策略，则可以按机架或按区域升级 bookie，从而加快升级过程。</p>
 </blockquote>
-<h2><a class="anchor" aria-hidden="true" id="升级-brokers-和-proxies"></a><a href="#升级-brokers-和-proxies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 brokers 和 proxies</h2>
-<p>brokers 和 proxies 的升级过程是一样的。 brokers 和 proxies 是 <code>stateless</code>，所以升级这两个脚本是很简单的。</p>
+<h2><a class="anchor" aria-hidden="true" id="升级-broker-和-proxy"></a><a href="#升级-broker-和-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级 broker 和 proxy</h2>
+<p>Broker 和 proxy 的升级过程相同。 Broker 和 proxy 都<code>无状态</code>，所以升级 broker 和 proxy 的操作较为简单。</p>
 <h3><a class="anchor" aria-hidden="true" id="canary-测试-2"></a><a href="#canary-测试-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 测试</h3>
-<p>可以在升级集群中所有的节点之前用一组或一小部分节点测试升级版本。</p>
-<p>升级新的版本需完成以下步骤：</p>
+<p>升级集群中的所有节点前，可以先用一组或一小部分节点来测试新版本。</p>
+<p>升级节点的步骤如下：</p>
 <ol>
-<li>停止 broker (或 proxy)。</li>
-<li>升级二进制和配置文件。</li>
-<li>启动 broker (或 proxy)。</li>
+<li>终止 broker（或 proxy）。</li>
+<li>升级二进制文件和配置文件。</li>
+<li>启动 broker（或 proxy）。</li>
 </ol>
 <h4><a class="anchor" aria-hidden="true" id="canary-回转-2"></a><a href="#canary-回转-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Canary 回转</h4>
-<p>在 canary 测试的过程中出现问题时， 可以关闭有问题的 broker (或 proxy) 节点。 还原到旧版本，然后重新启动 broker (或 proxy) 。</p>
-<h3><a class="anchor" aria-hidden="true" id="升级所有的-bookies-或-proxies"></a><a href="#升级所有的-bookies-或-proxies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 bookies 或 proxies</h3>
-<p>在 canary 测试升级集群中的一些 brokers 或 proxies 之后，就可以升级集群中所有的 brokers 或 proxies。</p>
-<p>升级之前，必须决定是否一次升级整个集群，包括停机时间和滚动升级脚本。</p>
-<p>滚动升级脚本下，如果集群规模较小，则可以一次升级一个 broker 或 一个 proxy。 如果集群规模较大，则可以分批升级 brokers 或 proxies。 分批升级 brokers 或 proxies 时，确保集群中剩余 brokers 或 proxies 具有足够的容量来处理升级期间的流量。</p>
-<p>停机时间升级脚本下，先关闭全部集群，升级每个 broker 或 proxy，然后启动集群。</p>
-<p>在两个脚本下进行升级时，每个 broker 或 proxy 的过程都相同。</p>
+<p>如果在 canary 测试的过程中出现异常， 则可以关闭有问题的 broker（或 proxy）节点。 还原到旧版本后，再重新启动 broker（或 proxy）。</p>
+<h3><a class="anchor" aria-hidden="true" id="升级所有的-bookie-或-proxy"></a><a href="#升级所有的-bookie-或-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>升级所有的 bookie 或 proxy</h3>
+<p>先在 canary 测试中升级集群中的一些 broker 或 proxy，测试后再升级集群中所有的 broker 或 proxy。</p>
+<p>升级前，需要确定是否一次性升级整个集群，包括停机时间升级和滚动升级。</p>
+<p>在滚动升级场景中，如果集群规模较小，则可以一次升级一个 broker 或一个 proxy。 如果集群规模较大，则可以分批升级 broker 或 proxy。 分批升级 broker 或 proxy 时，需要保证集群中剩余的 broker 和 proxy 能够处理升级期间的流量。</p>
+<p>在停机时间升级情景中，需要先关闭全部集群，升级每个 broker 或 proxy 后，再重新启动集群。</p>
+<p>在上述两种情景中，单个 broker 或单个 proxy 的升级过程都相同。</p>
 <ol>
-<li>停止 broker 或 proxy。</li>
-<li>升级软件 (新的二进制或是新的配置文件)。</li>
+<li>终止 broker 或 proxy。</li>
+<li>升级软件（通过更新的二进制文件或更新的配置文件）。</li>
 <li>启动 broker 或 proxy。</li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/administration-proxy"><span class="arrow-prev">← </span><span>Pulsar proxy</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/security-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#升级指南">升级指南</a></li><li><a href="#升级序列">升级序列</a></li><li><a href="#升级-zookeeper（可选）。">升级 ZooKeeper（可选）。</a><ul class="toc-headings"><li><a href="#canary-测试">Canary 测试</a></li><li><a href="#升级所有的-zookeeper-服务器">升级所有的 ZooKeeper 服务器</a></li></ul></li><li><a href="#升级-bookie">升级 bookie</a><ul class="toc-headings"><li><a href="#canary-测试-1">Canary 测试</a></li><li><a href="#升级所有的-bookies">升级所有的 bookies</a></li></ul></li><li><a href="#升级-brokers-和-proxies">升级 brokers 和 proxies</a><ul class="toc-headings"><li><a href="#canary-测试-2">Canary 测试</a></li><li><a href="#升级所有的-bookies-或-proxies">升级所有的 bookies 或 proxies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/administration-proxy"><span class="arrow-prev">← </span><span>Pulsar proxy</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/security-overview"><span>概述</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#升级指南">升级指南</a></li><li><a href="#升级顺序">升级顺序</a></li><li><a href="#升级-zookeeper（可选）。">升级 ZooKeeper（可选）。</a><ul class="toc-headings"><li><a href="#canary-测试">Canary 测试</a></li><li><a href="#升级所有的-zookeeper-服务器">升级所有的 ZooKeeper 服务器</a></li></ul></li><li><a href="#升级-bookie">升级 bookie</a><ul class="toc-headings"><li><a href="#canary-测试-1">Canary 测试</a></li><li><a href="#升级所有的-bookie">升级所有的 bookie</a></li></ul></li><li><a href="#升级-broker-和-proxy">升级 broker 和 proxy</a><ul class="toc-headings"><li><a href="#canary-测试-2">Canary 测试</a></li><li><a href="#升级所有的-bookie-或-proxy">升级所有的 bookie 或 proxy</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
