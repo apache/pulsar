@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -104,12 +105,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1998,6 +2002,81 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(exception);
         }
         return offlineTopicStats;
+    }
+
+    protected void internalSetBacklogQuota(AsyncResponse asyncResponse, BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        if (backlogQuotaType == null) {
+            backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
+        }
+        checkTopicLevelPolicyEnable();
+        TopicPolicies topicPolicies;
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        if (topicPolicies == null){
+            topicPolicies = new TopicPolicies();
+        }
+
+        RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
+        if(!checkBacklogQuota(backlogQuota,retentionPolicies)){
+            log.warn(
+                    "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
+                    clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                    "Backlog Quota exceeds configured retention quota for topic. " +
+                            "Please increase retention quota and retry"));
+        }
+
+        if(backlogQuota != null){
+            topicPolicies.getBackLogQuotaMap().put(backlogQuotaType.name(), backlogQuota);
+        }else {
+            topicPolicies.getBackLogQuotaMap().remove(backlogQuotaType.name());
+        }
+        Map<String, BacklogQuota> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed updated backlog quota map",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        try {
+                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
+                                    clientAppId(),
+                                    namespaceName,
+                                    topicName.getLocalName(),
+                                    jsonMapper().writeValueAsString(backLogQuotaMap));
+                        } catch (JsonProcessingException ignore) { }
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+    }
+
+    private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
+        RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
+        if (retentionPolicies == null){
+            try {
+                retentionPolicies = getNamespacePoliciesAsync(topicName.getNamespaceObject())
+                        .thenApply(policies -> policies.retention_policies)
+                        .get(1L, TimeUnit.SECONDS);
+            } catch (Exception e) {
+               throw new RestException(e);
+            }
+        }
+        return retentionPolicies;
+    }
+
+    protected void internalRemoveBacklogQuota(AsyncResponse asyncResponse,
+            BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
     }
 
     protected MessageId internalTerminate(boolean authoritative) {
