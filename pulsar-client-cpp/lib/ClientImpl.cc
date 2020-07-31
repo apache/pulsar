@@ -94,7 +94,7 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       requestIdGenerator_(0),
       closingError(ResultOk) {
     std::unique_ptr<LoggerFactory> loggerFactory = clientConfiguration_.impl_->takeLogger();
-    if (!loggerFactory) {
+    if (loggerFactory == nullptr) {
 #ifdef USE_LOG4CXX
         if (!clientConfiguration_.getLogConfFilePath().empty()) {
             // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
