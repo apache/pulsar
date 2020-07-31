@@ -415,28 +415,45 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
+    private void processResult(Record srcRecord, JavaExecutionResult result, Throwable throwable) throws Exception {
+        throwable = throwable == null ? result.getUserException() : throwable;
+        if (result.getUserException() != null) {
+            log.info("Encountered user exception when processing message {}", srcRecord, throwable);
+            stats.incrUserExceptions(throwable);
+            srcRecord.fail();
+        } else {
+            if (result.getResult() != null) {
+                sendOutputMessage(srcRecord, result.getResult());
+            } else {
+                if (instanceConfig.getFunctionDetails().getAutoAck()) {
+                    // the function doesn't produce any result or the user doesn't want the result.
+                    srcRecord.ack();
+                }
+            }
+            // increment total successfully processed
+            stats.incrTotalProcessedSuccessfully();
+        }
+    }
+
     private void processResult(Record srcRecord,
                                CompletableFuture<JavaExecutionResult> result) throws Exception {
-        result.whenComplete((result1, throwable) -> {
-            if (throwable != null || result1.getUserException() != null) {
-                Throwable t = throwable != null ? throwable : result1.getUserException();
-                log.warn("Encountered exception when processing message {}",
-                        srcRecord, t);
-                stats.incrUserExceptions(t);
-                srcRecord.fail();
-            } else {
-                if (result1.getResult() != null) {
-                    sendOutputMessage(srcRecord, result1.getResult());
-                } else {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        // the function doesn't produce any result or the user doesn't want the result.
-                        srcRecord.ack();
-                    }
+        if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
+                .proto.Function.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            processResult(srcRecord, result.get(), null);
+        } else {
+            result.whenComplete((jer, throwable) -> {
+                try {
+                    processResult(srcRecord, jer, throwable);
+                } catch (Exception e) {
+                    srcRecord.fail();
+                    log.warn("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
+                            instanceConfig.getFunctionDetails().getTenant(),
+                            instanceConfig.getFunctionDetails().getNamespace(),
+                            instanceConfig.getFunctionDetails().getName(),
+                            instanceConfig.getInstanceId()), e);
                 }
-                // increment total successfully processed
-                stats.incrTotalProcessedSuccessfully();
-            }
-        });
+            });
+        }
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) {
