@@ -342,7 +342,9 @@ public class TopicName implements ServiceUnitId {
     public String getSchemaName() {
         return getTenant()
             + "/" + getNamespacePortion()
-            + "/" + getEncodedLocalName();
+            + "/" + (isPartitioned() ?
+                getEncodedLocalName().substring(0, getEncodedLocalName().lastIndexOf("-partition-")) :
+                getEncodedLocalName());
     }
 
     @Override
