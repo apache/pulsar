@@ -166,10 +166,8 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Acknowledge the consumption of a list of message.
-     *
-     * @param messages messages
-     * @throws PulsarClientException.AlreadyClosedException
-     *              if the consumer was already closed
+     * @param messageIdList
+     * @throws PulsarClientException
      */
     void acknowledge(List<MessageId> messageIdList) throws PulsarClientException;
 
@@ -377,7 +375,7 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Asynchronously acknowledge the consumption of a list of message.
-     * @param messages
+     * @param messageIdList
      * @return
      */
     CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList);

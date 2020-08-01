@@ -432,8 +432,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                              TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
-                                                             Map<String,Long> properties,
-                                                             TransactionImpl txn);
+                                                    Map<String, Long> properties,
+                                                    TransactionImpl txn);
 
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
                                                                 Map<String,Long> properties,

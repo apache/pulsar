@@ -104,73 +104,73 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
                 },
                 // Number of message limitation exceed receiverQueue size
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(70)
-                                .build(), true, 50
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(70)
+                        .build(), true, 50
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(50)
-                                .timeout(10, TimeUnit.MILLISECONDS)
-                                .build(), true, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(50)
+                        .timeout(10, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
                 },
                 // Number of message limitation is negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(-10)
-                                .timeout(10, TimeUnit.MILLISECONDS)
-                                .build(), true, 10
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .timeout(10, TimeUnit.MILLISECONDS)
+                        .build(), true, 10
                 },
                 // Size of message limitation is negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumBytes(-100)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), true, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
                 },
                 // Number of message limitation and size of message limitation are both negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(-10)
-                                .maxNumBytes(-100)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), true, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), true, 30
                 },
                 // Number of message limitation exceed receiverQueue size
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(70)
-                                .build(), false, 50
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(70)
+                        .build(), false, 50
                 },
                 // Number of message limitation exceed receiverQueue size and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(50)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), false, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(50)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
                 },
                 // Number of message limitation is negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(-10)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), false, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
                 },
                 // Size of message limitation is negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumBytes(-100)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), false, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
                 },
                 // Number of message limitation and size of message limitation are both negative and timeout limitation
                 {
-                        BatchReceivePolicy.builder()
-                                .maxNumMessages(-10)
-                                .maxNumBytes(-100)
-                                .timeout(50, TimeUnit.MILLISECONDS)
-                                .build(), false, 30
+                    BatchReceivePolicy.builder()
+                        .maxNumMessages(-10)
+                        .maxNumBytes(-100)
+                        .timeout(50, TimeUnit.MILLISECONDS)
+                        .build(), false, 30
                 }
         };
     }

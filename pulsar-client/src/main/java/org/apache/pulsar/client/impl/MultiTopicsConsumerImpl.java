@@ -459,10 +459,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType, Map<String, Long> properties, TransactionImpl txn) {
+        List<CompletableFuture<Void>> resultFutures = new ArrayList<>();
         if (ackType == AckType.Cumulative) {
-            List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-            messageIdList.forEach(messageId -> completableFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
-            return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+            messageIdList.forEach(messageId -> resultFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
+            return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
         } else {
             if (getState() != State.Ready) {
                 return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
@@ -476,7 +476,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 topicToMessageIdMap.putIfAbsent(topicMessageId.getTopicPartitionName(), new ArrayList<>());
                 topicToMessageIdMap.get(topicMessageId.getTopicPartitionName()).add(topicMessageId.getInnerMessageId());
             }
-            List<CompletableFuture<Void>> resultFutures = new ArrayList<>();
             topicToMessageIdMap.forEach((topicPartitionName, messageIds) -> {
                 ConsumerImpl<T> consumer = consumers.get(topicPartitionName);
                 resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
