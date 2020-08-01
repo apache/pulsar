@@ -18,52 +18,68 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.Map;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Map;
+
 /**
+ * Consumer statistics.
  */
 public class ConsumerStats {
-    /** Total rate of messages delivered to the consumer. msg/s */
+    /** Total rate of messages delivered to the consumer (msg/s). */
     public double msgRateOut;
 
-    /** Total throughput delivered to the consumer. bytes/s */
+    /** Total throughput delivered to the consumer (bytes/s). */
     public double msgThroughputOut;
 
-    /** Total rate of messages redelivered by this consumer. msg/s */
+    /** Total bytes delivered to consumer (bytes). */
+    public long bytesOutCounter;
+
+    /** Total messages delivered to consumer (msg). */
+    public long msgOutCounter;
+
+    /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Name of the consumer */
+    /** Total chunked messages dispatched. */
+    public double chuckedMessageRate;
+
+    /** Name of the consumer. */
     public String consumerName;
 
-    /** Number of available message permits for the consumer */
+    /** Number of available message permits for the consumer. */
     public int availablePermits;
 
-    /** Number of unacknowledged messages for the consumer */
+    /** Number of unacknowledged messages for the consumer. */
     public int unackedMessages;
 
-    /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages */
+    /** Number of average messages per entry for the consumer consumed. */
+    public int avgMessagesPerEntry;
+
+    /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** Address of this consumer */
+    /** Address of this consumer. */
     private int addressOffset = -1;
     private int addressLength;
 
-    /** Timestamp of connection */
+    /** Timestamp of connection. */
     private int connectedSinceOffset = -1;
     private int connectedSinceLength;
 
-    /** Client library version */
+    /** Client library version. */
     private int clientVersionOffset = -1;
     private int clientVersionLength;
 
-    /** Metadata (key/value strings) associated with this consumer */
+    public long lastAckedTimestamp;
+    public long lastConsumedTimestamp;
+
+    /** Metadata (key/value strings) associated with this consumer. */
     public Map<String, String> metadata;
 
     /**
-     * In order to prevent multiple string object allocation under stats: create a string-buffer that stores data for all string
-     * place-holders
+     * In order to prevent multiple string object allocation under stats: create a string-buffer
+     * that stores data for all string place-holders.
      */
     private StringBuilder stringBuffer = new StringBuilder();
 
@@ -71,6 +87,8 @@ public class ConsumerStats {
         checkNotNull(stats);
         this.msgRateOut += stats.msgRateOut;
         this.msgThroughputOut += stats.msgThroughputOut;
+        this.bytesOutCounter += stats.bytesOutCounter;
+        this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;

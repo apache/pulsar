@@ -18,26 +18,416 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.UpdateOptions;
+import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.functions.auth.FunctionAuthData;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.WorkerService;
-import org.apache.pulsar.functions.worker.rest.RestException;
+import org.apache.pulsar.functions.worker.WorkerUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
+import static org.apache.pulsar.functions.worker.WorkerUtils.isFunctionCodeBuiltin;
+import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 
 @Slf4j
 public class FunctionsImpl extends ComponentImpl {
+
+    public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
+        super(workerServiceSupplier, Function.FunctionDetails.ComponentType.FUNCTION);
+    }
+
+    public void registerFunction(final String tenant,
+                                 final String namespace,
+                                 final String functionName,
+                                 final InputStream uploadedInputStream,
+                                 final FormDataContentDisposition fileDetail,
+                                 final String functionPkgUrl,
+                                 final FunctionConfig functionConfig,
+                                 final String clientRole,
+                                 AuthenticationDataHttps clientAuthenticationDataHttps) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (tenant == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
+        }
+        if (functionConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function config is not provided");
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        try {
+            // Check tenant exists
+            worker().getBrokerAdmin().tenants().getTenantInfo(tenant);
+
+            String qualifiedNamespace = tenant + "/" + namespace;
+            List<String> namespaces = worker().getBrokerAdmin().namespaces().getNamespaces(tenant);
+            if (namespaces != null && !namespaces.contains(qualifiedNamespace)) {
+                String qualifiedNamespaceWithCluster = String.format("%s/%s/%s", tenant,
+                        worker().getWorkerConfig().getPulsarFunctionsCluster(), namespace);
+                if (namespaces != null && !namespaces.contains(qualifiedNamespaceWithCluster)) {
+                    log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace, functionName, namespace);
+                    throw new RestException(Response.Status.BAD_REQUEST, "Namespace does not exist");
+                }
+            }
+        } catch (PulsarAdminException.NotAuthorizedException e) {
+            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
+                    functionName, clientRole, ComponentTypeUtils.toString(componentType));
+            throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+        } catch (PulsarAdminException.NotFoundException e) {
+            log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, functionName, tenant);
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant does not exist");
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Issues getting tenant data", tenant, namespace, functionName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("{} {}/{}/{} already exists", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+            throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s already exists", ComponentTypeUtils.toString(componentType), functionName));
+        }
+
+        Function.FunctionDetails functionDetails = null;
+        boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
+        File componentPackageFile = null;
+        try {
+
+            // validate parameters
+            try {
+                if (isPkgUrlProvided) {
+
+                    if (!Utils.isFunctionPackageUrlSupported(functionPkgUrl)) {
+                        throw new IllegalArgumentException("Function Package url is not valid. supported url (http/https/file)");
+                    }
+                    try {
+                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                    }
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            functionConfig, componentPackageFile);
+                } else {
+                    if (uploadedInputStream != null) {
+                        componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
+                    }
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            functionConfig, componentPackageFile);
+                    if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
+                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
+                    }
+                }
+            } catch (Exception e) {
+                log.error("Invalid register {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+            }
+
+            try {
+                worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+            } catch (Exception e) {
+                log.error("{} {}/{}/{} cannot be admitted by the runtime factory", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+                throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s", ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
+            }
+
+            // function state
+            Function.FunctionMetaData.Builder functionMetaDataBuilder = Function.FunctionMetaData.newBuilder()
+                    .setFunctionDetails(functionDetails)
+                    .setCreateTime(System.currentTimeMillis())
+                    .setVersion(0);
+
+            // cache auth if need
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                worker().getFunctionRuntimeManager()
+                        .getRuntimeFactory()
+                        .getAuthProvider().ifPresent(functionAuthProvider -> {
+                    if (clientAuthenticationDataHttps != null) {
+
+                        try {
+                            Optional<FunctionAuthData> functionAuthData = functionAuthProvider
+                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
+
+                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
+                                    Function.FunctionAuthenticationSpec.newBuilder()
+                                            .setData(ByteString.copyFrom(authData.getData()))
+                                            .build()));
+                        } catch (Exception e) {
+                            log.error("Error caching authentication data for {} {}/{}/{}",
+                                    ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+
+
+                            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s",
+                                    ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
+                        }
+                    }
+                });
+            }
+
+            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            try {
+                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                        functionPkgUrl, fileDetail, componentPackageFile);
+            } catch (Exception e) {
+                log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+
+            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+            updateRequest(null, functionMetaDataBuilder.build());
+        } finally {
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if (functionPkgUrl == null || !functionPkgUrl.startsWith(Utils.FILE)) {
+                    componentPackageFile.delete();
+                }
+            }
+        }
+    }
+
+    public void updateFunction(final String tenant,
+                               final String namespace,
+                               final String functionName,
+                               final InputStream uploadedInputStream,
+                               final FormDataContentDisposition fileDetail,
+                               final String functionPkgUrl,
+                               final FunctionConfig functionConfig,
+                               final String clientRole,
+                               AuthenticationDataHttps clientAuthenticationDataHttps,
+                               UpdateOptions updateOptions) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (tenant == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
+        }
+        if (functionConfig == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function config is not provided");
+        }
+
+        try {
+            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
+                log.error("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+
+            }
+        } catch (PulsarAdminException e) {
+            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, functionName, e);
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), functionName));
+        }
+
+        Function.FunctionMetaData existingComponent = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+
+        if (!InstanceUtils.calculateSubjectType(existingComponent.getFunctionDetails()).equals(componentType)) {
+            log.error("{}/{}/{} is not a {}", tenant, namespace, functionName, ComponentTypeUtils.toString(componentType));
+            throw new RestException(Response.Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), functionName));
+        }
+
+        FunctionConfig existingFunctionConfig = FunctionConfigUtils.convertFromDetails(existingComponent.getFunctionDetails());
+        // The rest end points take precedence over whatever is there in function config
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(functionName);
+        FunctionConfig mergedConfig;
+        try {
+            mergedConfig = FunctionConfigUtils.validateUpdate(existingFunctionConfig, functionConfig);
+        } catch (Exception e) {
+            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+        }
+
+        if (existingFunctionConfig.equals(mergedConfig) && isBlank(functionPkgUrl) && uploadedInputStream == null) {
+            log.error("{}/{}/{} Update contains no changes", tenant, namespace, functionName);
+            throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
+        }
+
+        Function.FunctionDetails functionDetails = null;
+        File componentPackageFile = null;
+        try {
+
+            // validate parameters
+            try {
+                if (isNotBlank(functionPkgUrl)) {
+                    try {
+                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(functionPkgUrl);
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                    }
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            mergedConfig, componentPackageFile);
+
+                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.FILE)
+                        || existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.HTTP)) {
+                    try {
+                        componentPackageFile = FunctionCommon.extractFileFromPkgURL(existingComponent.getPackageLocation().getPackagePath());
+                    } catch (Exception e) {
+                        throw new IllegalArgumentException(String.format("Encountered error \"%s\" when getting %s package from %s", e.getMessage(), ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                    }
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            mergedConfig, componentPackageFile);
+                } else if (uploadedInputStream != null) {
+
+                    componentPackageFile = WorkerUtils.dumpToTmpFile(uploadedInputStream);
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            mergedConfig, componentPackageFile);
+
+                } else if (existingComponent.getPackageLocation().getPackagePath().startsWith(Utils.BUILTIN)) {
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            mergedConfig, componentPackageFile);
+                    if (!isFunctionCodeBuiltin(functionDetails) && (componentPackageFile == null || fileDetail == null)) {
+                        throw new IllegalArgumentException(ComponentTypeUtils.toString(componentType) + " Package is not provided");
+                    }
+                } else {
+
+                    componentPackageFile = FunctionCommon.createPkgTempFile();
+                    componentPackageFile.deleteOnExit();
+                    WorkerUtils.downloadFromBookkeeper(worker().getDlogNamespace(), componentPackageFile, existingComponent.getPackageLocation().getPackagePath());
+
+                    functionDetails = validateUpdateRequestParams(tenant, namespace, functionName,
+                            mergedConfig, componentPackageFile);
+                }
+            } catch (Exception e) {
+                log.error("Invalid update {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+            }
+
+            try {
+                worker().getFunctionRuntimeManager().getRuntimeFactory().doAdmissionChecks(functionDetails);
+            } catch (Exception e) {
+                log.error("Updated {} {}/{}/{} cannot be submitted to runtime factory", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName);
+                throw new RestException(Response.Status.BAD_REQUEST, String.format("%s %s cannot be admitted:- %s",
+                        ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
+            }
+
+            // merge from existing metadata
+            Function.FunctionMetaData.Builder functionMetaDataBuilder = Function.FunctionMetaData.newBuilder().mergeFrom(existingComponent)
+                    .setFunctionDetails(functionDetails);
+
+            // update auth data if need
+            if (worker().getWorkerConfig().isAuthenticationEnabled()) {
+                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                worker().getFunctionRuntimeManager()
+                        .getRuntimeFactory()
+                        .getAuthProvider().ifPresent(functionAuthProvider -> {
+                            if (clientAuthenticationDataHttps != null && updateOptions != null && updateOptions.isUpdateAuthData()) {
+                                // get existing auth data if it exists
+                                Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
+                                if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
+                                    existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                                }
+
+                                try {
+                                    Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
+                                            .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
+                                                    clientAuthenticationDataHttps);
+
+                                    if (newFunctionAuthData.isPresent()) {
+                                        functionMetaDataBuilder.setFunctionAuthSpec(
+                                                Function.FunctionAuthenticationSpec.newBuilder()
+                                                        .setData(ByteString.copyFrom(newFunctionAuthData.get().getData()))
+                                                        .build());
+                                    } else {
+                                        functionMetaDataBuilder.clearFunctionAuthSpec();
+                                    }
+                                } catch (Exception e) {
+                                    log.error("Error updating authentication data for {} {}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, String.format("Error caching authentication data for %s %s:- %s", ComponentTypeUtils.toString(componentType), functionName, e.getMessage()));
+                                }
+                            }
+                        });
+            }
+
+            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            if (isNotBlank(functionPkgUrl) || uploadedInputStream != null) {
+                try {
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                            functionPkgUrl, fileDetail, componentPackageFile);
+                } catch (Exception e) {
+                    log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant, namespace, functionName, e);
+                    throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                }
+            } else {
+                packageLocationMetaDataBuilder = Function.PackageLocationMetaData.newBuilder().mergeFrom(existingComponent.getPackageLocation());
+            }
+
+            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
+        } finally {
+            if (componentPackageFile != null && componentPackageFile.exists()) {
+                if ((functionPkgUrl != null && !functionPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
+                    componentPackageFile.delete();
+                }
+            }
+        }
+    }
 
     private class GetFunctionStatus extends GetStatus<FunctionStatus, FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData> {
 
@@ -65,10 +455,7 @@ public class FunctionsImpl extends ComponentImpl {
 
             List<ExceptionInformation> userExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 userExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestUserExceptions(userExceptionInformationList);
@@ -78,24 +465,15 @@ public class FunctionsImpl extends ComponentImpl {
                     + status.getNumSourceExceptions() + status.getNumSinkExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry : status.getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation
-                        = new ExceptionInformation();
-                exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
-                exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
                 systemExceptionInformationList.add(exceptionInformation);
             }
             functionInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
@@ -199,8 +577,12 @@ public class FunctionsImpl extends ComponentImpl {
         }
     }
 
-    public FunctionsImpl(Supplier<WorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, Utils.ComponentType.FUNCTION);
+    private ExceptionInformation getExceptionInformation(InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry) {
+        ExceptionInformation exceptionInformation
+                = new ExceptionInformation();
+        exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
+        exceptionInformation.setExceptionString(exceptionEntry.getExceptionString());
+        return exceptionInformation;
     }
 
     /**
@@ -215,10 +597,12 @@ public class FunctionsImpl extends ComponentImpl {
                                                                                                       final String namespace,
                                                                                                       final String componentName,
                                                                                                       final String instanceId,
-                                                                                                      final URI uri) {
+                                                                                                      final URI uri,
+                                                                                                      final String clientRole,
+                                                                                                      final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, componentName, Integer.parseInt(instanceId));
+        componentInstanceStatusRequestValidate(tenant, namespace, componentName, Integer.parseInt(instanceId), clientRole, clientAuthenticationDataHttps);
 
         FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData functionInstanceStatusData;
         try {
@@ -245,10 +629,12 @@ public class FunctionsImpl extends ComponentImpl {
     public FunctionStatus getFunctionStatus(final String tenant,
                                             final String namespace,
                                             final String componentName,
-                                            final URI uri) {
+                                            final URI uri,
+                                            final String clientRole,
+                                            final AuthenticationDataSource clientAuthenticationDataHttps) {
 
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName);
+        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
 
         FunctionStatus functionStatus;
         try {
@@ -261,5 +647,98 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         return functionStatus;
+    }
+
+    public void updateFunctionOnWorkerLeader(final String tenant,
+                               final String namespace,
+                               final String functionName,
+                               final InputStream uploadedInputStream,
+                               final boolean delete,
+                               URI uri,
+                               final String clientRole) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            if (!isSuperUser(clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        }
+
+        if (tenant == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
+        }
+        Function.FunctionMetaData functionMetaData;
+        try {
+            functionMetaData = Function.FunctionMetaData.parseFrom(uploadedInputStream);
+        } catch (IOException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Corrupt Function MetaData");
+        }
+
+        // Redirect if we are not the leader
+        if (!worker().getLeaderService().isLeader()) {
+            WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+                        "Leader not yet ready. Please retry again");
+            }
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+
+        // Its possible that we are not the leader anymore. That will be taken care of by FunctionMetaDataManager
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        try {
+            functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
+        } catch (IllegalStateException e) {
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
+                                                                 final String namespace,
+                                                                 final String componentName,
+                                                                 final FunctionConfig functionConfig,
+                                                                 final File componentPackageFile) throws IOException {
+
+        // The rest end points take precedence over whatever is there in function config
+        Path archivePath = null;
+        functionConfig.setTenant(tenant);
+        functionConfig.setNamespace(namespace);
+        functionConfig.setName(componentName);
+        FunctionConfigUtils.inferMissingArguments(functionConfig);
+
+        if (!StringUtils.isEmpty(functionConfig.getJar())) {
+            String builtinArchive = functionConfig.getJar();
+            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
+            }
+            try {
+                archivePath = this.worker().getFunctionsManager().getFunctionArchive(builtinArchive);
+            } catch (Exception e) {
+                throw new IllegalArgumentException(String.format("No Function archive %s found", archivePath));
+            }
+        }
+        ClassLoader clsLoader  = null;
+        if(archivePath != null){
+            clsLoader = FunctionConfigUtils.validate(functionConfig, archivePath.toFile());
+        }
+        else{
+            clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+        }
+        return FunctionConfigUtils.convert(functionConfig, clsLoader);
+
     }
 }

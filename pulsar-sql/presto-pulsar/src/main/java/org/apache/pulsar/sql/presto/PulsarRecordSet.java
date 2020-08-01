@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.RecordCursor;
-import com.facebook.presto.spi.RecordSet;
-import com.facebook.presto.spi.type.Type;
-import com.google.common.collect.ImmutableList;
-
-import java.util.List;
-
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.collect.ImmutableList;
+import io.prestosql.spi.connector.RecordCursor;
+import io.prestosql.spi.connector.RecordSet;
+import io.prestosql.spi.type.Type;
+import java.util.List;
+
+/**
+ * Implementation of a record set.
+ */
 public class PulsarRecordSet implements RecordSet {
 
     private final List<PulsarColumnHandle> columnHandles;

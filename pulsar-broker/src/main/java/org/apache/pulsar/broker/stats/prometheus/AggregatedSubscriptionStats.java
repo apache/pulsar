@@ -27,6 +27,8 @@ public class AggregatedSubscriptionStats {
 
     public long msgBacklog;
 
+    public long msgBacklogNoDelayed;
+
     public boolean blockedSubscriptionOnUnackedMsgs;
 
     public double msgRateRedeliver;
@@ -36,6 +38,12 @@ public class AggregatedSubscriptionStats {
     public double msgRateOut;
 
     public double msgThroughputOut;
+
+    public long msgDelayed;
+
+    long msgOutCounter;
+
+    long bytesOutCounter;
 
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

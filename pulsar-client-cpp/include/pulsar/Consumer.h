@@ -20,9 +20,9 @@
 #define CONSUMER_HPP_
 
 #include <iostream>
+#include <pulsar/defines.h>
 #include <pulsar/BrokerConsumerStats.h>
 #include <pulsar/ConsumerConfiguration.h>
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 class PulsarWrapper;
@@ -32,7 +32,7 @@ typedef std::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
 /**
  *
  */
-class Consumer {
+class PULSAR_PUBLIC Consumer {
    public:
     /**
      * Construct an uninitialized consumer object
@@ -171,6 +171,70 @@ class Consumer {
     void acknowledgeCumulativeAsync(const Message& message, ResultCallback callback);
     void acknowledgeCumulativeAsync(const MessageId& messageId, ResultCallback callback);
 
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message msg;
+     *     consumer.receive(msg);
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param message
+     *            The {@code Message} to be acknowledged
+     */
+    void negativeAcknowledge(const Message& message);
+
+    /**
+     * Acknowledge the failure to process a single message.
+     * <p>
+     * When a message is "negatively acked" it will be marked for redelivery after
+     * some fixed delay. The delay is configurable when constructing the consumer
+     * with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+     * <p>
+     * This call is not blocking.
+     *
+     * <p>
+     * Example of usage:
+     * <pre><code>
+     * while (true) {
+     *     Message msg;
+     *     consumer.receive(msg);
+     *
+     *     try {
+     *          // Process message...
+     *
+     *          consumer.acknowledge(msg);
+     *     } catch (Throwable t) {
+     *          log.warn("Failed to process message");
+     *          consumer.negativeAcknowledge(msg);
+     *     }
+     * }
+     * </code></pre>
+     *
+     * @param messageId
+     *            The {@code MessageId} to be acknowledged
+     */
+    void negativeAcknowledge(const MessageId& messageId);
+
     Result close();
 
     void closeAsync(ResultCallback callback);
@@ -237,6 +301,14 @@ class Consumer {
     Result seek(const MessageId& msgId);
 
     /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    Result seek(uint64_t timestamp);
+
+    /**
      * Asynchronously reset the subscription associated with this consumer to a specific message id.
      * The message id can either be a specific message or represent the first or last messages in the topic.
      *
@@ -247,6 +319,14 @@ class Consumer {
      *            the message id where to reposition the subscription
      */
     virtual void seekAsync(const MessageId& msgId, ResultCallback callback);
+
+    /**
+     * Asynchronously reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    virtual void seekAsync(uint64_t timestamp, ResultCallback callback);
 
    private:
     ConsumerImplBasePtr impl_;
@@ -261,7 +341,5 @@ class Consumer {
     friend class ConsumerTest;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* CONSUMER_HPP_ */

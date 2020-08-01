@@ -29,7 +29,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
@@ -114,6 +113,12 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommand(client, dockerId, commands);
+    }
+
+    public CompletableFuture<ContainerExecResult> execCmdAsync(String... commands) throws Exception {
+        DockerClient client = this.getDockerClient();
+        String dockerId = this.getContainerId();
+        return DockerUtils.runCommandAsync(client, dockerId, commands);
     }
 
     @Override

@@ -22,8 +22,8 @@
 
 #include <iosfwd>
 #include <memory>
-
-#pragma GCC visibility push(default)
+#include <string>
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
@@ -40,73 +40,73 @@ enum SchemaType
     STRING = 1,
 
     /**
-     * A 8-byte integer.
-     */
-    INT8 = 2,
-
-    /**
-     * A 16-byte integer.
-     */
-    INT16 = 3,
-
-    /**
-     * A 32-byte integer.
-     */
-    INT32 = 4,
-
-    /**
-     * A 64-byte integer.
-     */
-    INT64 = 5,
-
-    /**
-     * A float number.
-     */
-    FLOAT = 6,
-
-    /**
-     * A double number
-     */
-    DOUBLE = 7,
-
-    /**
-     * A bytes array.
-     */
-    BYTES = 8,
-
-    /**
      * JSON object encoding and validation
      */
-    JSON = 9,
+    JSON = 2,
 
     /**
      * Protobuf message encoding and decoding
      */
-    PROTOBUF = 10,
+    PROTOBUF = 3,
 
     /**
      * Serialize and deserialize via Avro
      */
-    AVRO = 11,
+    AVRO = 4,
 
     /**
-     * Auto Consume Type.
+     * A 8-byte integer.
      */
-    AUTO_CONSUME = 13,
+    INT8 = 6,
 
     /**
-     * Auto Publish Type.
+     * A 16-byte integer.
      */
-    AUTO_PUBLISH = 14,
+    INT16 = 7,
+
+    /**
+     * A 32-byte integer.
+     */
+    INT32 = 8,
+
+    /**
+     * A 64-byte integer.
+     */
+    INT64 = 9,
+
+    /**
+     * A float number.
+     */
+    FLOAT = 10,
+
+    /**
+     * A double number
+     */
+    DOUBLE = 11,
 
     /**
      * A Schema that contains Key Schema and Value Schema.
      */
     KEY_VALUE = 15,
+
+    /**
+     * A bytes array.
+     */
+    BYTES = -1,
+
+    /**
+     * Auto Consume Type.
+     */
+    AUTO_CONSUME = -3,
+
+    /**
+     * Auto Publish Type.
+     */
+    AUTO_PUBLISH = -4,
 };
 
 // Return string representation of result code
-const char *strSchemaType(SchemaType schemaType);
+PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType);
 
 class SchemaInfoImpl;
 
@@ -115,7 +115,7 @@ typedef std::map<std::string, std::string> StringMap;
 /**
  * Encapsulates data around the schema definition
  */
-class SchemaInfo {
+class PULSAR_PUBLIC SchemaInfo {
    public:
     SchemaInfo();
 
@@ -155,6 +155,4 @@ class SchemaInfo {
 
 }  // namespace pulsar
 
-std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType);

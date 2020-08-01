@@ -27,6 +27,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -65,7 +66,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                 MessageImpl msg = null;
                 try {
                     msg = MessageImpl.deserialize(entry.getDataBuffer());
-                    return msg.getPublishTime() <= timestamp;
+                    return msg.getPublishTime() < timestamp;
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
                 } finally {
@@ -83,7 +84,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
             }
             callback.findEntryFailed(
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
-                    null);
+                    Optional.empty(), null);
         }
     }
 
@@ -106,7 +107,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     @Override
-    public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
+    public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
         checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
         AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
         if (log.isDebugEnabled()) {
@@ -114,6 +115,6 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     timestamp, exception);
         }
         messageFindInProgress = FALSE;
-        callback.findEntryFailed(exception, null);
+        callback.findEntryFailed(exception, failedReadPosition, null);
     }
 }

@@ -18,10 +18,15 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.List;
@@ -36,11 +41,12 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.testng.annotations.Test;
 
-@Test
 public class ManagedCursorContainerTest {
 
     private static class MockManagedCursor implements ManagedCursor {
@@ -86,7 +92,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public long getNumberOfEntriesInBacklog() {
+        public long getNumberOfEntriesInBacklog(boolean isPrecise) {
             return 0;
         }
 
@@ -223,6 +229,10 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void setAlwaysInactive() {
+        }
+
+        @Override
         public List<Entry> replayEntries(Set<? extends Position> positions)
                 throws InterruptedException, ManagedLedgerException {
             return null;
@@ -230,6 +240,11 @@ public class ManagedCursorContainerTest {
 
         @Override
         public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx) {
+            return Sets.newConcurrentHashSet();
+        }
+
+        @Override
+        public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
             return Sets.newConcurrentHashSet();
         }
 
@@ -295,12 +310,42 @@ public class ManagedCursorContainerTest {
         public double getThrottleMarkDelete() {
             return -1;
         }
+
+        @Override
+        public ManagedLedger getManagedLedger() {
+            return null;
+        }
+
+        @Override
+        public Range<PositionImpl> getLastIndividualDeletedRange() {
+            return null;
+        }
+
+        @Override
+        public void trimDeletedEntries(List<Entry> entries) {
+
+        }
+
+        @Override
+        public long[] getDeletedBatchIndexesAsLongArray(PositionImpl position) {
+            return new long[0];
+        }
+
+        public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                Object ctx) {
+        }
+
+        @Override
+        public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
+                throws InterruptedException, ManagedLedgerException {
+            return null;
+        }
     }
 
     @Test
-    void simple() throws Exception {
+    public void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
         container.add(cursor1);
@@ -338,12 +383,12 @@ public class ManagedCursorContainerTest {
         container.removeCursor(cursor1.getName());
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(4, 0));
 
-        assertFalse(container.isEmpty());
+        assertTrue(container.hasDurableCursors());
 
         container.removeCursor(cursor4.getName());
-        assertEquals(container.getSlowestReaderPosition(), null);
+        assertNull(container.getSlowestReaderPosition());
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
 
         ManagedCursor cursor6 = new MockManagedCursor(container, "test6", new PositionImpl(6, 5));
         container.add(cursor6);
@@ -353,7 +398,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void updatingCursorOutsideContainer() throws Exception {
+    public void updatingCursorOutsideContainer() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -375,7 +420,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void removingCursor() throws Exception {
+    public void removingCursor() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -400,7 +445,7 @@ public class ManagedCursorContainerTest {
 
         assertEquals(container, Lists.newArrayList(cursor1, cursor3));
 
-        assertEquals(container.get("test2"), null);
+        assertNull(container.get("test2"));
 
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(1, 1));
 
@@ -412,7 +457,7 @@ public class ManagedCursorContainerTest {
     }
 
     @Test
-    void ordering() throws Exception {
+    public void ordering() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         ManagedCursor cursor1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -442,11 +487,11 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(7, 1));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 
     @Test
-    void orderingWithUpdates() throws Exception {
+    public void orderingWithUpdates() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -507,11 +552,11 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 
     @Test
-    void orderingWithUpdatesAndReset() throws Exception {
+    public void orderingWithUpdatesAndReset() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
         MockManagedCursor c1 = new MockManagedCursor(container, "test1", new PositionImpl(5, 5));
@@ -572,6 +617,6 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(8, 5));
         container.removeCursor("test3");
 
-        assertTrue(container.isEmpty());
+        assertFalse(container.hasDurableCursors());
     }
 }

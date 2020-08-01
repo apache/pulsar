@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -112,7 +112,7 @@ public class NamespaceBundlesTest {
         // the same instance
         assertEquals(partitions.size(), partFld.length);
         NamespaceName nsFld = (NamespaceName) nsField.get(bundles);
-        assertTrue(nsFld.toString().equals("pulsar/use/ns2"));
+        assertEquals(nsFld.toString(), "pulsar/use/ns2");
         ArrayList<NamespaceBundle> bundleList = (ArrayList<NamespaceBundle>) bundlesField.get(bundles);
         assertEquals(bundleList.size(), 3);
         assertEquals(bundleList.get(0),
@@ -169,7 +169,7 @@ public class NamespaceBundlesTest {
             bundles = new NamespaceBundles(topicName.getNamespaceObject(), newPar, factory);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
-        } catch (ArrayIndexOutOfBoundsException iae) {
+        } catch (IndexOutOfBoundsException iae) {
             // OK, expected
         }
     }
@@ -182,7 +182,7 @@ public class NamespaceBundlesTest {
         NamespaceBundle bundle = bundles.findBundle(topicName);
         final int numberSplitBundles = 4;
         // (1) split in 4
-        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, numberSplitBundles);
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, numberSplitBundles, null);
         // existing_no_bundles(1) +
         // additional_new_split_bundle(4) -
         // parent_target_bundle(1)
@@ -225,7 +225,7 @@ public class NamespaceBundlesTest {
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundle = bundles.findBundle(topicName);
         // (1) split : [0x00000000,0xffffffff] => [0x00000000_0x7fffffff,0x7fffffff_0xffffffff]
-        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, NO_BUNDLES);
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, NO_BUNDLES, null);
         assertNotNull(splitBundles);
         assertBundleDivideInTwo(bundle, splitBundles.getRight(), NO_BUNDLES);
 
@@ -248,6 +248,29 @@ public class NamespaceBundlesTest {
 
     }
 
+    @Test
+    public void testSplitBundleByFixBoundary() throws Exception {
+        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
+        NamespaceBundles bundles = factory.getBundles(nsname);
+        NamespaceBundle bundleToSplit = bundles.getBundles().get(0);
+
+        try {
+            factory.splitBundles(bundleToSplit, 0, bundleToSplit.getLowerEndpoint());
+        } catch (IllegalArgumentException e) {
+            //No-op
+        }
+        try {
+            factory.splitBundles(bundleToSplit, 0, bundleToSplit.getUpperEndpoint());
+        } catch (IllegalArgumentException e) {
+            //No-op
+        }
+
+        Long fixBoundary = bundleToSplit.getLowerEndpoint() + 10;
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundleToSplit, 0, fixBoundary);
+        assertEquals(splitBundles.getRight().get(0).getLowerEndpoint(), bundleToSplit.getLowerEndpoint());
+        assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(), bundleToSplit.getLowerEndpoint() + fixBoundary);
+    }
+
     private void validateSplitBundlesRange(NamespaceBundle fullBundle, List<NamespaceBundle> splitBundles) {
         assertNotNull(fullBundle);
         assertNotNull(splitBundles);
@@ -256,7 +279,7 @@ public class NamespaceBundlesTest {
         for (NamespaceBundle bundle : splitBundles) {
             span = span.span(bundle.getKeyRange());
         }
-        assertTrue(fullRange.equals(span));
+        assertEquals(span, fullRange);
     }
 
     @SuppressWarnings("unchecked")
@@ -267,7 +290,7 @@ public class NamespaceBundlesTest {
         bCacheField.setAccessible(true);
         ((AsyncLoadingCache<NamespaceName, NamespaceBundles>) bCacheField.get(utilityFactory)).put(nsname,
                 CompletableFuture.completedFuture(bundles));
-        return utilityFactory.splitBundles(targetBundle, numBundles);
+        return utilityFactory.splitBundles(targetBundle, numBundles, null);
     }
 
     private void assertBundles(NamespaceBundleFactory utilityFactory, NamespaceName nsname, NamespaceBundle bundle,
@@ -288,7 +311,7 @@ public class NamespaceBundlesTest {
     }
 
     private void assertBundleDivideInTwo(NamespaceBundle bundle, List<NamespaceBundle> bundles, int numBundles) {
-        assertTrue(bundles.size() == 2);
+        assertEquals(bundles.size(), 2);
         String[] range = bundle.getBundleRange().split("_");
         long lower = Long.decode(range[0]);
         long upper = Long.decode(range[1]);
@@ -296,8 +319,8 @@ public class NamespaceBundlesTest {
 
         String lRange = String.format("0x%08x_0x%08x", lower, middle);
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
-        assertTrue(bundles.get(0).getBundleRange().equals(lRange));
-        assertTrue(bundles.get(1).getBundleRange().equals(uRange));
+        assertEquals(lRange, bundles.get(0).getBundleRange());
+        assertEquals(uRange, bundles.get(1).getBundleRange());
         log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
     }
 

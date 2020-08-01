@@ -49,7 +49,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
         if (authData.hasDataFromTls()) {
             /**
-             * Maybe authentication type should be checked if it is a HTTPS session. However this check fails actually
+             * Maybe authentication type should be checked if it is an HTTPS session. However this check fails actually
              * because authType is null.
              *
              * This check is not necessarily needed, because an untrusted certificate is not passed to

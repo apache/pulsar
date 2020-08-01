@@ -25,36 +25,33 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdint.h>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 typedef struct _pulsar_message_id pulsar_message_id_t;
 
 /**
  * MessageId representing the "earliest" or "oldest available" message stored in the topic
  */
-const pulsar_message_id_t *pulsar_message_id_earliest();
+PULSAR_PUBLIC const pulsar_message_id_t *pulsar_message_id_earliest();
 
 /**
  * MessageId representing the "latest" or "last published" message in the topic
  */
-const pulsar_message_id_t *pulsar_message_id_latest();
+PULSAR_PUBLIC const pulsar_message_id_t *pulsar_message_id_latest();
 
 /**
  * Serialize the message id into a binary string for storing
  */
-void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len);
+PULSAR_PUBLIC void *pulsar_message_id_serialize(pulsar_message_id_t *messageId, int *len);
 
 /**
  * Deserialize a message id from a binary string
  */
-pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t len);
+PULSAR_PUBLIC pulsar_message_id_t *pulsar_message_id_deserialize(const void *buffer, uint32_t len);
 
-char *pulsar_message_id_str(pulsar_message_id_t *messageId);
+PULSAR_PUBLIC char *pulsar_message_id_str(pulsar_message_id_t *messageId);
 
-void pulsar_message_id_free(pulsar_message_id_t *messageId);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC void pulsar_message_id_free(pulsar_message_id_t *messageId);
 
 #ifdef __cplusplus
 }

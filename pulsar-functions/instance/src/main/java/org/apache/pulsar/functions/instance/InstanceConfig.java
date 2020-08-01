@@ -19,29 +19,26 @@
 package org.apache.pulsar.functions.instance;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
- * passed to run functions
+ * passed to run functions.
  */
 @Data
-@Getter
-@Setter
-@EqualsAndHashCode
-@ToString
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
+    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
+    // Max pending async requests per instance to avoid large number of concurrent requests.
+    // Only used in AsyncFunction. Default: 1000
+    private int maxPendingAsyncRequests = 1000;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.
@@ -50,5 +47,9 @@ public class InstanceConfig {
      */
     public String getInstanceName() {
         return "" + instanceId;
+    }
+
+    public FunctionDetails getFunctionDetails() {
+        return functionDetails;
     }
 }

@@ -20,35 +20,87 @@ package org.apache.pulsar.broker;
 
 import java.io.Closeable;
 import java.io.IOException;
-
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
+
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.EnsemblePlacementPolicyConfig;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 
 public class ManagedLedgerClientFactory implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerClientFactory.class);
 
     private final ManagedLedgerFactory managedLedgerFactory;
-    private final BookKeeper bkClient;
+    private final BookKeeper defaultBkClient;
+    private final Map<EnsemblePlacementPolicyConfig, BookKeeper> bkEnsemblePolicyToBkClientMap = Maps.newConcurrentMap();
+    private StatsProvider statsProvider = new NullStatsProvider();
 
     public ManagedLedgerClientFactory(ServiceConfiguration conf, ZooKeeper zkClient,
             BookKeeperClientFactory bookkeeperProvider) throws Exception {
-        this.bkClient = bookkeeperProvider.create(conf, zkClient);
-
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
         managedLedgerFactoryConfig.setNumManagedLedgerWorkerThreads(conf.getManagedLedgerNumWorkerThreads());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(conf.getManagedLedgerNumSchedulerThreads());
+        managedLedgerFactoryConfig.setCacheEvictionFrequency(conf.getManagedLedgerCacheEvictionFrequency());
+        managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
+        managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+        managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
 
-        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(bkClient, zkClient, managedLedgerFactoryConfig);
+        Configuration configuration = new ClientConfiguration();
+        if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
+            configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
+                    conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+            configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, conf.getClusterName());
+            statsProvider = new PrometheusMetricsProvider();
+        }
+
+        statsProvider.start(configuration);
+        StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
+
+        this.defaultBkClient = bookkeeperProvider.create(conf, zkClient, Optional.empty(), null);
+
+        BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
+                EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
+            BookKeeper bkClient = null;
+            // find or create bk-client in cache for a specific ensemblePlacementPolicy
+            if (ensemblePlacementPolicyConfig != null && ensemblePlacementPolicyConfig.getPolicyClass() != null) {
+                bkClient = bkEnsemblePolicyToBkClientMap.computeIfAbsent(ensemblePlacementPolicyConfig, (key) -> {
+                    try {
+                        return bookkeeperProvider.create(conf, zkClient,
+                                Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
+                                ensemblePlacementPolicyConfig.getProperties());
+                    } catch (Exception e) {
+                        log.error("Failed to initialize bk-client for policy {}, properties {}",
+                                ensemblePlacementPolicyConfig.getPolicyClass(),
+                                ensemblePlacementPolicyConfig.getProperties(), e);
+                    }
+                    return this.defaultBkClient;
+                });
+            }
+            return bkClient != null ? bkClient : defaultBkClient;
+        };
+
+        this.managedLedgerFactory = new ManagedLedgerFactoryImpl(bkFactory, zkClient, managedLedgerFactoryConfig, statsLogger);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
@@ -56,16 +108,27 @@ public class ManagedLedgerClientFactory implements Closeable {
     }
 
     public BookKeeper getBookKeeperClient() {
-        return bkClient;
+        return defaultBkClient;
     }
 
+    public StatsProvider getStatsProvider() {
+        return statsProvider;
+    }
+
+    @VisibleForTesting
+    public Map<EnsemblePlacementPolicyConfig, BookKeeper> getBkEnsemblePolicyToBookKeeperMap() {
+        return bkEnsemblePolicyToBkClientMap;
+    }
+
+    @Override
     public void close() throws IOException {
         try {
             managedLedgerFactory.shutdown();
             log.info("Closed managed ledger factory");
 
+            statsProvider.stop();
             try {
-                bkClient.close();
+                defaultBkClient.close();
             } catch (RejectedExecutionException ree) {
                 // when closing bookkeeper client, it will error outs all pending metadata operations.
                 // those callbacks of those operations will be triggered, and submitted to the scheduler
@@ -75,6 +138,17 @@ public class ManagedLedgerClientFactory implements Closeable {
                 // an alternative solution is to close bookkeeper client before shutting down managed ledger
                 // factory, however that might be introducing more unknowns.
                 log.warn("Encountered exceptions on closing bookkeeper client", ree);
+            }
+            if (bkEnsemblePolicyToBkClientMap != null) {
+                bkEnsemblePolicyToBkClientMap.forEach((policy, bk) -> {
+                    try {
+                        if (bk != null) {
+                            bk.close();
+                        }
+                    } catch (Exception e) {
+                        log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+                    }
+                });
             }
             log.info("Closed BookKeeper client");
         } catch (Exception e) {

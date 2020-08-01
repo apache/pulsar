@@ -18,12 +18,11 @@
  */
 package org.apache.flink.batch.connectors.pulsar.serialization;
 
+import java.io.IOException;
+import java.io.StringWriter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.java.tuple.Tuple;
-
-import java.io.IOException;
-import java.io.StringWriter;
 
 /**
  * Csv Serialization Schema to serialize Tuples to Csv.
@@ -38,7 +37,7 @@ public class CsvSerializationSchema<T extends Tuple> implements SerializationSch
         StringWriter stringWriter;
         try {
             Object[] fieldsValues = new Object[t.getArity()];
-            for(int index = 0; index < t.getArity(); index++) {
+            for (int index = 0; index < t.getArity(); index++) {
                 fieldsValues[index] = (t.getField(index));
             }
 

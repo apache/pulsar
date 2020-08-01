@@ -33,10 +33,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 
@@ -44,10 +40,6 @@ import org.apache.commons.lang3.StringUtils;
  * Configuration class for the File Source Connector.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class FileSourceConfig implements Serializable {
 

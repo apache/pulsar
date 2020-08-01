@@ -25,6 +25,15 @@ import lombok.experimental.UtilityClass;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
+/**
+ * Provider of compression codecs used in Pulsar.
+ *
+ * @see CompressionCodecNone
+ * @see CompressionCodecLZ4
+ * @see CompressionCodecZLib
+ * @see CompressionCodecZstd
+ * @see CompressionCodecSnappy
+ */
 @UtilityClass
 public class CompressionCodecProvider {
     private static final EnumMap<PulsarApi.CompressionType, CompressionCodec> codecs;
@@ -35,6 +44,7 @@ public class CompressionCodecProvider {
         codecs.put(PulsarApi.CompressionType.LZ4, new CompressionCodecLZ4());
         codecs.put(PulsarApi.CompressionType.ZLIB, new CompressionCodecZLib());
         codecs.put(PulsarApi.CompressionType.ZSTD, new CompressionCodecZstd());
+        codecs.put(PulsarApi.CompressionType.SNAPPY, new CompressionCodecSnappy());
     }
 
     public static CompressionCodec getCompressionCodec(PulsarApi.CompressionType type) {
@@ -55,6 +65,8 @@ public class CompressionCodecProvider {
             return PulsarApi.CompressionType.ZLIB;
         case ZSTD:
             return PulsarApi.CompressionType.ZSTD;
+        case SNAPPY:
+            return PulsarApi.CompressionType.SNAPPY;
 
         default:
             throw new RuntimeException("Invalid compression type");
@@ -71,6 +83,8 @@ public class CompressionCodecProvider {
             return CompressionType.ZLIB;
         case ZSTD:
             return CompressionType.ZSTD;
+        case SNAPPY:
+            return CompressionType.SNAPPY;
 
         default:
             throw new RuntimeException("Invalid compression type");

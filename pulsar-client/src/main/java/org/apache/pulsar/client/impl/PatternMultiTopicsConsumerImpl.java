@@ -46,6 +46,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
+    protected NamespaceName namespaceName;
     private volatile Timeout recheckPatternTimeout = null;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
@@ -54,7 +55,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                           ExecutorService listenerExecutor,
                                           CompletableFuture<Consumer<T>> subscribeFuture,
                                           Schema<T> schema, Mode subscriptionMode, ConsumerInterceptors<T> interceptors) {
-        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors);
+        super(client, conf, listenerExecutor, subscribeFuture, schema, interceptors,
+                false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
         this.subscriptionMode = subscriptionMode;
 
@@ -64,7 +66,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
-        recheckPatternTimeout = client.timer().newTimeout(this, Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
+        this.recheckPatternTimeout = client.timer().newTimeout(this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
     }
 
     public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {
@@ -103,8 +105,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         });
 
         // schedule the next re-check task
-        recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
-            Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
+        this.recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
+                Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
     }
 
     public Pattern getPattern() {
@@ -129,7 +131,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
-            removedTopics.stream().forEach(topic -> futures.add(unsubscribeAsync(topic)));
+            removedTopics.stream().forEach(topic -> futures.add(removeConsumerAsync(topic)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> removeFuture.complete(null))
                 .exceptionally(ex -> {
@@ -150,7 +152,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
 
             List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
-            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic)));
+            addedTopics.stream().forEach(topic -> futures.add(subscribeAsync(topic, false /* createTopicIfDoesNotExist */)));
             FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> addFuture.complete(null))
                 .exceptionally(ex -> {

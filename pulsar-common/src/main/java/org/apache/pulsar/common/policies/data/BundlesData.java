@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.google.common.base.MoreObjects;
 import java.util.List;
 import java.util.Objects;
 
-import com.google.common.base.MoreObjects;
-
+/**
+ * Holder for bundles.
+ */
 public class BundlesData {
     public List<String> boundaries;
     public int numBundles;
@@ -56,6 +58,11 @@ public class BundlesData {
 
     public void setNumBundles(int numBundles) {
         this.numBundles = numBundles;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(boundaries);
     }
 
     @Override

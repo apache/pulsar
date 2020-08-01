@@ -35,9 +35,9 @@ import com.google.common.hash.Hashing;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -47,7 +47,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
@@ -56,6 +57,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
@@ -78,12 +80,11 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ModularLoadManagerImplTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -103,19 +104,7 @@ public class ModularLoadManagerImplTest {
     private ModularLoadManagerImpl primaryLoadManager;
     private ModularLoadManagerImpl secondaryLoadManager;
 
-    private ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS,
-            new LinkedBlockingQueue<Runnable>());
-
-    private final int ZOOKEEPER_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final int PRIMARY_BROKER_PORT = PortManager.nextFreePort();
-    private final int SECONDARY_BROKER_PORT = PortManager.nextFreePort();
-    private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImplTest.class);
-
-    static {
-        System.setProperty("test.basePort", "16100");
-    }
+    private ExecutorService executor;
 
     // Invoke non-overloaded method.
     private Object invokeSimpleMethod(final Object instance, final String methodName, final Object... args)
@@ -143,40 +132,45 @@ public class ModularLoadManagerImplTest {
 
     @BeforeMethod
     void setup() throws Exception {
+        executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, ZOOKEEPER_PORT, () -> PortManager.nextFreePort());
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config1.setClusterName("use");
-        config1.setWebServicePort(PRIMARY_BROKER_WEBSERVICE_PORT);
-        config1.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
-        pulsar1 = new PulsarService(config1);
+        config1.setWebServicePort(Optional.of(0));
+        config1.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
 
+        config1.setAdvertisedAddress("localhost");
+        config1.setBrokerServicePort(Optional.of(0));
+        config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
+        pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
-        primaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(), PRIMARY_BROKER_WEBSERVICE_PORT);
-        url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = String.format("%s:%d", "localhost", pulsar1.getListenPortHTTP().get());
+        url1 = new URL(pulsar1.getWebServiceAddress());
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config2.setClusterName("use");
-        config2.setWebServicePort(SECONDARY_BROKER_WEBSERVICE_PORT);
-        config2.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
+        config2.setWebServicePort(Optional.of(0));
+        config2.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config2.setAdvertisedAddress("localhost");
+        config2.setBrokerServicePort(Optional.of(0));
+        config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         pulsar2 = new PulsarService(config2);
-        secondaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(),
-                SECONDARY_BROKER_WEBSERVICE_PORT);
-
         pulsar2.start();
 
-        url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
+        secondaryHost = String.format("%s:%d", "localhost", pulsar2.getListenPortHTTP().get());
+        url2 = new URL(pulsar2.getWebServiceAddress());
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");
@@ -341,7 +335,7 @@ public class ModularLoadManagerImplTest {
         final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryHost));
         when(brokerDataSpy1.getLocalData()).thenReturn(localBrokerData);
         brokerDataMap.put(primaryHost, brokerDataSpy1);
-        // Need to update all the bundle data for the shedder to see the spy.
+        // Need to update all the bundle data for the shredder to see the spy.
         primaryLoadManager.onUpdate(null, null, null);
         Thread.sleep(100);
         localBrokerData.setCpu(new ResourceUsage(80, 100));
@@ -456,14 +450,14 @@ public class ModularLoadManagerImplTest {
      */
     @Test
     public void testBrokerStopCacheUpdate() throws Exception {
-        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + SECONDARY_BROKER_WEBSERVICE_PORT;
+        String secondaryBroker = pulsar2.getAdvertisedAddress() + ":" + pulsar2.getListenPortHTTP().get();
         pulsar2.getLocalZkCache().getZooKeeper().delete(LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + secondaryBroker,
                 -1);
         Thread.sleep(100);
-        ModularLoadManagerWrapper loadManagerWapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar1.getLoadManager().get();
         Field loadMgrField = ModularLoadManagerWrapper.class.getDeclaredField("loadManager");
         loadMgrField.setAccessible(true);
-        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWapper);
+        ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) loadMgrField.get(loadManagerWrapper);
         Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
         assertEquals(avaialbeBrokers.size(), 1);
     }
@@ -514,6 +508,17 @@ public class ModularLoadManagerImplTest {
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
         ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
+        BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
+            @Override
+            public boolean isEnablePersistentTopics(String brokerUrl) {
+                return true;
+            }
+
+            @Override
+            public boolean isEnableNonPersistentTopics(String brokerUrl) {
+                return true;
+            }
+        };
 
         // (1) now we have isolation policy : primary=broker1, secondary=broker2, minLimit=1
 
@@ -521,7 +526,7 @@ public class ModularLoadManagerImplTest {
         Set<String> brokerCandidateCache = Sets.newHashSet();
         Set<String> availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker1Address));
 
@@ -529,7 +534,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
@@ -537,7 +542,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
@@ -551,7 +556,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker1Address, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 2);
         assertTrue(brokerCandidateCache.contains(broker1Address));
         assertTrue(brokerCandidateCache.contains(broker2Address));
@@ -560,7 +565,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker, broker2Address);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 1);
         assertTrue(brokerCandidateCache.contains(broker2Address));
 
@@ -568,7 +573,7 @@ public class ModularLoadManagerImplTest {
         brokerCandidateCache = Sets.newHashSet();
         availableBrokers = Sets.newHashSet(sharedBroker);
         LoadManagerShared.applyNamespacePolicies(serviceUnit, simpleResourceAllocationPolicies, brokerCandidateCache,
-                availableBrokers);
+                availableBrokers, brokerTopicLoadingPredicate);
         assertEquals(brokerCandidateCache.size(), 0);
 
     }
@@ -585,15 +590,13 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
-        int brokerWebServicePort = PortManager.nextFreePort();
-        int brokerServicePort = PortManager.nextFreePort();
-        config.setWebServicePort(brokerWebServicePort);
-        config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
-        config.setBrokerServicePort(brokerServicePort);
+        config.setWebServicePort(Optional.of(0));
+        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);
         // create znode using different zk-session
         final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
-                + brokerWebServicePort;
+                + config.getWebServicePort();
         ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), brokerZnode, "".getBytes(), ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.EPHEMERAL);
         try {
@@ -603,5 +606,14 @@ public class ModularLoadManagerImplTest {
         }
 
         pulsar.close();
+    }
+
+    @Test
+    public void testZnodeMissed() throws Exception {
+        String path = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get();
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
+        pulsar1.getLoadManager().get().writeLoadReportOnZookeeper();
+        // Delete it again to check the znode is create before write load balance data
+        ZkUtils.deleteFullPathOptimistic(pulsar1.getZkClient(), path, -1);
     }
 }

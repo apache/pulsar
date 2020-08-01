@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,6 +39,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private final String subName;
     private final String topicName;
     private final Rate msgExpired;
+    private final boolean autoSkipNonRecoverableData;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -50,6 +53,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
         this.cursor = cursor;
         this.subName = subscriptionName;
         this.msgExpired = new Rate();
+        this.autoSkipNonRecoverableData = cursor.getManagedLedger() != null  // check to avoid test failures
+                ? cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
+                : false;
     }
 
     public void expireMessages(int messageTTLInSeconds) {
@@ -93,7 +99,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
         @Override
         public void markDeleteComplete(Object ctx) {
-            long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog();
+            long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             updateRates();
 
@@ -113,7 +119,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     public void findEntryComplete(Position position, Object ctx) {
         if (position != null) {
             log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
-            cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog());
+            cursor.asyncMarkDelete(position, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] No messages to expire", topicName, subName);
@@ -124,9 +130,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
     }
 
     @Override
-    public void findEntryFailed(ManagedLedgerException exception, Object ctx) {
+    public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Finding expired entry operation failed", topicName, subName, exception);
+        }
+        if (autoSkipNonRecoverableData && failedReadPosition.isPresent()
+                && (exception instanceof NonRecoverableLedgerException)) {
+            log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
+                    exception.getMessage());
+            findEntryComplete(failedReadPosition.get(), ctx);
         }
         expirationCheckInProgress = FALSE;
         updateRates();

@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
@@ -32,8 +34,8 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -43,8 +45,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     private final WebTarget adminNonPersistentTopics;
     private final WebTarget adminV2NonPersistentTopics;
 
-    public NonPersistentTopicsImpl(WebTarget web, Authentication auth) {
-        super(auth);
+    public NonPersistentTopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
+        super(auth, readTimeoutMs);
         adminNonPersistentTopics = web.path("/admin");
         adminV2NonPersistentTopics = web.path("/admin/v2");
     }
@@ -52,18 +54,20 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
         try {
-            createPartitionedTopicAsync(topic, numPartitions).get();
+            createPartitionedTopicAsync(topic, numPartitions).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
     @Override
     public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
-        checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
+        checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "partitions");
         return asyncPutRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
@@ -72,12 +76,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException {
         try {
-            return getPartitionedTopicMetadataAsync(topic).get();
+            return getPartitionedTopicMetadataAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
@@ -105,12 +111,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public NonPersistentTopicStats getStats(String topic) throws PulsarAdminException {
         try {
-            return getStatsAsync(topic).get();
+            return getStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
@@ -138,12 +146,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
         try {
-            return getInternalStatsAsync(topic).get();
+            return getInternalStatsAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
@@ -171,12 +181,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public void unload(String topic) throws PulsarAdminException {
         try {
-            unloadAsync(topic).get();
+            unloadAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
@@ -190,12 +202,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException {
         try {
-            return getListInBundleAsync(namespace, bundleRange).get();
+            return getListInBundleAsync(namespace, bundleRange).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 
@@ -221,12 +235,14 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public List<String> getList(String namespace) throws PulsarAdminException {
         try {
-            return getListAsync(namespace).get();
+            return getListAsync(namespace).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e.getCause());
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
         }
     }
 

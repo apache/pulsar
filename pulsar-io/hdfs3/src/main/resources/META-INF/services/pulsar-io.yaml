@@ -20,3 +20,4 @@
 name: hdfs3
 description: Writes data into HDFS 3.x
 sinkClass: org.apache.pulsar.io.hdfs3.sink.text.HdfsStringSink
+sinkConfigClass: org.apache.pulsar.io.hdfs3.sink.HdfsSinkConfig

@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Producer is used to publish messages on a topic.
  *
- * A single producer instance can be used across multiple threads.
+ * <p>A single producer instance can be used across multiple threads.
  */
 public interface Producer<T> extends Closeable {
 
@@ -40,10 +40,10 @@ public interface Producer<T> extends Closeable {
 
     /**
      * Sends a message.
-     * <p>
-     * This call will be blocking until is successfully acknowledged by the Pulsar broker.
-     * <p>
-     * Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
+     *
+     * <p>This call will be blocking until is successfully acknowledged by the Pulsar broker.
+     *
+     * <p>Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
      *
      * @param message
      *            a message
@@ -56,15 +56,15 @@ public interface Producer<T> extends Closeable {
     MessageId send(T message) throws PulsarClientException;
 
     /**
-     * Send a message asynchronously
-     * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception
+     * Send a message asynchronously.
+     *
+     * <p>When the producer queue is full, by default this method will complete the future with an exception
      * {@link PulsarClientException.ProducerQueueIsFullError}
-     * <p>
-     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     *
+     * <p>See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
      * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
-     * <p>
-     * Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
+     *
+     * <p>Use {@link #newMessage()} to specify more properties than just the value on the message to be sent.
      *
      * @param message
      *            a byte array with the payload of the message
@@ -91,10 +91,9 @@ public interface Producer<T> extends Closeable {
     CompletableFuture<Void> flushAsync();
 
     /**
-     * Create a new message builder
+     * Create a new message builder.
      *
-     * This message builder allows to specify additional properties on the message. For example:
-     *
+     * <p>This message builder allows to specify additional properties on the message. For example:
      * <pre>{@code
      * producer.newMessage()
      *       .key(messageKey)
@@ -108,21 +107,29 @@ public interface Producer<T> extends Closeable {
     TypedMessageBuilder<T> newMessage();
 
     /**
+     * Create a new message builder with schema, not required same parameterized type with the producer.
+     *
+     * @return a typed message builder that can be used to construct the message to be sent through this producer
+     * @see #newMessage()
+     */
+    <V> TypedMessageBuilder<V> newMessage(Schema<V> schema);
+
+    /**
      * Get the last sequence id that was published by this producer.
-     * <p>
-     * This represent either the automatically assigned or custom sequence id (set on the {@link MessageBuilder}) that
-     * was published and acknowledged by the broker.
-     * <p>
-     * After recreating a producer with the same producer name, this will return the last message that was published in
-     * the previous producer session, or -1 if there no message was ever published.
+     *
+     * <p>This represent either the automatically assigned
+     * or custom sequence id (set on the {@link TypedMessageBuilder})
+     * that was published and acknowledged by the broker.
+     *
+     * <p>After recreating a producer with the same producer name, this will return the last message that was
+     * published in the previous producer session, or -1 if there no message was ever published.
      *
      * @return the last sequence id published by this producer
      */
     long getLastSequenceId();
 
     /**
-     * Get statistics for the producer
-     *
+     * Get statistics for the producer.
      * <ul>
      * <li>numMsgsSent : Number of messages sent in the current interval
      * <li>numBytesSent : Number of bytes sent in the current interval
@@ -141,8 +148,8 @@ public interface Producer<T> extends Closeable {
     /**
      * Close the producer and releases resources allocated.
      *
-     * No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
-     * of errors, pending writes will not be retried.
+     * <p>No more writes will be accepted from this producer. Waits until all pending write request are persisted.
+     * In case of errors, pending writes will not be retried.
      *
      * @throws PulsarClientException.AlreadyClosedException
      *             if the producer was already closed
@@ -153,8 +160,8 @@ public interface Producer<T> extends Closeable {
     /**
      * Close the producer and releases resources allocated.
      *
-     * No more writes will be accepted from this producer. Waits until all pending write request are persisted. In case
-     * of errors, pending writes will not be retried.
+     * <p>No more writes will be accepted from this producer. Waits until all pending write request are persisted.
+     * In case of errors, pending writes will not be retried.
      *
      * @return a future that can used to track when the producer has been closed
      */

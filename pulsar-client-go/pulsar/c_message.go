@@ -32,7 +32,8 @@ import (
 )
 
 type message struct {
-	ptr *C.pulsar_message_t
+	ptr    *C.pulsar_message_t
+	schema Schema
 }
 
 type messageID struct {
@@ -71,6 +72,10 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 		C.pulsar_message_set_event_timestamp(cMsg, C.uint64_t(timeToUnixTimestampMillis(message.EventTime)))
 	}
 
+	if message.DeliverAfter != 0 {
+		C.pulsar_message_set_deliver_after(cMsg, C.uint64_t(durationToUnixTimestampMillis(message.DeliverAfter)))
+	}
+
 	if message.SequenceID != 0 {
 		C.pulsar_message_set_sequence_id(cMsg, C.int64_t(message.SequenceID))
 	}
@@ -88,7 +93,7 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 				C.setString(array, C.CString(s), C.int(i))
 			}
 
-			C.pulsar_message_set_replication_clusters(cMsg, array)
+			C.pulsar_message_set_replication_clusters(cMsg, array, C.size_t(size))
 		}
 	}
 
@@ -97,14 +102,18 @@ func buildMessage(message ProducerMessage) *C.pulsar_message_t {
 
 ////////////// Message
 
-func newMessageWrapper(ptr *C.pulsar_message_t) Message {
-	msg := &message{ptr: ptr}
+func newMessageWrapper(schema Schema, ptr *C.pulsar_message_t) Message {
+	msg := &message{schema: schema, ptr: ptr}
 	runtime.SetFinalizer(msg, messageFinalizer)
 	return msg
 }
 
 func messageFinalizer(msg *message) {
 	C.pulsar_message_free(msg.ptr)
+}
+
+func (m *message) GetValue(v interface{}) error {
+	return m.schema.Decode(m.Payload(), v)
 }
 
 func (m *message) Properties() map[string]string {
@@ -167,6 +176,12 @@ func newMessageId(msg *C.pulsar_message_t) MessageID {
 	return msgId
 }
 
+func getMessageId(messageId *C.pulsar_message_id_t) MessageID {
+	msgId := &messageID{ptr: messageId}
+	runtime.SetFinalizer(msgId, messageIdFinalizer)
+	return msgId
+}
+
 func messageIdFinalizer(msgID *messageID) {
 	C.pulsar_message_id_free(msgID.ptr)
 }
@@ -211,4 +226,8 @@ func timeToUnixTimestampMillis(t time.Time) C.ulonglong {
 	nanos := t.UnixNano()
 	millis := nanos / int64(time.Millisecond)
 	return C.ulonglong(millis)
+}
+
+func durationToUnixTimestampMillis(t time.Duration) C.ulonglong {
+	return C.ulonglong(t.Milliseconds())
 }

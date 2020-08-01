@@ -37,8 +37,11 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     /** Registered Functions **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
-    public FunctionCacheManagerImpl() {
+    private ClassLoader rootClassLoader;
+
+    public FunctionCacheManagerImpl(ClassLoader rootClassLoader) {
         this.cacheFunctions = new ConcurrentHashMap<>();
+        this.rootClassLoader = rootClassLoader;
     }
 
     Map<String, FunctionCacheEntry> getCacheFunctions() {
@@ -93,7 +96,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
                             requiredJarFiles,
                             requiredClasspaths,
                             urls,
-                            eid));
+                            eid, rootClassLoader));
                 } catch (Throwable cause) {
                     Exceptions.rethrowIOException(cause);
                 }
@@ -107,7 +110,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void registerFunctionInstanceWithArchive(String fid, String eid, String narArchive) throws IOException {
+    public void registerFunctionInstanceWithArchive(String fid, String eid,
+                                                    String narArchive, String narExtractionDirectory) throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -122,7 +126,7 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
             // Create new cache entry
             try {
-                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid));
+                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
             } catch (Throwable cause) {
                 Exceptions.rethrowIOException(cause);
             }

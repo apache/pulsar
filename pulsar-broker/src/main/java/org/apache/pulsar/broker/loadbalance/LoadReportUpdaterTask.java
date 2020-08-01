@@ -40,7 +40,7 @@ public class LoadReportUpdaterTask implements Runnable {
         try {
             loadManager.get().writeLoadReportOnZookeeper();
         } catch (Exception e) {
-            LOG.warn("Unable to write load report on Zookeeper - [{}]", e);
+            LOG.warn("Unable to write load report on Zookeeper", e);
         }
     }
 }

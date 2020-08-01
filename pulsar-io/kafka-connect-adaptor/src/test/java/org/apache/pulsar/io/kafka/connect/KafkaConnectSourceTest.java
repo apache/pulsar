@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.io.File;
@@ -67,6 +67,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         config.put(FileStreamSourceConnector.TOPIC_CONFIG, topicName);
         tempFile = File.createTempFile("some-file-name", null);
         config.put(FileStreamSourceConnector.FILE_CONFIG, tempFile.getAbsoluteFile().toString());
+        config.put(FileStreamSourceConnector.TASK_BATCH_SIZE_CONFIG, String.valueOf(FileStreamSourceConnector.DEFAULT_TASK_BATCH_SIZE));
 
     }
 
@@ -107,14 +108,14 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         Record<KeyValue<byte[], byte[]>> record = kafkaConnectSource.read();
         String readBack1 = new String(record.getValue().getValue());
         assertTrue(line1.contains(readBack1));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
         log.info("read line1: {}", readBack1);
         record.ack();
 
         record = kafkaConnectSource.read();
         String readBack2 = new String(record.getValue().getValue());
         assertTrue(line2.contains(readBack2));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
         log.info("read line2: {}", readBack2);
         record.ack();
 
@@ -125,7 +126,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         record = kafkaConnectSource.read();
         String readBack3 = new String(record.getValue().getValue());
         assertTrue(line3.contains(readBack3));
-        assertEquals(record.getValue().getKey(), null);
+        assertNull(record.getValue().getKey());
         log.info("read line3: {}", readBack3);
         record.ack();
     }

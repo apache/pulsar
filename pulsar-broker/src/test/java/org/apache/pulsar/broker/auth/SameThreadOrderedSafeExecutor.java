@@ -35,7 +35,7 @@ public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
             false,
             false,
             100000,
-            10,
+            -1,
             false);
     }
 

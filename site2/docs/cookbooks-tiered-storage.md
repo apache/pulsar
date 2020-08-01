@@ -6,10 +6,13 @@ sidebar_label: Tiered Storage
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
 
-Tiered storage currently uses [Apache Jclouds](https://jclouds.apache.org) to supports
+* Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
 [Amazon S3](https://aws.amazon.com/s3/) and [Google Cloud Storage](https://cloud.google.com/storage/)(GCS for short)
 for long term storage. With Jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+
+* Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystem for long term storage. 
+With Hadoop, it is easy to add support for more filesystem in the future.
 
 ## When should I use Tiered Storage?
 
@@ -30,9 +33,11 @@ Pulsar uses multi-part objects to upload the segment data. It is possible that a
 We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid
 getting charged for incomplete uploads.
 
+When ledgers are offloaded to long term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
+
 ## Configuring the offload driver
 
-Offloading is configured in ```broker.conf```. 
+Offloading is configured in ```broker.conf```.
 
 At a minimum, the administrator must configure the driver, the bucket and the authenticating credentials.
 There is also some other knobs to configure, like the bucket region, the max block size in backed storage, etc.
@@ -41,6 +46,7 @@ Currently we support driver of types:
 
 - `aws-s3`: [Simple Cloud Storage Service](https://aws.amazon.com/s3/)
 - `google-cloud-storage`: [Google Cloud Storage](https://cloud.google.com/storage/)
+- `filesystem`: [Filesystem Storage](http://hadoop.apache.org/)
 
 > Driver names are case-insensitive for driver's name. There is a third driver type, `s3`, which is identical to `aws-s3`,
 > though it requires that you specify an endpoint url using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if
@@ -82,7 +88,12 @@ but relies on the mechanisms supported by the
 
 Once you have created a set of credentials in the AWS IAM console, they can be configured in a number of ways.
 
-1. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
+1. Using ec2 instance metadata credentials
+
+If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials
+if no other mechanism is provided
+
+2. Set the environment variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** in ```conf/pulsar_env.sh```.
 
 ```bash
 export AWS_ACCESS_KEY_ID=ABC123456789
@@ -92,13 +103,13 @@ export AWS_SECRET_ACCESS_KEY=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 > \"export\" is important so that the variables are made available in the environment of spawned processes.
 
 
-2. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
+3. Add the Java system properties *aws.accessKeyId* and *aws.secretKey* to **PULSAR_EXTRA_OPTS** in `conf/pulsar_env.sh`.
 
 ```bash
 PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"
 ```
 
-3. Set the access credentials in ```~/.aws/credentials```.
+4. Set the access credentials in ```~/.aws/credentials```.
 
 ```conf
 [default]
@@ -106,7 +117,16 @@ aws_access_key_id=ABC123456789
 aws_secret_access_key=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 ```
 
-If you are running in EC2 you can also use instance profile credentials, provided through the EC2 metadata service, but that is out of scope for this cookbook.
+5. Assuming an IAM role
+
+If you want to assume an IAM role, this can be done via specifying the following:
+
+```conf
+s3ManagedLedgerOffloadRole=<aws role arn>
+s3ManagedLedgerOffloadRoleSessionName=pulsar-s3-offload
+```
+
+This will use the `DefaultAWSCredentialsProviderChain` for assuming this role.
 
 > The broker must be rebooted for credentials specified in pulsar_env to take effect.
 
@@ -134,7 +154,7 @@ gcsManagedLedgerOffloadBucket=pulsar-topic-offload
 Bucket Region is the region where bucket located. Bucket Region is not a required but
 a recommended configuration. If it is not configured, It will use the default region.
 
-Regarding GCS, buckets are default created in the `us multi-regional location`, 
+Regarding GCS, buckets are default created in the `us multi-regional location`,
 page [Bucket Locations](https://cloud.google.com/storage/docs/bucket-locations) contains more information.
 
 ```conf
@@ -150,12 +170,15 @@ a Json file, containing the GCS credentials of a service account.
 more information of how to create this key file for authentication. More information about google cloud IAM
 is available [here](https://cloud.google.com/storage/docs/access-control/iam).
 
-Usually these are the steps to create the authentication file:
-1. Open the API Console Credentials page.
-2. If it's not already selected, select the project that you're creating credentials for.
-3. To set up a new service account, click New credentials and then select Service account key.
-4. Choose the service account to use for the key.
-5. Download the service account's public/private key as a JSON file that can be loaded by a Google API client library.
+To generate service account credentials or view the public credentials that you've already generated, follow the following steps:
+
+1. Open the [Service accounts page](https://console.developers.google.com/iam-admin/serviceaccounts).
+2. Select a project or create a new one.
+3. Click **Create service account**.
+4. In the **Create service account** window, type a name for the service account, and select **Furnish a new private key**. If you want to [grant G Suite domain-wide authority](https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority) to the service account, also select **Enable G Suite Domain-wide Delegation**.
+5. Click **Create**.
+
+> Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign **Storage Admin** permission to your service account in [here](https://cloud.google.com/storage/docs/access-control/iam).
 
 ```conf
 gcsManagedLedgerOffloadServiceAccountKeyFile="/Users/hello/Downloads/project-804d5e6a6f33.json"
@@ -172,6 +195,63 @@ Pulsar also provides some knobs to configure the size of requests sent to GCS.
 
 In both cases, these should not be touched unless you know what you are doing.
 
+### "filesystem" Driver configuration
+
+
+#### Configure connection address
+
+You can configure the connection address in the `broker.conf` file.
+
+```conf
+fileSystemURI="hdfs://127.0.0.1:9000"
+```
+#### Configure Hadoop profile path
+
+The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.
+
+```conf
+fileSystemProfilePath="../conf/filesystem_offload_core_site.xml"
+```
+
+The model for storing topic data uses `org.apache.hadoop.io.MapFile`. You can use all of the configurations in `org.apache.hadoop.io.MapFile` for Hadoop.
+
+**Example**
+
+```conf
+
+    <property>
+        <name>fs.defaultFS</name>
+        <value></value>
+    </property>
+    
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>pulsar</value>
+    </property>
+    
+    <property>
+        <name>io.file.buffer.size</name>
+        <value>4096</value>
+    </property>
+    
+    <property>
+        <name>io.seqfile.compress.blocksize</name>
+        <value>1000000</value>
+    </property>
+    <property>
+    
+        <name>io.seqfile.compression.type</name>
+        <value>BLOCK</value>
+    </property>
+    
+    <property>
+        <name>io.map.index.interval</name>
+        <value>128</value>
+    </property>
+    
+```
+
+For more information about the configurations in `org.apache.hadoop.io.MapFile`, see [Filesystem Storage](http://hadoop.apache.org/).
 ## Configuring offload to run automatically
 
 Namespace policies can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that the topic has stored on the pulsar cluster. Once the topic reaches the threshold, an offload operation will be triggered. Setting a negative value to the threshold will disable automatic offloading. Setting the threshold to 0 will cause the broker to offload data as soon as it possiby can.
@@ -211,7 +291,7 @@ Offload was a success
 If there is an error offloading, the error will be propagated to the offload-status command.
 
 ```bash
-$ bin/pulsar-admin topics offload-status persistent://public/default/topic1                                                                                                       
+$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
 Error in offload
 null
 

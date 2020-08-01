@@ -142,6 +142,8 @@ void export_config() {
             .def("consumer_name", &ConsumerConfiguration::setConsumerName)
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::getUnAckedMessagesTimeoutMs)
             .def("unacked_messages_timeout_ms", &ConsumerConfiguration::setUnAckedMessagesTimeoutMs)
+            .def("negative_ack_redelivery_delay_ms", &ConsumerConfiguration::getNegativeAckRedeliveryDelayMs)
+            .def("negative_ack_redelivery_delay_ms", &ConsumerConfiguration::setNegativeAckRedeliveryDelayMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::getBrokerConsumerStatsCacheTimeInMs)
             .def("broker_consumer_stats_cache_time_ms", &ConsumerConfiguration::setBrokerConsumerStatsCacheTimeInMs)
             .def("pattern_auto_discovery_period", &ConsumerConfiguration::getPatternAutoDiscoveryPeriod)
@@ -149,10 +151,12 @@ void export_config() {
             .def("read_compacted", &ConsumerConfiguration::isReadCompacted)
             .def("read_compacted", &ConsumerConfiguration::setReadCompacted)
             .def("property", &ConsumerConfiguration::setProperty, return_self<>())
+            .def("subscription_initial_position", &ConsumerConfiguration::getSubscriptionInitialPosition)
+            .def("subscription_initial_position", &ConsumerConfiguration::setSubscriptionInitialPosition)
             ;
 
     class_<ReaderConfiguration>("ReaderConfiguration")
-            .def("message_listener", &ReaderConfiguration_setReaderListener, return_self<>())
+            .def("reader_listener", &ReaderConfiguration_setReaderListener, return_self<>())
             .def("schema", &ReaderConfiguration::getSchema, return_value_policy<copy_const_reference>())
             .def("schema", &ReaderConfiguration::setSchema, return_self<>())
             .def("receiver_queue_size", &ReaderConfiguration::getReceiverQueueSize)

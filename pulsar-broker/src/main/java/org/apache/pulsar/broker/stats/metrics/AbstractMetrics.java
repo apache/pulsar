@@ -141,8 +141,7 @@ abstract class AbstractMetrics {
      * Creates a dimension key for metrics
      *
      * @param namespace
-     * @param fromClusterName
-     * @param toClusterName
+     *          Namespace of metric
      * @return
      */
     protected Metrics createMetricsByDimension(String namespace) {
@@ -184,7 +183,7 @@ abstract class AbstractMetrics {
             double value;
 
             // example of key : "<metric_key>_0.0_0.5"
-            if (i == 0) {
+            if (i == 0 && boundaries.length > 0) {
                 bucketKey = String.format("%s_0.0_%1.1f", mkey, boundaries[i]);
             } else if (i < boundaries.length) {
                 bucketKey = String.format("%s_%1.1f_%1.1f", mkey, boundaries[i - 1], boundaries[i]);
@@ -223,8 +222,8 @@ abstract class AbstractMetrics {
      * Helper to manage populating topics map
      *
      * @param ledgersByDimensionMap
-     * @param dimensionKey
-     * @param destStats
+     * @param metrics
+     * @param ledger
      */
     protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
             ManagedLedgerImpl ledger) {

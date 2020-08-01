@@ -22,18 +22,18 @@ import java.io.Serializable;
 
 /**
  * A listener that will be called in order for every message received.
- *
- *
  */
 public interface MessageListener<T> extends Serializable {
     /**
      * This method is called whenever a new message is received.
      *
-     * Messages are guaranteed to be delivered in order and from the same thread for a single consumer
+     * <p>Messages are guaranteed to be delivered in order and from the same thread for a single consumer
      *
-     * This method will only be called once for each message, unless either application or broker crashes.
+     * <p>This method will only be called once for each message, unless either application or broker crashes.
      *
-     * Application is responsible of handling any exception that could be thrown while processing the message.
+     * <p>Application is responsible for acking message by calling any of consumer acknowledgement methods.
+     *
+     * <p>Application is responsible of handling any exception that could be thrown while processing the message.
      *
      * @param consumer
      *            the consumer that received the message
@@ -43,7 +43,7 @@ public interface MessageListener<T> extends Serializable {
     void received(Consumer<T> consumer, Message<T> msg);
 
     /**
-     * Get the notification when a topic is terminated
+     * Get the notification when a topic is terminated.
      *
      * @param consumer
      *            the Consumer object associated with the terminated topic

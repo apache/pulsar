@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.common.policies.impl;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
+
 import org.apache.pulsar.common.policies.data.OldPolicies;
-import org.apache.pulsar.common.policies.impl.MinAvailablePolicy;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class MinAvailablePolicyTest {
@@ -28,8 +30,8 @@ public class MinAvailablePolicyTest {
     @Test
     public void testMinAvailablePolicty() {
         MinAvailablePolicy m = new MinAvailablePolicy(3, 10);
-        Assert.assertFalse(m.equals(new OldPolicies()));
-        Assert.assertFalse(m.shouldFailoverToSecondary(15));
-        Assert.assertTrue(m.shouldFailoverToSecondary(2));
+        assertNotEquals(new OldPolicies(), m);
+        assertFalse(m.shouldFailoverToSecondary(15));
+        assertTrue(m.shouldFailoverToSecondary(2));
     }
 }

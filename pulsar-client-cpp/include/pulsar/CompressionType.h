@@ -18,7 +18,7 @@
  */
 #ifndef PULSAR_COMPRESSIONTYPE_H_
 #define PULSAR_COMPRESSIONTYPE_H_
-#pragma GCC visibility push(default)
+
 namespace pulsar {
 enum CompressionType
 {
@@ -26,8 +26,8 @@ enum CompressionType
     CompressionLZ4 = 1,
     CompressionZLib = 2,
     CompressionZSTD = 3,
+    CompressionSNAPPY = 4
 };
 }
 
-#pragma GCC visibility pop
 #endif /* PULSAR_COMPRESSIONTYPE_H_ */

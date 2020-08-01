@@ -50,13 +50,13 @@ class Log4CxxLogger : public Logger {
    private:
     static log4cxx::LevelPtr getLevel(Level level) {
         switch (level) {
-            case DEBUG:
+            case LEVEL_DEBUG:
                 return log4cxx::Level::getDebug();
-            case INFO:
+            case LEVEL_INFO:
                 return log4cxx::Level::getInfo();
-            case WARN:
+            case LEVEL_WARN:
                 return log4cxx::Level::getWarn();
-            case ERROR:
+            case LEVEL_ERROR:
                 return log4cxx::Level::getError();
         }
     }

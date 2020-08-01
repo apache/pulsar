@@ -23,11 +23,16 @@
 #include <sstream>
 #include <memory>
 
+#include <pulsar/defines.h>
 #include <pulsar/Logger.h>
 
 namespace pulsar {
 
+#ifdef __GNUC__
 #define PULSAR_UNLIKELY(expr) __builtin_expect(expr, 0)
+#else
+#define PULSAR_UNLIKELY(expr) (expr)
+#endif
 
 #define DECLARE_LOG_OBJECT()                                                                     \
     static pulsar::Logger* logger() {                                                            \
@@ -41,54 +46,51 @@ namespace pulsar {
         return ptr;                                                                              \
     }
 
-#define LOG_DEBUG(message)                                                 \
+#define LOG_DEBUG(message)                                                       \
+    {                                                                            \
+        if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger::LEVEL_DEBUG))) { \
+            std::stringstream ss;                                                \
+            ss << message;                                                       \
+            logger()->log(pulsar::Logger::LEVEL_DEBUG, __LINE__, ss.str());      \
+        }                                                                        \
+    }
+
+#define LOG_INFO(message)                                                  \
     {                                                                      \
-        if (PULSAR_UNLIKELY(logger()->isEnabled(pulsar::Logger::DEBUG))) { \
+        if (logger()->isEnabled(pulsar::Logger::LEVEL_INFO)) {             \
             std::stringstream ss;                                          \
             ss << message;                                                 \
-            logger()->log(pulsar::Logger::DEBUG, __LINE__, ss.str());      \
+            logger()->log(pulsar::Logger::LEVEL_INFO, __LINE__, ss.str()); \
         }                                                                  \
     }
 
-#define LOG_INFO(message)                                            \
-    {                                                                \
-        if (logger()->isEnabled(pulsar::Logger::INFO)) {             \
-            std::stringstream ss;                                    \
-            ss << message;                                           \
-            logger()->log(pulsar::Logger::INFO, __LINE__, ss.str()); \
-        }                                                            \
+#define LOG_WARN(message)                                                  \
+    {                                                                      \
+        if (logger()->isEnabled(pulsar::Logger::LEVEL_WARN)) {             \
+            std::stringstream ss;                                          \
+            ss << message;                                                 \
+            logger()->log(pulsar::Logger::LEVEL_WARN, __LINE__, ss.str()); \
+        }                                                                  \
     }
 
-#define LOG_WARN(message)                                            \
-    {                                                                \
-        if (logger()->isEnabled(pulsar::Logger::WARN)) {             \
-            std::stringstream ss;                                    \
-            ss << message;                                           \
-            logger()->log(pulsar::Logger::WARN, __LINE__, ss.str()); \
-        }                                                            \
+#define LOG_ERROR(message)                                                  \
+    {                                                                       \
+        if (logger()->isEnabled(pulsar::Logger::LEVEL_ERROR)) {             \
+            std::stringstream ss;                                           \
+            ss << message;                                                  \
+            logger()->log(pulsar::Logger::LEVEL_ERROR, __LINE__, ss.str()); \
+        }                                                                   \
     }
 
-#define LOG_ERROR(message)                                            \
-    {                                                                 \
-        if (logger()->isEnabled(pulsar::Logger::ERROR)) {             \
-            std::stringstream ss;                                     \
-            ss << message;                                            \
-            logger()->log(pulsar::Logger::ERROR, __LINE__, ss.str()); \
-        }                                                             \
-    }
-
-#pragma GCC visibility push(default)
-
-class LogUtils {
+class PULSAR_PUBLIC LogUtils {
    public:
     static void init(const std::string& logConfFilePath);
 
-    static void setLoggerFactory(LoggerFactoryPtr loggerFactory);
+    static void setLoggerFactory(std::unique_ptr<LoggerFactory> loggerFactory);
 
-    static LoggerFactoryPtr getLoggerFactory();
+    static LoggerFactory* getLoggerFactory();
 
     static std::string getLoggerName(const std::string& path);
 };
 
-#pragma GCC visibility pop
 }  // namespace pulsar

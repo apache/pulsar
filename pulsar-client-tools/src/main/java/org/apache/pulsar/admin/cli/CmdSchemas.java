@@ -24,10 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.schema.PostSchemaPayload;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
@@ -53,9 +53,9 @@ public class CmdSchemas extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             if (version == null) {
-                print(admin.schemas().getSchemaInfo(topic));
+                System.out.println(admin.schemas().getSchemaInfoWithVersion(topic));
             } else {
-                print(admin.schemas().getSchemaInfo(topic, version));
+                System.out.println(admin.schemas().getSchemaInfo(topic, version));
             }
         }
     }
@@ -102,29 +102,47 @@ public class CmdSchemas extends CmdBase {
         @Parameter(names = { "-c", "--classname" }, description = "class name of pojo", required = true)
         private String className;
 
+        @Parameter(names = { "--always-allow-null" }, arity = 1,
+                   description = "set schema whether always allow null or not")
+        private boolean alwaysAllowNull = true;
+
+        @Parameter(names = { "-n", "--dry-run"},
+                   description = "dost not apply to schema registry, " +
+                                 "just prints the post schema payload")
+        private boolean dryRun = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
 
             File file  = new File(jarFilePath);
             ClassLoader cl = new URLClassLoader(new URL[]{ file.toURI().toURL() });
-
             Class cls = cl.loadClass(className);
 
             PostSchemaPayload input = new PostSchemaPayload();
-
+            SchemaDefinition<Object> schemaDefinition =
+                    SchemaDefinition.builder()
+                                    .withPojo(cls)
+                                    .withAlwaysAllowNull(alwaysAllowNull)
+                                    .build();
             if (type.toLowerCase().equalsIgnoreCase("avro")) {
                 input.setType("AVRO");
-                input.setSchema(SchemaExtractor.getAvroSchemaInfo(cls));
+                input.setSchema(SchemaExtractor.getAvroSchemaInfo(schemaDefinition));
             } else if (type.toLowerCase().equalsIgnoreCase("json")){
                 input.setType("JSON");
-                input.setSchema(SchemaExtractor.getJsonSchemaInfo(cls));
+                input.setSchema(SchemaExtractor.getJsonSchemaInfo(schemaDefinition));
             }
             else {
                 throw new Exception("Unknown schema type specified as type");
             }
-
-            admin.schemas().createSchema(topic, input);
+            input.setProperties(schemaDefinition.getProperties());
+            if (dryRun) {
+                System.out.println(topic);
+                System.out.println(MAPPER.writerWithDefaultPrettyPrinter()
+                                         .writeValueAsString(input));
+            } else {
+                admin.schemas().createSchema(topic, input);
+            }
         }
     }
 

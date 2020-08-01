@@ -149,7 +149,18 @@ RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.
     make install && \
     rm -rf /zstd-1.3.7 /zstd-1.3.7.tar.gz
 
+# Snappy
+RUN curl -O -L https://github.com/google/snappy/releases/download/1.1.3/snappy-1.1.3.tar.gz && \
+    tar xvfz snappy-1.1.3.tar.gz && \
+    cd snappy-1.1.3 && \
+    CXXFLAGS="-fPIC -O3" ./configure && \
+    make && make install && \
+    rm -rf /snappy-1.1.3 /snappy-1.1.3.tar.gz
+
 RUN pip install twine
+RUN pip install fastavro
+RUN pip install six
+RUN pip install enum34
 
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include

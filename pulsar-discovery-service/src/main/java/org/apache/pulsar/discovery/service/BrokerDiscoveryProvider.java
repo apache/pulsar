@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -72,10 +73,12 @@ public class BrokerDiscoveryProvider implements Closeable {
             localZkCache = new ZookeeperCacheLoader(zkClientFactory, config.getZookeeperServers(),
                     config.getZookeeperSessionTimeoutMs());
             globalZkCache = new GlobalZooKeeperCache(zkClientFactory, config.getZookeeperSessionTimeoutMs(),
-                    config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler);
+                    (int) TimeUnit.MILLISECONDS.toSeconds(config.getZookeeperSessionTimeoutMs()),
+                    config.getConfigurationStoreServers(), orderedExecutor, scheduledExecutorScheduler,
+                    config.getZooKeeperCacheExpirySeconds());
             globalZkCache.start();
         } catch (Exception e) {
-            LOG.error("Failed to start Zookkeeper {}", e.getMessage(), e);
+            LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
     }
@@ -153,7 +156,7 @@ public class BrokerDiscoveryProvider implements Closeable {
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
                         topicName.getTenant(), e.getMessage()));
             }
-            if (!tenantInfo.getAdminRoles().contains(role)) {
+            if (!service.getAuthorizationService().isTenantAdmin(topicName.getTenant(), role, tenantInfo, authenticationData).get()) {
                 throw new IllegalAccessException("Don't have permission to administrate resources on this property");
             }
         }

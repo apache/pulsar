@@ -20,42 +20,45 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Statistics about a replicator.
+ */
 public class ReplicatorStats {
 
-    /** Total rate of messages received from the remote cluster. msg/s */
+    /** Total rate of messages received from the remote cluster (msg/s). */
     public double msgRateIn;
 
-    /** Total throughput received from the remote cluster. bytes/s */
+    /** Total throughput received from the remote cluster (bytes/s). */
     public double msgThroughputIn;
 
-    /** Total rate of messages delivered to the replication-subscriber. msg/s */
+    /** Total rate of messages delivered to the replication-subscriber (msg/s). */
     public double msgRateOut;
 
-    /** Total throughput delivered to the replication-subscriber. bytes/s */
+    /** Total throughput delivered to the replication-subscriber (bytes/s). */
     public double msgThroughputOut;
 
-    /** Total rate of messages expired. msg/s */
+    /** Total rate of messages expired (msg/s). */
     public double msgRateExpired;
 
-    /** Number of messages pending to be replicated to remote cluster */
+    /** Number of messages pending to be replicated to remote cluster. */
     public long replicationBacklog;
 
-    /** is the replication-subscriber up and running to replicate to remote cluster */
+    /** is the replication-subscriber up and running to replicate to remote cluster. */
     public boolean connected;
 
-    /** Time in seconds from the time a message was produced to the time when it is about to be replicated */
+    /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
     public long replicationDelayInSeconds;
 
-    /** Address of incoming replication connection */
+    /** Address of incoming replication connection. */
     public String inboundConnection;
 
-    /** Timestamp of incoming connection establishment time */
+    /** Timestamp of incoming connection establishment time. */
     public String inboundConnectedSince;
 
-    /** Address of outbound replication connection */
+    /** Address of outbound replication connection. */
     public String outboundConnection;
 
-    /** Timestamp of outbound connection establishment time */
+    /** Timestamp of outbound connection establishment time. */
     public String outboundConnectedSince;
 
     public ReplicatorStats add(ReplicatorStats stats) {

@@ -29,7 +29,7 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.functions.instance.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 @Builder
 @Getter
@@ -66,7 +66,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
     @Override
     public Optional<Long> getRecordSequence() {
-        return Optional.of(Utils.getSequenceId(message.getMessageId()));
+        return Optional.of(FunctionCommon.getSequenceId(message.getMessageId()));
     }
 
     @Override
@@ -105,5 +105,10 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     @Override
     public void fail() {
         this.failFunction.run();
+    }
+
+    @Override
+    public Optional<Message<T>> getMessage() {
+        return Optional.of(message);
     }
 }

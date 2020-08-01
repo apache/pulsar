@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 
 import io.netty.buffer.ByteBuf;

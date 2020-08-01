@@ -25,20 +25,18 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.StampedLock;
 
 /**
  * Concurrent hash set where values are composed of pairs of longs.
  *
- ** <p>
- * (long,long)
- * <p>
- * Provides similar methods as a ConcurrentHashSet<V> but since it's an open hash set with linear probing, no node
- * allocations are required to store the keys and values, and no boxing is required.
- * <p>
- * Values <strong>MUST</strong> be >= 0.
+ * <p>Provides similar methods as a {@code ConcurrentHashSet<V>} but since it's an open hash set with linear probing,
+ * no node allocations are required to store the keys and values, and no boxing is required.
+ *
+ * <p>Values <b>MUST</b> be &gt;= 0.
  */
-public class ConcurrentLongPairSet {
+public class ConcurrentLongPairSet implements LongPairSet {
 
     private static final long EmptyItem = -1L;
     private static final long DeletedItem = -2L;
@@ -50,15 +48,17 @@ public class ConcurrentLongPairSet {
 
     private final Section[] sections;
 
-    public static interface ConsumerLong {
+    /**
+     * Represents a function that accepts an object of the {@code LongPair} type.
+     */
+    public interface ConsumerLong {
         void accept(LongPair item);
     }
 
-    public interface LongPairPredicate {
-        boolean test(long v1, long v2);
-    }
-
-    public static interface LongPairConsumer {
+    /**
+     * Represents a function that accepts two long arguments.
+     */
+    public interface LongPairConsumer {
         void accept(long v1, long v2);
     }
 
@@ -131,7 +131,7 @@ public class ConcurrentLongPairSet {
     }
 
     /**
-     * Remove an existing entry if found
+     * Remove an existing entry if found.
      *
      * @param item1
      * @return true if removed or false if item was not present
@@ -142,7 +142,7 @@ public class ConcurrentLongPairSet {
         return getSection(h).remove(item1, item2, (int) h);
     }
 
-    private final Section getSection(long hash) {
+    private Section getSection(long hash) {
         // Use 32 msb out of long to get the section
         final int sectionIdx = (int) (hash >>> 32) & (sections.length - 1);
         return sections[sectionIdx];
@@ -165,7 +165,6 @@ public class ConcurrentLongPairSet {
      *
      * @param filter
      *            a predicate which returns {@code true} for elements to be removed
-     * @return {@code true} if any elements were removed
      *
      * @return number of removed values
      */
@@ -190,11 +189,16 @@ public class ConcurrentLongPairSet {
      * @return a new list of keys with max provided numberOfItems (makes a copy)
      */
     public Set<LongPair> items(int numberOfItems) {
-        Set<LongPair> items = new HashSet<>();
+        return items(numberOfItems, (item1, item2) -> new LongPair(item1, item2));
+    }
+
+    @Override
+    public <T> Set<T> items(int numberOfItems, LongPairFunction<T> longPairConverter) {
+        Set<T> items = new HashSet<>();
         for (Section s : sections) {
             s.forEach((item1, item2) -> {
                 if (items.size() < numberOfItems) {
-                    items.add(new LongPair(item1, item2));
+                    items.add(longPairConverter.apply(item1, item2));
                 }
             });
             if (items.size() >= numberOfItems) {
@@ -211,6 +215,8 @@ public class ConcurrentLongPairSet {
         private volatile long[] table;
 
         private volatile int capacity;
+        private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER = AtomicIntegerFieldUpdater
+                .newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
         private int resizeThreshold;
@@ -297,7 +303,7 @@ public class ConcurrentLongPairSet {
 
                         table[bucket] = item1;
                         table[bucket + 1] = item2;
-                        ++size;
+                        SIZE_UPDATER.incrementAndGet(this);
                         return true;
                     } else if (storedItem1 == DeletedItem) {
                         // The bucket contained a different deleted key
@@ -330,7 +336,7 @@ public class ConcurrentLongPairSet {
                     long storedItem1 = table[bucket];
                     long storedItem2 = table[bucket + 1];
                     if (item1 == storedItem1 && item2 == storedItem2) {
-                        --size;
+                        SIZE_UPDATER.decrementAndGet(this);
 
                         cleanBucket(bucket);
                         return true;
@@ -474,7 +480,7 @@ public class ConcurrentLongPairSet {
         }
     }
 
-    private static final long HashMixer = 0xc6a4a7935bd1e995l;
+    private static final long HashMixer = 0xc6a4a7935bd1e995L;
     private static final int R = 47;
 
     final static long hash(long key1, long key2) {
@@ -487,20 +493,23 @@ public class ConcurrentLongPairSet {
         return hash;
     }
 
-    static final int signSafeMod(long n, int Max) {
-        return (int) (n & (Max - 1)) << 1;
+    static final int signSafeMod(long n, int max) {
+        return (int) (n & (max - 1)) << 1;
     }
 
-    private static final int alignToPowerOfTwo(int n) {
+    private static int alignToPowerOfTwo(int n) {
         return (int) Math.pow(2, 32 - Integer.numberOfLeadingZeros(n - 1));
     }
 
-    private static final void checkBiggerEqualZero(long n) {
+    private static void checkBiggerEqualZero(long n) {
         if (n < 0L) {
             throw new IllegalArgumentException("Keys and values must be >= 0");
         }
     }
 
+    /**
+     * Class representing two long values.
+     */
     public static class LongPair implements Comparable<LongPair> {
         public final long first;
         public final long second;
@@ -552,4 +561,5 @@ public class ConcurrentLongPairSet {
         sb.append('}');
         return sb.toString();
     }
+
 }

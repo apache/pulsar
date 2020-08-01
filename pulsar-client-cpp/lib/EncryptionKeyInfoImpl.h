@@ -21,12 +21,11 @@
 
 #include <iostream>
 #include <map>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
-class EncryptionKeyInfoImpl {
+class PULSAR_PUBLIC EncryptionKeyInfoImpl {
    public:
     typedef std::map<std::string, std::string> StringMap;
 
@@ -48,7 +47,5 @@ class EncryptionKeyInfoImpl {
 };
 
 } /* namespace pulsar */
-
-#pragma GCC visibility pop
 
 #endif /* LIB_ENCRYPTIONKEYINFOIMPL_H_ */

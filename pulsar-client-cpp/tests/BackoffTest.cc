@@ -17,6 +17,7 @@
  * under the License.
  */
 #include <gtest/gtest.h>
+#include <thread>
 #include "Backoff.h"
 #include "PulsarFriend.h"
 
@@ -51,14 +52,14 @@ TEST(BackoffTest, firstBackoffTimerTest) {
     Backoff backoff(milliseconds(100), seconds(60), milliseconds(1900));
     ASSERT_EQ(backoff.next().total_milliseconds(), 100);
     boost::posix_time::ptime firstBackOffTime = PulsarFriend::getFirstBackoffTime(backoff);
-    usleep(300 * 1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
     TimeDuration diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
     ASSERT_EQ(diffBackOffTime, milliseconds(0));  // no change since reset not called
 
     backoff.reset();
     ASSERT_EQ(backoff.next().total_milliseconds(), 100);
     diffBackOffTime = PulsarFriend::getFirstBackoffTime(backoff) - firstBackOffTime;
-    ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < milliseconds(310));
+    ASSERT_TRUE(diffBackOffTime >= milliseconds(300) && diffBackOffTime < seconds(1));
 }
 
 TEST(BackoffTest, basicTest) {

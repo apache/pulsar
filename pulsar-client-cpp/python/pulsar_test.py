@@ -22,9 +22,11 @@
 from unittest import TestCase, main
 import time
 import os
+import uuid
+from datetime import timedelta
 from pulsar import Client, MessageId, \
             CompressionType, ConsumerType, PartitionsRoutingMode, \
-            AuthenticationTLS, Authentication, AuthenticationToken
+            AuthenticationTLS, Authentication, AuthenticationToken, InitialPosition
 
 from _pulsar import ProducerConfiguration, ConsumerConfiguration
 
@@ -37,6 +39,7 @@ except ImportError:
     # Fall back to Python 2's urllib2
     from urllib2 import urlopen, Request
 
+TM = 10000  # Do not wait forever in tests
 
 def doHttpPost(url, data):
     req = Request(url, data.encode())
@@ -127,7 +130,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-producer-consumer')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -136,6 +139,126 @@ class PulsarTest(TestCase):
             self.assertTrue(False)  # Should not reach this point
         except:
             pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    def test_redelivery_count(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-redelivery-count',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    negative_ack_redelivery_delay_ms=500)
+        producer = client.create_producer('my-python-topic-redelivery-count')
+        producer.send(b'hello')
+
+        redelivery_count = 0
+        for i in range(4):
+            msg = consumer.receive(TM)
+            print("Received message %s" % msg.data())
+            consumer.negative_acknowledge(msg)
+            redelivery_count = msg.redelivery_count()
+
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        self.assertEqual(3, redelivery_count)
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_deliver_at(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-deliver-at',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-deliver-at')
+        # Delay message in 1.1s
+        producer.send(b'hello', deliver_at=int(round(time.time() * 1000)) + 1100)
+
+        # Message should not be available in the next second
+        try:
+            msg = consumer.receive(1000)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # Message should be published now
+        msg = consumer.receive(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_deliver_after(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-deliver-after',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared)
+        producer = client.create_producer('my-python-topic-deliver-after')
+        # Delay message in 1.1s
+        producer.send(b'hello', deliver_after=timedelta(milliseconds=1100))
+
+        # Message should not be available in the next second
+        try:
+            msg = consumer.receive(1000)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # Message should be published in the next 500ms
+        msg = consumer.receive(TM)
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
+        consumer.unsubscribe()
+        producer.close()
+        client.close()
+
+    def test_consumer_initial_position(self):
+        client = Client(self.serviceUrl)
+        producer = client.create_producer('my-python-topic-producer-consumer')
+
+        # Sending 5 messages before consumer creation.
+        # These should be received with initial_position set to Earliest but not with Latest.
+        for i in range(5):
+            producer.send(b'hello-%d' % i)
+
+        consumer = client.subscribe('my-python-topic-producer-consumer',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    initial_position=InitialPosition.Earliest)
+
+        # Sending 5 other messages that should be received regardless of the initial_position.
+        for i in range(5, 10):
+            producer.send(b'hello-%d' % i)
+
+        for i in range(10):
+            msg = consumer.receive(TM)
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
+
+        try:
+            msg = consumer.receive(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        consumer.unsubscribe()
+        client.close()
+
+    def test_consumer_queue_size_is_zero(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('my-python-topic-consumer-init-queue-size-is-zero',
+                                    'my-sub',
+                                    consumer_type=ConsumerType.Shared,
+                                    receiver_queue_size=0,
+                                    initial_position=InitialPosition.Earliest)
+        producer = client.create_producer('my-python-topic-consumer-init-queue-size-is-zero')
+        producer.send(b'hello')
+        time.sleep(0.1)
+        msg = consumer.receive()
+        self.assertTrue(msg)
+        self.assertEqual(msg.data(), b'hello')
 
         consumer.unsubscribe()
         client.close()
@@ -154,7 +277,7 @@ class PulsarTest(TestCase):
                           'b': '2'
                       })
 
-        msg = consumer.receive()
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.value(), 'hello')
         self.assertEqual(msg.properties(), {
@@ -180,7 +303,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-producer-consumer')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -210,7 +333,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-producer-consumer')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -240,7 +363,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-producer-consumer')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -303,7 +426,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-reader-simple')
         producer.send(b'hello')
 
-        msg = reader.read_next()
+        msg = reader.read_next(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -330,7 +453,7 @@ class PulsarTest(TestCase):
             producer.send(b'hello-%d' % i)
 
         for i in range(10, 20):
-            msg = reader.read_next()
+            msg = reader.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
@@ -338,27 +461,34 @@ class PulsarTest(TestCase):
         client.close()
 
     def test_reader_on_specific_message(self):
+        num_of_msgs = 10
         client = Client(self.serviceUrl)
         producer = client.create_producer(
             'my-python-topic-reader-on-specific-message')
 
-        for i in range(10):
+        for i in range(num_of_msgs):
             producer.send(b'hello-%d' % i)
 
         reader1 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 MessageId.earliest)
 
-        for i in range(5):
-            msg = reader1.read_next()
+        for i in range(num_of_msgs//2):
+            msg = reader1.read_next(TM)
+            self.assertTrue(msg)
+            self.assertEqual(msg.data(), b'hello-%d' % i)
             last_msg_id = msg.message_id()
+            last_msg_idx = i
 
         reader2 = client.create_reader(
                 'my-python-topic-reader-on-specific-message',
                 last_msg_id)
 
-        for i in range(5, 10):
-            msg = reader2.read_next()
+        # The reset would be effectively done on the next position relative to reset.
+        # When available, we should test this behaviour with `startMessageIdInclusive` opt.
+        from_msg_idx = last_msg_idx
+        for i in range(from_msg_idx, num_of_msgs):
+            msg = reader2.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
@@ -384,7 +514,7 @@ class PulsarTest(TestCase):
                 MessageId.earliest)
 
         for i in range(5):
-            msg = reader1.read_next()
+            msg = reader1.read_next(TM)
             last_msg_id = msg.message_id()
 
         reader2 = client.create_reader(
@@ -392,7 +522,7 @@ class PulsarTest(TestCase):
                 last_msg_id)
 
         for i in range(5, 11):
-            msg = reader2.read_next()
+            msg = reader2.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
@@ -452,7 +582,7 @@ class PulsarTest(TestCase):
         self.assertEqual(producer.last_sequence_id(), 2)
 
         for i in range(3):
-            msg = consumer.receive()
+            msg = consumer.receive(TM)
             self.assertEqual(msg.data(), b'hello-%d' % i)
             consumer.acknowledge(msg)
 
@@ -506,6 +636,8 @@ class PulsarTest(TestCase):
         self._check_value_error(lambda: producer.send(content, replication_clusters=5))
         self._check_value_error(lambda: producer.send(content, disable_replication='test'))
         self._check_value_error(lambda: producer.send(content, event_timestamp='test'))
+        self._check_value_error(lambda: producer.send(content, deliver_at='test'))
+        self._check_value_error(lambda: producer.send(content, deliver_after='test'))
         client.close()
 
     def test_client_argument_errors(self):
@@ -569,7 +701,7 @@ class PulsarTest(TestCase):
 
     def test_publish_compact_and_consume(self):
         client = Client(self.serviceUrl)
-        topic = 'my-python-test_publish_compact_and_consume'
+        topic = 'compaction_%s' % (uuid.uuid4())
         producer = client.create_producer(topic, producer_name='my-producer-name', batching_enabled=False)
         self.assertEqual(producer.last_sequence_id(), -1)
         consumer = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
@@ -582,35 +714,57 @@ class PulsarTest(TestCase):
         producer.close()
 
         # issue compact command, and wait success
-        url=self.adminUrl + '/admin/v2/persistent/public/default/my-python-test_publish_compact_and_consume/compaction'
+        url='%s/admin/v2/persistent/public/default/%s/compaction' % (self.adminUrl, topic)
         doHttpPut(url, '')
         while True:
             s=doHttpGet(url).decode('utf-8')
             if 'RUNNING' in s:
-                print("Compact still running")
                 print(s)
+                print("Compact still running")
                 time.sleep(0.2)
             else:
-                self.assertTrue('SUCCESS' in s)
-                print("Compact Complete now")
                 print(s)
+                print("Compact Complete now")
+                self.assertTrue('SUCCESS' in s)
                 break
+
+        # after compaction completes the compacted ledger is recorded
+        # as a property of a cursor. As persisting the cursor is async
+        # and we don't wait for the acknowledgement of the acknowledgement,
+        # there may be a race if we try to read the compacted ledger immediately.
+        # therefore wait a second to allow the compacted ledger to be updated on
+        # the broker.
+        time.sleep(1.0)
 
         # after compact, consumer with `is_read_compacted=True`, expected read only the second message for same key.
         consumer1 = client.subscribe(topic, 'my-sub1', is_read_compacted=True)
-        msg0 = consumer1.receive()
+        msg0 = consumer1.receive(TM)
         self.assertEqual(msg0.data(), b'hello-1')
         consumer1.acknowledge(msg0)
         consumer1.close()
 
+        # ditto for reader
+        reader1 = client.create_reader(topic, MessageId.earliest, is_read_compacted=True)
+        msg0 = reader1.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-1')
+        reader1.close()
+
         # after compact, consumer with `is_read_compacted=False`, expected read 2 messages for same key.
-        msg0 = consumer2.receive()
+        msg0 = consumer2.receive(TM)
         self.assertEqual(msg0.data(), b'hello-0')
         consumer2.acknowledge(msg0)
-        msg1 = consumer2.receive()
+        msg1 = consumer2.receive(TM)
         self.assertEqual(msg1.data(), b'hello-1')
         consumer2.acknowledge(msg1)
         consumer2.close()
+
+        # ditto for reader
+        reader2 = client.create_reader(topic, MessageId.earliest, is_read_compacted=False)
+        msg0 = reader2.read_next(TM)
+        self.assertEqual(msg0.data(), b'hello-0')
+        msg1 = reader2.read_next(TM)
+        self.assertEqual(msg1.data(), b'hello-1')
+        reader2.close()
         client.close()
 
     def test_reader_has_message_available(self):
@@ -630,7 +784,7 @@ class PulsarTest(TestCase):
         self.assertTrue(reader.has_message_available());
 
         for i in range(10):
-            msg = reader.read_next()
+            msg = reader.read_next(TM)
             self.assertTrue(msg)
             self.assertEqual(msg.data(), b'hello-%d' % i)
 
@@ -654,18 +808,70 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-python-topic-seek')
 
         for i in range(100):
+            if i > 0:
+                time.sleep(0.02)
             producer.send(b'hello-%d' % i)
 
+        ids = []
+        timestamps = []
         for i in range(100):
-            msg = consumer.receive()
+            msg = consumer.receive(TM)
             self.assertEqual(msg.data(), b'hello-%d' % i)
+            ids.append(msg.message_id())
+            timestamps.append(msg.publish_timestamp())
             consumer.acknowledge(msg)
 
         # seek, and after reconnect, expected receive first message.
         consumer.seek(MessageId.earliest)
         time.sleep(0.5)
-        msg = consumer.receive()
+        msg = consumer.receive(TM)
         self.assertEqual(msg.data(), b'hello-0')
+
+        # seek on messageId
+        consumer.seek(ids[50])
+        time.sleep(0.5)
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.data(), b'hello-50')
+
+        # ditto, but seek on timestamp
+        consumer.seek(timestamps[42])
+        time.sleep(0.5)
+        msg = consumer.receive(TM)
+        self.assertEqual(msg.data(), b'hello-42')
+
+        # repeat with reader
+        reader = client.create_reader('my-python-topic-seek', MessageId.latest)
+        try:
+            msg = reader.read_next(100)
+            self.assertTrue(False)  # Should not reach this point
+        except:
+            pass  # Exception is expected
+
+        # earliest
+        reader.seek(MessageId.earliest)
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-0')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-1')
+
+        # seek on messageId
+        reader.seek(ids[33])
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-33')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-34')
+
+        # seek on timestamp
+        reader.seek(timestamps[79])
+        time.sleep(0.5)
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-79')
+        msg = reader.read_next(TM)
+        self.assertEqual(msg.data(), b'hello-80')
+
+        reader.close()
         client.close()
 
     def test_v2_topics(self):
@@ -682,7 +888,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('my-v2-topic-producer-consumer')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         consumer.acknowledge(msg)
@@ -731,7 +937,7 @@ class PulsarTest(TestCase):
 
 
         for i in range(300):
-            msg = consumer.receive()
+            msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
         try:
@@ -786,7 +992,7 @@ class PulsarTest(TestCase):
 
 
         for i in range(300):
-            msg = consumer.receive()
+            msg = consumer.receive(TM)
             consumer.acknowledge(msg)
 
         try:
@@ -836,7 +1042,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         client.close()
@@ -854,7 +1060,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('persistent://private/auth/my-python-topic-token-auth')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
         client.close()
@@ -868,7 +1074,7 @@ class PulsarTest(TestCase):
                                           compression_type=CompressionType.ZSTD)
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg)
         self.assertEqual(msg.data(), b'hello')
 
@@ -891,7 +1097,7 @@ class PulsarTest(TestCase):
         producer = client.create_producer('persistent://public/default/topic_name_test')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertEqual(msg.topic_name(), 'persistent://public/default/topic_name_test')
         client.close()
 
@@ -912,8 +1118,38 @@ class PulsarTest(TestCase):
         producer = client.create_producer('persistent://public/default/partitioned_topic_name_test')
         producer.send(b'hello')
 
-        msg = consumer.receive(1000)
+        msg = consumer.receive(TM)
         self.assertTrue(msg.topic_name() in partitions)
+        client.close()
+
+    def test_negative_acks(self):
+        client = Client(self.serviceUrl)
+        consumer = client.subscribe('test_negative_acks',
+                                    'test',
+                                    schema=pulsar.schema.StringSchema())
+        producer = client.create_producer('test_negative_acks',
+                                          schema=pulsar.schema.StringSchema())
+        for i in range(10):
+            producer.send_async('hello-%d' % i, callback=None)
+
+        producer.flush()
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.negative_acknowledge(msg)
+
+        for i in range(10):
+            msg = consumer.receive()
+            self.assertEqual(msg.value(), "hello-%d" % i)
+            consumer.acknowledge(msg)
+
+        try:
+            # No more messages expected
+            msg = consumer.receive(100)
+            self.assertTrue(False)
+        except:
+            pass  # Exception is expected
         client.close()
 
     def _check_value_error(self, fun):

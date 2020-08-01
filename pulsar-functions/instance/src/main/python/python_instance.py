@@ -249,6 +249,8 @@ class PythonInstance(object):
         except Exception as e:
           Log.exception("Exception while executing user method")
           self.stats.incr_total_user_exceptions(e)
+          # If function throws exception then send neg ack for input message back to broker
+          msg.consumer.negative_acknowledge(msg.message)
 
         if self.log_topic_handler is not None:
           log.remove_all_handlers()
@@ -260,6 +262,8 @@ class PythonInstance(object):
       except Exception as e:
         Log.error("Uncaught exception in Python instance: %s" % e);
         self.stats.incr_total_sys_exceptions(e)
+        if msg:
+          msg.consumer.negative_acknowledge(msg.message)
 
   def done_producing(self, consumer, orig_message, topic, result, sent_message):
     if result == pulsar.Result.Ok:
@@ -269,6 +273,8 @@ class PythonInstance(object):
       error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
       Log.error(error_msg)
       self.stats.incr_total_sys_exceptions(Exception(error_msg))
+      # If producer fails send output then send neg ack for input message back to broker
+      consumer.negative_acknowledge(orig_message)
 
 
   def process_result(self, output, msg):
@@ -322,6 +328,7 @@ class PythonInstance(object):
   def setup_state(self):
     table_ns = "%s_%s" % (str(self.instance_config.function_details.tenant),
                           str(self.instance_config.function_details.namespace))
+    table_ns = table_ns.replace("-", "_")
     table_name = str(self.instance_config.function_details.name)
     return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 

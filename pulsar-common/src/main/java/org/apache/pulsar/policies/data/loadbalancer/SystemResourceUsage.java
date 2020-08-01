@@ -20,10 +20,12 @@ package org.apache.pulsar.policies.data.loadbalancer;
 
 /**
  * This class represents a object which reflects system resource usage per resource and the upper limit on the resource.
- *
  */
 public class SystemResourceUsage {
 
+    /**
+     * Definition of possible resource types.
+     */
     public enum ResourceType {
         CPU, Memory, BandwidthIn, BandwidthOut
     }

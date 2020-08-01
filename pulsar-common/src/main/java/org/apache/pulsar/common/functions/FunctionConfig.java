@@ -22,31 +22,43 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.TreeMap;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
+/**
+ * Configuration of Pulsar Function.
+ */
 @Data
-@EqualsAndHashCode
-@ToString
-@Builder(toBuilder=true)
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FunctionConfig {
 
+    /**
+     * Definition of possible processing guarantees.
+     */
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
         EFFECTIVELY_ONCE
     }
 
+    /**
+     * Definition of possible runtime environments.
+     */
     public enum Runtime {
         JAVA,
-        PYTHON
+        PYTHON,
+        GO
     }
+
+    // Any flags that you want to pass to the runtime.
+    // note that in thread mode, these flags will have no impact
+    private String runtimeFlags;
 
     private String tenant;
     private String namespace;
@@ -56,24 +68,30 @@ public class FunctionConfig {
     private Map<String, String> customSerdeInputs;
     private String topicsPattern;
     private Map<String, String> customSchemaInputs;
+    private Map<String, String> customSchemaOutputs;
 
     /**
-     * A generalized way of specifying inputs
+     * A generalized way of specifying inputs.
      */
-    private Map<String, ConsumerConfig> inputSpecs = new TreeMap<>();
+    private Map<String, ConsumerConfig> inputSpecs;
 
     private String output;
 
     /**
      * Represents either a builtin schema type (eg: 'avro', 'json', ect) or the class name for a Schema
-     * implementation
+     * implementation.
      */
     private String outputSchemaType;
 
     private String outputSerdeClassName;
     private String logTopic;
     private ProcessingGuarantees processingGuarantees;
+    // Do we want function instances to process data in the same order as in the input topics
+    // This essentially means that every partition of input topic is consumed by only one instance
     private Boolean retainOrdering;
+    // Do we want the same function instance to process all data keyed by the input topic's message key
+    private Boolean retainKeyOrdering;
+    private Boolean forwardSourceMessageProperty;
     private Map<String, Object> userConfig;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
@@ -93,6 +111,14 @@ public class FunctionConfig {
     private Long timeoutMs;
     private String jar;
     private String py;
+    private String go;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
+    // This is an arbitrary string that can be interpreted by the function runtime
+    // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
+    // interface
+    private String customRuntimeOptions;
+    // Max pending async requests per instance to avoid large number of concurrent requests.
+    // Only used in AsyncFunction. Default: 1000.
+    private Integer maxPendingAsyncRequests;
 }

@@ -20,6 +20,8 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -116,7 +118,7 @@ public interface AsyncCallbacks {
     interface FindEntryCallback {
         void findEntryComplete(Position position, Object ctx);
 
-        void findEntryFailed(ManagedLedgerException exception, Object ctx);
+        void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx);
     }
 
     interface ResetCursorCallback {
@@ -135,5 +137,11 @@ public interface AsyncCallbacks {
         void offloadComplete(Position pos, Object ctx);
 
         void offloadFailed(ManagedLedgerException exception, Object ctx);
+    }
+
+    interface UpdatePropertiesCallback {
+        void updatePropertiesComplete(Map<String, String> properties, Object ctx);
+
+        void updatePropertiesFailed(ManagedLedgerException exception, Object ctx);
     }
 }

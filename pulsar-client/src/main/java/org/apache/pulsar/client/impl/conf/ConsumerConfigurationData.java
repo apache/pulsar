@@ -31,17 +31,25 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
@@ -53,6 +61,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
+    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
+
     @JsonIgnore
     private MessageListener<T> messageListener;
 
@@ -63,6 +73,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
 
+    private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
+
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
     private String consumerName = null;
@@ -72,9 +84,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private long tickDurationMillis = 1000;
 
     private int priorityLevel = 0;
+    
+    // max pending chunked message to avoid sitting incomplete message into the queue and memory
+    private int maxPendingChuckedMessage = 10;
+    
+    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+    private long expireTimeOfIncompleteChunkedMessageMillis = 60 * 1000;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
+
+    @JsonIgnore
+    private MessageCrypto messageCrypto = null;
 
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
@@ -84,13 +106,26 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private int patternAutoDiscoveryPeriod = 1;
+    private int patternAutoDiscoveryPeriod = 60;
 
     private RegexSubscriptionMode regexSubscriptionMode = RegexSubscriptionMode.PersistentOnly;
 
     private DeadLetterPolicy deadLetterPolicy;
 
+    private boolean retryEnable = false;
+
+    @JsonIgnore
+    private BatchReceivePolicy batchReceivePolicy;
+
     private boolean autoUpdatePartitions = true;
+
+    private boolean replicateSubscriptionState = false;
+
+    private boolean resetIncludeHead = false;
+
+    private KeySharedPolicy keySharedPolicy;
+
+    private boolean batchIndexAckEnabled = false;
 
     @JsonIgnore
     public String getSingleTopic() {

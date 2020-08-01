@@ -27,6 +27,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 @Slf4j
 public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCursor {
@@ -52,8 +53,9 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
 
     @Override
     public void skipEntries(int numEntriesToSkip) {
-        log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip);
-        readPosition = ledger.getPositionAfterN(readPosition, numEntriesToSkip, PositionBound.startIncluded).getNext();
+        log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip, getName());
+        READ_POSITION_UPDATER.getAndUpdate(this, lastRead ->
+                ledger.getPositionAfterN(lastRead, numEntriesToSkip, PositionBound.startIncluded).getNext());
     }
 
     @Override
@@ -62,6 +64,11 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
         callback.closeComplete(ctx);
     }
 
+    public MLDataFormats.ManagedLedgerInfo.LedgerInfo getCurrentLedgerInfo() {
+        return this.ledger.getLedgersInfo().get(this.readPosition.getLedgerId());
+    }
+
+    @Override
     public long getNumberOfEntries(Range<PositionImpl> range) {
         return this.ledger.getNumberOfEntries(range);
     }

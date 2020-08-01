@@ -26,12 +26,19 @@ workerHostname: localhost
 workerPort: 6750
 workerPortTls: 6751
 
+# Configuration Store connection string
+configurationStoreServers: localhost:2181
+# ZooKeeper session timeout in milliseconds
+zooKeeperSessionTimeoutMillis: 30000
+# ZooKeeper operation timeout in seconds
+zooKeeperOperationTimeoutSeconds: 30
+
 ################################
 # Function package management
 ################################
 
 numFunctionPackageReplicas: 1
-downloadDirectory: /tmp/pulsar_functions
+downloadDirectory: download/pulsar_functions
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName: 
 
@@ -41,13 +48,35 @@ downloadDirectory: /tmp/pulsar_functions
 
 # Configure the pulsar client used by function metadata management
 #
-# points 
+# points
+# Whether to enable TLS when clients connect to broker
+useTls: false
+# For TLS:
+# brokerServiceUrl=pulsar+ssl://localhost:6651/
 pulsarServiceUrl: pulsar://localhost:6650
+# For TLS:
+# webServiceUrl=https://localhost:8443/
 pulsarWebServiceUrl: http://localhost:8080
+
+############################################
+# security settings for pulsar broker client
+############################################
+# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+# brokerClientTrustCertsFilePath:
 # the authentication plugin to be used by the pulsar client used in worker service
-# clientAuthenticationPlugin:
+# brokerClientAuthenticationPlugin:
 # the authentication parameter to be used by the pulsar client used in worker service
-# clientAuthenticationParameters:
+# brokerClientAuthenticationParameters:
+
+# Bookie Authentication
+#
+# Authentication plugin to use when connecting to bookies
+# bookkeeperClientAuthenticationPlugin:
+# BookKeeper auth plugin implementatation specifics parameters name and values
+# bookkeeperClientAuthenticationParametersName:
+# Parameters for bookkeeper auth plugin
+# bookkeeperClientAuthenticationParameters:
+
 
 # pulsar topics used for function metadata management
 
@@ -55,6 +84,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Should the metadata topic be compacted? Defaulting it to false for backwards compatibility
+useCompactedMetadataTopic: false
 # Number of threads to use for HTTP requests processing. Default is set to 8
 numHttpServerThreads: 8
 
@@ -64,6 +95,8 @@ schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinSche
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000
 rescheduleTimeoutMs: 60000
+# frequency at which to check if cluster needs rebalancing (set to -1 to disable)
+rebalanceCheckFreqSec: -1
 initialBrokerReconnectMaxRetries: 60
 assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
@@ -75,23 +108,47 @@ topicCompactionFrequencySec: 1800
 # Function Runtime Management
 ###############################
 
-#threadContainerFactory:
+#### Process Runtime  ####
+# Pulsar function instances are launched as processes
+
+functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
+functionRuntimeFactoryConfigs:
+    # location of log files for functions
+    logDirectory: /tmp
+    # change the jar location only when you put the java instance jar in a different location
+    javaInstanceJarLocation:
+    # change the python instance location only when you put the python instance jar in a different location
+    pythonInstanceLocation:
+    # change the extra dependencies location:
+    extraFunctionDependenciesDir:
+
+#### Thread Runtime ####
+# Pulsar function instances are run as threads
+
+#functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory
+#functionRuntimeFactoryConfigs:
+#  # thread group name
 #  threadGroupName: "Thread Function Container Group"
-processContainerFactory:
-  logDirectory:
-  # change the jar location only when you put the java instance jar in a different location
-  javaInstanceJarLocation:
-  # change the python instance location only when you put the python instance jar in a different location
-  pythonInstanceLocation:
-  # change the extra dependencies location:
-  extraFunctionDependenciesDir:
-#kubernetesContainerFactory:
+
+#### Kubernetes Runtime ####
+# Pulsar function are deployed to Kubernetes
+
+#functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory
+#functionRuntimeFactoryConfigs:
 #  # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
 #  k8Uri:
 #  # the kubernetes namespace to run the function instances. it is `default`, if this setting is left to be empty
 #  jobNamespace:
 #  # the docker image to run function instance. by default it is `apachepulsar/pulsar`
 #  pulsarDockerImageName:
+#  # the docker image to run function instance according to different configurations provided by users.
+#  # By default it is `apachepulsar/pulsar`.
+#  # e.g:
+#  # functionDockerImages:
+#  #   JAVA: JAVA_IMAGE_NAME
+#  #   PYTHON: PYTHON_IMAGE_NAME
+#  #   GO: GO_IMAGE_NAME
+#  functionDockerImages:
 #  # the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.
 #  # if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly
 #  pulsarRootDir:
@@ -99,7 +156,7 @@ processContainerFactory:
 #  # setting this to true is let function worker to submit functions to the same k8s cluster as function worker
 #  # is running. setting this to false if your function worker is not running as a k8 pod.
 #  submittingInsidePod: false
-#  # setting the pulsar service url that pulsar function should use to connect to pulsar 
+#  # setting the pulsar service url that pulsar function should use to connect to pulsar
 #  # if it is not set, it will use the pulsar service url configured in worker service
 #  pulsarServiceUrl:
 #  # setting the pulsar admin url that pulsar function should use to connect to pulsar
@@ -112,6 +169,12 @@ processContainerFactory:
 #  extraFunctionDependenciesDir:
 #  # Additional memory padding added on top of the memory requested by the function per on a per instance basis
 #  percentMemoryPadding: 10
+#  # The ratio cpu request and cpu limit to be set for a function/source/sink.
+#  # The formula for cpu request is cpuRequest = userRequestCpu / cpuOverCommitRatio
+#  cpuOverCommitRatio: 1.0
+#  # The ratio memory request and memory limit to be set for a function/source/sink.
+#  # The formula for memory request is memoryRequest = userRequestMemory / memoryOverCommitRatio
+#  memoryOverCommitRatio: 1.0
 
 ## A set of the minimum amount of resources functions must request.
 ## Support for this depends on function runtime.
@@ -121,6 +184,13 @@ processContainerFactory:
 #   ram: 1073741824
 #   disk: 10737418240
 
+## The full class-name of an instance of RuntimeCustomizer.
+## This class receives the customRuntimeOptions string and can customize details of how the runtime operates.
+#runtimeCustomizerClassName: "org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer"
+
+## Config admin CLI
+#configAdminCLI:
+
 ############################################
 # security settings for worker service
 ############################################
@@ -129,8 +199,10 @@ processContainerFactory:
 authenticationEnabled: false
 # Enforce authorization on accessing functions api
 authorizationEnabled: false
-# Set of autentication provider name list, which is a list of class names
-authenticationProviders: 
+# Set of authentication provider name list, which is a list of class names
+authenticationProviders:
+# Authorization provider fully qualified class-name
+authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles: 
 
@@ -145,6 +217,8 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Whether server hostname must match the common name of the certificate
+tlsEnableHostnameVerification: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection) 
 tlsCertRefreshCheckDurationSec: 300
 
@@ -160,3 +234,4 @@ tlsCertRefreshCheckDurationSec: 300
 ########################
 
 connectorsDirectory: ./connectors
+functionsDirectory: ./functions

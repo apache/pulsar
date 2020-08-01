@@ -43,8 +43,7 @@ public class GZipFiles {
     /**
      * Returns true if the given file is a gzip file.
      */
-   @SuppressWarnings("deprecation")
-   public static boolean isGzip(File f) {
+    public static boolean isGzip(File f) {
 
        InputStream input = null;
         try {

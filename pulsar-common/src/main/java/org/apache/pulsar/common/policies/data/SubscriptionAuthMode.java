@@ -20,12 +20,12 @@
 package org.apache.pulsar.common.policies.data;
 
 /**
- * Subscription authorization for Pulsar policies
+ * Subscription authorization for Pulsar policies.
  */
 public enum SubscriptionAuthMode {
-    /** Every subscription name can be used by every role */
+    /** Every subscription name can be used by every role. */
     None,
 
-    /** Subscription name with auth role prefix can be used by the role */
+    /** Subscription name with auth role prefix can be used by the role. */
     Prefix,
 }

@@ -70,12 +70,12 @@ public class DefaultSchemasTest {
         String testString = "hello world";
         byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);
         StringSchema stringSchema = new StringSchema();
-        Assert.assertTrue(stringSchema.decode(testBytes).equals(testString));
+        assertEquals(testString, stringSchema.decode(testBytes));
         assertEquals(stringSchema.encode(testString), testBytes);
 
          byte[] bytes2 = testString.getBytes(StandardCharsets.UTF_16);
         StringSchema stringSchemaUtf16 = new StringSchema(StandardCharsets.UTF_16);
-        Assert.assertTrue(stringSchemaUtf16.decode(bytes2).equals(testString));
+        assertEquals(testString, stringSchemaUtf16.decode(bytes2));
         assertEquals(stringSchemaUtf16.encode(testString), bytes2);
     }
 

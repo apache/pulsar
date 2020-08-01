@@ -265,6 +265,17 @@ public interface Consumer extends Closeable {
     void seek(MessageId messageId) throws PulsarClientException;
 
     /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     */
+    void seek(long timestamp) throws PulsarClientException;
+
+    /**
      * Reset the subscription associated with this consumer to a specific message id.
      * <p>
      *
@@ -283,6 +294,18 @@ public interface Consumer extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message publish time.
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param timestamp
+     *            the message publish time where to reposition the subscription
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
      * @return Whether the consumer is connected to the broker

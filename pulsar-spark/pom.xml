@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -37,8 +37,14 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-1x</artifactId>
+      <artifactId>pulsar-client</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -49,6 +55,12 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming_2.10</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>jackson-annotations</artifactId>
+          <groupId>com.fasterxml.jackson.core</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -72,10 +84,7 @@
               <artifactSet>
                 <includes>
                   <include>com.google.guava:guava</include>
-                  <include>io.netty:netty-codec-http</include>
-                  <include>io.netty:netty-transport-native-epoll</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
+                  <include>io.netty:netty-*</include>
                 </includes>
               </artifactSet>
               <relocations>

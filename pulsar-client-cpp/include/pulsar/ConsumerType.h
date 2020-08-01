@@ -19,7 +19,6 @@
 #ifndef PULSAR_CPP_CONSUMERTYPE_H
 #define PULSAR_CPP_CONSUMERTYPE_H
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 enum ConsumerType
 {
@@ -37,8 +36,14 @@ enum ConsumerType
     /** Only one consumer is active on the subscription; Subscription can have N consumers
      *  connected one of which will get promoted to master if the current master becomes inactive
      */
-    ConsumerFailover
+    ConsumerFailover,
+
+    /**
+     * Multiple consumer will be able to use the same subscription and all messages with the same key
+     * will be dispatched to only one consumer
+     */
+    ConsumerKeyShared
 };
 }
-#pragma GCC visibility pop
+
 #endif  // PULSAR_CPP_CONSUMERTYPE_H

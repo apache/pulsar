@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.common.io;
 
-import lombok.*;
+import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
-import java.util.Map;
-
-@Getter
-@Setter
+/**
+ * Pulsar source configuration.
+ */
 @Data
-@EqualsAndHashCode
-@ToString
-@Builder(toBuilder=true)
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class SourceConfig {
@@ -56,4 +57,13 @@ public class SourceConfig {
     private Resources resources;
 
     private String archive;
+    // Any flags that you want to pass to the runtime.
+    private String runtimeFlags;
+    // This is an arbitrary string that can be interpreted by the function runtime
+    // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
+    // interface
+    private String customRuntimeOptions;
+
+    // If this is a BatchSource, its batch related configs are stored here
+    private BatchSourceConfig batchSourceConfig;
 }

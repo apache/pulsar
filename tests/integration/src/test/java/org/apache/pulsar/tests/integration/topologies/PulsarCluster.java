@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTP_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
 
@@ -28,6 +29,7 @@ import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -97,6 +99,7 @@ public class PulsarCluster {
                     .withNetworkAliases(PrestoWorkerContainer.NAME)
                     .withEnv("clusterName", clusterName)
                     .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         } else {
@@ -141,6 +144,7 @@ public class PulsarCluster {
                         .withEnv("journalSyncData", "false")
                         .withEnv("journalMaxGroupWaitMSec", "0")
                         .withEnv("clusterName", clusterName)
+                        .withEnv("diskUsageThreshold", "0.99")
                 )
         );
 
@@ -154,16 +158,19 @@ public class PulsarCluster {
                         .withEnv("configurationStoreServers", CSContainer.NAME + ":" + CS_PORT)
                         .withEnv("clusterName", clusterName)
                         .withEnv("brokerServiceCompactionMonitorIntervalInSeconds", "1")
+                        // used in s3 tests
+                        .withEnv("AWS_ACCESS_KEY_ID", "accesskey")
+                        .withEnv("AWS_SECRET_KEY", "secretkey")
                 )
         );
 
-        spec.classPathVolumeMounts.entrySet().forEach(e -> {
-            zkContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
-            proxyContainer.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE);
+        spec.classPathVolumeMounts.forEach((key, value) -> {
+            zkContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
+            proxyContainer.withClasspathResourceMapping(key, value, BindMode.READ_WRITE);
 
-            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
-            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
-            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(e.getKey(), e.getValue(), BindMode.READ_WRITE));
+            bookieContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
+            brokerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
+            workerContainers.values().forEach(c -> c.withClasspathResourceMapping(key, value, BindMode.READ_WRITE));
         });
 
     }
@@ -174,6 +181,19 @@ public class PulsarCluster {
 
     public String getHttpServiceUrl() {
         return proxyContainer.getHttpServiceUrl();
+    }
+
+    public String getAllBrokersHttpServiceUrl() {
+        String multiUrl = "http://";
+        Iterator<BrokerContainer> brokers = getBrokers().iterator();
+        while (brokers.hasNext()) {
+            BrokerContainer broker = brokers.next();
+            multiUrl += broker.getContainerIpAddress() + ":" + broker.getMappedPort(BROKER_HTTP_PORT);
+            if (brokers.hasNext()) {
+                multiUrl += ",";
+            }
+        }
+        return multiUrl;
     }
 
     public String getZKConnString() {
@@ -294,7 +314,7 @@ public class PulsarCluster {
             containers.add(prestoWorkerContainer);
         }
 
-        containers.parallelStream()
+        containers = containers.parallelStream()
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
@@ -314,6 +334,7 @@ public class PulsarCluster {
                     .withNetworkAliases(PrestoWorkerContainer.NAME)
                     .withEnv("clusterName", clusterName)
                     .withEnv("zkServers", ZKContainer.NAME)
+                    .withEnv("zookeeperServers", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
         }
@@ -508,6 +529,12 @@ public class PulsarCluster {
         return runAdminCommandOnAnyBroker(
             "namespaces", "create", "public/" + nsName,
             "--clusters", clusterName);
+    }
+
+    public ContainerExecResult createPartitionedTopic(String topicName, int partitions) throws Exception {
+        return runAdminCommandOnAnyBroker(
+                "topics", "create-partitioned-topic", topicName,
+                "-p", String.valueOf(partitions));
     }
 
     public ContainerExecResult enableDeduplication(String nsName, boolean enabled) throws Exception {

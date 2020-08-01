@@ -28,6 +28,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 
 import java.io.IOException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -48,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaEx
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -189,6 +194,14 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         if (sendRequest.replicationClusters != null) {
             builder.replicationClusters(sendRequest.replicationClusters);
         }
+        if (sendRequest.eventTime != null) {
+            try {
+                builder.eventTime(DateFormatter.parse(sendRequest.eventTime));
+            } catch (DateTimeParseException e) {
+                sendAckResponse(new ProducerAck(PayloadEncodingError, e.getMessage(), null, requestContext));
+                return;
+            }
+        }
 
         final long now = System.nanoTime();
         builder.sendAsync().thenAccept(msgId -> {
@@ -247,7 +260,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {
-                    log.warn("[{}] Failed to send ack {}", producer.getTopic(), th.getMessage(), th);
+                    log.warn("[{}] Failed to send ack: {}", producer.getTopic(), th.getMessage());
                 }
 
                 @Override
@@ -259,9 +272,9 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 }
             });
         } catch (JsonProcessingException e) {
-            log.warn("[{}] Failed to generate ack json-response {}", producer.getTopic(), e.getMessage(), e);
+            log.warn("[{}] Failed to generate ack json-response: {}", producer.getTopic(), e.getMessage());
         } catch (Exception e) {
-            log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
+            log.warn("[{}] Failed to send ack: {}", producer.getTopic(), e.getMessage());
         }
     }
 

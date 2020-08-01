@@ -34,9 +34,18 @@ class TopicStats {
     double rateOut;
     double throughputIn;
     double throughputOut;
+    long msgInCounter;
+    long bytesInCounter;
+    long msgOutCounter;
+    long bytesOutCounter;
 
     long storageSize;
     public long msgBacklog;
+
+    long backlogSize;
+    long offloadedStorageUsed;
+
+    long backlogQuotaLimit;
 
     StatsBuckets storageWriteLatencyBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC);
     StatsBuckets entrySizeBuckets = new StatsBuckets(ManagedLedgerMBeanImpl.ENTRY_SIZE_BUCKETS_BYTES);
@@ -46,6 +55,10 @@ class TopicStats {
     Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
     Map<String, AggregatedSubscriptionStats> subscriptionStats = new HashMap<>();
 
+    // Used for tracking duplicate TYPE definitions
+    static Map<String, String> metricWithTypeDefinition = new HashMap<>();
+
+
     public void reset() {
         subscriptionsCount = 0;
         producersCount = 0;
@@ -54,16 +67,27 @@ class TopicStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
+        bytesOutCounter = 0;
+        msgOutCounter = 0;
 
         storageSize = 0;
         msgBacklog = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        backlogSize = 0;
+        offloadedStorageUsed = 0;
+        backlogQuotaLimit = 0;
 
         replicationStats.clear();
         subscriptionStats.clear();
         storageWriteLatencyBuckets.reset();
         entrySizeBuckets.reset();
+    }
+
+    static void resetTypes() {
+        metricWithTypeDefinition.clear();
     }
 
     static void printTopicStats(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
@@ -79,6 +103,9 @@ class TopicStats {
 
         metric(stream, cluster, namespace, topic, "pulsar_storage_size", stats.storageSize);
         metric(stream, cluster, namespace, topic, "pulsar_msg_backlog", stats.msgBacklog);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_size", stats.backlogSize);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_offloaded_size", stats.offloadedStorageUsed);
+        metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit);
 
         long[] latencyBuckets = stats.storageWriteLatencyBuckets.getBuckets();
         metric(stream, cluster, namespace, topic, "pulsar_storage_write_latency_le_0_5", latencyBuckets[0]);
@@ -111,18 +138,24 @@ class TopicStats {
 
         stats.subscriptionStats.forEach((n, subsStats) -> {
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log", subsStats.msgBacklog);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_back_log_no_delayed", subsStats.msgBacklogNoDelayed);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_delayed", subsStats.msgDelayed);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_redeliver", subsStats.msgRateRedeliver);
-            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_unacked_massages", subsStats.unackedMessages);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_unacked_messages", subsStats.unackedMessages);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_blocked_on_unacked_messages", subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_out", subsStats.msgRateOut);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_msg_throughput_out", subsStats.msgThroughputOut);
+            metric(stream, cluster, namespace, topic, n, "pulsar_out_bytes_total", subsStats.bytesOutCounter);
+            metric(stream, cluster, namespace, topic, n, "pulsar_out_messages_total", subsStats.msgOutCounter);
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);
-                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_unacked_massages", consumerStats.unackedMessages);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_unacked_messages", consumerStats.unackedMessages);
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_blocked_on_unacked_messages", consumerStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0);
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut);
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut);
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_consumer_available_permits", consumerStats.availablePermits);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_bytes_total", consumerStats.bytesOutCounter);
+                metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(), "pulsar_out_messages_total", consumerStats.msgOutCounter);
             });
         });
 
@@ -142,10 +175,18 @@ class TopicStats {
                         replStats.replicationBacklog);
             });
         }
+
+        metric(stream, cluster, namespace, topic, "pulsar_in_bytes_total", stats.bytesInCounter);
+        metric(stream, cluster, namespace, topic, "pulsar_in_messages_total", stats.msgInCounter);
     }
 
     static void metricType(SimpleTextOutputStream stream, String name) {
-        stream.write("# TYPE ").write(name).write(" gauge\n");
+
+        if (!metricWithTypeDefinition.containsKey(name)) {
+            metricWithTypeDefinition.put(name, "gauge");
+            stream.write("# TYPE ").write(name).write(" gauge\n");
+        }
+
     }
 
     private static void metric(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
@@ -195,7 +236,7 @@ class TopicStats {
             String name, String remoteCluster, double value) {
         metricType(stream, name);
         stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
-        stream.write("\",topic=\"").write(topic).write("remote_cluster=\"").write(remoteCluster).write("\"} ");
+        stream.write("\",topic=\"").write(topic).write("\",remote_cluster=\"").write(remoteCluster).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 }

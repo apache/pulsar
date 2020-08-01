@@ -18,50 +18,66 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
+
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.Replicator;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.api.proto.PulsarMarkers.MarkerType;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
-
 public class PersistentReplicator extends AbstractReplicator implements Replicator, ReadEntriesCallback, DeleteCallback {
 
     private final PersistentTopic topic;
-    private final ManagedCursor cursor;
+    private final String replicatorName;
+    private final ManagedLedger ledger;
+    protected ManagedCursor cursor;
 
+    private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
-    private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
+    private final int readMaxSizeBytes;
 
     private final int producerQueueThreshold;
 
@@ -89,17 +105,45 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     private final ReplicatorStats stats = new ReplicatorStats();
 
+    // Only for test
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
-        super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
-        this.topic = topic;
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
+        this.replicatorName = cursor.getName();
+        this.ledger = cursor.getManagedLedger();
         this.cursor = cursor;
+        this.topic = topic;
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
-        readBatchSize = Math.min(producerQueueSize, MaxReadBatchSize);
+        readBatchSize = Math.min(
+            producerQueueSize,
+            topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
+
+        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+
+        startProducer();
+    }
+
+    public PersistentReplicator(PersistentTopic topic, String replicatorName, String localCluster, String remoteCluster,
+            BrokerService brokerService, ManagedLedger ledger) throws NamingException {
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
+        this.replicatorName = replicatorName;
+        this.ledger = ledger;
+        this.topic = topic;
+        HAVE_PENDING_READ_UPDATER.set(this, FALSE);
+        PENDING_MESSAGES_UPDATER.set(this, 0);
+
+        readBatchSize = Math.min(
+            producerQueueSize,
+            topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize());
+        readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
+        producerQueueThreshold = (int) (producerQueueSize * 0.9);
+
+        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
 
         startProducer();
     }
@@ -137,7 +181,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     @Override
     protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog();
+        return cursor.getNumberOfEntriesInBacklog(false);
     }
 
     @Override
@@ -146,9 +190,83 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         this.cursor.setInactive();
     }
 
+    @Override
+    protected synchronized CompletableFuture<Void> openCursorAsync() {
+        log.info("[{}][{} -> {}] Starting open cursor for replicator", topicName, localCluster, remoteCluster);
+        if (cursor != null) {
+            log.info("[{}][{} -> {}] Using the exists cursor for replicator", topicName, localCluster, remoteCluster);
+            if (expiryMonitor == null) {
+                this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+            }
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> res = new CompletableFuture<>();
+        ledger.asyncOpenCursor(replicatorName, InitialPosition.Earliest, new OpenCursorCallback() {
+            @Override
+            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                log.info("[{}][{} -> {}] Open cursor succeed for replicator", topicName, localCluster, remoteCluster);
+                PersistentReplicator.this.cursor = cursor;
+                PersistentReplicator.this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, Codec.decode(cursor.getName()), cursor);
+                res.complete(null);
+            }
+
+            @Override
+            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                log.warn("[{}][{} -> {}] Open cursor failed for replicator", topicName, localCluster, remoteCluster, exception);
+                res.completeExceptionally(new PersistenceException(exception));
+            }
+
+        }, null);
+        return res;
+    }
+
+
+    /**
+     * Calculate available permits for read entries.
+     *
+     * @return
+     *   0:  Producer queue is full, no permits.
+     *  -1:  Rate Limiter reaches limit.
+     *  >0:  available permits for read entries.
+     */
+    private int getAvailablePermits() {
+        int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
+
+        // return 0, if Producer queue is full, it will pause read entries.
+        if (availablePermits <= 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{} -> {}] Producer queue is full, availablePermits: {}, pause reading",
+                    topicName, localCluster, remoteCluster, availablePermits);
+            }
+            return 0;
+        }
+
+        // handle rate limit
+        if (dispatchRateLimiter.isPresent() && dispatchRateLimiter.get().isDispatchRateLimitingEnabled()) {
+            DispatchRateLimiter rateLimiter = dispatchRateLimiter.get();
+            // no permits from rate limit
+            if (!rateLimiter.hasMessageDispatchPermit()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}][{} -> {}] message-read exceeded topic replicator message-rate {}/{}, schedule after a {}",
+                        topicName, localCluster, remoteCluster,
+                        rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
+                        MESSAGE_RATE_BACKOFF_MS);
+                }
+                return -1;
+            }
+
+            // if dispatch-rate is in msg then read only msg according to available permit
+            long availablePermitsOnMsg = rateLimiter.getAvailableDispatchRateLimitOnMsg();
+            if (availablePermitsOnMsg > 0) {
+                availablePermits = Math.min(availablePermits, (int) availablePermitsOnMsg);
+            }
+        }
+
+        return availablePermits;
+    }
 
     protected void readMoreEntries() {
-        int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
+        int availablePermits = getAvailablePermits();
 
         if (availablePermits > 0) {
             int messagesToRead = Math.min(availablePermits, readBatchSize);
@@ -161,23 +279,30 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 messagesToRead = 1;
             }
 
+            // If messagesToRead is 0 or less, correct it to 1 to prevent IllegalArgumentException
+            messagesToRead = Math.max(messagesToRead, 1);
+
             // Schedule read
             if (HAVE_PENDING_READ_UPDATER.compareAndSet(this, FALSE, TRUE)) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Schedule read of {} messages", topicName, localCluster, remoteCluster,
                             messagesToRead);
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, this, null);
+                cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this, null);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Not scheduling read due to pending read. Messages To Read {}", topicName,
                             localCluster, remoteCluster, messagesToRead);
                 }
             }
+        } else if (availablePermits == -1) {
+            // no permits from rate limit
+            topic.getBrokerService().executor().schedule(
+                () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] Producer queue is full, pause reading", topicName, localCluster,
-                        remoteCluster);
+                log.debug("[{}][{} -> {}] No Permits for reading. availablePermits: {}",
+                    topicName, localCluster, remoteCluster, availablePermits);
             }
         }
     }
@@ -189,8 +314,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entries.size());
         }
 
-        if (readBatchSize < MaxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, MaxReadBatchSize);
+        int maxReadBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadBatchSize();
+        if (readBatchSize < maxReadBatchSize) {
+            int newReadBatchSize = Math.min(readBatchSize * 2, maxReadBatchSize);
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{} -> {}] Increasing read batch size from {} to {}", topicName, localCluster,
                         remoteCluster, readBatchSize, newReadBatchSize);
@@ -221,6 +347,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     entry.release();
                     continue;
                 }
+
+                checkReplicatedSubscriptionMarker(entry.getPosition(), msg, headersAndPayload);
 
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
@@ -265,6 +393,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     msg.recycle();
                     continue;
                 }
+
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
@@ -311,10 +441,10 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         @Override
         public void sendComplete(Exception exception) {
-            if (exception != null) {
+            if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}][{} -> {}] Error producing on remote broker", replicator.topicName,
                         replicator.localCluster, replicator.remoteCluster, exception);
-                // cursor shoud be rewinded since it was incremented when readMoreEntries
+                // cursor should be rewinded since it was incremented when readMoreEntries
                 replicator.cursor.rewind();
             } else {
                 if (log.isDebugEnabled()) {
@@ -410,7 +540,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         }
 
         // Reduce read batch size to avoid flooding bookies with retries
-        readBatchSize = 1;
+        readBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMinReadBatchSize();
 
         long waitTimeMillis = readFailureBackoff.next();
 
@@ -440,7 +570,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Backlog size before clearing: {}", topicName, localCluster, remoteCluster,
-                    cursor.getNumberOfEntriesInBacklog());
+                    cursor.getNumberOfEntriesInBacklog(false));
         }
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
@@ -448,7 +578,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             public void clearBacklogComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{} -> {}] Backlog size after clearing: {}", topicName, localCluster, remoteCluster,
-                            cursor.getNumberOfEntriesInBacklog());
+                            cursor.getNumberOfEntriesInBacklog(false));
                 }
                 future.complete(null);
             }
@@ -468,7 +598,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Skipping {} messages, current backlog {}", topicName, localCluster, remoteCluster,
-                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
         }
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
@@ -476,7 +606,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                     public void skipEntriesComplete(Object ctx) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{} -> {}] Skipped {} messages, new backlog {}", topicName, localCluster,
-                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog());
+                                    remoteCluster, numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
                         }
                         future.complete(null);
                     }
@@ -534,11 +664,13 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         msgExpired.calculateRate();
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
-        stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        if (expiryMonitor != null) {
+            stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();
+        }
     }
 
     public ReplicatorStats getStats() {
-        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog();
+        stats.replicationBacklog = cursor.getNumberOfEntriesInBacklog(false);
         stats.connected = producer != null && producer.isConnected();
         stats.replicationDelayInSeconds = getReplicationDelayInSeconds();
 
@@ -566,13 +698,87 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     public void expireMessages(int messageTTLInSeconds) {
-        if ((cursor.getNumberOfEntriesInBacklog() == 0)
-                || (cursor.getNumberOfEntriesInBacklog() < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        if ((cursor.getNumberOfEntriesInBacklog(false) == 0)
+                || (cursor.getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                         && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return;
         }
-        expiryMonitor.expireMessages(messageTTLInSeconds);
+        if (expiryMonitor != null) {
+            expiryMonitor.expireMessages(messageTTLInSeconds);
+        }
+    }
+
+    @Override
+    public Optional<DispatchRateLimiter> getRateLimiter() {
+        return dispatchRateLimiter;
+    }
+
+    @Override
+    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
+            .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.REPLICATOR)) {
+            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+        }
+    }
+
+    private void checkReplicatedSubscriptionMarker(Position position, MessageImpl<?> msg, ByteBuf payload) {
+        if (!msg.getMessageBuilder().hasMarkerType()) {
+            // No marker is defined
+            return;
+        }
+
+        int markerType = msg.getMessageBuilder().getMarkerType();
+
+        if (!remoteCluster.equals(msg.getMessageBuilder().getReplicatedFrom())) {
+            // Only consider markers that are coming from the same cluster that this
+            // replicator instance is assigned to.
+            // All the replicators will see all the markers, but we need to only process
+            // it once.
+            return;
+        }
+
+        switch (markerType) {
+        case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST_VALUE:
+        case MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE_VALUE:
+        case MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE:
+            topic.receivedReplicatedSubscriptionMarker(position, markerType, payload);
+            break;
+
+        default:
+            // Do nothing
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> disconnect() {
+        return disconnect(false);
+    }
+
+    @Override
+    public synchronized CompletableFuture<Void> disconnect(boolean failIfHasBacklog) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+
+        super.disconnect(failIfHasBacklog).thenRun(() -> {
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+            future.complete(null);
+        }).exceptionally(ex -> {
+            Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+            if (t instanceof TopicBusyException == false) {
+                log.error("[{}][{} -> {}] Failed to close dispatch rate limiter: {}", topicName, localCluster,
+                        remoteCluster, ex.getMessage());
+            }
+            future.completeExceptionally(t);
+            return null;
+        });
+
+        return future;
+    }
+
+    @Override
+    public boolean isConnected() {
+        ProducerImpl<?> producer = this.producer;
+        return producer != null && producer.isConnected();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);

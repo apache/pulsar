@@ -33,9 +33,7 @@ Message Consumer_receive(Consumer& consumer) {
 
     while (true) {
         Py_BEGIN_ALLOW_THREADS
-        // Use 100ms timeout to periodically check whether the
-        // interpreter was interrupted
-        res = consumer.receive(msg, 100);
+        res = consumer.receive(msg);
         Py_END_ALLOW_THREADS
 
         if (res != ResultTimeout) {
@@ -67,39 +65,27 @@ Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
 }
 
 void Consumer_acknowledge(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledge(msgId);
-    Py_END_ALLOW_THREADS
+    consumer.acknowledgeAsync(msgId, nullptr);
+}
 
-    CHECK_RESULT(res);
+void Consumer_negative_acknowledge(Consumer& consumer, const Message& msg) {
+    consumer.negativeAcknowledge(msg);
+}
+
+void Consumer_negative_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
+     consumer.negativeAcknowledge(msgId);
 }
 
 void Consumer_acknowledge_cumulative(Consumer& consumer, const Message& msg) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msg);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msg, nullptr);
 }
 
 void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS
-    res = consumer.acknowledgeCumulative(msgId);
-    Py_END_ALLOW_THREADS
-
-    CHECK_RESULT(res);
+    consumer.acknowledgeCumulativeAsync(msgId, nullptr);
 }
 
 void Consumer_close(Consumer& consumer) {
@@ -128,6 +114,15 @@ void Consumer_seek(Consumer& consumer, const MessageId& msgId) {
     CHECK_RESULT(res);
 }
 
+void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
+    Result res;
+    Py_BEGIN_ALLOW_THREADS
+    res = consumer.seek(timestamp);
+    Py_END_ALLOW_THREADS
+
+    CHECK_RESULT(res);
+}
+
 void export_consumer() {
     using namespace boost::python;
 
@@ -142,10 +137,13 @@ void export_consumer() {
             .def("acknowledge", &Consumer_acknowledge_message_id)
             .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative)
             .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative_message_id)
+            .def("negative_acknowledge", &Consumer_negative_acknowledge)
+            .def("negative_acknowledge", &Consumer_negative_acknowledge_message_id)
             .def("close", &Consumer_close)
             .def("pause_message_listener", &Consumer_pauseMessageListener)
             .def("resume_message_listener", &Consumer_resumeMessageListener)
             .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
             .def("seek", &Consumer_seek)
+            .def("seek", &Consumer_seek_timestamp)
             ;
 }

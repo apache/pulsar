@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -40,6 +40,11 @@
     </dependency>
 
     <dependency>
+      <groupId>commons-collections</groupId>
+      <artifactId>commons-collections</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
@@ -51,11 +56,11 @@
 
     <dependency>
       <groupId>io.netty</groupId>
-      <artifactId>netty-all</artifactId>
+      <artifactId>netty-transport</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>protobuf-shaded</artifactId>
       <version>${pulsar.protobuf.shaded.version}</version>
     </dependency>
@@ -93,8 +98,13 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-tools-framework</artifactId>
     </dependency>
 
     <dependency>
@@ -105,7 +115,20 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <artifactId>pulsar-transaction-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -131,6 +154,20 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-worker</artifactId>
       <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-local-runner-original</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
 
     <!-- functions related dependencies (end) -->
@@ -174,7 +211,7 @@
       <groupId>com.fasterxml.jackson.jaxrs</groupId>
       <artifactId>jackson-jaxrs-json-provider</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.glassfish.jersey.inject</groupId>
       <artifactId>jersey-hk2</artifactId>
@@ -220,7 +257,6 @@
       <artifactId>simpleclient_jetty</artifactId>
     </dependency>
 
-
     <dependency>
       <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
@@ -259,13 +295,6 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>buildtools</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -281,12 +310,36 @@
     <dependency>
       <groupId>javax.xml.bind</groupId>
       <artifactId>jaxb-api</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>javax.activation</groupId>
+          <artifactId>javax.activation-api</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>activation</artifactId>
+      <groupId>com.sun.activation</groupId>
+      <artifactId>javax.activation</artifactId>
     </dependency>
+
+    <!-- transaction related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-transaction-coordinator</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- transaction related dependencies (end) -->
+
+     <dependency>
+       <groupId>org.bouncycastle</groupId>
+       <artifactId>bc-fips</artifactId>
+       <version>${bouncycastlefips.version}</version>
+       <scope>test</scope>
+     </dependency>
+
   </dependencies>
 
   <build>
@@ -365,7 +418,7 @@
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin</locations>
+                  <locations>org.apache.pulsar.broker.admin.v2</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
                   <info>
@@ -378,6 +431,58 @@
                     </license>
                   </info>
                   <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swagger</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Functions REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Functions operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggerfunctions</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Source REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Source operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggersource</swaggerFileName>
+                </apiSource>
+                <apiSource>
+                  <springmvc>false</springmvc>
+                  <locations>org.apache.pulsar.broker.admin.v3.Sinks</locations>
+                  <schemes>http,https</schemes>
+                  <basePath>/admin/v3</basePath>
+                  <info>
+                    <title>Pulsar Sink REST API</title>
+                    <version>v3</version>
+                    <description>This provides the REST API for Pulsar Sink operations</description>
+                    <license>
+                      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+                      <name>Apache 2.0</name>
+                    </license>
+                  </info>
+                  <swaggerDirectory>${basedir}/target/docs</swaggerDirectory>
+                  <swaggerFileName>swaggersink</swaggerFileName>
                 </apiSource>
               </apiSources>
             </configuration>
@@ -444,6 +549,20 @@
             </plugin>
           </plugins>
         </pluginManagement>
+      </build>
+    </profile>
+    <profile>
+      <id>brokerSkipTest</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
       </build>
     </profile>
   </profiles>

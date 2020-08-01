@@ -38,7 +38,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
  */
 public class AuthenticationToken implements Authentication, EncodedAuthenticationParameterSupport {
 
-    private Supplier<String> tokenSupplier;
+    private static final long serialVersionUID = 1L;
+    private transient Supplier<String> tokenSupplier;
 
     public AuthenticationToken() {
     }
@@ -77,7 +78,7 @@ public class AuthenticationToken implements Authentication, EncodedAuthenticatio
             URI filePath = URI.create(encodedAuthParamString);
             this.tokenSupplier = () -> {
                 try {
-                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8);
+                    return new String(Files.readAllBytes(Paths.get(filePath)), Charsets.UTF_8).trim();
                 } catch (IOException e) {
                     throw new RuntimeException("Failed to read token from file", e);
                 }

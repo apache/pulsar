@@ -33,41 +33,41 @@ import java.util.Map;
  */
 public interface SecretsProviderConfigurator {
     /**
-     * Initialize the SecretsProviderConfigurator
-     * @return
+     * Initialize the SecretsProviderConfigurator.
      */
     default void init(Map<String, String> config) {}
 
     /**
      * Return the Secrets Provider Classname. This will be passed to the cmdline
      * of the instance and should contain the logic of connecting with the secrets
-     * provider and obtaining secrets
+     * provider and obtaining secrets.
      */
     String getSecretsProviderClassName(Function.FunctionDetails functionDetails);
 
     /**
-     * Return the secrets provider config
+     * Return the secrets provider config.
      */
     Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails);
 
     /**
-     * Attaches any secrets specific stuff to the k8 container for kubernetes runtime
+     * Attaches any secrets specific stuff to the k8 container for kubernetes runtime.
      */
     void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails);
 
     /**
-     * Attaches any secrets specific stuff to the ProcessBuilder for process runtime
+     * Attaches any secrets specific stuff to the ProcessBuilder for process runtime.
      */
     void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails);
 
     /**
-     * What is the type of the object that should be in the user secret config
+     * What is the type of the object that should be in the user secret config.
+     *
      * @return
      */
     Type getSecretObjectType();
 
     /**
-     * Do config checks to see whether the secrets provided are conforming
+     * Do config checks to see whether the secrets provided are conforming.
      */
     default void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, Function.FunctionDetails functionDetails) {}
 

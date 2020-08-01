@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
+import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +51,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
             BrokerService brokerService) throws NamingException {
-        super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
+        super(topic.getName(), topic.getReplicatorPrefix(), localCluster, remoteCluster, brokerService);
 
         producerBuilder.blockIfQueueFull(false);
 
@@ -249,5 +249,16 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     @Override
     protected void disableReplicatorRead() {
         // No-op
+    }
+
+    @Override
+    protected CompletableFuture<Void> openCursorAsync() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public boolean isConnected() {
+        ProducerImpl<?> producer = this.producer;
+        return producer != null && producer.isConnected();
     }
 }

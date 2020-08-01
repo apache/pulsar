@@ -20,14 +20,27 @@ package org.apache.pulsar.discovery.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Preconditions;
+
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+
+import lombok.Getter;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
@@ -35,16 +48,6 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Preconditions;
-
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.AdaptiveRecvByteBufAllocator;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Getter;
 
 /**
  * Main discovery-service which starts component to serve incoming discovery-request over binary-proto channel and
@@ -54,8 +57,8 @@ import lombok.Getter;
 public class DiscoveryService implements Closeable {
 
     private final ServiceConfig config;
-    private final String serviceUrl;
-    private final String serviceUrlTls;
+    private String serviceUrl;
+    private String serviceUrlTls;
     private ConfigurationCacheService configurationCacheService;
     private AuthenticationService authenticationService;
     private AuthorizationService authorizationService;
@@ -68,18 +71,19 @@ public class DiscoveryService implements Closeable {
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-discovery-io");
     private final int numThreads = Runtime.getRuntime().availableProcessors();
 
+    private Channel channelListen;
+    private Channel channelListenTls;
+
     public DiscoveryService(ServiceConfig serviceConfig) {
         checkNotNull(serviceConfig);
         this.config = serviceConfig;
-        this.serviceUrl = serviceUrl();
-        this.serviceUrlTls = serviceUrlTls();
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
     }
 
     /**
-     * Starts discovery service by initializing zookkeeper and server
-     * 
+     * Starts discovery service by initializing ZooKeeper and server
+     *
      * @throws Exception
      */
     public void start() throws Exception {
@@ -99,7 +103,7 @@ public class DiscoveryService implements Closeable {
     public void startServer() throws Exception {
 
         ServerBootstrap bootstrap = new ServerBootstrap();
-        bootstrap.childOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -115,17 +119,19 @@ public class DiscoveryService implements Closeable {
 
         if (config.getServicePort().isPresent()) {
             // Bind and start to accept incoming connections.
-            bootstrap.bind(config.getServicePort().get()).sync();
-            LOG.info("Started Pulsar Discovery service on port {}", config.getServicePort());
+            channelListen = bootstrap.bind(config.getServicePort().get()).sync().channel();
+            LOG.info("Started Pulsar Discovery service on {}", channelListen.localAddress());
         }
 
         if (config.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, config, true));
-            tlsBootstrap.bind(config.getServicePortTls().get()).sync();
-            LOG.info("Started Pulsar Discovery TLS service on port {}", config.getServicePortTls().get());
+            channelListenTls = tlsBootstrap.bind(config.getServicePortTls().get()).sync().channel();
+            LOG.info("Started Pulsar Discovery TLS service on port {}", channelListenTls.localAddress());
         }
 
+        this.serviceUrl = serviceUrl();
+        this.serviceUrlTls = serviceUrlTls();
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -167,7 +173,8 @@ public class DiscoveryService implements Closeable {
 
     public String serviceUrl() {
         if (config.getServicePort().isPresent()) {
-            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort().get())
+            return new StringBuilder("pulsar://").append(host()).append(":")
+                    .append(((InetSocketAddress) channelListen.localAddress()).getPort())
                     .toString();
         } else {
             return null;
@@ -177,7 +184,8 @@ public class DiscoveryService implements Closeable {
     public String serviceUrlTls() {
         if (config.getServicePortTls().isPresent()) {
             return new StringBuilder("pulsar+ssl://").append(host()).append(":")
-                    .append(config.getServicePortTls().get()).toString();
+                    .append(((InetSocketAddress) channelListenTls.localAddress()).getPort())
+                    .toString();
         } else {
             return null;
         }

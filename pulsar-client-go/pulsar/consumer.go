@@ -44,6 +44,10 @@ const (
 	// Multiple consumer will be able to use the same subscription name but only 1 consumer will receive the messages.
 	// If that consumer disconnects, one of the other connected consumers will start receiving messages.
 	Failover
+
+	// Multiple consumer will be able to use the same subscription and all messages with the same key
+	// will be dispatched to only one consumer
+	KeyShared
 )
 
 type InitialPosition int
@@ -83,6 +87,10 @@ type ConsumerOptions struct {
 	// Default is 0, which means message are not being replayed based on ack time
 	AckTimeout time.Duration
 
+	// The delay after which to redeliver the messages that failed to be
+	// processed. Default is 1min. (See `Consumer.Nack()`)
+	NackRedeliveryDelay *time.Duration
+
 	// Select the subscription type to be used when subscribing to the topic.
 	// Default is `Exclusive`
 	Type SubscriptionType
@@ -120,6 +128,8 @@ type ConsumerOptions struct {
 	//  failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
 	//  shared subscription, will lead to the subscription call throwing a PulsarClientException.
 	ReadCompacted bool
+
+	Schema
 }
 
 // An interface that abstracts behavior of Pulsar's consumer
@@ -161,6 +171,24 @@ type Consumer interface {
 	// It's equivalent to calling asyncAcknowledgeCumulative(MessageID) and waiting for the callback to be triggered.
 	AckCumulativeID(MessageID) error
 
+	// Acknowledge the failure to process a single message.
+	//
+	// When a message is "negatively acked" it will be marked for redelivery after
+	// some fixed delay. The delay is configurable when constructing the consumer
+	// with ConsumerOptions.NAckRedeliveryDelay .
+	//
+	// This call is not blocking.
+	Nack(Message) error
+
+	// Acknowledge the failure to process a single message.
+	//
+	// When a message is "negatively acked" it will be marked for redelivery after
+	// some fixed delay. The delay is configurable when constructing the consumer
+	// with ConsumerOptions.NackRedeliveryDelay .
+	//
+	// This call is not blocking.
+	NackID(MessageID) error
+
 	// Close the consumer and stop the broker to push more messages
 	Close() error
 
@@ -176,4 +204,6 @@ type Consumer interface {
 	// the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
 	// breaks, the messages are redelivered after reconnect.
 	RedeliverUnackedMessages()
+
+	Schema() Schema
 }

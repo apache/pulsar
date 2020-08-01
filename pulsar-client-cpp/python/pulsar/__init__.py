@@ -21,7 +21,7 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-Currently, the only supported Python version is 2.7.
+Currently, the supported Python versions are 2.7, 3.4, 3.5, 3.6 and 3.7.
 
 ## Install from PyPI
 
@@ -68,8 +68,11 @@ To install the Python bindings:
 
     while True:
         msg = consumer.receive()
-        print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
-        consumer.acknowledge(msg)
+        try:
+            print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
+            consumer.acknowledge(msg)
+        except:
+            consumer.negative_acknowledge(msg)
 
     client.close()
 
@@ -87,7 +90,7 @@ To install the Python bindings:
                     batching_max_publish_delay_ms=10
                 )
 
-    def send_callback(res, msg):
+    def send_callback(res, msg_id):
         print('Message published res=%s', res)
 
     while True:
@@ -98,7 +101,7 @@ To install the Python bindings:
 
 import _pulsar
 
-from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
+from _pulsar import Result, CompressionType, ConsumerType, InitialPosition, PartitionsRoutingMode  # noqa: F401
 
 from pulsar.functions.function import Function
 from pulsar.functions.context import Context
@@ -109,17 +112,35 @@ _schema = schema
 import re
 _retype = type(re.compile('x'))
 
+import certifi
+from datetime import timedelta
+
 
 class MessageId:
     """
     Represents a message id
     """
 
+    def __init__(self, partition=-1, ledger_id=-1, entry_id=-1, batch_index=-1):
+        self._msg_id = _pulsar.MessageId(partition, ledger_id, entry_id, batch_index)
+
     'Represents the earliest message stored in a topic'
     earliest = _pulsar.MessageId.earliest
 
     'Represents the latest message published on a topic'
     latest = _pulsar.MessageId.latest
+
+    def ledger_id(self):
+        return self._msg_id.ledger_id()
+
+    def entry_id(self):
+        return self._msg_id.entry_id()
+
+    def batch_index(self):
+        return self._msg_id.batch_index()
+
+    def partition(self):
+        return self._msg_id.partition()
 
     def serialize(self):
         """
@@ -192,6 +213,38 @@ class Message:
         Get the topic Name from which this message originated from
         """
         return self._message.topic_name()
+
+    def redelivery_count(self):
+        """
+        Get the redelivery count for this message
+        """
+        return self._message.redelivery_count()
+
+    @staticmethod
+    def _wrap(_message):
+        self = Message()
+        self._message = _message
+        return self
+
+
+class MessageBatch:
+
+    def __init__(self):
+        self._msg_batch = _pulsar.MessageBatch()
+
+    def with_message_id(self, msg_id):
+        if not isinstance(msg_id, _pulsar.MessageId):
+            if isinstance(msg_id, MessageId):
+                msg_id = msg_id._msg_id
+            else:
+                raise TypeError("unknown message id type")
+        self._msg_batch.with_message_id(msg_id)
+        return self
+
+    def parse_from(self, data, size):
+        self._msg_batch.parse_from(data, size)
+        _msgs = self._msg_batch.messages()
+        return list(map(Message._wrap, _msgs))
 
 
 class Authentication:
@@ -285,7 +338,8 @@ class Client:
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
-                 tls_allow_insecure_connection=False
+                 tls_allow_insecure_connection=False,
+                 tls_validate_hostname=False,
                  ):
         """
         Create a new Pulsar client instance.
@@ -320,10 +374,15 @@ class Client:
           is deprecated. TLS will be automatically enabled if the `serviceUrl` is
           set to `pulsar+ssl://` or `https://`
         * `tls_trust_certs_file_path`:
-          Set the path to the trusted TLS certificate file.
+          Set the path to the trusted TLS certificate file. If empty defaults to
+          certifi.
         * `tls_allow_insecure_connection`:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
+        * `tls_validate_hostname`:
+          Configure whether the Pulsar client validates that the hostname of the
+          endpoint, matches the common name on the TLS certificate presented by
+          the endpoint.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -335,6 +394,7 @@ class Client:
         _check_type(bool, use_tls, 'use_tls')
         _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
+        _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -349,7 +409,10 @@ class Client:
             conf.use_tls(True)
         if tls_trust_certs_file_path:
             conf.tls_trust_certs_file_path(tls_trust_certs_file_path)
+        else:
+            conf.tls_trust_certs_file_path(certifi.where())
         conf.tls_allow_insecure_connection(tls_allow_insecure_connection)
+        conf.tls_validate_hostname(tls_validate_hostname)
         self._client = _pulsar.Client(service_url, conf)
         self._consumers = []
 
@@ -402,9 +465,11 @@ class Client:
         * `compression_type`:
           Set the compression type for the producer. By default, message
           payloads are not compressed. Supported compression types are
-          `CompressionType.LZ4`, `CompressionType.ZLib` and `CompressionType.ZSTD`.
+          `CompressionType.LZ4`, `CompressionType.ZLib`, `CompressionType.ZSTD` and `CompressionType.SNAPPY`.
           ZSTD is supported since Pulsar 2.3. Consumers will need to be at least at that
           release in order to be able to receive messages compressed with ZSTD.
+          SNAPPY is supported since Pulsar 2.4. Consumers will need to be at least at that
+          release in order to be able to receive messages compressed with SNAPPY.
         * `max_pending_messages`:
           Set the max size of the queue holding the messages pending to receive
           an acknowledgment from the broker.
@@ -470,9 +535,11 @@ class Client:
                   consumer_name=None,
                   unacked_messages_timeout_ms=None,
                   broker_consumer_stats_cache_time_ms=30000,
+                  negative_ack_redelivery_delay_ms=60000,
                   is_read_compacted=False,
                   properties=None,
-                  pattern_auto_discovery_period=60
+                  pattern_auto_discovery_period=60,
+                  initial_position=InitialPosition.Latest
                   ):
         """
         Subscribe to the given topic and subscription combination.
@@ -483,7 +550,7 @@ class Client:
                   This method will accept these forms:
                     - `topic='my-topic'`
                     - `topic=['topic-1', 'topic-2', 'topic-3']`
-                    - `topic=re.compile('topic-.*')`
+                    - `topic=re.compile('persistent://public/default/topic-*')`
         * `subscription`: The name of the subscription.
 
         **Options**
@@ -528,14 +595,23 @@ class Client:
           the given value is less than 10 seconds. If a successful
           acknowledgement is not sent within the timeout, all the unacknowledged
           messages are redelivered.
+        * `negative_ack_redelivery_delay_ms`:
+           The delay after which to redeliver the messages that failed to be
+           processed (with the `consumer.negative_acknowledge()`)
         * `broker_consumer_stats_cache_time_ms`:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
+        * `is_read_compacted`:
+          Selects whether to read the compacted version of the topic
         * `properties`:
           Sets the properties for the consumer. The properties associated with a consumer
           can be used for identify a consumer at broker side.
         * `pattern_auto_discovery_period`:
           Periods of seconds for consumer to auto discover match topics.
+        * `initial_position`:
+          Set the initial position of a consumer  when subscribing to the topic.
+          It could be either: `InitialPosition.Earliest` or `InitialPosition.Latest`.
+          Default: `Latest`.
         """
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
@@ -546,8 +622,11 @@ class Client:
         _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+        _check_type(int, negative_ack_redelivery_delay_ms, 'negative_ack_redelivery_delay_ms')
+        _check_type(int, pattern_auto_discovery_period, 'pattern_auto_discovery_period')
         _check_type(bool, is_read_compacted, 'is_read_compacted')
         _check_type_or_none(dict, properties, 'properties')
+        _check_type(InitialPosition, initial_position, 'initial_position')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -560,10 +639,13 @@ class Client:
             conf.consumer_name(consumer_name)
         if unacked_messages_timeout_ms:
             conf.unacked_messages_timeout_ms(unacked_messages_timeout_ms)
+
+        conf.negative_ack_redelivery_delay_ms(negative_ack_redelivery_delay_ms)
         conf.broker_consumer_stats_cache_time_ms(broker_consumer_stats_cache_time_ms)
         if properties:
             for k, v in properties.items():
                 conf.property(k, v)
+        conf.subscription_initial_position(initial_position)
 
         conf.schema(schema.schema_info())
 
@@ -590,7 +672,8 @@ class Client:
                       reader_listener=None,
                       receiver_queue_size=1000,
                       reader_name=None,
-                      subscription_role_prefix=None
+                      subscription_role_prefix=None,
+                      is_read_compacted=False
                       ):
         """
         Create a reader on a particular topic
@@ -638,6 +721,8 @@ class Client:
           Sets the reader name.
         * `subscription_role_prefix`:
           Sets the subscription role prefix.
+        * `is_read_compacted`:
+          Selects whether to read the compacted version of the topic
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
@@ -645,6 +730,7 @@ class Client:
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
         _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
+        _check_type(bool, is_read_compacted, 'is_read_compacted')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -655,6 +741,7 @@ class Client:
         if subscription_role_prefix:
             conf.subscription_role_prefix(subscription_role_prefix)
         conf.schema(schema.schema_info())
+        conf.read_compacted(is_read_compacted)
 
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
@@ -723,6 +810,8 @@ class Producer:
              replication_clusters=None,
              disable_replication=False,
              event_timestamp=None,
+             deliver_at=None,
+             deliver_after=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -750,9 +839,17 @@ class Producer:
           Do not replicate this message.
         * `event_timestamp`:
           Timestamp in millis of the timestamp of event creation
+        * `deliver_at`:
+          Specify the this message should not be delivered earlier than the
+          specified timestamp.
+          The timestamp is milliseconds and based on UTC
+        * `deliver_after`:
+          Specify a delay in timedelta for the delivery of the messages.
+
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication, event_timestamp)
+                              replication_clusters, disable_replication, event_timestamp,
+                              deliver_at, deliver_after)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -761,7 +858,9 @@ class Producer:
                    sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False,
-                   event_timestamp=None
+                   event_timestamp=None,
+                   deliver_at=None,
+                   deliver_after=None,
                    ):
         """
         Send a message asynchronously.
@@ -772,7 +871,7 @@ class Producer:
         Example:
 
             #!python
-            def callback(res, msg):
+            def callback(res, msg_id):
                 print('Message published: %s' % res)
 
             producer.send_async(msg, callback)
@@ -803,9 +902,16 @@ class Producer:
           Do not replicate this message.
         * `event_timestamp`:
           Timestamp in millis of the timestamp of event creation
+        * `deliver_at`:
+          Specify the this message should not be delivered earlier than the
+          specified timestamp.
+          The timestamp is milliseconds and based on UTC
+        * `deliver_after`:
+          Specify a delay in timedelta for the delivery of the messages.
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication, event_timestamp)
+                              replication_clusters, disable_replication, event_timestamp,
+                              deliver_at, deliver_after)
         self._producer.send_async(msg, callback)
 
 
@@ -815,7 +921,7 @@ class Producer:
         successfully persisted
         """
         self._producer.flush()
-        
+
 
     def close(self):
         """
@@ -824,7 +930,8 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication, event_timestamp):
+                   replication_clusters, disable_replication, event_timestamp,
+                   deliver_at, deliver_after):
         data = self._schema.encode(content)
 
         _check_type(bytes, data, 'data')
@@ -834,6 +941,8 @@ class Producer:
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
         _check_type_or_none(int, event_timestamp, 'event_timestamp')
+        _check_type_or_none(int, deliver_at, 'deliver_at')
+        _check_type_or_none(timedelta, deliver_after, 'deliver_after')
 
         mb = _pulsar.MessageBuilder()
         mb.content(data)
@@ -850,6 +959,11 @@ class Producer:
             mb.disable_replication(disable_replication)
         if event_timestamp:
             mb.event_timestamp(event_timestamp)
+        if deliver_at:
+            mb.deliver_at(deliver_at)
+        if deliver_after:
+            mb.deliver_after(deliver_after)
+        
         return mb.build()
 
 
@@ -941,6 +1055,26 @@ class Consumer:
         else:
             self._consumer.acknowledge_cumulative(message)
 
+    def negative_acknowledge(self, message):
+        """
+        Acknowledge the failure to process a single message.
+
+        When a message is "negatively acked" it will be marked for redelivery after
+        some fixed delay. The delay is configurable when constructing the consumer
+        with {@link ConsumerConfiguration#setNegativeAckRedeliveryDelayMs}.
+
+        This call is not blocking.
+
+        **Args**
+
+        * `message`:
+          The received message or message id.
+        """
+        if isinstance(message, Message):
+            self._consumer.negative_acknowledge(message._message)
+        else:
+            self._consumer.negative_acknowledge(message)
+
     def pause_message_listener(self):
         """
         Pause receiving messages via the `message_listener` until
@@ -969,7 +1103,7 @@ class Consumer:
 
     def seek(self, messageid):
         """
-        Reset the subscription associated with this consumer to a specific message id.
+        Reset the subscription associated with this consumer to a specific message id or publish timestamp.
         The message id can either be a specific message or represent the first or last messages in the topic.
         Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
         seek() on the individual partitions.
@@ -977,7 +1111,7 @@ class Consumer:
         **Args**
 
         * `message`:
-          The message id for seek.
+          The message id for seek, OR an integer event time to seek to
         """
         self._consumer.seek(messageid)
 
@@ -1029,6 +1163,20 @@ class Reader:
         Check if there is any message available to read from the current position.
         """
         return self._reader.has_message_available();
+
+    def seek(self, messageid):
+        """
+        Reset this reader to a specific message id or publish timestamp.
+        The message id can either be a specific message or represent the first or last messages in the topic.
+        Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the
+        seek() on the individual partitions.
+
+        **Args**
+
+        * `message`:
+          The message id for seek, OR an integer event time to seek to
+        """
+        self._reader.seek(messageid)
 
     def close(self):
         """

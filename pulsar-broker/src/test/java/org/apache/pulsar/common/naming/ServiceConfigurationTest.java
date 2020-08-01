@@ -34,6 +34,7 @@ import java.util.Properties;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.testng.annotations.Test;
 
 /**
@@ -59,6 +60,10 @@ public class ServiceConfigurationTest {
         assertTrue(config.getBrokerServicePort().isPresent()
                 && config.getBrokerServicePort().get().equals(brokerServicePort));
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
+        assertEquals(config.getBrokerDeleteInactiveTopicsMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        assertEquals(config.getDefaultNamespaceBundleSplitAlgorithm(), "topic_count_equally_divide");
+        assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
+        assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
     }
 
     @Test

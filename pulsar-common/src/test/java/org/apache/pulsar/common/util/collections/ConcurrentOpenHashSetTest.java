@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -31,7 +32,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
@@ -323,8 +323,8 @@ public class ConcurrentOpenHashSetTest {
         T t2 = new T(2);
 
         assertEquals(t1, t1_b);
-        assertFalse(t1.equals(t2));
-        assertFalse(t1_b.equals(t2));
+        assertNotEquals(t2, t1);
+        assertNotEquals(t2, t1_b);
 
         set.add(t1);
         assertTrue(set.contains(t1));

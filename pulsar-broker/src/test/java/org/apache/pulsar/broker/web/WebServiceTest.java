@@ -20,6 +20,13 @@ package org.apache.pulsar.broker.web;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+
+import com.google.common.collect.Sets;
+import com.google.common.io.CharStreams;
+import com.google.common.io.Closeables;
+
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,9 +35,11 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -39,7 +48,9 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
-import org.apache.bookkeeper.test.PortManager;
+import lombok.Cleanup;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -48,19 +59,21 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.zookeeper.MockedZooKeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.ZooDefs;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.BoundRequestBuilder;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.io.CharStreams;
-import com.google.common.io.Closeables;
-
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 /**
  * Tests for the {@code WebService} class. Note that this test only covers the newly added ApiVersionFilter related
@@ -70,14 +83,8 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 public class WebServiceTest {
 
     private PulsarService pulsar;
-    private final static int BROKER_WEBSERVICE_PORT = PortManager.nextFreePort();
-    private final static int BROKER_WEBSERVICE_PORT_TLS = PortManager.nextFreePort();
-    private static final String BROKER_URL_BASE = "http://localhost:" + BROKER_WEBSERVICE_PORT;
-    private static final String BROKER_URL_BASE_TLS = "https://localhost:" + BROKER_WEBSERVICE_PORT_TLS;
-    private static final String BROKER_LOOKUP_URL = BROKER_URL_BASE
-            + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-    private static final String BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
-            + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+    private String BROKER_LOOKUP_URL;
+    private String BROKER_LOOKUP_URL_TLS;
     private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
@@ -142,7 +149,7 @@ public class WebServiceTest {
             makeHttpRequest(true, false);
             Assert.fail("HTTPS request should fail ");
         } catch (Exception e) {
-            Assert.assertTrue(e.getMessage().contains("Connection refused"));
+            // Expected
         }
     }
 
@@ -199,6 +206,50 @@ public class WebServiceTest {
         Assert.assertEquals(result, "topic1");
     }
 
+    @Test
+    public void testMaxRequestSize() throws Exception {
+        setupEnv(true, "1.0", true, false, false, false);
+
+        String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
+
+        @Cleanup
+        AsyncHttpClient client = new DefaultAsyncHttpClient();
+
+        BoundRequestBuilder builder = client.preparePut(url)
+                .setHeader("Accept", "application/json")
+                .setHeader("Content-Type", "application/json");
+
+        // HTTP server is configured to reject everything > 10K
+        TenantInfo info1 = new TenantInfo();
+        info1.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)));
+        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info1));
+        Response res = builder.execute().get();
+
+        // This should have failed
+        assertEquals(res.getStatusCode(), 400);
+
+        // Create local cluster
+        String localCluster = "test";
+        String clusterPath = PulsarWebResource.path("clusters", localCluster);
+        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(new ClusterData());
+        pulsar.getGlobalZkCache().getZooKeeper().create(clusterPath, content, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        TenantInfo info2 = new TenantInfo();
+        info2.setAdminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)));
+        info2.setAllowedClusters(Sets.newHashSet(localCluster));
+        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2));
+
+        Response res2 = builder.execute().get();
+        assertEquals(res2.getStatusCode(), 204);
+
+        // Simple GET without content size should go through
+        Response res3 = client.prepareGet(url)
+            .setHeader("Accept", "application/json")
+            .setHeader("Content-Type", "application/json")
+            .execute()
+            .get();
+        assertEquals(res3.getStatusCode(), 200);
+    }
+
     private String makeHttpRequest(boolean useTls, boolean useAuth) throws Exception {
         InputStream response = null;
         try {
@@ -232,6 +283,8 @@ public class WebServiceTest {
         }
     }
 
+    MockedZooKeeperClientFactoryImpl zkFactory = new MockedZooKeeperClientFactoryImpl();
+
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
             boolean enableTls, boolean enableAuth, boolean allowInsecure) throws Exception {
         Set<String> providers = new HashSet<>();
@@ -242,9 +295,10 @@ public class WebServiceTest {
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
-        config.setWebServicePort(BROKER_WEBSERVICE_PORT);
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
         if (enableTls) {
-            config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+            config.setWebServicePortTls(Optional.of(0));
         }
         config.setClientLibraryVersionCheckEnabled(enableFilter);
         config.setAuthenticationEnabled(enableAuth);
@@ -258,8 +312,9 @@ public class WebServiceTest {
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setZookeeperServers("localhost:2181");
+        config.setHttpMaxRequestSize(10 * 1024);
         pulsar = spy(new PulsarService(config));
-        doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
+        doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
         pulsar.start();
 
@@ -269,6 +324,8 @@ public class WebServiceTest {
         }
         pulsar.getZkClient().create("/minApiVersion", minApiVersion.getBytes(), null, CreateMode.PERSISTENT);
 
+        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
         String serviceUrl = BROKER_URL_BASE;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
@@ -282,11 +339,16 @@ public class WebServiceTest {
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
 
+        BROKER_LOOKUP_URL = BROKER_URL_BASE
+                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
+                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    new ClusterData(pulsar.getWebServiceAddress()));
+                    new ClusterData(pulsar.getSafeWebServiceAddress()));
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

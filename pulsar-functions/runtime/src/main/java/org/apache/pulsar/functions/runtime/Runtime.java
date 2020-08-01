@@ -31,9 +31,17 @@ public interface Runtime {
 
     void start() throws Exception;
 
+    default void reinitialize() {
+
+    }
+
     void join() throws Exception;
 
     void stop() throws Exception;
+
+    default void terminate() throws Exception {
+        stop();
+    }
 
     boolean isAlive();
 

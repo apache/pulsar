@@ -20,18 +20,17 @@
 #define _PULSAR_BINARY_LOOKUP_SERVICE_HEADER_
 
 #include <iostream>
+#include <pulsar/defines.h>
 #include <pulsar/Authentication.h>
 #include "ConnectionPool.h"
 #include "Backoff.h"
 #include <lib/LookupService.h>
 #include <mutex>
 
-#pragma GCC visibility push(default)
-
 namespace pulsar {
 class LookupDataResult;
 
-class BinaryProtoLookupService : public LookupService {
+class PULSAR_PUBLIC BinaryProtoLookupService : public LookupService {
    public:
     /*
      * constructor
@@ -76,7 +75,5 @@ class BinaryProtoLookupService : public LookupService {
 };
 typedef std::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif  //_PULSAR_BINARY_LOOKUP_SERVICE_HEADER_

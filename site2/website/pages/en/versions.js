@@ -119,13 +119,6 @@ function Versions(props) {
               )}
             </tbody>
           </table>
-          <p>
-          <translate>
-            You can find past versions of this project on{' '}
-            <a href={`${repoUrl}/releases`}>GitHub</a> or download from{' '}
-            <a href={`${siteConfig.baseUrl}download`}>Apache</a>.
-          </translate>
-          </p>
         </div>
       </Container>
     </div>

@@ -19,14 +19,14 @@
 #ifndef PULSAR_CLIENTCONFIGURATION_H_
 #define PULSAR_CLIENTCONFIGURATION_H_
 
+#include <pulsar/defines.h>
 #include <pulsar/Authentication.h>
 #include <pulsar/Logger.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
 class PulsarWrapper;
-class ClientConfigurationImpl;
-class ClientConfiguration {
+struct ClientConfigurationImpl;
+class PULSAR_PUBLIC ClientConfiguration {
    public:
     ClientConfiguration();
     ~ClientConfiguration();
@@ -43,7 +43,7 @@ class ClientConfiguration {
     /**
      * @return the authentication data
      */
-    const Authentication& getAuth() const;
+    Authentication& getAuth() const;
 
     /**
      * Set timeout on client operations (subscribe, create producer, close, unsubscribe)
@@ -121,10 +121,13 @@ class ClientConfiguration {
      * to a different logger implementation.
      *
      * By default, log messages are printed on standard output.
+     *
+     * When passed in, the configuration takes ownership of the loggerFactory object.
+     * The logger factory can only be set once per process. Any subsequent calls to
+     * set the logger factory will have no effect, though the logger factory object
+     * will be cleaned up.
      */
-    ClientConfiguration& setLogger(LoggerFactoryPtr loggerFactory);
-
-    LoggerFactoryPtr getLogger() const;
+    ClientConfiguration& setLogger(LoggerFactory* loggerFactory);
 
     ClientConfiguration& setUseTls(bool useTls);
     bool isUseTls() const;
@@ -149,6 +152,22 @@ class ClientConfiguration {
      */
     const unsigned int& getStatsIntervalInSeconds() const;
 
+    /**
+     * Set partitions update interval in seconds.
+     * If a partitioned topic is produced or subscribed and `intervalInSeconds` is not 0, every
+     * `intervalInSeconds` seconds the partition number will be retrieved by sending lookup requests. If
+     * partition number has been increased, more producer/consumer of increased partitions will be created.
+     * Default is 60 seconds.
+     *
+     * @param intervalInSeconds the seconds between two lookup request for partitioned topic's metadata
+     */
+    ClientConfiguration& setPartititionsUpdateInterval(unsigned int intervalInSeconds);
+
+    /**
+     * Get partitions update interval in seconds.
+     */
+    unsigned int getPartitionsUpdateInterval() const;
+
     friend class ClientImpl;
     friend class PulsarWrapper;
 
@@ -158,5 +177,4 @@ class ClientConfiguration {
 };
 }  // namespace pulsar
 
-#pragma GCC visibility pop
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */

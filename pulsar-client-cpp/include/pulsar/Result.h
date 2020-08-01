@@ -20,8 +20,7 @@
 #define ERROR_HPP_
 
 #include <iosfwd>
-
-#pragma GCC visibility push(default)
+#include <pulsar/defines.h>
 
 namespace pulsar {
 
@@ -76,15 +75,20 @@ enum Result
     ResultTopicTerminated,          /// Topic was already terminated
     ResultCryptoError,              /// Error when crypto operation fails
 
-    ResultIncompatibleSchema,  /// Specified schema is incompatible with the topic's schema
+    ResultIncompatibleSchema,   /// Specified schema is incompatible with the topic's schema
+    ResultConsumerAssignError,  /// Error when a new consumer connected but can't assign messages to this
+                                /// consumer
+    ResultCumulativeAcknowledgementNotAllowedError,  /// Not allowed to call cumulativeAcknowledgement in
+                                                     /// Shared and Key_Shared subscription mode
+    ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
+    ResultInvalidTxnStatusError,                     /// Invalid txn status error
+    ResultNotAllowedError,                           /// Not allowed
 };
 
 // Return string representation of result code
-const char* strResult(Result result);
+PULSAR_PUBLIC const char* strResult(Result result);
+
+PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, pulsar::Result result);
 }  // namespace pulsar
-
-std::ostream& operator<<(std::ostream& s, pulsar::Result result);
-
-#pragma GCC visibility pop
 
 #endif /* ERROR_HPP_ */

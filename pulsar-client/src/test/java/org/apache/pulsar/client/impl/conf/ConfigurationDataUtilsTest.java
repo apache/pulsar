@@ -19,12 +19,18 @@
 package org.apache.pulsar.client.impl.conf;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.annotations.Test;
 
 /**
@@ -37,13 +43,16 @@ public class ConfigurationDataUtilsTest {
         ClientConfigurationData confData = new ClientConfigurationData();
         confData.setServiceUrl("pulsar://unknown:6650");
         confData.setMaxLookupRequest(600);
+        confData.setMaxLookupRedirects(10);
         confData.setNumIoThreads(33);
         Map<String, Object> config = new HashMap<>();
         config.put("serviceUrl", "pulsar://localhost:6650");
         config.put("maxLookupRequest", 70000);
+        config.put("maxLookupRedirects", 50);
         confData = ConfigurationDataUtils.loadData(config, confData, ClientConfigurationData.class);
         assertEquals("pulsar://localhost:6650", confData.getServiceUrl());
         assertEquals(70000, confData.getMaxLookupRequest());
+        assertEquals(50, confData.getMaxLookupRedirects());
         assertEquals(33, confData.getNumIoThreads());
     }
 
@@ -56,9 +65,10 @@ public class ConfigurationDataUtilsTest {
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
+        confData.setBatcherBuilder(BatcherBuilder.DEFAULT);
         confData = ConfigurationDataUtils.loadData(config, confData, ProducerConfigurationData.class);
         assertEquals("test-producer", confData.getProducerName());
-        assertEquals(false, confData.isBatchingEnabled());
+        assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
     }
 
@@ -107,5 +117,20 @@ public class ConfigurationDataUtilsTest {
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof IOException);
         }
+    }
+
+    @Test
+    public void testConfigBuilder() throws PulsarClientException {
+        ClientConfigurationData clientConfig = new ClientConfigurationData();
+        clientConfig.setServiceUrl("pulsar://unknown:6650");
+        clientConfig.setStatsIntervalSeconds(80);
+
+        PulsarClientImpl pulsarClient = new PulsarClientImpl(clientConfig);
+        assertNotNull(pulsarClient, "Pulsar client built using config should not be null");
+
+        assertEquals(pulsarClient.getConfiguration().getServiceUrl(), "pulsar://unknown:6650");
+        assertEquals(pulsarClient.getConfiguration().getNumListenerThreads(), 1, "builder default not set properly");
+        assertEquals(pulsarClient.getConfiguration().getStatsIntervalSeconds(), 80,
+                "builder default should overrite if set explicitly");
     }
 }

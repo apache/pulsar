@@ -23,6 +23,12 @@ const createVariableInjectionPlugin = variables => {
       // rest api: rest:<name>:<path>
       } else if (keyparts[0] == 'rest') {
           return renderUrl(initializedPlugin, restApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'functions') {
+          return renderUrl(initializedPlugin, functionsApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'source') {
+          return renderUrl(initializedPlugin, sourceApiUrl + "#", keyparts);
+      } else if (keyparts[0] == 'sink') {
+        return renderUrl(initializedPlugin, sinkApiUrl + "#", keyparts);
       } else {
         keyparts = key.split("|");
         // endpoint api: endpoint|<op>
@@ -65,6 +71,9 @@ const renderEndpoint = (initializedPlugin, baseUrl, keyparts) => {
 const url = 'https://pulsar.incubator.apache.org';
 const javadocUrl = url + '/api';
 const restApiUrl = url + '/en' + "/admin-rest-api";
+const functionsApiUrl = url + '/en' + "/functions-rest-api";
+const sourceApiUrl = url + '/en' + "/source-rest-api";
+const sinkApiUrl = url + '/en' + "/sink-rest-api";
 const githubUrl = 'https://github.com/apache/incubator-pulsar';
 const baseUrl = '/';
 
@@ -73,6 +82,7 @@ const siteVariables = {
 
 const siteConfig = {
   title: 'Apache Pulsar' /* title for your website */,
+  disableTitleTagline: true,
   tagline: '',
   url: url /* your website url */,
   baseUrl: baseUrl /* base url for your project */,
@@ -94,7 +104,8 @@ const siteConfig = {
     {doc: 'standalone', label: 'Docs'},
     {page: 'download', label: 'Download'},
     {doc: 'client-libraries', label: 'Clients'},
-    {page: 'admin-rest-api', label: 'REST API'},
+    {href: '#restapis', label: 'REST APIs'},
+    {href: '#cli', label: 'Cli'},
     {blog: true, label: 'Blog'},
     {href: '#community', label: 'Community'},
     {href: '#apache', label: 'Apache'},

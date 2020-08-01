@@ -30,6 +30,7 @@
 #include "MessageCrypto.h"
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
+#include "PulsarApi.pb.h"
 
 using namespace pulsar;
 
@@ -42,6 +43,8 @@ typedef std::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
+
+class Producer;
 
 struct OpSendMsg {
     Message msg_;
@@ -60,8 +63,10 @@ class ProducerImpl : public HandlerBase,
                      public ProducerImplBase {
    public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,
-                 const ProducerConfiguration& producerConfiguration);
+                 const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
+
+    int keepMaxMessageSize_;
 
     virtual const std::string& getTopic() const;
 
@@ -73,7 +78,7 @@ class ProducerImpl : public HandlerBase,
 
     bool removeCorruptMessage(uint64_t sequenceId);
 
-    bool ackReceived(uint64_t sequenceId);
+    bool ackReceived(uint64_t sequenceId, MessageId& messageId);
 
     virtual void disconnectProducer();
 
@@ -84,6 +89,8 @@ class ProducerImpl : public HandlerBase,
     const std::string& getSchemaVersion() const;
 
     uint64_t getProducerId() const;
+
+    int32_t partition() const noexcept { return partition_; }
 
     virtual void start();
 
@@ -108,6 +115,8 @@ class ProducerImpl : public HandlerBase,
 
     friend class PulsarFriend;
 
+    friend class Producer;
+
     friend class BatchMessageContainer;
 
     virtual void connectionOpened(const ClientConnectionPtr& connection);
@@ -123,15 +132,17 @@ class ProducerImpl : public HandlerBase,
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
+    void statsCallBackHandler(Result, const MessageId&, SendCallback, boost::posix_time::ptime);
 
-    void handleClose(Result result, ResultCallback callback);
+    void handleClose(Result result, ResultCallback callback, ProducerImplPtr producer);
 
     void resendMessages(ClientConnectionPtr cnx);
 
     void refreshEncryptionKey(const boost::system::error_code& ec);
     bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
                         SharedBuffer& encryptedPayload);
+
+    void cancelTimers();
 
     typedef std::unique_lock<std::mutex> Lock;
 
@@ -141,6 +152,7 @@ class ProducerImpl : public HandlerBase,
 
     MessageQueue pendingMessagesQueue_;
 
+    int32_t partition_;  // -1 if topic is non-partitioned
     std::string producerName_;
     std::string producerStr_;
     uint64_t producerId_;
@@ -156,6 +168,10 @@ class ProducerImpl : public HandlerBase,
     void handleSendTimeout(const boost::system::error_code& err);
 
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
+
+    struct PendingCallbacks;
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailed();
+    std::shared_ptr<PendingCallbacks> getPendingCallbacksWhenFailedWithLock();
 
     void failPendingMessages(Result result);
 

@@ -18,6 +18,7 @@
  */
 #ifndef PULSAR_PRODUCERCONFIGURATION_H_
 #define PULSAR_PRODUCERCONFIGURATION_H_
+#include <pulsar/defines.h>
 #include <pulsar/CompressionType.h>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/Result.h>
@@ -29,20 +30,18 @@
 
 #include <set>
 
-#pragma GCC visibility push(default)
-
 namespace pulsar {
 
-typedef std::function<void(Result, const Message& msg)> SendCallback;
+typedef std::function<void(Result, const MessageId& messageId)> SendCallback;
 typedef std::function<void(Result)> CloseCallback;
 
-class ProducerConfigurationImpl;
+struct ProducerConfigurationImpl;
 class PulsarWrapper;
 
 /**
  * Class that holds the configuration for a producer
  */
-class ProducerConfiguration {
+class PULSAR_PUBLIC ProducerConfiguration {
    public:
     enum PartitionsRoutingMode
     {
@@ -101,6 +100,8 @@ class ProducerConfiguration {
      * <li>{@link CompressionZLib}: ZLib Compression http://zlib.net/</li>
      * <li>{@link CompressionZSTD}: Zstandard Compression  https://facebook.github.io/zstd/ (Since Pulsar 2.3.
      * Zstd cannot be used if consumer applications are not in version >= 2.3 as well)</li>
+     * <li>{@link CompressionSNAPPY}: Snappy Compression  https://google.github.io/snappy/ (Since Pulsar 2.4.
+     * Snappy cannot be used if consumer applications are not in version >= 2.4 as well)</li>
      * </ul>
      */
     ProducerConfiguration& setCompressionType(CompressionType compressionType);
@@ -203,5 +204,4 @@ class ProducerConfiguration {
     std::shared_ptr<ProducerConfigurationImpl> impl_;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */

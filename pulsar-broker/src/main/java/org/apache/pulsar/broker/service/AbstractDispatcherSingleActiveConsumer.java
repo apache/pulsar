@@ -20,27 +20,29 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public abstract class AbstractDispatcherSingleActiveConsumer {
+public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBaseDispatcher {
 
     protected final String topicName;
     protected static final AtomicReferenceFieldUpdater<AbstractDispatcherSingleActiveConsumer, Consumer> ACTIVE_CONSUMER_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractDispatcherSingleActiveConsumer.class, Consumer.class, "activeConsumer");
     private volatile Consumer activeConsumer = null;
     protected final CopyOnWriteArrayList<Consumer> consumers;
+    protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
+    protected boolean isKeyHashRangeFiltered = false;
     protected CompletableFuture<Void> closeFuture = null;
     protected final int partitionIndex;
 
@@ -54,7 +56,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     private volatile int isClosed = FALSE;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            String topicName) {
+            String topicName, Subscription subscription) {
+        super(subscription);
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
@@ -80,14 +83,45 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     }
 
     /**
-     * @return the previous active consumer if the consumer is changed, otherwise null.
+     * Pick active consumer for a topic for {@link SubType#Failover} subscription.
+     * If it's a non-partitioned topic then it'll pick consumer based on order they subscribe to the topic.
+     * If is's a partitioned topic, first sort consumers based on their priority level and consumer name then
+     * distributed partitions evenly across consumers with highest priority level.
+     *
+     * @return the true consumer if the consumer is changed, otherwise false.
      */
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
+        // By default always pick the first connected consumer for non partitioned topic.
+        int index = 0;
 
-        consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
+        // If it's a partitioned topic, sort consumers based on priority level then consumer name.
+        if (partitionIndex >= 0) {
+            AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
+            consumers.sort((c1, c2) -> {
+                int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
+                if (priority != 0) {
+                    hasPriorityConsumer.set(true);
+                    return priority;
+                }
+                return c1.consumerName().compareTo(c2.consumerName());
+            });
 
-        int index = partitionIndex % consumers.size();
+            int consumersSize = consumers.size();
+            // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
+            // evenly across highest priority consumers
+            if (hasPriorityConsumer.get()) {
+                int highestPriorityLevel = consumers.get(0).getPriorityLevel();
+                for (int i = 0; i < consumers.size(); i++) {
+                    if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
+                        consumersSize = i;
+                        break;
+                    }
+                }
+            }
+            index = partitionIndex % consumersSize;
+        }
+
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
         Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
@@ -103,9 +137,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer ", this.topicName, consumer);
+            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
         }
+
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             throw new ConsumerBusyException("Exclusive consumer is already connected");
         }
@@ -118,6 +153,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", this.topicName);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
+        }
+
+        if (subscriptionType == SubType.Exclusive
+                && consumer.getKeySharedMeta() != null
+                && consumer.getKeySharedMeta().getHashRangesList() != null
+                && consumer.getKeySharedMeta().getHashRangesList().size() > 0) {
+            stickyKeyConsumerSelector = new HashRangeExclusiveStickyKeyConsumerSelector();
+            stickyKeyConsumerSelector.addConsumer(consumer);
+            isKeyHashRangeFiltered = true;
+        } else {
+            isKeyHashRangeFiltered = false;
         }
 
         consumers.add(consumer);
@@ -176,17 +222,21 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         return disconnectAllConsumers();
     }
 
+    public boolean isClosed() {
+        return isClosed == TRUE;
+    }
+
     /**
      * Disconnect all consumers on this dispatcher (server side close). This triggers channelInactive on the inbound
      * handler which calls dispatcher.removeConsumer(), where the closeFuture is completed
      *
      * @return
      */
-    public synchronized CompletableFuture<Void> disconnectAllConsumers() {
+    public synchronized CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
         closeFuture = new CompletableFuture<>();
 
         if (!consumers.isEmpty()) {
-            consumers.forEach(Consumer::disconnect);
+            consumers.forEach(consumer -> consumer.disconnect(isResetCursor));
             cancelPendingRead();
         } else {
             // no consumer connected, complete disconnect immediately
@@ -195,7 +245,22 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         return closeFuture;
     }
 
+    public synchronized CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor) {
+        closeFuture = new CompletableFuture<>();
+        if (activeConsumer != null) {
+            activeConsumer.disconnect(isResetCursor);
+        }
+        closeFuture.complete(null);
+        return closeFuture;
+    }
+
+    @Override
+    public synchronized void resetCloseFuture() {
+        closeFuture = null;
+    }
+
     public void reset() {
+        resetCloseFuture();
         IS_CLOSED_UPDATER.set(this, FALSE);
     }
 
@@ -207,7 +272,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         return ACTIVE_CONSUMER_UPDATER.get(this);
     }
 
-    public CopyOnWriteArrayList<Consumer> getConsumers() {
+    @Override
+    public List<Consumer> getConsumers() {
         return consumers;
     }
 

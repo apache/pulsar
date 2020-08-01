@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.testng.Assert;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+
 import org.testng.annotations.Test;
 
 public class RetentionPolicesTest {
@@ -28,9 +29,9 @@ public class RetentionPolicesTest {
     public void testRetentionPolices() {
         RetentionPolicies retentionPolicy0 = new RetentionPolicies();
         RetentionPolicies retentionPolicy1 = new RetentionPolicies(1, 100);
-        Assert.assertFalse(retentionPolicy0.equals(null));
-        Assert.assertTrue(retentionPolicy0.equals(retentionPolicy0));
-        Assert.assertFalse(retentionPolicy0.hashCode() == retentionPolicy1.hashCode());
-        Assert.assertFalse(retentionPolicy0.toString().equals(retentionPolicy1.toString()));
+        assertNotEquals(retentionPolicy0, null);
+        assertEquals(retentionPolicy0, retentionPolicy0);
+        assertNotEquals(retentionPolicy1.hashCode(), retentionPolicy0.hashCode());
+        assertNotEquals(retentionPolicy1.toString(), retentionPolicy0.toString());
     }
 }

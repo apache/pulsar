@@ -19,22 +19,19 @@
 
 #pragma once
 
+#include <pulsar/defines.h>
 #include <pulsar/c/message.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#pragma GCC visibility push(default)
-
 typedef struct _pulsar_topic_metadata pulsar_topic_metadata_t;
 
 typedef int (*pulsar_message_router)(pulsar_message_t *msg, pulsar_topic_metadata_t *topicMetadata,
                                      void *ctx);
 
-int pulsar_topic_metadata_get_num_partitions(pulsar_topic_metadata_t *topicMetadata);
-
-#pragma GCC visibility pop
+PULSAR_PUBLIC int pulsar_topic_metadata_get_num_partitions(pulsar_topic_metadata_t *topicMetadata);
 
 #ifdef __cplusplus
 }

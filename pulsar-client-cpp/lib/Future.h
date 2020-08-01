@@ -26,8 +26,6 @@
 
 #include <list>
 
-#pragma GCC visibility push(default)
-
 typedef std::unique_lock<std::mutex> Lock;
 
 namespace pulsar {
@@ -153,7 +151,5 @@ class Promise {
 class Void {};
 
 } /* namespace pulsar */
-
-#pragma GCC visibility pop
 
 #endif /* LIB_FUTURE_H_ */

@@ -18,20 +18,17 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import io.netty.buffer.ByteBuf;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Summary;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.bookkeeper.api.kv.Table;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -41,32 +38,27 @@ import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 /**
  * This class implements the Context interface exposed to the user.
  */
-
 class ContextImpl implements Context, SinkContext, SourceContext {
     private InstanceConfig config;
     private Logger logger;
@@ -74,41 +66,45 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     // Per Message related
     private Record<?> record;
 
+    private PulsarClient client;
     private Map<String, Producer<?>> publishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
-
-    private final List<String> inputTopics;
 
     private final TopicSchema topicSchema;
 
     private final SecretsProvider secretsProvider;
     private final Map<String, Object> secretsMap;
 
-    @Getter
-    @Setter
-    private StateContextImpl stateContext;
+    @VisibleForTesting
+    StateContextImpl stateContext;
     private Map<String, Object> userConfigs;
+
+    private ComponentStatsManager statsManager;
 
     Map<String, String[]> userMetricsLabels = new HashMap<>();
     private final String[] metricsLabels;
     private final Summary userMetricsSummary;
 
     private final static String[] userMetricsLabelNames;
+
     static {
         // add label to indicate user metric
         userMetricsLabelNames = Arrays.copyOf(ComponentStatsManager.metricsLabelNames, ComponentStatsManager.metricsLabelNames.length + 1);
         userMetricsLabelNames[ComponentStatsManager.metricsLabelNames.length] = "metric";
     }
-    private final Utils.ComponentType componentType;
 
-    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client, List<String> inputTopics,
+    private final Function.FunctionDetails.ComponentType componentType;
+
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, CollectorRegistry collectorRegistry, String[] metricsLabels,
-                       Utils.ComponentType componentType) {
+                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       Table<ByteBuf, ByteBuf> stateTable) {
         this.config = config;
         this.logger = logger;
+        this.client = client;
         this.publishProducers = new HashMap<>();
-        this.inputTopics = inputTopics;
         this.topicSchema = new TopicSchema(client);
+        this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
@@ -154,6 +150,10 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                 .quantile(0.999, 0.01)
                 .register(collectorRegistry);
         this.componentType = componentType;
+
+        if (null != stateTable) {
+            this.stateContext = new StateContextImpl(stateTable);
+        }
     }
 
     public void setCurrentMessageContext(Record<?> record) {
@@ -167,7 +167,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Collection<String> getInputTopics() {
-        return inputTopics;
+        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
     }
 
     @Override
@@ -212,7 +212,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public String getFunctionId() {
-        return config.getFunctionId().toString();
+        return config.getFunctionId();
     }
 
     @Override
@@ -237,8 +237,20 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     @Override
     public Optional<Object> getUserConfigValue(String key) {
+        Object value = userConfigs.getOrDefault(key, null);
 
-        return Optional.ofNullable(userConfigs.getOrDefault(key, null));
+        if (value instanceof String && ((String) value).startsWith("$")) {
+            // any string starts with '$' is considered as system env symbol and will be
+            // replaced with the actual env value
+            try {
+                String actualValue = System.getenv(((String) value).substring(1));
+                return Optional.ofNullable(actualValue);
+            } catch (SecurityException ex) {
+                throw new RuntimeException("Access to environment variable " + value + " is not allowed.", ex);
+            }
+        }  else {
+            return Optional.ofNullable(value);
+        }
     }
 
     @Override
@@ -265,46 +277,85 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     @Override
+    public CompletableFuture<Void> incrCounterAsync(String key, long amount) {
+        ensureStateEnabled();
+        return stateContext.incrCounter(key, amount);
+    }
+
+    @Override
     public void incrCounter(String key, long amount) {
         ensureStateEnabled();
         try {
-            stateContext.incr(key, amount);
+            result(stateContext.incrCounter(key, amount));
         } catch (Exception e) {
             throw new RuntimeException("Failed to increment key '" + key + "' by amount '" + amount + "'", e);
         }
     }
 
     @Override
+    public CompletableFuture<Long> getCounterAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.getCounter(key);
+    }
+
+    @Override
     public long getCounter(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getAmount(key);
+            return result(stateContext.getCounter(key));
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve counter from key '" + key + "'");
         }
     }
 
     @Override
+    public CompletableFuture<Void> putStateAsync(String key, ByteBuffer value) {
+        ensureStateEnabled();
+        return stateContext.put(key, value);
+    }
+
+    @Override
     public void putState(String key, ByteBuffer value) {
         ensureStateEnabled();
         try {
-            stateContext.put(key, value);
+            result(stateContext.put(key, value));
         } catch (Exception e) {
             throw new RuntimeException("Failed to update the state value for key '" + key + "'");
         }
     }
 
     @Override
-    public ByteBuffer getState(String key) {
+    public CompletableFuture<Void> deleteStateAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.delete(key);
+    }
+
+    @Override
+    public void deleteState(String key) {
         ensureStateEnabled();
         try {
-            return stateContext.getValue(key);
+            result(stateContext.delete(key));
         } catch (Exception e) {
-            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'");
+            throw new RuntimeException("Failed to delete the state value for key '" + key + "'");
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
+    public CompletableFuture<ByteBuffer> getStateAsync(String key) {
+        ensureStateEnabled();
+        return stateContext.get(key);
+    }
+
+    @Override
+    public ByteBuffer getState(String key) {
+        ensureStateEnabled();
+        try {
+            return result(stateContext.get(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
+        }
+    }
+
     @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object) {
         return publish(topicName, object, "");
@@ -316,50 +367,26 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         return publish(topicName, object, (Schema<O>) topicSchema.getSchema(topicName, object, schemaOrSerdeClassName, false));
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
+    public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
+        MessageBuilderImpl<O> messageBuilder = new MessageBuilderImpl<>();
+        TypedMessageBuilder<O> typedMessageBuilder = getProducer(topicName, schema).newMessage();
+        messageBuilder.setUnderlyingBuilder(typedMessageBuilder);
+        return messageBuilder;
+    }
+
+    @Override
+    public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+        return this.client.newConsumer(schema);
+    }
+
     public <O> CompletableFuture<Void> publish(String topicName, O object, Schema<O> schema) {
-        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
-
-        if (producer == null) {
-            try {
-                Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
-                        .schema(schema)
-                        .blockIfQueueFull(true)
-                        .enableBatching(true)
-                        .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
-                        .compressionType(CompressionType.LZ4)
-                        .hashingScheme(HashingScheme.Murmur3_32Hash) //
-                        .messageRoutingMode(MessageRoutingMode.CustomPartition)
-                        .messageRouter(FunctionResultRouter.of())
-                        // set send timeout to be infinity to prevent potential deadlock with consumer
-                        // that might happen when consumer is blocked due to unacked messages
-                        .sendTimeout(0, TimeUnit.SECONDS)
-                        .topic(topicName)
-                        .properties(InstanceUtils.getProperties(componentType,
-                                FunctionDetailsUtils.getFullyQualifiedName(
-                                        this.config.getFunctionDetails().getTenant(),
-                                        this.config.getFunctionDetails().getNamespace(),
-                                        this.config.getFunctionDetails().getName()),
-                                this.config.getInstanceId()))
-                        .create();
-
-                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
-
-                if (existingProducer != null) {
-                    // The value in the map was not updated after the concurrent put
-                    newProducer.close();
-                    producer = existingProducer;
-                } else {
-                    producer = newProducer;
-                }
-
-            } catch (PulsarClientException e) {
-                logger.error("Failed to create Producer while doing user publish", e);
-                return FutureUtil.failedFuture(e);
-            }
+        try {
+            return newOutputMessage(topicName, schema).value(object).sendAsync().thenApply(msgId -> null);
+        } catch (PulsarClientException e) {
+            logger.error("Failed to create Producer while doing user publish", e);
+            return FutureUtil.failedFuture(e);
         }
-
-        return producer.sendAsync(object).thenApply(msgId -> null);
     }
 
     @Override
@@ -375,6 +402,46 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         } else {
             userMetricsSummary.labels(userMetricLabels).observe(value);
         }
+    }
+
+    private <O> Producer<O> getProducer(String topicName, Schema<O> schema) throws PulsarClientException {
+        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
+
+        if (producer == null) {
+
+            Producer<O> newProducer = ((ProducerBuilderImpl<O>) producerBuilder.clone())
+                    .schema(schema)
+                    .blockIfQueueFull(true)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+                    .compressionType(CompressionType.LZ4)
+                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(FunctionResultRouter.of())
+                    // set send timeout to be infinity to prevent potential deadlock with consumer
+                    // that might happen when consumer is blocked due to unacked messages
+                    .sendTimeout(0, TimeUnit.SECONDS)
+                    .topic(topicName)
+                    .properties(InstanceUtils.getProperties(componentType,
+                            FunctionCommon.getFullyQualifiedName(
+                                    this.config.getFunctionDetails().getTenant(),
+                                    this.config.getFunctionDetails().getNamespace(),
+                                    this.config.getFunctionDetails().getName()),
+                            this.config.getInstanceId()))
+                    .create();
+
+            Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
+
+            if (existingProducer != null) {
+                // The value in the map was not updated after the concurrent put
+                newProducer.close();
+                producer = existingProducer;
+            } else {
+                producer = newProducer;
+            }
+
+        }
+        return producer;
     }
 
     public Map<String, Double> getAndResetMetrics() {
@@ -402,5 +469,110 @@ class ContextImpl implements Context, SinkContext, SourceContext {
             }
         }
         return metricsMap;
+    }
+
+    class MessageBuilderImpl<O> implements TypedMessageBuilder<O> {
+        private TypedMessageBuilder<O> underlyingBuilder;
+        @Override
+        public MessageId send() throws PulsarClientException {
+            try {
+                return sendAsync().get();
+            } catch (Exception e) {
+                throw PulsarClientException.unwrap(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<MessageId> sendAsync() {
+            return underlyingBuilder.sendAsync()
+                    .whenComplete((result, cause) -> {
+                        if (null != cause) {
+                            statsManager.incrSysExceptions(cause);
+                            logger.error("Failed to publish to topic with error", cause);
+                        }
+                    });
+        }
+
+        @Override
+        public TypedMessageBuilder<O> key(String key) {
+            underlyingBuilder.key(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> keyBytes(byte[] key) {
+            underlyingBuilder.keyBytes(key);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> orderingKey(byte[] orderingKey) {
+            underlyingBuilder.orderingKey(orderingKey);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> value(O value) {
+            underlyingBuilder.value(value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> property(String name, String value) {
+            underlyingBuilder.property(name, value);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> properties(Map<String, String> properties) {
+            underlyingBuilder.properties(properties);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> eventTime(long timestamp) {
+            underlyingBuilder.eventTime(timestamp);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> sequenceId(long sequenceId) {
+            underlyingBuilder.sequenceId(sequenceId);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> replicationClusters(List<String> clusters) {
+            underlyingBuilder.replicationClusters(clusters);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> disableReplication() {
+            underlyingBuilder.disableReplication();
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> loadConf(Map<String, Object> config) {
+            underlyingBuilder.loadConf(config);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> deliverAfter(long delay, TimeUnit unit) {
+            underlyingBuilder.deliverAfter(delay, unit);
+            return this;
+        }
+
+        @Override
+        public TypedMessageBuilder<O> deliverAt(long timestamp) {
+            underlyingBuilder.deliverAt(timestamp);
+            return this;
+        }
+
+        public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
+            this.underlyingBuilder = underlyingBuilder;
+        }
     }
 }

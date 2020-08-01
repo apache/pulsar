@@ -20,11 +20,9 @@ package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.exporter.common.TextFormat;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.functions.proto.Function;
 
 import java.io.IOException;
 import java.io.StringWriter;
@@ -51,15 +49,14 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     protected static final String[] exceptionMetricsLabelNames;
 
     static {
-        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 2);
+        exceptionMetricsLabelNames = Arrays.copyOf(metricsLabelNames, metricsLabelNames.length + 1);
         exceptionMetricsLabelNames[metricsLabelNames.length] = "error";
-        exceptionMetricsLabelNames[metricsLabelNames.length + 1] = "ts";
     }
 
     public static ComponentStatsManager getStatsManager(CollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
-                                  Utils.ComponentType componentType) {
+                                  Function.FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
@@ -79,14 +76,11 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         this.collectorRegistry = collectorRegistry;
         this.metricsLabels = metricsLabels;
 
-        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    reset();
-                } catch (Exception e) {
-                    log.error("Failed to reset metrics for 1min window", e);
-                }
+        scheduledFuture = scheduledExecutorService.scheduleAtFixedRate(() -> {
+            try {
+                reset();
+            } catch (Exception e) {
+                log.error("Failed to reset metrics for 1min window", e);
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
@@ -144,7 +138,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public String getStatsAsString() throws IOException {
         StringWriter outputWriter = new StringWriter();
 
-        TextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
+        PrometheusTextFormat.write004(outputWriter, collectorRegistry.metricFamilySamples());
 
         return outputWriter.toString();
     }

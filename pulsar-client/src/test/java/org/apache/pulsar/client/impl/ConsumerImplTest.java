@@ -18,24 +18,34 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import io.netty.util.Timer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import static org.mockito.Mockito.*;
-
 public class ConsumerImplTest {
+
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private ConsumerImpl<ConsumerImpl> consumer;
@@ -55,15 +65,25 @@ public class ConsumerImplTest {
         clientConf.setOperationTimeoutMs(100);
         clientConf.setStatsIntervalSeconds(0);
         when(client.getConfiguration()).thenReturn(clientConf);
+        when(client.timer()).thenReturn(mock(Timer.class));
 
         consumerConf.setSubscriptionName("test-sub");
         consumer = ConsumerImpl.newConsumerImpl(client, topic, consumerConf,
-                executorService, -1, subscribeFuture, SubscriptionMode.Durable, null, null, null);
+                executorService, -1, false, subscribeFuture, null, null, null,
+                true);
     }
 
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_EmptyQueueNotThrowsException() {
         consumer.notifyPendingReceivedCallback(null, null);
+    }
+
+    @Test(invocationTimeOut = 500)
+    public void testCorrectBackoffConfiguration() {
+        final Backoff backoff = consumer.getConnectionHandler().backoff;
+        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)

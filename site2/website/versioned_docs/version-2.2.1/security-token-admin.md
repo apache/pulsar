@@ -47,17 +47,22 @@ use it to generate the client tokens. This key will be also configured to
 the brokers to allow them to validate the clients.
 
 #### Creating a secret key
-
+> Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file. 
 ```shell
 $ bin/pulsar tokens create-secret-key --output my-secret.key
 ```
 
+To generate base64 encoded private key 
+```shell
+$ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
+```
 ### Public/Private keys
 
 With public/private, we need to create a pair of keys.
 
 #### Creating a key pair
 
+> Output file will be generated in the root of your pulsar installation directory. You can also provide absolute path for the output file.
 ```shell
 $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output-public-key my-public.key
 ```
@@ -129,6 +134,15 @@ tokenSecretKey=file:///path/to/secret.key
 
 # If using public/private
 # tokenPublicKey=file:///path/to/public.key
+
+# operations and publish/consume from all topics
+superUserRoles=admin
+
+# Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
+brokerClientAuthenticationParameters=token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw
+# Or, alternatively, read token from file
+# brokerClientAuthenticationParameters=file:///path/to/admin-token.txt
 ```
 
 ### ... on Proxies

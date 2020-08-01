@@ -21,6 +21,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/format.hpp>
 
@@ -28,16 +29,16 @@ namespace pulsar {
 
 inline std::ostream &operator<<(std::ostream &s, Logger::Level level) {
     switch (level) {
-        case Logger::DEBUG:
+        case Logger::LEVEL_DEBUG:
             s << "DEBUG";
             break;
-        case Logger::INFO:
+        case Logger::LEVEL_INFO:
             s << "INFO ";
             break;
-        case Logger::WARN:
+        case Logger::LEVEL_WARN:
             s << "WARN ";
             break;
-        case Logger::ERROR:
+        case Logger::LEVEL_ERROR:
             s << "ERROR";
             break;
     }
@@ -51,13 +52,14 @@ class SimpleLogger : public Logger {
    public:
     SimpleLogger(const std::string &logger) : _logger(logger) {}
 
-    bool isEnabled(Level level) { return level >= Logger::INFO; }
+    bool isEnabled(Level level) { return level >= Logger::LEVEL_INFO; }
 
     void log(Level level, int line, const std::string &message) {
         std::stringstream ss;
 
         printTimestamp(ss);
-        ss << " " << level << " " << _logger << ":" << line << " | " << message << "\n";
+        ss << " " << level << " [" << std::this_thread::get_id() << "] " << _logger << ":" << line << " | "
+           << message << "\n";
 
         std::cout << ss.str();
         std::cout.flush();
@@ -80,5 +82,7 @@ class SimpleLogger : public Logger {
 
 Logger *SimpleLoggerFactory::getLogger(const std::string &file) { return new SimpleLogger(file); }
 
-LoggerFactoryPtr SimpleLoggerFactory::create() { return LoggerFactoryPtr(new SimpleLoggerFactory); }
+std::unique_ptr<LoggerFactory> SimpleLoggerFactory::create() {
+    return std::unique_ptr<LoggerFactory>(new SimpleLoggerFactory());
+}
 }  // namespace pulsar

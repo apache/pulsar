@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -36,7 +36,13 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
-      <version>${project.parent.version}</version>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
+      <version>${project.version}</version>
+      <optional>true</optional>
     </dependency>
   </dependencies>
 
@@ -58,13 +64,22 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
                   <overWrite>true</overWrite>
                   <includes>**/ProtobufSchema.class</includes>
                   <outputDirectory>${project.build.directory}/classes</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-client-original</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <includes>**/ahc.properties</includes>
+                  <outputDirectory>${project.build.directory}/classes/org/asynchttpclient/config</outputDirectory>
                 </artifactItem>
               </artifactItems>
 
@@ -92,6 +107,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common-allocator</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-collections:commons-collections</include>
@@ -107,19 +123,15 @@
                   <include>com.fasterxml.jackson.module</include>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.fasterxml.jackson.dataformat</include>
-                  <include>io.netty:netty</include>
-                  <include>io.netty:netty-all</include>
-                  <include>io.netty:netty-tcnative-boringssl-static</include>
+                  <include>io.netty:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>commons-*:*</include>
+                  <include>io.swagger:*</include>
 
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
-                  <include>org.apache.httpcomponents:httpclient</include>
-                  <include>commons-logging:commons-logging</include>
-                  <include>org.apache.httpcomponents:httpcore</include>
                   <include>org.objenesis:*</include>
                   <include>org.yaml:snakeyaml</include>
 
@@ -128,24 +140,29 @@
                   <include>org.codehaus.jackson:jackson-core-asl</include>
                   <include>org.codehaus.jackson:jackson-mapper-asl</include>
                   <include>com.thoughtworks.paranamer:paranamer</include>
-                  <include>org.xerial.snappy:snappy-java</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.tukaani:xz</include>
-
+                  <!-- bouncycastle Provider dependencies-->
+                  <include>org.bouncycastle:*</include>
+                  <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
               </artifactSet>
               <filters>
+                <filter>
+                  <!-- Shading signed JARs will fail without
+                      this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
                 </filter>
               </filters>
               <relocations>
@@ -173,6 +190,10 @@
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
                 </relocation>
@@ -183,10 +204,6 @@
                 <relocation>
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.eclipse.jetty</pattern>
@@ -238,16 +255,16 @@
                   <shadedPattern>org.apache.pulsar.shade.com.thoughtworks.paranamer</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>org.xerial.snappy</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.xerial.snappy</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.commons</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.tukaani</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.tukaani</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

@@ -19,6 +19,7 @@
 #ifndef PULSAR_CLIENT_HPP_
 #define PULSAR_CLIENT_HPP_
 
+#include <pulsar/defines.h>
 #include <pulsar/Consumer.h>
 #include <pulsar/Producer.h>
 #include <pulsar/Reader.h>
@@ -28,8 +29,6 @@
 #include <pulsar/ClientConfiguration.h>
 #include <pulsar/Schema.h>
 #include <string>
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 typedef std::function<void(Result, Producer)> CreateProducerCallback;
@@ -42,7 +41,7 @@ class ClientImpl;
 class PulsarFriend;
 class PulsarWrapper;
 
-class Client {
+class PULSAR_PUBLIC Client {
    public:
     /**
      * Create a Pulsar client object connecting to the specified cluster address and using the default
@@ -213,7 +212,5 @@ class Client {
     std::shared_ptr<ClientImpl> impl_;
 };
 }  // namespace pulsar
-
-#pragma GCC visibility pop
 
 #endif /* PULSAR_CLIENT_HPP_ */

@@ -25,7 +25,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- * Function that appends the host name to the payload message
+ * Function that appends the host name to the payload message.
  */
 public class HostAppenderFunction implements Function<String, String> {
 

@@ -16,23 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <gtest/gtest.h>
-#include <pulsar/Client.h>
-#include <lib/LogUtils.h>
-#include <pulsar/MessageBuilder.h>
-#include <lib/Commands.h>
-#include <lib/TopicName.h>
-#include <sstream>
-#include "boost/date_time/posix_time/posix_time.hpp"
-#include "CustomRoutingPolicy.h"
-#include "lib/Future.h"
-#include "lib/Utils.h"
 #include <ctime>
-#include "LogUtils.h"
-#include "PulsarFriend.h"
+#include <functional>
+#include <gtest/gtest.h>
+#include <sstream>
+#include <thread>
 #include <unistd.h>
+
+#include <lib/Commands.h>
+#include <lib/Future.h>
+#include <lib/Latch.h>
+#include <lib/LogUtils.h>
+#include <lib/TopicName.h>
+#include <lib/Utils.h>
+#include <pulsar/Client.h>
+#include <pulsar/MessageBatch.h>
+#include <pulsar/MessageBuilder.h>
+
 #include "ConsumerTest.h"
+#include "CustomRoutingPolicy.h"
 #include "HttpHelper.h"
+#include "PulsarFriend.h"
+
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
@@ -50,17 +55,17 @@ static void messageListenerFunction(Consumer consumer, const Message& msg) {
     consumer.acknowledge(msg);
 }
 
-static void sendCallBack(Result r, const Message& msg) {
+static void sendCallBack(Result r, const MessageId& msgId) {
     ASSERT_EQ(r, ResultOk);
     globalTestBatchMessagesCounter++;
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString());
 }
+
+static void sendFailCallBack(Result r, Result expect_result) { EXPECT_EQ(r, expect_result); }
 
 static int globalPublishCountSuccess = 0;
 static int globalPublishCountQueueFull = 0;
 
-static void sendCallBackExpectingErrors(Result r, const Message& msg) {
-    LOG_DEBUG("Received publish acknowledgement for " << msg.getDataAsString() << ", Result = " << r);
+static void sendCallBackExpectingErrors(Result r, const MessageId& msgId) {
     if (r == ResultProducerQueueIsFull) {
         globalPublishCountQueueFull++;
     } else if (r == ResultOk) {
@@ -137,10 +142,10 @@ TEST(BatchMessageTest, testProducerTimeout) {
         /* Start the timer */
         start = time(NULL);
         LOG_DEBUG("start = " << start);
-        Promise<Result, Message> promise;
-        producer.sendAsync(msg, WaitForCallbackValue<Message>(promise));
-        Message m;
-        promise.getFuture().get(m);
+        Promise<Result, MessageId> promise;
+        producer.sendAsync(msg, WaitForCallbackValue<MessageId>(promise));
+        MessageId mi;
+        promise.getFuture().get(mi);
         /* End the timer */
         end = time(NULL);
         LOG_DEBUG("end = " << end);
@@ -327,7 +332,7 @@ TEST(BatchMessageTest, testSmallReceiverQueueSize) {
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
     ASSERT_EQ(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
-    usleep(20 * 1e6);
+    std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_NE(consumerStatsImplPtr->getTotalNumBytesRecieved(), consumerStatsImplPtr->getNumBytesRecieved());
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalAckedMsgMap()), numOfMessages);
     ASSERT_EQ(PulsarFriend::sum(consumerStatsImplPtr->getTotalReceivedMsgMap()), numOfMessages);
@@ -780,7 +785,7 @@ TEST(BatchMessageTest, testPermits) {
         LOG_DEBUG("sending message " << messageContent);
     }
 
-    usleep(5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     Message receivedMsg;
     int i = 0;
@@ -814,7 +819,7 @@ TEST(BatchMessageTest, testPermits) {
         producer.sendAsync(msg, &sendCallBack);
         LOG_DEBUG("sending message " << messageContent);
     }
-    usleep(5 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     ASSERT_LE(ConsumerTest::getNumOfMessagesInQueue(consumer), consumerConfig.getReceiverQueueSize());
     ASSERT_GE(ConsumerTest::getNumOfMessagesInQueue(consumer), consumerConfig.getReceiverQueueSize() / 2);
@@ -848,7 +853,7 @@ TEST(BatchMessageTest, testPartitionedTopics) {
     LOG_DEBUG("res = " << res);
     ASSERT_FALSE(res != 204 && res != 409);
 
-    usleep(2 * 1000 * 1000);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
 
     Producer producer;
     // Enable batching on producer side
@@ -914,4 +919,124 @@ TEST(BatchMessageTest, testPartitionedTopics) {
 
     // Number of messages consumed
     ASSERT_EQ(i, numOfMessages - globalPublishCountQueueFull);
+
+    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, Partitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
+}
+
+TEST(BatchMessageTest, producerFailureResult) {
+    std::string testName = std::to_string(epochTime) + "testCumulativeAck";
+
+    ClientConfiguration clientConfig;
+    clientConfig.setStatsIntervalInSeconds(100);
+
+    Client client(lookupUrl, clientConfig);
+    std::string topicName = "persistent://public/default/" + testName;
+    std::string subName = "subscription-name";
+    Producer producer;
+
+    int batchSize = 100;
+    int numOfMessages = 10000;
+    ProducerConfiguration conf;
+
+    conf.setCompressionType(CompressionZLib);
+    conf.setBatchingMaxMessages(batchSize);
+    conf.setBatchingEnabled(true);
+    conf.setBatchingMaxPublishDelayMs(50000);
+    conf.setBlockIfQueueFull(false);
+    conf.setMaxPendingMessages(10);
+
+    Result res = Result::ResultBrokerMetadataError;
+
+    client.createProducer(topicName, conf, producer);
+    Message msg = MessageBuilder().setContent("test").build();
+    producer.sendAsync(msg, std::bind(&sendFailCallBack, std::placeholders::_1, res));
+    PulsarFriend::producerFailMessages(producer, res);
+}
+
+TEST(BatchMessageTest, testPraseMessageBatchEntry) {
+    struct Case {
+        std::string content;
+        std::string propKey;
+        std::string propValue;
+    };
+    std::vector<Case> cases;
+    cases.push_back(Case{"example1", "prop1", "value1"});
+    cases.push_back(Case{"example2", "prop2", "value2"});
+
+    SharedBuffer payload = SharedBuffer::allocate(128);
+    for (auto it = cases.begin(); it != cases.end(); ++it) {
+        MessageBuilder msgBuilder;
+        const Message& message =
+            msgBuilder.setContent(it->content).setProperty(it->propKey, it->propValue).build();
+        Commands::serializeSingleMessageInBatchWithPayload(message, payload, 1024);
+    }
+
+    MessageBatch messageBatch;
+    MessageId fakeId(0, 5000, 10, -1);
+    messageBatch.withMessageId(fakeId).parseFrom(payload, static_cast<uint32_t>(cases.size()));
+    const std::vector<Message>& messages = messageBatch.messages();
+
+    ASSERT_EQ(messages.size(), cases.size());
+    for (int i = 0; i < cases.size(); ++i) {
+        const Message& message = messages[i];
+        const Case& expected = cases[i];
+        ASSERT_EQ(message.getMessageId().batchIndex(), i);
+        ASSERT_EQ(message.getMessageId().ledgerId(), 5000);
+        ASSERT_EQ(message.getDataAsString(), expected.content);
+        ASSERT_EQ(message.getProperty(expected.propKey), expected.propValue);
+    }
+}
+
+TEST(BatchMessageTest, testSendCallback) {
+    const std::string topicName = "persistent://public/default/BasicMessageTest-testSendCallback";
+
+    Client client(lookupUrl);
+
+    constexpr int numMessagesOfBatch = 3;
+
+    ProducerConfiguration producerConfig;
+    producerConfig.setBatchingEnabled(true);
+    producerConfig.setBatchingMaxMessages(numMessagesOfBatch);
+    producerConfig.setBatchingMaxPublishDelayMs(1000);  // 1 s, it's long enough for 3 messages batched
+    producerConfig.setMaxPendingMessages(2);            // only 1 spot is actually used
+
+    Producer producer;
+    ASSERT_EQ(ResultOk, client.createProducer(topicName, producerConfig, producer));
+
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topicName, "SubscriptionName", consumer));
+
+    Latch latch(numMessagesOfBatch);
+    std::set<MessageId> sentIdSet;
+    for (int i = 0; i < numMessagesOfBatch; i++) {
+        const auto msg = MessageBuilder().setContent("a").build();
+        producer.sendAsync(msg, [&sentIdSet, i, &latch](Result result, const MessageId& id) {
+            ASSERT_EQ(ResultOk, result);
+            ASSERT_EQ(i, id.batchIndex());
+            sentIdSet.emplace(id);
+            LOG_INFO("id of batch " << i << ": " << id);
+            latch.countdown();
+        });
+    }
+
+    std::set<MessageId> receivedIdSet;
+    for (int i = 0; i < numMessagesOfBatch; i++) {
+        Message msg;
+        ASSERT_EQ(ResultOk, consumer.receive(msg));
+        receivedIdSet.emplace(msg.getMessageId());
+        consumer.acknowledge(msg);
+    }
+
+    latch.wait();
+    ASSERT_EQ(sentIdSet, receivedIdSet);
+
+    for (const auto& q : PulsarFriend::getProducerMessageQueue(producer, NonPartitioned)) {
+        ASSERT_EQ(0, q->reservedSpots());
+    }
+
+    consumer.close();
+    producer.close();
+    client.close();
 }

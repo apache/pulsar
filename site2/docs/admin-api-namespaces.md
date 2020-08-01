@@ -554,10 +554,17 @@ admin.namespaces().getRetention(namespace)
 
 #### set dispatch throttling
 
-It sets message dispatch rate for all the topics under a given namespace.
+It sets message dispatch rate for all the topics under a given namespace. 
 Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
+
+#### Note
+> - If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
+> >
+> - If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
+> > 
+> - If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
 
 ###### CLI
 
@@ -577,7 +584,7 @@ $ pulsar-admin namespaces set-dispatch-rate test-tenant/ns1 \
 ###### Java
 
 ```java
-admin.namespaces().setDispatchRate(namespace, 1000, 1048576, 1)
+admin.namespaces().setDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
 ```
 
 #### get configured message-rate
@@ -610,6 +617,122 @@ $ pulsar-admin namespaces get-dispatch-rate test-tenant/ns1
 admin.namespaces().getDispatchRate(namespace)
 ```
 
+
+#### set dispatch throttling for subscription
+
+It sets message dispatch rate for all the subscription of topics under a given namespace.
+Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
+disables the throttling.
+
+###### CLI
+
+```
+$ pulsar-admin namespaces set-subscription-dispatch-rate test-tenant/ns1 \
+  --msg-dispatch-rate 1000 \
+  --byte-dispatch-rate 1048576 \
+  --dispatch-rate-period 1
+```
+
+###### REST
+
+```
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/subscriptionDispatchRate|operation/setDispatchRate}
+```
+
+###### Java
+
+```java
+admin.namespaces().setSubscriptionDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
+```
+
+#### get configured message-rate
+
+It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+
+###### CLI
+
+```
+$ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
+```
+
+```json
+{
+  "dispatchThrottlingRatePerTopicInMsg" : 1000,
+  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "ratePeriodInSecond" : 1
+}
+```
+
+###### REST
+
+```
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/subscriptionDispatchRate|operation/getDispatchRate}
+```
+
+###### Java
+
+```java
+admin.namespaces().getSubscriptionDispatchRate(namespace)
+```
+
+#### set dispatch throttling for replicator
+
+It sets message dispatch rate for all the replicator between replication clusters under a given namespace.
+Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
+disables the throttling.
+
+###### CLI
+
+```
+$ pulsar-admin namespaces set-replicator-dispatch-rate test-tenant/ns1 \
+  --msg-dispatch-rate 1000 \
+  --byte-dispatch-rate 1048576 \
+  --dispatch-rate-period 1
+```
+
+###### REST
+
+```
+{@inject: endpoint|POST|/admin/v2/namespaces/{tenant}/{namespace}/replicatorDispatchRate|operation/setDispatchRate}
+```
+
+###### Java
+
+```java
+admin.namespaces().setReplicatorDispatchRate(namespace, new DispatchRate(1000, 1048576, 1))
+```
+
+#### get configured message-rate
+
+It shows configured message-rate for the namespace (topics under this namespace can dispatch this many messages per second)
+
+###### CLI
+
+```
+$ pulsar-admin namespaces get-replicator-dispatch-rate test-tenant/ns1
+```
+
+```json
+{
+  "dispatchThrottlingRatePerTopicInMsg" : 1000,
+  "dispatchThrottlingRatePerTopicInByte" : 1048576,
+  "ratePeriodInSecond" : 1
+}
+```
+
+###### REST
+
+```
+{@inject: endpoint|GET|/admin/v2/namespaces/{tenant}/{namespace}/replicatorDispatchRate|operation/getDispatchRate}
+```
+
+###### Java
+
+```java
+admin.namespaces().getReplicatorDispatchRate(namespace)
+```
 
 ### Namespace isolation
 

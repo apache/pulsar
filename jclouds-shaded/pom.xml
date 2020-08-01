@@ -20,13 +20,13 @@
 
 -->
 <project
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-  xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+    xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -35,15 +35,22 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
-      <version>2.5</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.jclouds</groupId>
       <artifactId>jclouds-allblobstore</artifactId>
+      <version>${jclouds.version}</version>
     </dependency>
   </dependencies>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- JClouds still is using Guava 18.0 and it won't work with newer versions -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>18.0</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>
@@ -63,7 +70,6 @@
 
               <artifactSet>
                 <includes>
-                  <include>com.google.code.gson:gson</include>
                   <include>com.google.guava:guava</include>
                   <include>org.apache.jclouds:*</include>
                   <include>org.apache.jclouds.api:*</include>
@@ -72,18 +78,58 @@
                   <include>com.google.inject.extensions:guice-assistedinject</include>
                   <include>com.google.inject:guice</include>
                   <include>com.google.inject.extensions:guice-multibindings</include>
+                  <include>javax.ws.rs:*</include>
+                  <include>com.jamesmurty.utils:*</include>
+                  <include>net.iharder:*</include>
+                  <include>aopalliance:*</include>
+                  <include>javax.inject:*</include>
+                  <include>javax.annotation:*</include>
+                  <include>com.google.errorprone:*</include>
                 </includes>
               </artifactSet>
 
               <relocations>
                 <relocation>
-                  <pattern>com.google</pattern>
-                  <shadedPattern>org.apache.pulsar.shaded.com.google</shadedPattern>
+                  <pattern>com.google.gson.internal</pattern>
+                  <shadedPattern>org.jclouds.json.gson.internal</shadedPattern>
                 </relocation>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.google</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.ws</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.ws</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.jamesmurty.utils</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.jamesmurty.utils</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>aopalliance</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.aopalliance</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.iharder</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.net.iharder</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.inject</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.annotation</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.javax.annotation</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.errorprone</pattern>
+                  <shadedPattern>org.apache.pulsar.jcloud.shade.com.google.errorprone</shadedPattern>
+                </relocation>
+
               </relocations>
               <transformers>
-                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer"/>
               </transformers>
             </configuration>
           </execution>

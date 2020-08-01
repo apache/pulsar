@@ -86,8 +86,8 @@ public class ConcurrentLongHashMapTest {
 
         assertEquals(map.remove(1), "one");
         assertEquals(map.size(), 2);
-        assertEquals(map.get(1), null);
-        assertEquals(map.get(5), null);
+        assertNull(map.get(1));
+        assertNull(map.get(5));
         assertEquals(map.size(), 2);
 
         assertNull(map.put(1, "one"));
@@ -341,14 +341,14 @@ public class ConcurrentLongHashMapTest {
         int bucket2 = ConcurrentLongHashMap.signSafeMod(ConcurrentLongHashMap.hash(key2), Buckets);
         assertEquals(bucket1, bucket2);
 
-        assertEquals(map.put(key1, "value-1"), null);
-        assertEquals(map.put(key2, "value-2"), null);
+        assertNull(map.put(key1, "value-1"));
+        assertNull(map.put(key2, "value-2"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1");
         assertEquals(map.size(), 1);
 
-        assertEquals(map.put(key1, "value-1-overwrite"), null);
+        assertNull(map.put(key1, "value-1-overwrite"));
         assertEquals(map.size(), 2);
 
         assertEquals(map.remove(key1), "value-1-overwrite");
@@ -365,7 +365,7 @@ public class ConcurrentLongHashMapTest {
     @Test
     public void testPutIfAbsent() {
         ConcurrentLongHashMap<String> map = new ConcurrentLongHashMap<>();
-        assertEquals(map.putIfAbsent(1, "one"), null);
+        assertNull(map.putIfAbsent(1, "one"));
         assertEquals(map.get(1), "one");
 
         assertEquals(map.putIfAbsent(1, "uno"), "one");
@@ -376,11 +376,7 @@ public class ConcurrentLongHashMapTest {
     public void testComputeIfAbsent() {
         ConcurrentLongHashMap<Integer> map = new ConcurrentLongHashMap<>(16, 1);
         AtomicInteger counter = new AtomicInteger();
-        LongFunction<Integer> provider = new LongFunction<Integer>() {
-            public Integer apply(long key) {
-                return counter.getAndIncrement();
-            }
-        };
+        LongFunction<Integer> provider = key -> counter.getAndIncrement();
 
         assertEquals(map.computeIfAbsent(0, provider).intValue(), 0);
         assertEquals(map.get(0).intValue(), 0);

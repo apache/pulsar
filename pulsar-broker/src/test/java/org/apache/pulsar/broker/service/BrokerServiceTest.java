@@ -20,10 +20,11 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -49,6 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
@@ -58,6 +60,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -66,6 +69,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -149,7 +153,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -167,7 +171,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -204,10 +208,26 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
+    }
+
+    @Test
+    public void testStatsOfStorageSizeWithSubscription() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/no-subscription";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getStats(false).storageSize, 0);
+
+        for (int i = 0; i < 10; i++) {
+            producer.send(new byte[10]);
+        }
+
+        assertTrue(topicRef.getStats(false).storageSize > 0);
     }
 
     @Test
@@ -226,7 +246,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // subscription stats
@@ -244,7 +264,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         // publisher stats
@@ -279,7 +299,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
         assertTrue(subStats.msgRateRedeliver > 0.0);
         assertEquals(subStats.msgRateRedeliver, subStats.consumers.get(0).msgRateRedeliver);
@@ -293,7 +313,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats();
+        stats = topicRef.getStats(false);
         subStats = stats.subscriptions.values().iterator().next();
 
         assertEquals(subStats.msgBacklog, 0);
@@ -413,7 +433,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 1: Access without TLS
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
-                    .build();
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscribe();
@@ -426,7 +446,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 2: Access with TLS
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .statsInterval(0, TimeUnit.SECONDS).build();
+                    .statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -446,8 +467,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String subName = "newSub";
 
         conf.setAuthenticationEnabled(false);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         restartBroker();
@@ -456,7 +477,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         PulsarClient pulsarClient = null;
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
-                    .build();
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscribe();
@@ -469,7 +490,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 2: Access with TLS (Allow insecure TLS connection)
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -484,7 +506,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 3: Access with TLS (Disallow insecure TLS connection)
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(false).statsInterval(0, TimeUnit.SECONDS).build();
+                    .allowTlsInsecureConnection(false).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -501,7 +524,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
                     .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
-                    .statsInterval(0, TimeUnit.SECONDS).build();
+                    .statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -525,8 +549,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
@@ -541,7 +565,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 1: Access without client certificate
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -549,7 +574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -560,7 +585,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             auth.configure(authParams);
 
             pulsarClient = PulsarClient.builder().authentication(auth).serviceUrl(brokerUrlTls.toString())
-                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -585,8 +611,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
@@ -601,7 +627,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 1: Access without client certificate
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -609,7 +636,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -619,14 +646,15 @@ public class BrokerServiceTest extends BrokerTestBase {
             auth = new AuthenticationTls();
             auth.configure(authParams);
             pulsarClient = PulsarClient.builder().authentication(auth).serviceUrl(brokerUrlTls.toString())
-                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -644,8 +672,8 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(BROKER_PORT_TLS);
-        conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
@@ -661,14 +689,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 1: Access without client certificate
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
                     .subscribe();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Authentication required"));
+            assertTrue(e.getMessage().contains("Unauthorized"));
         } finally {
             pulsarClient.close();
         }
@@ -678,7 +707,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             auth = new AuthenticationTls();
             auth.configure(authParams);
             pulsarClient = PulsarClient.builder().authentication(auth).serviceUrl(brokerUrlTls.toString())
-                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS).build();
+                    .enableTls(true).allowTlsInsecureConnection(true).statsInterval(0, TimeUnit.SECONDS)
+                    .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
             @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -699,9 +729,12 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
-                .maxConcurrentLookupRequests(1).maxLookupRequests(2).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .maxConcurrentLookupRequests(1)
+                .maxLookupRequests(2)
+                .build();
 
         // 2 lookup will success.
         try {
@@ -746,7 +779,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // disable namespace-bundle
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
-        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
+        pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).join();
 
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
@@ -787,7 +820,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.completeExceptionally(new NullPointerException("failed to peristent policy"));
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
 
@@ -830,7 +863,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // create topic will fail to get managedLedgerConfig
         CompletableFuture<ManagedLedgerConfig> failedManagedLedgerConfig = new CompletableFuture<>();
         failedManagedLedgerConfig.complete(new ManagedLedgerConfig());
-        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(anyObject());
+        doReturn(failedManagedLedgerConfig).when(service).getManagedLedgerConfig(any());
 
         CompletableFuture<Void> topicCreation = new CompletableFuture<Void>();
         // fail managed-ledger future
@@ -883,4 +916,49 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertEquals(policy.get().bundles.numBundles, totalBundle);
     }
 
+    /**
+     * It verifies that unloading bundle gracefully closes managed-ledger before removing ownership to avoid bad-zk
+     * version.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testStuckTopicUnloading() throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace + "/unoadTopic";
+        final String topicMlName = namespace + "/persistent/unoadTopic";
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
+        consumer.close();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName).sendTimeout(5,
+                TimeUnit.SECONDS);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        ManagedLedgerFactoryImpl mlFactory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerClientFactory()
+                .getManagedLedgerFactory();
+        Field ledgersField = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        ledgersField.setAccessible(true);
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) ledgersField
+                .get(mlFactory);
+        assertNotNull(ledgers.get(topicMlName));
+
+        org.apache.pulsar.broker.service.Producer prod = (org.apache.pulsar.broker.service.Producer) spy(topic.producers.values().toArray()[0]);
+        topic.producers.clear();
+        topic.producers.put(prod.getProducerName(), prod);
+        CompletableFuture<Void> waitFuture = new CompletableFuture<Void>();
+        doReturn(waitFuture).when(prod).disconnect();
+        Set<NamespaceBundle> bundles = pulsar.getNamespaceService().getOwnedServiceUnits();
+        for (NamespaceBundle bundle : bundles) {
+            String ns = bundle.getNamespaceObject().toString();
+            System.out.println();
+            if (namespace.equals(ns)) {
+                pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 2, TimeUnit.SECONDS);
+            }
+        }
+        assertNull(ledgers.get(topicMlName));
+    }
 }

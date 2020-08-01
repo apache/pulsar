@@ -18,20 +18,31 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.common.util.concurrent.AbstractService;
-
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
+import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
+import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
+import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
 import java.util.HashSet;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 @Slf4j
 public class Worker {
@@ -40,26 +51,43 @@ public class Worker {
     private final WorkerService workerService;
     private WorkerServer server;
 
+    private ZooKeeperClientFactory zkClientFactory = null;
+    private final OrderedExecutor orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
+    private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
+            new DefaultThreadFactory("zk-cache-callback"));
+    private GlobalZooKeeperCache globalZkCache;
+    private ConfigurationCacheService configurationCacheService;
+    private final ErrorNotifier errorNotifier;
+
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.workerService = new WorkerService(workerConfig);
+        this.errorNotifier = ErrorNotifier.getDefaultImpl();
     }
 
     protected void start() throws Exception {
-        URI dlogUri = initialize(this.workerConfig);
+        URI dlogUri = initialize(workerConfig);
 
-        workerService.start(dlogUri);
-        this.server = new WorkerServer(workerService);
-        this.server.start();
-        log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
+        workerService.start(dlogUri, getAuthenticationService(), getAuthorizationService(), errorNotifier);
+        server = new WorkerServer(workerService);
+        server.start();
+        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        
+        try {
+            errorNotifier.waitForError();
+        } catch (Throwable th) {
+            log.error("!-- Fatal error encountered. Worker will exit now. --!", th);
+            throw th;
+        }
     }
 
     private static URI initialize(WorkerConfig workerConfig)
             throws InterruptedException, PulsarAdminException, IOException {
         // initializing pulsar functions namespace
-        PulsarAdmin admin = Utils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
+        PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
+                workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
+                workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
+                workerConfig.isTlsEnableHostnameVerification());
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());
@@ -124,14 +152,48 @@ public class Worker {
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         try {
-            return Utils.initializeDlogNamespace(
-                    internalConf.getZookeeperServers(),
-                    internalConf.getLedgersRootPath());
+            return WorkerUtils.initializeDlogNamespace(internalConf);
         } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                    internalConf.getZookeeperServers(), ioe);
+            log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing function packages",
+                internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
+    }
+
+    private AuthorizationService getAuthorizationService() throws PulsarServerException {
+
+        if (this.workerConfig.isAuthorizationEnabled()) {
+
+            log.info("starting configuration cache service");
+
+            this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
+                    (int) workerConfig.getZooKeeperSessionTimeoutMillis(),
+                    workerConfig.getZooKeeperOperationTimeoutSeconds(),
+                    workerConfig.getConfigurationStoreServers(),
+                    orderedExecutor, cacheExecutor,
+                    workerConfig.getZooKeeperOperationTimeoutSeconds());
+            try {
+                this.globalZkCache.start();
+            } catch (IOException e) {
+                throw new PulsarServerException(e);
+            }
+
+            this.configurationCacheService = new ConfigurationCacheService(this.globalZkCache, this.workerConfig.getPulsarFunctionsCluster());
+                return new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig), this.configurationCacheService);
+            }
+        return null;
+    }
+
+    private AuthenticationService getAuthenticationService() throws PulsarServerException {
+        return new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+    }
+
+    public ZooKeeperClientFactory getZooKeeperClientFactory() {
+        if (zkClientFactory == null) {
+            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
+        }
+        // Return default factory
+        return zkClientFactory;
     }
 
     protected void stop() {
@@ -139,10 +201,26 @@ public class Worker {
             if (null != this.server) {
                 this.server.stop();
             }
-            workerService.stop();    
-        }catch(Exception e) {
+            workerService.stop();
+        } catch(Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
         }
-        
+
+        if (this.globalZkCache != null) {
+            try {
+                this.globalZkCache.close();
+            } catch (IOException e) {
+                log.warn("Failed to close global zk cache ", e);
+            }
+        }
+    }
+
+
+    public Optional<Integer> getListenPortHTTP() {
+        return this.server.getListenPortHTTP();
+    }
+
+    public Optional<Integer> getListenPortHTTPS() {
+        return this.server.getListenPortHTTPS();
     }
 }

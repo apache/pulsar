@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import java.nio.ByteBuffer;
 
 /**
- * Simple ByteBuffer Serializer and Deserializer
+ * Simple ByteBuffer Serializer and Deserializer.
  */
 public class ByteBufferSerDe implements SerDe<Integer> {
     @Override

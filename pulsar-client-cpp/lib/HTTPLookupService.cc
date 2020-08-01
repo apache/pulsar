@@ -54,7 +54,8 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
       lookupTimeoutInSeconds_(clientConfiguration.getOperationTimeoutSeconds()),
       isUseTls_(clientConfiguration.isUseTls()),
       tlsAllowInsecure_(clientConfiguration.isTlsAllowInsecureConnection()),
-      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()) {
+      tlsTrustCertsFilePath_(clientConfiguration.getTlsTrustCertsFilePath()),
+      tlsValidateHostname_(clientConfiguration.isValidateHostName()) {
     if (lookupUrl[lookupUrl.length() - 1] == '/') {
         // Remove trailing '/'
         adminUrl_ = lookupUrl.substr(0, lookupUrl.length() - 1);
@@ -225,6 +226,8 @@ Result HTTPLookupService::sendHTTPRequest(const std::string completeUrl, std::st
             curl_easy_setopt(handle, CURLOPT_CAINFO, tlsTrustCertsFilePath_.c_str());
         }
 
+        curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, tlsValidateHostname_ ? 1L : 0L);
+
         if (authDataContent->hasDataForTls()) {
             curl_easy_setopt(handle, CURLOPT_SSLCERT, authDataContent->getTlsCertificates().c_str());
             curl_easy_setopt(handle, CURLOPT_SSLKEY, authDataContent->getTlsPrivateKey().c_str());
@@ -311,10 +314,13 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
         return LookupDataResultPtr();
     }
 
-    const std::string brokerUrlTls = root.get<std::string>("brokerUrlTls", defaultNotFoundString);
+    std::string brokerUrlTls = root.get<std::string>("brokerUrlTls", defaultNotFoundString);
     if (brokerUrlTls == defaultNotFoundString) {
-        LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
-        return LookupDataResultPtr();
+        brokerUrlTls = root.get<std::string>("brokerUrlSsl", defaultNotFoundString);
+        if (brokerUrlTls == defaultNotFoundString) {
+            LOG_ERROR("malformed json! - brokerUrlTls not present" << json);
+            return LookupDataResultPtr();
+        }
     }
 
     LookupDataResultPtr lookupDataResultPtr = std::make_shared<LookupDataResult>();

@@ -24,9 +24,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
-import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -44,14 +44,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
-@SuppressWarnings("deprecation")
-@Parameters(commandDescription = "Operations on persistent topics", hidden = true)
+@Parameters(commandDescription = "Operations on persistent topics. The persistent-topics " +
+        "has been deprecated in favor of topics", hidden = true)
 public class CmdPersistentTopics extends CmdBase {
-    private final PersistentTopics persistentTopics;
+    private final Topics persistentTopics;
 
     public CmdPersistentTopics(PulsarAdmin admin) {
         super("persistent", admin);
-        persistentTopics = admin.persistentTopics();
+        persistentTopics = admin.topics();
 
         jcommander.addCommand("list", new ListCmd());
         jcommander.addCommand("list-partitioned-topics", new PartitionedTopicListCmd());
@@ -79,6 +79,7 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
+        jcommander.addCommand("get-message-by-id", new GetMessageById());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -297,13 +298,17 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+            "--force" }, description = "Disconnect and close all consumers and delete subscription forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
         private String subName;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            persistentTopics.deleteSubscription(persistentTopic, subName);
+            persistentTopics.deleteSubscription(persistentTopic, subName, force);
         }
     }
 
@@ -561,6 +566,32 @@ public class CmdPersistentTopics extends CmdBase {
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(data));
             }
+        }
+    }
+
+    @Parameters(commandDescription = "Get message by its ledgerId and entryId")
+    private class GetMessageById extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--ledgerId" },
+            description = "ledger id pointing to the desired ledger",
+            required = true)
+        private long ledgerId;
+
+        @Parameter(names = { "-e", "--entryId" },
+            description = "entry id pointing to the desired entry",
+            required = true)
+        private long entryId;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            Message<byte[]> message = persistentTopics.getMessageById(persistentTopic, ledgerId, entryId);
+
+            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(date));
         }
     }
 

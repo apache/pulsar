@@ -24,9 +24,8 @@
 
 #include <memory>
 
+#include <pulsar/defines.h>
 #include "MessageId.h"
-
-#pragma GCC visibility push(default)
 
 namespace pulsar {
 namespace proto {
@@ -40,7 +39,7 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
-class Message {
+class PULSAR_PUBLIC Message {
    public:
     typedef std::map<std::string, std::string> StringMap;
 
@@ -105,11 +104,32 @@ class Message {
     const MessageId& getMessageId() const;
 
     /**
+     * Set the unique message ID.
+     *
+     */
+    void setMessageId(const MessageId& messageID) const;
+
+    /**
      * Get the partition key for this message
      * @return key string that is hashed to determine message's topic partition
      */
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
+
+    /**
+     * Get the ordering key of the message
+     *
+     * @return the ordering key of the message
+     */
+    const std::string& getOrderingKey() const;
+
+    /**
+     * Check whether the message has a ordering key
+     *
+     * @return true if the ordering key was set while creating the message
+     *         false if the ordering key was not set while creating the message
+     */
+    bool hasOrderingKey() const;
 
     /**
      * Get the UTC based timestamp in milliseconds referring to when the message was published by the client
@@ -126,6 +146,13 @@ class Message {
      * Get the topic Name from which this message originated from
      */
     const std::string& getTopicName() const;
+
+    /**
+     * Get the redelivery count for this message
+     */
+    const int getRedeliveryCount() const;
+
+    bool operator==(const Message& msg) const;
 
    private:
     typedef std::shared_ptr<MessageImpl> MessageImplPtr;
@@ -147,11 +174,11 @@ class Message {
     friend class BatchMessageContainer;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
+    friend class MessageBatch;
 
-    friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
-    friend std::ostream& operator<<(std::ostream& s, const Message& msg);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const StringMap& map);
+    friend PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, const Message& msg);
 };
 }  // namespace pulsar
 
-#pragma GCC visibility pop
 #endif /* MESSAGE_HPP_ */

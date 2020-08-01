@@ -25,7 +25,7 @@ import io.netty.buffer.Unpooled;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
@@ -73,7 +73,7 @@ public class CompactedOutBatchMessageTest extends ProducerConsumerBase {
              = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic1)
                 .subscriptionName("my-subscriber-name").subscribe()) {
             // shove it in the sideways
-            consumer.receiveIndividualMessagesFromBatch(metadata, 0, batchBuffer,
+            consumer.receiveIndividualMessagesFromBatch(metadata, 0, null, batchBuffer,
                                                         MessageIdData.newBuilder().setLedgerId(1234)
                                                         .setEntryId(567).build(), consumer.cnx());
             Message<?> m = consumer.receive();

@@ -57,7 +57,7 @@ public interface LookupService extends AutoCloseable {
      *            topic-name
      * @return a pair of addresses, representing the logical and physical address of the broker that serves given topic
      */
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName);
+    CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName);
 
 	/**
 	 * Returns {@link PartitionedTopicMetadata} for a given topic.
@@ -65,16 +65,31 @@ public interface LookupService extends AutoCloseable {
 	 * @param topicName topic-name
 	 * @return
 	 */
-	public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
+	CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName);
 
-	public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
+	/**
+	 * Returns current SchemaInfo {@link SchemaInfo} for a given topic.
+	 *
+	 * @param topicName topic-name
+	 * @return SchemaInfo
+	 */
+	CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName);
+
+	/**
+	 * Returns specific version SchemaInfo {@link SchemaInfo} for a given topic.
+	 *
+	 * @param topicName topic-name
+	 * @param version schema info version
+	 * @return SchemaInfo
+	 */
+	CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version);
 
 	/**
 	 * Returns broker-service lookup api url.
 	 *
 	 * @return
 	 */
-	public String getServiceUrl();
+	String getServiceUrl();
 
 	/**
 	 * Returns all the topics name for a given namespace.
@@ -82,6 +97,6 @@ public interface LookupService extends AutoCloseable {
 	 * @param namespace : namespace-name
 	 * @return
 	 */
-	public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
+	CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
 
 }

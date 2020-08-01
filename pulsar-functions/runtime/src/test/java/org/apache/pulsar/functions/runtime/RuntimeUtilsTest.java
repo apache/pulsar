@@ -18,145 +18,29 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.function.Supplier;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 public class RuntimeUtilsTest {
 
     @Test
-    public void testActions() throws InterruptedException {
+    public void testSplitRuntimeArgs() {
+        String str1 = "-Xms314572800";
+        String[] result = RuntimeUtils.splitRuntimeArgs(str1);
+        Assert.assertEquals(result.length,1);
+        Assert.assertEquals(result[0], str1);
 
-        // Test for success
-        Supplier<RuntimeUtils.Actions.ActionResult> supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(true).build());
+        String str2 = "-Xms314572800 -Dbar=foo";
+        result = RuntimeUtils.splitRuntimeArgs(str2);
+        Assert.assertEquals(result.length,2);
+        Assert.assertEquals(result[0], "-Xms314572800");
+        Assert.assertEquals(result[1], "-Dbar=foo");
 
-        Supplier<RuntimeUtils.Actions.ActionResult> supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(true).build());
-
-        Runnable onFail = mock(Runnable.class);
-        Runnable onSucess = mock(Runnable.class);
-
-        RuntimeUtils.Actions.Action action1 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(100)
-                        .supplier(supplier1)
-                        .continueOn(true)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
-
-        RuntimeUtils.Actions.Action action2 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .build());
-
-        RuntimeUtils.Actions actions = RuntimeUtils.Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
-        actions.run();
-
-        assertEquals(actions.numActions(), 2);
-        verify(supplier1, times(1)).get();
-        verify(onFail, times(0)).run();
-        verify(onSucess, times(1)).run();
-        verify(supplier2, times(1)).get();
-
-        // test only run 1 action
-
-        supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(true).build());
-
-        supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(true).build());
-
-        onFail = mock(Runnable.class);
-        onSucess = mock(Runnable.class);
-
-        action1 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(100)
-                        .supplier(supplier1)
-                        .continueOn(false)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
-
-        action2 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
-
-        actions = RuntimeUtils.Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
-        actions.run();
-
-        assertEquals(actions.numActions(), 2);
-        verify(supplier1, times(1)).get();
-        verify(onFail, times(0)).run();
-        verify(onSucess, times(1)).run();
-        verify(supplier2, times(0)).get();
-
-        // test retry
-
-        supplier1 = mock(Supplier.class);
-        when(supplier1.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(false).build());
-
-        supplier2 = mock(Supplier.class);
-        when(supplier2.get()).thenReturn(RuntimeUtils.Actions.ActionResult.builder().success(true).build());
-
-        onFail = mock(Runnable.class);
-        onSucess = mock(Runnable.class);
-
-        action1 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action1")
-                        .numRetries(10)
-                        .sleepBetweenInvocationsMs(10)
-                        .supplier(supplier1)
-                        .continueOn(false)
-                        .onFail(onFail)
-                        .onSuccess(onSucess)
-                        .build());
-
-        action2 = spy(
-                RuntimeUtils.Actions.Action.builder()
-                        .actionName("action2")
-                        .numRetries(20)
-                        .sleepBetweenInvocationsMs(200)
-                        .supplier(supplier2)
-                        .build());
-
-        actions = RuntimeUtils.Actions.newBuilder()
-                .addAction(action1)
-                .addAction(action2);
-        actions.run();
-
-        assertEquals(actions.numActions(), 2);
-        verify(supplier1, times(10)).get();
-        verify(onFail, times(1)).run();
-        verify(onSucess, times(0)).run();
-        verify(supplier2, times(1)).get();
-
+        String str3 = "-Xms314572800 -Dbar=foo -Dfoo=\"bar foo\"";
+        result = RuntimeUtils.splitRuntimeArgs(str3);
+        Assert.assertEquals(result.length,3);
+        Assert.assertEquals(result[0], "-Xms314572800");
+        Assert.assertEquals(result[1], "-Dbar=foo");
+        Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
     }
 }

@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.nio.ByteBuffer;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.DeleteOption;
+import org.apache.bookkeeper.api.kv.options.Option;
+import org.apache.bookkeeper.api.kv.options.Options;
+
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This class accumulates the state updates from one function.
@@ -40,35 +45,55 @@ public class StateContextImpl implements StateContext {
     }
 
     @Override
-    public void incr(String key, long amount) throws Exception {
+    public CompletableFuture<Void> incrCounter(String key, long amount) {
         // TODO: this can be optimized with a batch operation.
-        result(table.increment(
+        return table.increment(
             Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            amount));
+            amount);
     }
 
     @Override
-    public void put(String key, ByteBuffer value) throws Exception {
-        result(table.put(
-            Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
-            Unpooled.wrappedBuffer(value)));
-    }
-
-    @Override
-    public ByteBuffer getValue(String key) throws Exception {
-        ByteBuf data = result(table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
-        try {
-            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
-            data.readBytes(result);
-            return result;
-        } finally {
-            data.release();
+    public CompletableFuture<Void> put(String key, ByteBuffer value) {
+        if(value != null) {
+            return table.put(
+                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                    Unpooled.wrappedBuffer(value));
+        } else {
+            return table.put(
+                    Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                    null);
         }
     }
 
     @Override
-    public long getAmount(String key) throws Exception {
-        return result(table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8))));
+    public CompletableFuture<Void> delete(String key) {
+        return table.delete(
+                Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
+                Options.delete()
+        ).thenApply(ignored -> null);
+    }
+
+    @Override
+    public CompletableFuture<ByteBuffer> get(String key) {
+        return table.get(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
+                data -> {
+                    try {
+                        if (data != null) {
+                            ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
+                            data.readBytes(result);
+                            return result;
+                        }
+                        return null;
+                    } finally {
+                        ReferenceCountUtil.safeRelease(data);
+                    }
+                }
+        );
+    }
+
+    @Override
+    public CompletableFuture<Long> getCounter(String key) {
+        return table.getNumber(Unpooled.wrappedBuffer(key.getBytes(UTF_8)));
     }
 
 }

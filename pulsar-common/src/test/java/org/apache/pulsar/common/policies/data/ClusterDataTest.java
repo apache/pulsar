@@ -19,16 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.Test;
 
-@Test
 public class ClusterDataTest {
 
     @Test
-    void simple() {
+    public void simple() {
         String s1 = "http://broker.messaging.c1.example.com:8080";
         String s2 = "http://broker.messaging.c2.example.com:8080";
         String s3 = "https://broker.messaging.c1.example.com:4443";
@@ -40,26 +38,26 @@ public class ClusterDataTest {
         assertEquals(new ClusterData(s1), new ClusterData(s1));
         assertEquals(new ClusterData(s1).getServiceUrl(), s1);
 
-        assertFalse(new ClusterData(s1).equals(new ClusterData()));
-        assertFalse(new ClusterData(s1).equals(new ClusterData(s2)));
-        assertFalse(new ClusterData(s1).equals(s1));
+        assertNotEquals(new ClusterData(), new ClusterData(s1));
+        assertNotEquals(new ClusterData(s2), new ClusterData(s1));
+        assertNotEquals(s1, new ClusterData(s1));
 
         assertEquals(new ClusterData(s1).hashCode(), new ClusterData(s1).hashCode());
 
-        assertFalse(new ClusterData(s1).hashCode() == new ClusterData(s2).hashCode());
+        assertNotEquals(new ClusterData(s2).hashCode(), new ClusterData(s1).hashCode());
 
-        assertFalse(new ClusterData(s1).hashCode() == c.hashCode());
+        assertNotEquals(c.hashCode(), new ClusterData(s1).hashCode());
 
         assertEquals(new ClusterData(s1, s3), new ClusterData(s1, s3));
         assertEquals(new ClusterData(s1, s3).getServiceUrl(), s1);
         assertEquals(new ClusterData(s1, s3).getServiceUrlTls(), s3);
 
-        assertFalse(new ClusterData(s1, s3).equals(new ClusterData()));
-        assertFalse(new ClusterData(s1, s3).equals(new ClusterData(s2, s4)));
+        assertNotEquals(new ClusterData(), new ClusterData(s1, s3));
+        assertNotEquals(new ClusterData(s2, s4), new ClusterData(s1, s3));
 
         assertEquals(new ClusterData(s1, s3).hashCode(), new ClusterData(s1, s3).hashCode());
-        assertFalse(new ClusterData(s1, s3).hashCode() == new ClusterData(s2, s4).hashCode());
-        assertFalse(new ClusterData(s1, s3).hashCode() == new ClusterData(s1, s4).hashCode());
+        assertNotEquals(new ClusterData(s2, s4).hashCode(), new ClusterData(s1, s3).hashCode());
+        assertNotEquals(new ClusterData(s1, s4).hashCode(), new ClusterData(s1, s3).hashCode());
 
     }
 }

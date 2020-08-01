@@ -40,6 +40,10 @@ void pulsar_message_set_partition_key(pulsar_message_t *message, const char *par
     message->builder.setPartitionKey(partitionKey);
 }
 
+void pulsar_message_set_ordering_key(pulsar_message_t *message, const char *orderingKey) {
+    message->builder.setOrderingKey(orderingKey);
+}
+
 void pulsar_message_set_event_timestamp(pulsar_message_t *message, uint64_t eventTimestamp) {
     message->builder.setEventTimestamp(eventTimestamp);
 }
@@ -48,11 +52,19 @@ void pulsar_message_set_sequence_id(pulsar_message_t *message, int64_t sequenceI
     message->builder.setSequenceId(sequenceId);
 }
 
-void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters) {
-    const char *c = clusters[0];
+void pulsar_message_set_deliver_after(pulsar_message_t *message, uint64_t delayMillis) {
+    message->builder.setDeliverAfter(std::chrono::milliseconds(delayMillis));
+}
+
+void pulsar_message_set_deliver_at(pulsar_message_t *message, uint64_t deliveryTimestampMillis) {
+    message->builder.setDeliverAt(deliveryTimestampMillis);
+}
+
+void pulsar_message_set_replication_clusters(pulsar_message_t *message, const char **clusters, size_t size) {
+    const char **c = clusters;
     std::vector<std::string> clustersList;
-    while (c) {
-        clustersList.push_back(c);
+    for (size_t i = 0; i < size; i++) {
+        clustersList.push_back(*c);
         ++c;
     }
 
@@ -87,6 +99,12 @@ const char *pulsar_message_get_partitionKey(pulsar_message_t *message) {
 
 int pulsar_message_has_partition_key(pulsar_message_t *message) { return message->message.hasPartitionKey(); }
 
+const char *pulsar_message_get_orderingKey(pulsar_message_t *message) {
+    return message->message.getOrderingKey().c_str();
+}
+
+int pulsar_message_has_ordering_key(pulsar_message_t *message) { return message->message.hasOrderingKey(); }
+
 uint64_t pulsar_message_get_publish_timestamp(pulsar_message_t *message) {
     return message->message.getPublishTimestamp();
 }
@@ -103,4 +121,8 @@ pulsar_string_map_t *pulsar_message_get_properties(pulsar_message_t *message) {
 
 const char *pulsar_message_get_topic_name(pulsar_message_t *message) {
     return message->message.getTopicName().c_str();
+}
+
+int pulsar_message_get_redelivery_count(pulsar_message_t *message) {
+    return message->message.getRedeliveryCount();
 }

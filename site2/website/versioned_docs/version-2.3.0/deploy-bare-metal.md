@@ -118,27 +118,18 @@ one of the following ways:
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget pulsar:connector_release_url
+  $ wget pulsar:connector_release_url/{connector}-{{pulsar:version}}.nar
   ```
 
-Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
-in the pulsar directory:
+Once the nar file is downloaded, copy the file to directory `connectors` in the pulsar directory, 
+for example, if the connector file `pulsar-io-aerospike-{{pulsar:version}}.nar` is downloaded:
 
 ```bash
-$ tar xvfz apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
-
-// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
-// then copy the connectors
-
-$ mv apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
+$ mkdir connectors
+$ mv pulsar-io-aerospike-{{pulsar:version}}.nar connectors
 
 $ ls connectors
 pulsar-io-aerospike-{{pulsar:version}}.nar
-pulsar-io-cassandra-{{pulsar:version}}.nar
-pulsar-io-kafka-{{pulsar:version}}.nar
-pulsar-io-kinesis-{{pulsar:version}}.nar
-pulsar-io-rabbitmq-{{pulsar:version}}.nar
-pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 

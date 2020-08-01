@@ -21,9 +21,9 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.Mockito.doReturn;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -54,10 +54,10 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         internalSetup();
 
-        proxyConfig.setServicePort(PortManager.nextFreePort());
-        proxyConfig.setServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setWebServicePort(PortManager.nextFreePort());
-        proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
+        proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setServicePortTls(Optional.of(0));
+        proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(false);
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
@@ -82,7 +82,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testProducer() throws Exception {
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl("pulsar+ssl://localhost:" + proxyConfig.getServicePortTls().get()).enableTls(true)
+                .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/topic").create();
 
@@ -96,9 +96,10 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPartitions() throws Exception {
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl("pulsar+ssl://localhost:" + proxyConfig.getServicePortTls().get()).enableTls(true)
+                .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).build();
-        admin.tenants().createTenant("sample", new TenantInfo());
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("sample", tenantInfo);
         admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/partitioned-topic")

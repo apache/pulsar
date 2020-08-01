@@ -21,11 +21,21 @@ package org.apache.bookkeeper.mledger.offload.jcloud;
 import org.jclouds.ContextBuilder;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.BlobStoreContext;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IObjectFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.ObjectFactory;
 
+
+@PrepareForTest({CredentialsUtil.class})
+@PowerMockIgnore({
+        "org.apache.logging.log4j.*",
+        "org.apache.pulsar.jcloud.shade.com.google.common.*",
+        "org.jclouds.*"})
 public class BlobStoreTestBase {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreTestBase.class);
 
@@ -77,6 +87,12 @@ public class BlobStoreTestBase {
         if (context != null) {
             context.close();
         }
+    }
+
+    @ObjectFactory
+    // Necessary to make PowerMockito.mockStatic work with TestNG.
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
 }

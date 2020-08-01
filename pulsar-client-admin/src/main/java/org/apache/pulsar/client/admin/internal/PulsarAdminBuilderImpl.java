@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Authentication;
@@ -26,21 +30,21 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     protected final ClientConfigurationData conf;
     private int connectTimeout = PulsarAdmin.DEFAULT_CONNECT_TIMEOUT_SECONDS;
     private int readTimeout = PulsarAdmin.DEFAULT_READ_TIMEOUT_SECONDS;
+    private int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
     private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
+    private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
         return new PulsarAdmin(conf.getServiceUrl(),
-                conf, connectTimeout, connectTimeoutUnit, readTimeout, readTimeoutUnit);
+                conf, connectTimeout, connectTimeoutUnit, readTimeout, readTimeoutUnit,
+                requestTimeout, requestTimeoutUnit);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -101,6 +105,48 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder useKeyStoreTls(boolean useKeyStoreTls) {
+        conf.setUseKeyStoreTls(useKeyStoreTls);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sslProvider(String sslProvider) {
+        conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsTrustStoreType(String tlsTrustStoreType) {
+        conf.setTlsTrustStoreType(tlsTrustStoreType);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsTrustStorePath(String tlsTrustStorePath) {
+        conf.setTlsTrustStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsTrustStorePassword(String tlsTrustStorePassword) {
+        conf.setTlsTrustStorePassword(tlsTrustStorePassword);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsCiphers(Set<String> tlsCiphers) {
+        conf.setTlsCiphers(tlsCiphers);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols) {
+        conf.setTlsProtocols(tlsProtocols);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder connectionTimeout(int connectionTimeout, TimeUnit connectionTimeoutUnit) {
         this.connectTimeout = connectionTimeout;
         this.connectTimeoutUnit = connectionTimeoutUnit;
@@ -111,6 +157,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     public PulsarAdminBuilder readTimeout(int readTimeout, TimeUnit readTimeoutUnit) {
         this.readTimeout = readTimeout;
         this.readTimeoutUnit = readTimeoutUnit;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder requestTimeout(int requestTimeout, TimeUnit requestTimeoutUnit) {
+        this.requestTimeout = requestTimeout;
+        this.requestTimeoutUnit = requestTimeoutUnit;
         return this;
     }
 }

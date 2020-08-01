@@ -21,10 +21,6 @@ package org.apache.pulsar.io.hdfs2;
 import java.io.Serializable;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import org.apache.commons.lang.StringUtils;
@@ -33,10 +29,6 @@ import org.apache.commons.lang.StringUtils;
  * Configuration object for all HDFS components.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public abstract class AbstractHdfsConfig implements Serializable {
 

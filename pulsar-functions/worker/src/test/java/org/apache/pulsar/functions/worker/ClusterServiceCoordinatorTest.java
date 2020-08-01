@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -52,7 +52,7 @@ public class ClusterServiceCoordinatorTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private MembershipManager membershipManager;
+    private LeaderService leaderService;
     private ClusterServiceCoordinator coordinator;
     private ScheduledExecutorService mockExecutor;
     private MockExecutorController mockExecutorController;
@@ -70,8 +70,8 @@ public class ClusterServiceCoordinatorTest {
                 any(ThreadFactory.class))
         ).thenReturn(mockExecutor);
 
-        this.membershipManager = mock(MembershipManager.class);
-        this.coordinator = new ClusterServiceCoordinator("test-coordinator", membershipManager);
+        this.leaderService = mock(LeaderService.class);
+        this.coordinator = new ClusterServiceCoordinator("test-coordinator", leaderService);
     }
 
 
@@ -94,18 +94,18 @@ public class ClusterServiceCoordinatorTest {
             .scheduleAtFixedRate(any(Runnable.class), eq(interval), eq(interval), eq(TimeUnit.MILLISECONDS));
 
         // when task is executed, it is the leader
-        when(membershipManager.isLeader()).thenReturn(true);
+        when(leaderService.isLeader()).thenReturn(true);
         mockExecutorController.advance(Duration.ofMillis(interval));
 
-        verify(membershipManager, times(1)).isLeader();
+        verify(leaderService, times(1)).isLeader();
         verify(mockTask, times(1)).run();
 
         // when task is executed, it is not the leader
-        when(membershipManager.isLeader()).thenReturn(false);
+        when(leaderService.isLeader()).thenReturn(false);
         mockExecutorController.advance(Duration.ofMillis(interval));
 
         // `isLeader` is called twice, however the task is only executed once (when it was leader)
-        verify(membershipManager, times(2)).isLeader();
+        verify(leaderService, times(2)).isLeader();
         verify(mockTask, times(1)).run();
     }
 

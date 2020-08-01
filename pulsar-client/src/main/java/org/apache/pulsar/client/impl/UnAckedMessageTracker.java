@@ -21,12 +21,15 @@ package org.apache.pulsar.client.impl;
 import com.google.common.base.Preconditions;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import io.netty.util.concurrent.FastThreadLocal;
+
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -40,7 +43,7 @@ public class UnAckedMessageTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
 
     protected final ConcurrentHashMap<MessageId, ConcurrentOpenHashSet<MessageId>> messageIdPartitionMap;
-    protected final LinkedList<ConcurrentOpenHashSet<MessageId>> timePartitions;
+    protected final ArrayDeque<ConcurrentOpenHashSet<MessageId>> timePartitions;
 
     protected final Lock readLock;
     protected final Lock writeLock;
@@ -52,6 +55,11 @@ public class UnAckedMessageTracker implements Closeable {
     private static class UnAckedMessageTrackerDisabled extends UnAckedMessageTracker {
         @Override
         public void clear() {
+        }
+
+        @Override
+        long size() {
+            return 0;
         }
 
         @Override
@@ -89,6 +97,13 @@ public class UnAckedMessageTracker implements Closeable {
         this(client, consumerBase, ackTimeoutMillis, ackTimeoutMillis);
     }
 
+    private static final FastThreadLocal<HashSet<MessageId>> TL_MESSAGE_IDS_SET = new FastThreadLocal<HashSet<MessageId>>() {
+        @Override
+        protected HashSet<MessageId> initialValue() throws Exception {
+            return new HashSet<>();
+        }
+    };
+
     public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis, long tickDurationInMs) {
         Preconditions.checkArgument(tickDurationInMs > 0 && ackTimeoutMillis >= tickDurationInMs);
         this.ackTimeoutMillis = ackTimeoutMillis;
@@ -97,48 +112,63 @@ public class UnAckedMessageTracker implements Closeable {
         this.readLock = readWriteLock.readLock();
         this.writeLock = readWriteLock.writeLock();
         this.messageIdPartitionMap = new ConcurrentHashMap<>();
-        this.timePartitions = new LinkedList<>();
+        this.timePartitions = new ArrayDeque<>();
 
         int blankPartitions = (int)Math.ceil((double)this.ackTimeoutMillis / this.tickDurationInMs);
         for (int i = 0; i < blankPartitions + 1; i++) {
-            timePartitions.add(new ConcurrentOpenHashSet<>());
+            timePartitions.add(new ConcurrentOpenHashSet<>(16, 1));
         }
 
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
             public void run(Timeout t) throws Exception {
-                Set<MessageId> messageIds = new HashSet<>();
+                Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
+                messageIds.clear();
+
                 writeLock.lock();
                 try {
-                    timePartitions.addLast(new ConcurrentOpenHashSet<>());
                     ConcurrentOpenHashSet<MessageId> headPartition = timePartitions.removeFirst();
                     if (!headPartition.isEmpty()) {
-                        log.warn("[{}] {} messages have timed-out", consumerBase, timePartitions.size());
+                        log.warn("[{}] {} messages have timed-out", consumerBase, headPartition.size());
                         headPartition.forEach(messageId -> {
+                            addChunkedMessageIdsAndRemoveFromSequnceMap(messageId, messageIds, consumerBase);
                             messageIds.add(messageId);
                             messageIdPartitionMap.remove(messageId);
                         });
                     }
+
+                    headPartition.clear();
+                    timePartitions.addLast(headPartition);
                 } finally {
+                    if (messageIds.size() > 0) {
+                        consumerBase.onAckTimeoutSend(messageIds);
+                        consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                    }
+                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     writeLock.unlock();
                 }
-                if (messageIds.size() > 0) {
-                    consumerBase.redeliverUnacknowledgedMessages(messageIds);
-                }
-                timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
+    }
+
+    public static void addChunkedMessageIdsAndRemoveFromSequnceMap(MessageId messageId, Set<MessageId> messageIds,
+            ConsumerBase<?> consumerBase) {
+        if (messageId instanceof MessageIdImpl) {
+            MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunckedMessageIdSequenceMap.get((MessageIdImpl) messageId);
+            if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
+                for (MessageIdImpl msgId : chunkedMsgIds) {
+                    messageIds.add(msgId);
+                }
+            }
+            consumerBase.unAckedChunckedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
+        }
     }
 
     public void clear() {
         writeLock.lock();
         try {
             messageIdPartitionMap.clear();
-            timePartitions.clear();
-            int blankPartitions = (int)Math.ceil((double)ackTimeoutMillis / tickDurationInMs);
-            for (int i = 0; i < blankPartitions + 1; i++) {
-                timePartitions.add(new ConcurrentOpenHashSet<>());
-            }
+            timePartitions.forEach(tp -> tp.clear());
         } finally {
             writeLock.unlock();
         }
@@ -148,8 +178,13 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock.lock();
         try {
             ConcurrentOpenHashSet<MessageId> partition = timePartitions.peekLast();
-            messageIdPartitionMap.put(messageId, partition);
-            return partition.add(messageId);
+            ConcurrentOpenHashSet<MessageId> previousPartition = messageIdPartitionMap.putIfAbsent(messageId,
+                    partition);
+            if (previousPartition == null) {
+                return partition.add(messageId);
+            } else {
+                return false;
+            }
         } finally {
             writeLock.unlock();
         }

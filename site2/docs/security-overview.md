@@ -1,39 +1,34 @@
 ---
 id: security-overview
-title: Pulsar Security Overview
+title: Pulsar security overview
 sidebar_label: Overview
 ---
 
-Apache Pulsar is the central message bus for a business. It is frequently used to store mission-critical data, and therefore enabling security features are crucial.
+As the central message bus for a business, Apache Pulsar is frequently used for storing mission-critical data. Therefore, enabling security features in Pulsar is crucial.
 
-By default, there is no encryption, authentication, or authorization configured. Any client can communicate to Apache Pulsar via plain text service urls.
-It is critical that access via these plain text service urls is restricted to trusted clients only. Network segmentation and/or authorization ACLs can be used
-to restrict access to trusted IPs in such cases. If neither is used, the cluster is wide open and can be accessed by anyone.
+By default, Pulsar configures no encryption, authentication, or authorization. Any client can communicate to Apache Pulsar via plain text service URLs. So we must ensure that Pulsar accessing via these plain text service URLs is restricted to trusted clients only. In such cases, you can use Network segmentation and/or authorization ACLs to restrict access to trusted IPs. If you use neither, the state of cluster is wide open and anyone can access the cluster.
 
-Pulsar supports a pluggable authentication mechanism that Pulsar clients can use to authenticate with brokers and proxies. Pulsar
-can also be configured to support multiple authentication sources.
+Pulsar supports a pluggable authentication mechanism. And Pulsar clients use this mechanism to authenticate with brokers and proxies. You can also configure Pulsar to support multiple authentication sources.
 
-It is strongly recommended to secure the service components in your Apache Pulsar deployment.
+The Pulsar broker validates the authentication credentials when a connection is established. After the initial connection is authenticated, the "principal" token is stored for authorization though the connection is not re-authenticated. The broker periodically checks the expiration status of every `ServerCnx` object. You can set the `authenticationRefreshCheckSeconds` on the broker to control the frequency to check the expiration status. By default, the `authenticationRefreshCheckSeconds` is set to 60s. When the authentication is expired, the broker forces to re-authenticate the connection. If the re-authentication fails, the broker disconnects the client.
 
-## Role Tokens
+The broker supports learning whether a particular client supports authentication refreshing. If a client supports authentication refreshing and the credential is expired, the authentication provider calls the `refreshAuthentication` method to initiate the refreshing process. If a client does not support authentication refreshing and the credential is expired, the broker disconnects the client.
 
-In Pulsar, a *role* is a string, like `admin` or `app1`, that can represent a single client or multiple clients. Roles are used to control permission for clients
-to produce or consume from certain topics, administer the configuration for tenants, and more.
+You had better secure the service components in your Apache Pulsar deployment.
 
-Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign that client a *role token*. This
-role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
+## Role tokens
 
-## Authentication Providers
+In Pulsar, a *role* is a string, like `admin` or `app1`, which can represent a single client or multiple clients. You can use roles to control permission for clients to produce or consume from certain topics, administer the configuration for tenants, and so on.
 
-Currently Pulsar supports two authentication providers:
+Apache Pulsar uses a [Authentication Provider](#authentication-providers) to establish the identity of a client and then assign a *role token* to that client. This role token is then used for [Authorization and ACLs](security-authorization.md) to determine what the client is authorized to do.
+
+## Authentication providers
+
+Currently Pulsar supports the following authentication providers:
 
 - [TLS Authentication](security-tls-authentication.md)
 - [Athenz](security-athenz.md)
+- [Kerberos](security-kerberos.md)
+- [JSON Web Token Authentication](security-jwt.md)
 
-## Contents
-
-- [Encryption](security-tls-transport.md) and [Authentication](security-tls-authentication.md) using TLS
-- [Authentication using Athenz](security-athenz.md)
-- [Authorization and ACLs](security-authorization.md)
-- [End-to-End Encryption](security-encryption.md)
 

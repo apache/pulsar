@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,6 +30,7 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
 
@@ -67,17 +67,22 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        if (leastLoadedBroker.isPresent()) {
-            return Optional.of(new SimpleResourceUnit(String.format("http://%s", leastLoadedBroker.get()),
-                    new PulsarResourceDescription()));
-        } else {
-            return Optional.empty();
-        }
+        return leastLoadedBroker.map(s -> new SimpleResourceUnit(getBrokerWebServiceUrl(s),
+                new PulsarResourceDescription()));
     }
 
+    private String getBrokerWebServiceUrl(String broker) {
+        LocalBrokerData localData = (loadManager).getBrokerLocalData(broker);
+        if (localData != null) {
+            return localData.getWebServiceUrl() != null ? localData.getWebServiceUrl()
+                    : localData.getWebServiceUrlTls();
+        }
+        return String.format("http://%s", broker);
+    }
+    
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        return Collections.emptyList();
+        return loadManager.getLoadBalancingMetrics();
     }
 
     @Override

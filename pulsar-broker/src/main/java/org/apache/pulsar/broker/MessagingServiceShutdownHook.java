@@ -24,8 +24,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
-import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.ILoggerFactory;
@@ -40,16 +40,18 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
     private static final String LogbackLoggerContextClassName = "ch.qos.logback.classic.LoggerContext";
 
     private PulsarService service = null;
+    private final Consumer<Integer> processTerminator;
 
-    public MessagingServiceShutdownHook(PulsarService service) {
+    public MessagingServiceShutdownHook(PulsarService service, Consumer<Integer> processTerminator) {
         this.service = service;
+        this.processTerminator = processTerminator;
     }
 
     @Override
     public void run() {
         if (service.getConfiguration() != null) {
-            LOG.info("messaging service shutdown hook started, lookup port="
-                    + service.getConfiguration().getWebServicePort().get() + ", broker url=" + service.getBrokerServiceUrl());
+            LOG.info("messaging service shutdown hook started, lookup webservice="
+                    + service.getSafeWebServiceAddress() + ", broker url=" + service.getSafeBrokerServiceUrl());
         }
 
         ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("shutdown-thread"));
@@ -76,8 +78,9 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
         } finally {
 
             immediateFlushBufferedLogs();
+
             // always put system to halt immediately
-            Runtime.getRuntime().halt(0);
+            processTerminator.accept(0);
         }
     }
 
@@ -96,8 +99,7 @@ public class MessagingServiceShutdownHook extends Thread implements ShutdownServ
 
         LOG.info("Invoking Runtime.halt({})", exitCode);
         immediateFlushBufferedLogs();
-        Runtime.getRuntime().halt(exitCode);
-
+        processTerminator.accept(exitCode);
     }
 
     public static void immediateFlushBufferedLogs() {

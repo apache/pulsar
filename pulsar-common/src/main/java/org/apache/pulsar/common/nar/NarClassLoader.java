@@ -38,7 +38,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -124,12 +123,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class NarClassLoader extends URLClassLoader {
 
-    private static final FileFilter JAR_FILTER = new FileFilter() {
-        @Override
-        public boolean accept(File pathname) {
-            final String nameToTest = pathname.getName().toLowerCase();
-            return nameToTest.endsWith(".jar") && pathname.isFile();
-        }
+    private static final FileFilter JAR_FILTER = pathname -> {
+        final String nameToTest = pathname.getName().toLowerCase();
+        return nameToTest.endsWith(".jar") && pathname.isFile();
     };
 
     /**
@@ -139,15 +135,31 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    private static final File NAR_CACHE_DIR = new File(System.getProperty("java.io.tmpdir") + "/" + TMP_DIR_PREFIX);
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
+
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
+                                                String narExtractionDirectory) throws IOException {
+        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
+                                                NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    }
 
     public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        File unpacked = NarUnpacker.unpackNar(narPath, NAR_CACHE_DIR);
+        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
+    }
+
+    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+                                                String narExtractionDirectory)
+        throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
         try {
-            return new NarClassLoader(unpacked, additionalJars);
-        } catch (ClassNotFoundException e) {
+            return new NarClassLoader(unpacked, additionalJars, parent);
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IOException(e);
         }
+    }
+
+    private static File getNarExtractionDirectory(String configuredDirectory) {
+        return new File(configuredDirectory + "/" + TMP_DIR_PREFIX);
     }
 
     /**
@@ -155,6 +167,7 @@ public class NarClassLoader extends URLClassLoader {
      *
      * @param narWorkingDirectory
      *            directory to explode nar contents to
+     * @param parent
      * @throws IllegalArgumentException
      *             if the NAR is missing the Java Services API file for <tt>FlowFileProcessor</tt> implementations.
      * @throws ClassNotFoundException
@@ -163,9 +176,9 @@ public class NarClassLoader extends URLClassLoader {
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
-    private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars)
+    private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars, ClassLoader parent)
             throws ClassNotFoundException, IOException {
-        super(new URL[0]);
+        super(new URL[0], parent);
         this.narWorkingDirectory = narWorkingDirectory;
 
         // process the classpath
@@ -191,7 +204,7 @@ public class NarClassLoader extends URLClassLoader {
     }
 
     /**
-     * Read a service definition as a String
+     * Read a service definition as a String.
      */
     public String getServiceDefinition(String serviceName) throws IOException {
         String serviceDefPath = narWorkingDirectory + "/META-INF/services/" + serviceName;

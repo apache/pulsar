@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <pulsar/defines.h>
 #include <pulsar/Schema.h>
 
 #include <iostream>
 #include <map>
 #include <memory>
 
-#pragma GCC visibility push(default)
-
-std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType) {
+PULSAR_PUBLIC std::ostream &operator<<(std::ostream &s, pulsar::SchemaType schemaType) {
     return s << strSchemaType(schemaType);
 }
 
 namespace pulsar {
 
-const char *strSchemaType(SchemaType schemaType) {
+PULSAR_PUBLIC const char *strSchemaType(SchemaType schemaType) {
     switch (schemaType) {
         case NONE:
             return "NONE";
@@ -69,7 +68,7 @@ const char *strSchemaType(SchemaType schemaType) {
     return "UnknownSchemaType";
 }
 
-class SchemaInfoImpl {
+class PULSAR_PUBLIC SchemaInfoImpl {
    public:
     const std::string name_;
     const std::string schema_;
@@ -98,5 +97,3 @@ const std::string &SchemaInfo::getSchema() const { return impl_->schema_; }
 const std::map<std::string, std::string> &SchemaInfo::getProperties() const { return impl_->properties_; }
 
 }  // namespace pulsar
-
-#pragma GCC visibility pop

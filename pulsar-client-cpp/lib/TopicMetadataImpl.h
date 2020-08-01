@@ -19,11 +19,11 @@
 #ifndef TOPIC_METADATA_IMPL_HPP_
 #define TOPIC_METADATA_IMPL_HPP_
 
+#include <pulsar/defines.h>
 #include <pulsar/TopicMetadata.h>
 
-#pragma GCC visibility push(default)
 namespace pulsar {
-class TopicMetadataImpl : public TopicMetadata {
+class PULSAR_PUBLIC TopicMetadataImpl : public TopicMetadata {
    public:
     TopicMetadataImpl(const int numPartitions);
     virtual int getNumPartitions() const;
@@ -32,6 +32,5 @@ class TopicMetadataImpl : public TopicMetadata {
     int numPartitions_;
 };
 }  // namespace pulsar
-#pragma GCC visibility pop
 
 #endif /* TOPIC_METADATA_IMPL_HPP_ */

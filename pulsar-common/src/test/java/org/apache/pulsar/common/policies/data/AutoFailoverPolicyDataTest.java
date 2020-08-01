@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import java.util.HashMap;
 
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyDataTest {
@@ -48,9 +46,9 @@ public class AutoFailoverPolicyDataTest {
         } catch (Exception e) {
             fail("Should not happen");
         }
-        assertTrue(policy0.equals(policy1));
+        assertEquals(policy1, policy0);
         policy1.parameters.put("min_limit", "5");
-        assertFalse(policy0.equals(policy1));
-        assertFalse(policy1.equals(new OldPolicies()));
+        assertNotEquals(policy1, policy0);
+        assertNotEquals(new OldPolicies(), policy1);
     }
 }

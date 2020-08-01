@@ -21,10 +21,17 @@
 
 #include <pulsar/ConsumerConfiguration.h>
 
+#include <chrono>
+
 namespace pulsar {
 struct ConsumerConfigurationImpl {
     SchemaInfo schemaInfo;
     long unAckedMessagesTimeoutMs;
+    long tickDurationInMs;
+
+    long negativeAckRedeliveryDelayMs;
+    long ackGroupingTimeMs;
+    long ackGroupingMaxSize;
     ConsumerType consumerType;
     MessageListener messageListener;
     bool hasMessageListener;
@@ -41,6 +48,10 @@ struct ConsumerConfigurationImpl {
     ConsumerConfigurationImpl()
         : schemaInfo(),
           unAckedMessagesTimeoutMs(0),
+          tickDurationInMs(1000),
+          negativeAckRedeliveryDelayMs(60000),
+          ackGroupingTimeMs(100),
+          ackGroupingMaxSize(1000),
           consumerType(ConsumerExclusive),
           messageListener(),
           hasMessageListener(false),

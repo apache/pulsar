@@ -1,0 +1,11 @@
+{"namespace": "org.apache.pulsar.client.avro.generated",
+ "type": "record",
+ "name": "NasaMission",
+ "fields": [
+     {"name": "id", "type": "int"},
+     {"name": "name", "type": "string"},
+     {"name": "create_year",  "type": { "type": "int", "logicalType": "date" }},
+     {"name": "create_time", "type": { "type": "int", "logicalType": "time-millis"}},
+     {"name": "create_timestamp", "type": { "type": "long", "logicalType": "timestamp-millis" }}
+ ]
+}

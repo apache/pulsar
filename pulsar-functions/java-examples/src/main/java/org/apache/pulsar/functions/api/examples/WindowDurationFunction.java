@@ -20,8 +20,9 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.Collection;
 
+
 /**
- * This functions collects the timestamp during the window operation
+ * This functions collects the timestamp during the window operation.
  */
 public class WindowDurationFunction implements java.util.function.Function<Collection<String>, String> {
     @Override

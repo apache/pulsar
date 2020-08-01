@@ -91,10 +91,13 @@
         <th title="Bytes/s">Throughput out</th>
         <th title="Msg/s">Rate expired</th>
         <th title="Msg/s">Unacked</th>
+        <th title="Delete">Delete Subscription</th>
+        <th title="Clear messages for subscription">Clear Backlog</th>
+        <th title="Peek messages">Peek</th>
     </tr>
 </thead>
 
-<tbody
+<tbody>
 {% for sub, consumers in subscriptions %}
     <tr class="{% cycle 'row1' 'row2' %}">
         {% if consumers %}
@@ -108,6 +111,22 @@
         <td>{{sub.msgThroughputOut | intcomma}}</td>
         <td>{{sub.msgRateExpired | intcomma}}</td>
         <td>{{sub.unackedMessages | intcomma}}</td>
+        {% if consumers %}
+        <td><div title="Cannot delete subscription" class="x"/></td>
+        {% else %}
+        <td>
+            <form method="GET" action="{% url 'deleteSubscription' topic.url_name sub.name %}">
+                <input type="submit" value="Delete Subscription" class="small-button"/>
+            </form></td>
+<!--        <td><a href="{% url 'deleteSubscription' topic.url_name sub.name %}">Delete Subscription</a></td>-->
+        {% endif %}
+        {% if sub.msgBacklog > 0 %}
+        <td><a title="Clear backlog from this subscription" href="{% url 'clearSubscription' topic.url_name sub.name %}">clear</a></td>
+        <td><a href="{% url 'messages' topic.url_name sub.name %}">View Messages</a></td>
+        {% else %}
+        <td></td>
+        <td></td>
+        {% endif %}
     </tr>
 
     <tr class="{% cycle 'row1' 'row2' %}" id="consumers-{{sub.id}}"

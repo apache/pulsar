@@ -25,8 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 
 public interface Dispatcher {
     void addConsumer(Consumer consumer) throws BrokerServiceException;
@@ -42,7 +42,7 @@ public interface Dispatcher {
 
     boolean isConsumerConnected();
 
-    CopyOnWriteArrayList<Consumer> getConsumers();
+    List<Consumer> getConsumers();
 
     boolean canUnsubscribe(Consumer consumer);
 
@@ -53,12 +53,25 @@ public interface Dispatcher {
      */
     CompletableFuture<Void> close();
 
+    boolean isClosed();
+
+    /**
+     * Disconnect active consumers
+     */
+    CompletableFuture<Void> disconnectActiveConsumers(boolean isResetCursor);
+
     /**
      * disconnect all consumers
      *
      * @return
      */
-    CompletableFuture<Void> disconnectAllConsumers();
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
+
+    default CompletableFuture<Void> disconnectAllConsumers() {
+        return disconnectAllConsumers(false);
+    }
+
+    void resetCloseFuture();
 
     /**
      * mark dispatcher open to serve new incoming requests
@@ -81,5 +94,25 @@ public interface Dispatcher {
 
     default void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         //No-op
+    }
+
+    /**
+     * Check with dispatcher if the message should be added to the delayed delivery tracker.
+     * Return true if the message should be delayed and ignored at this point.
+     */
+    default boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+        return false;
+    }
+
+    default long getNumberOfDelayedMessages() {
+        return 0;
+    }
+
+    default void cursorIsReset() {
+        //No-op
+    }
+
+    default void acknowledgementWasProcessed() {
+        // No-op
     }
 }

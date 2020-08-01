@@ -46,21 +46,18 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.FunctionDetailsUtils;
+import org.apache.pulsar.functions.utils.FunctionCommon;
+
 import static org.apache.pulsar.functions.worker.SchedulerManager.checkHeartBeatFunction;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
 @Slf4j
-public class MembershipManager implements AutoCloseable, ConsumerEventListener {
+public class MembershipManager implements AutoCloseable {
 
-    private final String consumerName;
-    private final ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
-    private PulsarAdmin pulsarAdminClient;
-    private final CompletableFuture<Void> firstConsumerEventFuture;
-    private final AtomicBoolean isLeader = new AtomicBoolean();
+    private PulsarAdmin pulsarAdmin;
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
@@ -71,58 +68,17 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     @VisibleForTesting
     Map<Function.Instance, Long> unsignedFunctionDurations = new HashMap<>();
 
-    MembershipManager(WorkerService service, PulsarClient client)
-            throws PulsarClientException {
-        this.workerConfig = service.getWorkerConfig();
-        consumerName = String.format(
-            "%s:%s:%d",
-            workerConfig.getWorkerId(),
-            workerConfig.getWorkerHostname(),
-            workerConfig.getWorkerPort()
-        );
-        firstConsumerEventFuture = new CompletableFuture<>();
-        // the membership manager is using a `coordination` topic for leader election.
-        // we don't produce any messages into this topic, we only use the `failover` subscription
-        // to elect an active consumer as the leader worker. The leader worker will be responsible
-        // for scheduling snapshots for FMT and doing task assignment.
-        consumer = (ConsumerImpl<byte[]>) client.newConsumer()
-                .topic(workerConfig.getClusterCoordinationTopic())
-                .subscriptionName(COORDINATION_TOPIC_SUBSCRIPTION)
-                .subscriptionType(SubscriptionType.Failover)
-                .consumerEventListener(this)
-                .property(WORKER_IDENTIFIER, consumerName)
-                .subscribe();
-        
-        isLeader.set(checkLeader(service, consumer.getConsumerName()));
-    }
-
-    @Override
-    public void becameActive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(false, true)) {
-            log.info("Worker {} became the leader.", consumerName);
-        }
-    }
-
-    @Override
-    public void becameInactive(Consumer<?> consumer, int partitionId) {
-        firstConsumerEventFuture.complete(null);
-        if (isLeader.compareAndSet(true, false)) {
-            log.info("Worker {} lost the leadership.", consumerName);
-        }
-    }
-
-    public boolean isLeader() {
-        return isLeader.get();
+    MembershipManager(WorkerService workerService, PulsarClient pulsarClient, PulsarAdmin pulsarAdmin) {
+        this.workerConfig = workerService.getWorkerConfig();
+        this.pulsarAdmin = pulsarAdmin;
     }
 
     public List<WorkerInfo> getCurrentMembership() {
 
         List<WorkerInfo> workerIds = new LinkedList<>();
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -139,9 +95,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     public WorkerInfo getLeader() {
         TopicStats topicStats = null;
-        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
-            topicStats = pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
+            topicStats = this.pulsarAdmin.topics().getStats(this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
             log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
@@ -163,11 +118,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public void close() throws PulsarClientException {
-        consumer.close();
-        if (this.pulsarAdminClient != null) {
-            this.pulsarAdminClient.close();
-        }
+    public void close() {
+
     }
 
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
@@ -179,7 +131,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
         Map<String, Function.FunctionMetaData> functionMetaDataMap = new HashMap<>();
         for (Function.FunctionMetaData entry : functionMetaDataList) {
-            functionMetaDataMap.put(FunctionDetailsUtils.getFullyQualifiedName(entry.getFunctionDetails()), entry);
+            functionMetaDataMap.put(FunctionCommon.getFullyQualifiedName(entry.getFunctionDetails()), entry);
         }
         Map<String, Map<String, Function.Assignment>> currentAssignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Function.Assignment> assignmentMap = new HashMap<>();
@@ -192,9 +144,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         Iterator<Map.Entry<Function.Instance, Long>> it = unsignedFunctionDurations.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<Function.Instance, Long> entry = it.next();
-            String fullyQualifiedFunctionName = FunctionDetailsUtils.getFullyQualifiedName(
+            String fullyQualifiedFunctionName = FunctionCommon.getFullyQualifiedName(
                     entry.getKey().getFunctionMetaData().getFunctionDetails());
-            String fullyQualifiedInstanceId = org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(entry.getKey());
+            String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(entry.getKey());
             //remove functions that don't exist anymore
             if (!functionMetaDataMap.containsKey(fullyQualifiedFunctionName)) {
                 it.remove();
@@ -256,15 +208,22 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // check unassigned
         Collection<Function.Instance> needSchedule = new LinkedList<>();
         Collection<Function.Assignment> needRemove = new LinkedList<>();
+        Map<String, Integer> numRemoved = new HashMap<>();
         for (Map.Entry<Function.Instance, Long> entry : this.unsignedFunctionDurations.entrySet()) {
             Function.Instance instance = entry.getKey();
             long unassignedDurationMs = entry.getValue();
             if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
                 needSchedule.add(instance);
                 // remove assignment from failed node
-                Function.Assignment assignment = assignmentMap.get(org.apache.pulsar.functions.utils.Utils.getFullyQualifiedInstanceId(instance));
+                Function.Assignment assignment = assignmentMap.get(FunctionCommon.getFullyQualifiedInstanceId(instance));
                 if (assignment != null) {
                     needRemove.add(assignment);
+
+                    Integer count = numRemoved.get(assignment.getWorkerId());
+                    if (count == null) {
+                        count = 0;
+                    }
+                    numRemoved.put(assignment.getWorkerId(),  count + 1);
                 }
                 triggerScheduler = true;
             }
@@ -273,37 +232,9 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
             functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
-            log.info("Functions that need scheduling/rescheduling: {}", needSchedule);
+            log.info("Failure check - Total number of instances that need to be scheduled/rescheduled: {} | Number of unassigned instances that need to be scheduled: {} | Number of instances on dead workers that need to be reassigned {}",
+                    needSchedule.size(), needSchedule.size() - needRemove.size(), numRemoved);
             schedulerManager.schedule();
         }
     }
-
-    /**
-     * Private methods
-     */
-
-    private PulsarAdmin getPulsarAdminClient() {
-        if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
-                    workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection());
-        }
-        return this.pulsarAdminClient;
-    }
-
-    private boolean checkLeader(WorkerService service, String consumerName) {
-        try {
-            TopicStats stats = service.getBrokerAdmin().topics()
-                    .getStats(service.getWorkerConfig().getClusterCoordinationTopic());
-            String activeConsumerName = stats != null
-                    && stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION) != null
-                            ? stats.subscriptions.get(COORDINATION_TOPIC_SUBSCRIPTION).activeConsumerName
-                            : null;
-            return consumerName != null && consumerName.equalsIgnoreCase(activeConsumerName);
-        } catch (Exception e) {
-            log.warn("Failed to check leader {}", e.getMessage());
-        }
-        return false;
-    }
-    
 }

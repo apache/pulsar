@@ -27,4 +27,5 @@ public class ProducerMessage {
     public String context;
     public String key;
     public List<String> replicationClusters;
+    public String eventTime;
 }

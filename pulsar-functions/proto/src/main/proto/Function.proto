@@ -32,6 +32,12 @@ enum ProcessingGuarantees {
 enum SubscriptionType {
     SHARED = 0;
     FAILOVER = 1;
+    KEY_SHARED = 2;
+}
+
+enum SubscriptionPosition {
+    LATEST = 0;
+    EARLIEST = 1;
 }
 
 message Resources {
@@ -49,6 +55,13 @@ message FunctionDetails {
     enum Runtime {
         JAVA = 0;
         PYTHON = 1;
+        GO = 3;
+    }
+    enum ComponentType {
+        UNKNOWN = 0;
+        FUNCTION = 1;
+        SOURCE = 2;
+        SINK = 3;
     }
     string tenant = 1;
     string namespace = 2;
@@ -66,16 +79,26 @@ message FunctionDetails {
     Resources resources = 13;
     string packageUrl = 14; //present only if function submitted with package-url
     RetryDetails retryDetails = 15;
+    string runtimeFlags = 17;
+    ComponentType componentType = 18;
+    string customRuntimeOptions = 19;
+    /* If specified, this will refer to an archive that is
+     * already present in the server */
+    string builtin = 20;
+    bool retainOrdering = 21;
+    bool retainKeyOrdering = 22;
 }
 
 message ConsumerSpec {
-	string schemaType   = 1;
+    string schemaType = 1;
     string serdeClassName = 2;
-	bool isRegexPattern = 3;
+    bool isRegexPattern = 3;
     message ReceiverQueueSize {
         int32 value = 1;
     }
     ReceiverQueueSize receiverQueueSize = 4;
+    map<string, string> schemaProperties = 5;
+    map<string, string> consumerProperties = 6;
 }
 
 message SourceSpec {
@@ -87,12 +110,12 @@ message SourceSpec {
     // configs used only when source feeds into functions
     SubscriptionType subscriptionType = 3;
 
-	// @deprecated -- use topicsToSchema
-    map<string,string> topicsToSerDeClassName = 4 [deprecated = true];
+    // @deprecated -- use topicsToSchema
+    map<string, string> topicsToSerDeClassName = 4 [deprecated = true];
 
-	/**
-	 *
-	 */
+    /**
+     *
+     */
     map<string, ConsumerSpec> inputSpecs = 10;
 
     uint64 timeoutMs = 6;
@@ -103,6 +126,8 @@ message SourceSpec {
     string builtin = 8;
     string subscriptionName = 9;
     bool cleanupSubscription = 11;
+    SubscriptionPosition subscriptionPosition = 12;
+    uint64 negativeAckRedeliveryDelayMs = 13;
 }
 
 message SinkSpec {
@@ -120,10 +145,16 @@ message SinkSpec {
      * already present in the server */
     string builtin = 6;
 
-	/**
-	 * Builtin schema type or custom schema class name
-	 */
+    /**
+     * Builtin schema type or custom schema class name
+     */
     string schemaType = 7;
+
+    bool forwardSourceMessageProperty = 8;
+
+    map<string, string> schemaProperties = 9;
+
+    map<string, string> consumerProperties = 10;
 }
 
 message PackageLocationMetaData {
@@ -141,6 +172,21 @@ message FunctionMetaData {
     uint64 version = 3;
     uint64 createTime = 4;
     map<int32, FunctionState> instanceStates = 5;
+    FunctionAuthenticationSpec functionAuthSpec = 6;
+}
+
+message FunctionAuthenticationSpec {
+    /**
+     * function authentication related data that the function authentication provider
+     * needs to cache/distribute to all workers support function authentication.
+     * Depending on the function authentication provider implementation, this can be the actual auth credentials
+     * or a pointer to the auth credentials that this function should use
+     */
+    bytes data = 1;
+    /**
+     * classname of the function auth provicer this data is relevant to
+     */
+    string provider = 2;
 }
 
 message Instance {

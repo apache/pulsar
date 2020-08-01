@@ -232,8 +232,8 @@ public class FunctionStatsManager extends ComponentStatsManager{
                 .help("Exception from sink.")
                 .register(collectorRegistry);
 
-        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
-        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES);
+        userExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
+        sysExceptionRateLimiter = new RateLimiter(scheduledExecutorService, 5, 1, TimeUnit.MINUTES, null);
     }
 
     public void addUserException(Throwable ex) {
@@ -243,9 +243,7 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         // report exception throw prometheus
         if (userExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex);
             userExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
     }
@@ -257,11 +255,15 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         // report exception throw prometheus
         if (sysExceptionRateLimiter.tryAcquire()) {
-            String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 2);
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 2] = ex.getMessage() != null ? ex.getMessage() : "";
-            exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = String.valueOf(ts);
+            String[] exceptionMetricsLabels = getExceptionMetricsLabels(ex);
             sysExceptions.labels(exceptionMetricsLabels).set(1.0);
         }
+    }
+
+    private String[] getExceptionMetricsLabels(Throwable ex) {
+        String[] exceptionMetricsLabels = Arrays.copyOf(metricsLabels, metricsLabels.length + 1);
+        exceptionMetricsLabels[exceptionMetricsLabels.length - 1] = ex.getMessage() != null ? ex.getMessage() : "";
+        return exceptionMetricsLabels;
     }
 
     @Override
@@ -434,8 +436,5 @@ public class FunctionStatsManager extends ComponentStatsManager{
 
         statTotalRecordsReceived1min.clear();
         _statTotalRecordsReceived1min = statTotalRecordsReceived1min.labels(metricsLabels);
-
-        latestUserExceptions.clear();
-        latestSystemExceptions.clear();
     }
 }

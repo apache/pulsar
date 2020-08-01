@@ -1,31 +1,32 @@
 ---
 id: deploy-monitoring
-title: Monitoring
-sidebar_label: Monitoring
+title: Monitor
+sidebar_label: Monitor
 ---
 
-There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the usage of topics and the overall health of the individual components of the cluster.
+You can use different ways to monitor a Pulsar cluster, exposing both metrics related to the usage of topics and the overall health of the individual components of the cluster.
 
-## Collecting metrics
+## Collect metrics
+
+You can collect broker stats, ZooKeeper stats, and BookKeeper stats. 
 
 ### Broker stats
 
-Pulsar broker metrics can be collected from brokers and exported in JSON format. There are two main types of metrics:
+You can collect Pulsar broker metrics from brokers and export the metrics in JSON format. The Pulsar broker metrics mainly have two types:
 
-* *Destination dumps*, which containing stats for each individual topic. They can be fetched using
+* *Destination dumps*, which contain stats for each individual topic. You can fetch the destination dumps using the command below:
 
   ```shell
   bin/pulsar-admin broker-stats destinations
   ```
 
-* Broker metrics, containing broker info and topics stats aggregated at namespace
-  level:
+* Broker metrics, which contain the broker information and topics stats aggregated at namespace level. You can fetch the broker metrics by using the following command:
 
   ```shell
   bin/pulsar-admin broker-stats monitoring-metrics
   ```
 
-All the message rates are updated every 1min.
+All the message rates are updated every minute.
 
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
@@ -35,63 +36,59 @@ http://$BROKER_ADDRESS:8080/metrics
 
 ### ZooKeeper stats
 
-The local Zookeeper/configuration store server and clients that are shipped with Pulsar have been instrumented to expose
-detailed stats through Prometheus as well.
+The local ZooKeeper, configuration store server and clients that are shipped with Pulsar can expose detailed stats through Prometheus.
 
 ```shell
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
 
-The default port of local ZooKeeper is `8000` and that of configuration store is `8001`.
-These can be changed by specifying system property `stats_server_port`.
+The default port of local ZooKeeper is `8000` and the default port of configuration store is `8001`. You can change the default port of local ZooKeeper and configuration store by specifying system property `stats_server_port`.
 
 ### BookKeeper stats
 
-For BookKeeper you can configure the stats frameworks by changing the `statsProviderClass` in
-`conf/bookkeeper.conf`.
+You can configure the stats frameworks for BookKeeper by modifying the `statsProviderClass` in the `conf/bookkeeper.conf` file.
 
-By default, the default BookKeeper configuration included with Pulsar distribution will enable
-the Prometheus exporter.
+The default BookKeeper configuration enables the Prometheus exporter. The configuration is included with Pulsar distribution.
 
 ```shell
 http://$BOOKIE_ADDRESS:8000/metrics
 ```
 
-For bookies, the default port is `8000` (instead of `8080`) and that can be configured by changing
-the `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
+The default port for bookie is `8000`. You can change the port by configuring `prometheusStatsHttpPort` in the `conf/bookkeeper.conf` file.
 
-## Configuring Prometheus
+## Configure Prometheus
 
-You can configure Prometheus to collect and store the metrics data by following the Prometheus
-[Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
+You can use Prometheus to collect all the metrics exposed for Pulsar components and set up [Grafana](https://grafana.com/) dashboards to display the metrics and monitor your Pulsar cluster. For details, refer to [Prometheus guide](https://prometheus.io/docs/introduction/getting_started/).
 
-When running on bare metal, you can provide the list of nodes that needs to be probed. When deploying
-in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md)
-instructions.
+When you run Pulsar on bare metal, you can provide the list of nodes to be probed. When you deploy Pulsar in a Kubernetes cluster, the monitoring is setup automatically. For details, refer to [Kubernetes instructions](kubernetes-helm.md). 
 
 ## Dashboards
 
-When collecting time series statistics, the major problem is to make sure the number of dimensions
-attached to the data does not explode.
-
-For that reason we only collect time series of metrics aggregated at the namespace level.
+When you collect time series statistics, the major problem is to make sure the number of dimensions attached to the data does not explode. Thus you only need to collect time series of metrics aggregated at the namespace level.
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](administration-dashboard.md).
+The per-topic dashboard instructions are available at [Pulsar manager](administration-pulsar-manager.md).
 
 ### Grafana
 
-You can use grafana to easily create dashboard driven by the data stored in Prometheus.
+You can use grafana to create dashboard driven by the data that is stored in Prometheus.
 
-There is a `pulsar-grafana` Docker image that is ready to use with the principal dashboards already
-in place. This is enabled by default when deploying Pulsar on Kubernetes.
+When you deploy Pulsar on Kubernetes, a `pulsar-grafana` Docker image is enabled by default. You can use the docker image with the principal dashboards.
 
-To use the dashboard manually:
+Enter the command below to use the dashboard manually:
 
 ```shell
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
 ```
+
+The following are some Grafana dashboards examples:
+
+- [pulsar-grafana](http://pulsar.apache.org/docs/en/deploy-monitoring/#grafana): a Grafana dashboard that displays metrics collected in Prometheus for Pulsar clusters running on Kubernetes.
+- [apache-pulsar-grafana-dashboard](https://github.com/streamnative/apache-pulsar-grafana-dashboard): a collection of Grafana dashboard templates for different Pulsar components running on both Kubernetes and on-premise machines.
+
+ ## Alerting rules
+ You can set alerting rules according to your Pulsar environment. To configure alerting rules for Apache Pulsar, you can refer to [StreamNative platform](https://streamnative.io/docs/latest/configure/control-center/alertmanager) examples or [Alert Manager](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) alerting rules.

@@ -28,13 +28,13 @@ import java.util.Collections;
 import java.util.Map;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
@@ -51,18 +51,16 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     public void testJsonSchemaBackwardsCompatibility() throws JsonProcessingException {
 
         SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
-        SchemaData to = SchemaData.builder().data(JSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
+        SchemaData to = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.builder().withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         JsonSchemaCompatibilityCheck jsonSchemaCompatibilityCheck = new JsonSchemaCompatibilityCheck();
         Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
 
-        from = SchemaData.builder().data(JSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
+        from = SchemaData.builder().data(JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         to = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
         Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Foo {
         private String field1;
         private String field2;
@@ -71,8 +69,6 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
     }
 
     @Data
-    @ToString
-    @EqualsAndHashCode
     private static class Bar {
         private boolean field1;
     }
@@ -127,6 +123,11 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
             info.setType(SchemaType.JSON);
             info.setSchema(mapper.writeValueAsBytes(schema));
             return new OldJSONSchema<>(info, pojo, mapper);
+        }
+
+        @Override
+        public Schema<T> clone() {
+            return this;
         }
     }
 }

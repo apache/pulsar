@@ -18,21 +18,23 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.TypeManager;
+import static io.airlift.configuration.ConfigBinder.configBinder;
+import static io.airlift.json.JsonBinder.jsonBinder;
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.TypeId;
+import io.prestosql.spi.type.TypeManager;
 import javax.inject.Inject;
 
-import static com.facebook.presto.spi.type.TypeSignature.parseTypeSignature;
-import static io.airlift.configuration.ConfigBinder.configBinder;
-import static io.airlift.json.JsonBinder.jsonBinder;
-import static java.util.Objects.requireNonNull;
-
+/**
+ * This class defines binding of classes in the Presto connector.
+ */
 public class PulsarConnectorModule implements Module {
 
     private final String connectorId;
@@ -56,9 +58,11 @@ public class PulsarConnectorModule implements Module {
         configBinder(binder).bindConfig(PulsarConnectorConfig.class);
 
         jsonBinder(binder).addDeserializerBinding(Type.class).to(TypeDeserializer.class);
-
     }
 
+    /**
+     * A wrapper to deserialize the Presto types.
+     */
     public static final class TypeDeserializer
             extends FromStringDeserializer<Type> {
         private static final long serialVersionUID = 1L;
@@ -73,7 +77,7 @@ public class PulsarConnectorModule implements Module {
 
         @Override
         protected Type _deserialize(String value, DeserializationContext context) {
-            return typeManager.getType(parseTypeSignature(value));
+            return typeManager.getType(TypeId.of(value));
         }
     }
 }

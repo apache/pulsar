@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.policies.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -37,11 +39,9 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.OldPolicies;
-import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
-@Test
 public class NamespaceIsolationPolicyImplTest {
     private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"90\"}}}";
 
@@ -55,23 +55,23 @@ public class NamespaceIsolationPolicyImplTest {
     public void testConstructor() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         NamespaceIsolationData policyData = new NamespaceIsolationData();
-        policyData.namespaces = new ArrayList<String>();
+        policyData.namespaces = new ArrayList<>();
         policyData.namespaces.add("pulsar/use/test.*");
-        policyData.primary = new ArrayList<String>();
+        policyData.primary = new ArrayList<>();
         policyData.primary.add("prod1-broker[1-3].messaging.use.example.com");
-        policyData.secondary = new ArrayList<String>();
+        policyData.secondary = new ArrayList<>();
         policyData.secondary.add("prod1-broker.*.use.example.com");
         policyData.auto_failover_policy = new AutoFailoverPolicyData();
         policyData.auto_failover_policy.policy_type = AutoFailoverPolicyType.min_available;
-        policyData.auto_failover_policy.parameters = new HashMap<String, String>();
+        policyData.auto_failover_policy.parameters = new HashMap<>();
         policyData.auto_failover_policy.parameters.put("min_limit", "3");
         policyData.auto_failover_policy.parameters.put("usage_threshold", "90");
         NamespaceIsolationPolicyImpl newPolicy = new NamespaceIsolationPolicyImpl(policyData);
-        assertTrue(defaultPolicy.equals(newPolicy));
+        assertEquals(newPolicy, defaultPolicy);
         policyData.auto_failover_policy.parameters.put("usage_threshold", "80");
         newPolicy = new NamespaceIsolationPolicyImpl(policyData);
-        assertTrue(!defaultPolicy.equals(newPolicy));
-        assertTrue(!newPolicy.equals(new OldPolicies()));
+        assertNotEquals(newPolicy, defaultPolicy);
+        assertNotEquals(new OldPolicies(), newPolicy);
     }
 
     @Test
@@ -92,9 +92,9 @@ public class NamespaceIsolationPolicyImplTest {
     public void testIsPrimaryOrSecondaryBroker() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         assertTrue(defaultPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com"));
-        assertTrue(!defaultPolicy.isPrimaryBroker("prod1-broker5.messaging.use.example.com"));
+        assertFalse(defaultPolicy.isPrimaryBroker("prod1-broker5.messaging.use.example.com"));
         assertTrue(defaultPolicy.isSecondaryBroker("prod1-broker5.messaging.use.example.com"));
-        assertTrue(!defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
+        assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
     }
 
     @Test
@@ -140,24 +140,23 @@ public class NamespaceIsolationPolicyImplTest {
     @Test
     public void testShouldFailover() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        SortedSet<BrokerStatus> brokerStatus = new TreeSet<BrokerStatus>();
+        SortedSet<BrokerStatus> brokerStatus = new TreeSet<>();
         for (int i = 0; i < 10; i++) {
             BrokerStatus status = new BrokerStatus(String.format("broker-%d", i), true, i * 10);
             brokerStatus.add(status);
         }
-        assertEquals(defaultPolicy.shouldFailover(brokerStatus), false);
-        List<BrokerStatus> objList = new ArrayList<BrokerStatus>();
-        objList.addAll(brokerStatus);
+        assertFalse(defaultPolicy.shouldFailover(brokerStatus));
+        List<BrokerStatus> objList = new ArrayList<>(brokerStatus);
         for (int i = 0; i < 8; i++) {
             objList.get(i).setActive(false);
         }
-        assertEquals(defaultPolicy.shouldFailover(brokerStatus), true);
+        assertTrue(defaultPolicy.shouldFailover(brokerStatus));
         objList.get(7).setActive(true);
-        assertEquals(defaultPolicy.shouldFailover(brokerStatus), true);
+        assertTrue(defaultPolicy.shouldFailover(brokerStatus));
         objList.get(9).setLoadFactor(80);
-        assertEquals(defaultPolicy.shouldFailover(brokerStatus), false);
+        assertFalse(defaultPolicy.shouldFailover(brokerStatus));
 
-        brokerStatus = new TreeSet<BrokerStatus>();
+        brokerStatus = new TreeSet<>();
         for (int i = 0; i < 5; i++) {
             BrokerStatus status = new BrokerStatus(String.format("broker-%d", 2 * i), true, i * 20);
             brokerStatus.add(status);
@@ -170,8 +169,8 @@ public class NamespaceIsolationPolicyImplTest {
     @Test
     public void testGetAvailablePrimaryBrokers() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        SortedSet<BrokerStatus> brokerStatus = new TreeSet<BrokerStatus>();
-        SortedSet<BrokerStatus> expectedAvailablePrimaries = new TreeSet<BrokerStatus>();
+        SortedSet<BrokerStatus> brokerStatus = new TreeSet<>();
+        SortedSet<BrokerStatus> expectedAvailablePrimaries = new TreeSet<>();
         for (int i = 0; i < 10; i++) {
             BrokerStatus status = new BrokerStatus(String.format("prod1-broker%d.messaging.use.example.com", i),
                     i % 2 == 0, i * 10);

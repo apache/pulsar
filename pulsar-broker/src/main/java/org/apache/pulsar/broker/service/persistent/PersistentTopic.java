@@ -22,20 +22,26 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-
+import com.carrotsearch.hppc.ObjectObjectHashMap;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-
+import java.util.function.BiFunction;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -56,7 +62,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
@@ -64,7 +72,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -73,13 +80,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaCompatibilityStrategy;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -89,26 +97,29 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.LedgerInfo;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -118,42 +129,20 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.carrotsearch.hppc.ObjectObjectHashMap;
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.concurrent.FastThreadLocal;
-
-public class PersistentTopic implements Topic, AddEntryCallback {
-    private final String topic;
+public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
-    private final ManagedLedger ledger;
-
-    // Producers currently connected to this topic
-    private final ConcurrentOpenHashSet<Producer> producers;
+    protected final ManagedLedger ledger;
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
 
     private final ConcurrentOpenHashMap<String, Replicator> replicators;
 
-    private final BrokerService brokerService;
-
-    private volatile boolean isFenced;
-
     protected static final AtomicLongFieldUpdater<PersistentTopic> USAGE_COUNT_UPDATER =
             AtomicLongFieldUpdater.newUpdater(PersistentTopic.class, "usageCount");
     @SuppressWarnings("unused")
     private volatile long usageCount = 0;
-
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
-    // Prefix for replication cursors
-    public final String replicatorPrefix;
 
     static final String DEDUPLICATION_CURSOR_NAME = "pulsar.dedup";
 
@@ -161,29 +150,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private static final long POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS = 60;
 
-    // Timestamp of when this topic was last seen active
-    private volatile long lastActive;
+    // topic has every published chunked message since topic is loaded
+    public boolean msgChunkPublished;
 
-    // Flag to signal that producer of this topic has published batch-message so, broker should not allow consumer which
-    // doesn't support batch-message
-    private volatile boolean hasBatchMessagePublished = false;
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    public volatile long delayedDeliveryTickTimeMillis = 1000;
+    private final long backloggedCursorThresholdEntries;
+    public volatile boolean delayedDeliveryEnabled = false;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
-    private final MessageDeduplication messageDeduplication;
+    protected final MessageDeduplication messageDeduplication;
 
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
-    CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
-    final CompactedTopic compactedTopic;
+    private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
+    private final CompactedTopic compactedTopic;
 
-    CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
+    private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl)MessageId.earliest);
 
-    // Whether messages published must be encrypted or not in this topic
-    private volatile boolean isEncryptionRequired = false;
-    private volatile SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-        SchemaCompatibilityStrategy.FULL;
+    private volatile Optional<ReplicatedSubscriptionsController> replicatedSubscriptionsController = Optional.empty();
 
     private static final FastThreadLocal<TopicStatsHelper> threadLocalTopicStats = new FastThreadLocal<TopicStatsHelper>() {
         @Override
@@ -192,16 +178,23 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     };
 
+    private final AtomicLong pendingWriteOps = new AtomicLong(0);
+    private volatile double lastUpdatedAvgPublishRateInMsg = 0;
+    private volatile double lastUpdatedAvgPublishRateInByte = 0;
+
+    public volatile int maxUnackedMessagesOnSubscription = -1;
+
     private static class TopicStatsHelper {
         public double averageMsgSize;
         public double aggMsgRateIn;
         public double aggMsgThroughputIn;
+        public double aggMsgThrottlingFailure;
         public double aggMsgRateOut;
         public double aggMsgThroughputOut;
         public final ObjectObjectHashMap<String, PublisherStats> remotePublishersStats;
 
         public TopicStatsHelper() {
-            remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
+            remotePublishersStats = new ObjectObjectHashMap<>();
             reset();
         }
 
@@ -210,21 +203,21 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             aggMsgRateIn = 0;
             aggMsgThroughputIn = 0;
             aggMsgRateOut = 0;
+            aggMsgThrottlingFailure = 0;
             aggMsgThroughputOut = 0;
             remotePublishersStats.clear();
         }
     }
 
     public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
-        this.topic = topic;
+        super(topic, brokerService);
         this.ledger = ledger;
-        this.brokerService = brokerService;
-        this.producers = new ConcurrentOpenHashSet<Producer>(16, 1);
         this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
         this.replicators = new ConcurrentOpenHashMap<>(16, 1);
-        this.isFenced = false;
-        this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
         USAGE_COUNT_UPDATER.set(this, 0);
+        this.delayedDeliveryEnabled = brokerService.pulsar().getConfiguration().isDelayedDeliveryEnabled();
+        this.delayedDeliveryTickTimeMillis = brokerService.pulsar().getConfiguration().getDelayedDeliveryTickTimeMillis();
+        this.backloggedCursorThresholdEntries = brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
 
         initializeDispatchRateLimiterIfNeeded(Optional.empty());
 
@@ -234,72 +227,136 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
                 String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                boolean isReplicatorStarted = addReplicationCluster(remoteCluster, this, cursor, localCluster);
+                boolean isReplicatorStarted = addReplicationCluster(remoteCluster, this, cursor.getName(), localCluster);
                 if (!isReplicatorStarted) {
                     throw new NamingException(
-                            PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
+                        PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
                 }
             } else if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)) {
                 // This is not a regular subscription, we are going to ignore it for now and let the message dedup logic
                 // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor));
+                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
+                    PersistentSubscription.isCursorFromReplicatedSubscription(cursor)));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
             }
         }
-        this.lastActive = System.nanoTime();
-
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
 
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
-            isEncryptionRequired = policies.encryption_required;
+            this.isEncryptionRequired = policies.encryption_required;
 
-            schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                    policies.schema_auto_update_compatibility_strategy);
+            setSchemaCompatibilityStrategy(policies);
+            isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+
+            schemaValidationEnforced = policies.schema_validation_enforced;
+            if (policies.inactive_topic_policies != null) {
+                inactiveTopicPolicies = policies.inactive_topic_policies;
+            }
+
+            maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(policies);
+            maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(policies);
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
         }
+
+        checkReplicatedSubscriptionControllerState();
+    }
+    // for testing purposes
+    @VisibleForTesting
+    PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger, MessageDeduplication messageDeduplication) {
+        super(topic, brokerService);
+        this.ledger = ledger;
+        this.messageDeduplication = messageDeduplication;
+        this.subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        this.replicators = new ConcurrentOpenHashMap<>(16, 1);
+        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+        this.backloggedCursorThresholdEntries = brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
     }
 
     private void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
         synchronized (dispatchRateLimiter) {
+            // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
-                    .isDispatchRateNeeded(brokerService, policies, topic, null)) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this));
+                    .isDispatchRateNeeded(brokerService, policies, topic, Type.TOPIC)) {
+                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
             if (!subscribeRateLimiter.isPresent() && SubscribeRateLimiter
                     .isDispatchRateNeeded(brokerService, policies, topic)) {
                 this.subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
             }
+
+            // dispatch rate limiter for each subscription
             subscriptions.forEach((name, subscription) -> {
-                subscription.getDispatcher().initializeDispatchRateLimiterIfNeeded(policies);
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.initializeDispatchRateLimiterIfNeeded(policies);
+                }
             });
+
+            // dispatch rate limiter for each replicator
+            replicators.forEach((name, replicator) ->
+                replicator.initializeDispatchRateLimiterIfNeeded(policies));
         }
     }
 
-    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor) {
+    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
+            boolean replicated) {
         checkNotNull(compactedTopic);
         if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
             return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 
     @Override
     public void publishMessage(ByteBuf headersAndPayload, PublishContext publishContext) {
-        if (messageDeduplication.shouldPublishNextMessage(publishContext, headersAndPayload)) {
-            ledger.asyncAddEntry(headersAndPayload, this, publishContext);
-        } else {
-            // Immediately acknowledge duplicated message
-            publishContext.completed(null, -1, -1);
+        pendingWriteOps.incrementAndGet();
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status) {
+            case NotDup:
+                ledger.asyncAddEntry(headersAndPayload, this, publishContext);
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
+        }
+    }
+
+    private void decrementPendingWriteOpsAndCheck() {
+        long pending = pendingWriteOps.decrementAndGet();
+        if (pending == 0 && isFenced) {
+            synchronized (this) {
+                if (isFenced) {
+                    messageDeduplication.resetHighestSequenceIdPushed();
+                    log.info("[{}] Un-fencing topic...", topic);
+                    // signal to managed ledger that we are ready to resume by creating a new ledger
+                    ledger.readyToCreateNewLedger();
+
+                    isFenced = false;
+                }
+
+            }
         }
     }
 
@@ -311,35 +368,48 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // Message has been successfully persisted
         messageDeduplication.recordMessagePersisted(publishContext, position);
         publishContext.completed(null, position.getLedgerId(), position.getEntryId());
+
+        decrementPendingWriteOpsAndCheck();
     }
 
     @Override
-    public void addFailed(ManagedLedgerException exception, Object ctx) {
-        PublishContext callback = (PublishContext) ctx;
-
-        if (exception instanceof ManagedLedgerAlreadyClosedException) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-            }
-
-            callback.completed(new TopicClosedException(exception), -1, -1);
-            return;
-
-        } else {
-            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
-        }
-
-        if (exception instanceof ManagedLedgerTerminatedException) {
-            // Signal the producer that this topic is no longer available
-            callback.completed(new TopicTerminatedException(exception), -1, -1);
-        } else {
-            // Use generic persistence exception
-            callback.completed(new PersistenceException(exception), -1, -1);
-        }
-
+    public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
+        } else {
+
+            // fence topic when failed to write a message to BK
+            isFenced = true;
+            // close all producers
+            List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            producers.values().forEach(producer -> futures.add(producer.disconnect()));
+            FutureUtil.waitForAll(futures).handle((BiFunction<Void, Throwable, Void>) (aVoid, throwable) -> {
+                decrementPendingWriteOpsAndCheck();
+                return null;
+            });
+
+            PublishContext callback = (PublishContext) ctx;
+
+            if (exception instanceof ManagedLedgerAlreadyClosedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+                }
+
+                callback.completed(new TopicClosedException(exception), -1, -1);
+                return;
+
+            } else {
+                log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            if (exception instanceof ManagedLedgerTerminatedException) {
+                // Signal the producer that this topic is no longer available
+                callback.completed(new TopicTerminatedException(exception), -1, -1);
+            } else {
+                // Use generic persistence exception
+                callback.completed(new PersistenceException(exception), -1, -1);
+            }
         }
     }
 
@@ -350,36 +420,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         lock.readLock().lock();
         try {
             brokerService.checkTopicNsOwnership(getName());
-            
-            if (isFenced) {
-                log.warn("[{}] Attempting to add producer to a fenced topic", topic);
-                throw new TopicFencedException("Topic is temporarily unavailable");
-            }
+
+            checkTopicFenced();
 
             if (ledger.isTerminated()) {
                 log.warn("[{}] Attempting to add producer to a terminated topic", topic);
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
-            if (isProducersExceeded()) {
-                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
-                throw new ProducerBusyException("Topic reached max producers limit");
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
-            }
-
-            if (!producers.add(producer)) {
-                throw new NamingException(
-                        "Producer with name '" + producer.getProducerName() + "' is already connected to topic");
-            }
+            internalAddProducer(producer);
 
             USAGE_COUNT_UPDATER.incrementAndGet(this);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Added producer -- count: {}", topic, producer.getProducerName(), USAGE_COUNT_UPDATER.get(this));
             }
-
             messageDeduplication.producerAdded(producer.getProducerName());
 
             // Start replication producers if not already
@@ -389,38 +443,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
-    private boolean isProducersExceeded() {
-        Policies policies;
-        try {
-            policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxProducers = policies.max_producers_per_topic > 0 ?
-                policies.max_producers_per_topic :
-                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
-        if (maxProducers > 0 && maxProducers <= producers.size()) {
-            return true;
-        }
-        return false;
-    }
-
-    private boolean hasLocalProducers() {
-        AtomicBoolean foundLocal = new AtomicBoolean(false);
-        producers.forEach(producer -> {
-            if (!producer.isRemote()) {
-                foundLocal.set(true);
-            }
-        });
-
-        return foundLocal.get();
-    }
-
     private boolean hasRemoteProducers() {
         AtomicBoolean foundRemote = new AtomicBoolean(false);
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             if (producer.isRemote()) {
                 foundRemote.set(true);
             }
@@ -466,36 +491,51 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
-        if (producers.remove(producer)) {
-            // decrement usage only if this was a valid producer close
-            USAGE_COUNT_UPDATER.decrementAndGet(this);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
-                        USAGE_COUNT_UPDATER.get(this));
-            }
-            lastActive = System.nanoTime();
 
-            messageDeduplication.producerRemoved(producer.getProducerName());
+        if (producers.remove(producer.getProducerName(), producer)) {
+            handleProducerRemoved(producer);
         }
+    }
+
+    @Override
+    protected void handleProducerRemoved(Producer producer) {
+        // decrement usage only if this was a valid producer close
+        USAGE_COUNT_UPDATER.decrementAndGet(this);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] [{}] Removed producer -- count: {}", topic, producer.getProducerName(),
+                    USAGE_COUNT_UPDATER.get(this));
+        }
+        lastActive = System.nanoTime();
+
+        messageDeduplication.producerRemoved(producer.getProducerName());
     }
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition,
+            long startMessageRollbackDurationSec, boolean replicatedSubscriptionState, PulsarApi.KeySharedMeta keySharedMeta) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
-        
+
         try {
             brokerService.checkTopicNsOwnership(getName());
         } catch (Exception e) {
             future.completeExceptionally(e);
             return future;
         }
-        
+
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             future.completeExceptionally(
                     new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
+
+        if (subType == SubType.Key_Shared
+            && !brokerService.pulsar().getConfiguration().isSubscriptionKeySharedEnable()) {
+            future.completeExceptionally(
+                new NotAllowedException("Key_Shared subscription is disabled by broker.")
+            );
             return future;
         }
         if (isBlank(subscriptionName)) {
@@ -549,25 +589,32 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initialPosition) //
-                : getNonDurableSubscription(subscriptionName, startMessageId);
+                getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec, replicatedSubscriptionState) //
+                : getNonDurableSubscription(subscriptionName, startMessageId, startMessageRollbackDurationSec);
 
-        int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
+        int maxUnackedMessages = isDurable
+                ? maxUnackedMessagesOnConsumer
+                : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition);
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
                 subscription.addConsumer(consumer);
+
+                checkBackloggedCursors();
+
                 if (!cnx.isActive()) {
                     consumer.close();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] [{}] Subscribe failed -- count: {}", topic, subscriptionName,
                                 consumer.consumerName(), USAGE_COUNT_UPDATER.get(PersistentTopic.this));
                     }
+                    USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                     future.completeExceptionally(
                             new BrokerServiceException("Connection was closed while the opening the cursor "));
                 } else {
+                    checkReplicatedSubscriptionControllerState();
                     log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                     future.complete(consumer);
                 }
@@ -583,7 +630,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 future.completeExceptionally(e);
             }
         }).exceptionally(ex -> {
-            log.warn("[{}] Failed to create subscription for {}: ", topic, subscriptionName, ex.getMessage());
+            log.error("[{}] Failed to create subscription: {} error: {}", topic, subscriptionName, ex);
             USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
             future.completeExceptionally(new PersistenceException(ex));
             return null;
@@ -592,17 +639,43 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
+    private int unackedMessagesExceededOnSubscription(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_subscription > -1 ?
+                data.max_unacked_messages_per_subscription :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerSubscription();
+
+        return maxUnackedMessages;
+    }
+
+    private int unackedMessagesExceededOnConsumer(Policies data) {
+        final int maxUnackedMessages = data.max_unacked_messages_per_consumer > -1 ?
+                data.max_unacked_messages_per_consumer :
+                brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer();
+
+        return maxUnackedMessages;
+    }
+
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
+            InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
-        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, new OpenCursorCallback() {
+
+        Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
+
+        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
 
-                subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> createPersistentSubscription(subscriptionName, cursor)));
+                PersistentSubscription subscription = subscriptions.computeIfAbsent(subscriptionName,
+                        name -> createPersistentSubscription(subscriptionName, cursor, replicated));
+
+                if (replicated && !subscription.isReplicated()) {
+                    // Flip the subscription state
+                    subscription.setReplicated(replicated);
+                }
+                subscriptionFuture.complete(subscription);
             }
 
             @Override
@@ -619,50 +692,65 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptionFuture;
     }
 
-    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName, MessageId startMessageId) {
-        CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+    private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
+            MessageId startMessageId, long startMessageRollbackDurationSec) {
         log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
 
-        // Create a new non-durable cursor only for the first consumer that connects
-        Subscription subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
-            MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
-                    : (MessageIdImpl) MessageId.latest;
+        synchronized (ledger) {
+            // Create a new non-durable cursor only for the first consumer that connects
+            PersistentSubscription subscription = subscriptions.get(subscriptionName);
 
-            long ledgerId = msgId.getLedgerId();
-            long entryId = msgId.getEntryId();
-            if (msgId instanceof BatchMessageIdImpl) {
-                // When the start message is relative to a batch, we need to take one step back on the previous message,
-                // because the "batch" might not have been consumed in its entirety.
-                // The client will then be able to discard the first messages in the batch.
-                if (((BatchMessageIdImpl) msgId).getBatchIndex() >= 0) {
+            if (subscription == null) {
+                MessageIdImpl msgId = startMessageId != null ? (MessageIdImpl) startMessageId
+                        : (MessageIdImpl) MessageId.latest;
+
+                long ledgerId = msgId.getLedgerId();
+                long entryId = msgId.getEntryId();
+                // Ensure that the start message id starts from a valid entry.
+                if (ledgerId >= 0 && entryId >= 0
+                        && msgId instanceof BatchMessageIdImpl) {
+                    // When the start message is relative to a batch, we need to take one step back on the previous
+                    // message,
+                    // because the "batch" might not have been consumed in its entirety.
+                    // The client will then be able to discard the first messages if needed.
                     entryId = msgId.getEntryId() - 1;
                 }
-            }
-            Position startPosition = new PositionImpl(ledgerId, entryId);
-            ManagedCursor cursor = null;
-            try {
-                cursor = ledger.newNonDurableCursor(startPosition);
-            } catch (ManagedLedgerException e) {
-                subscriptionFuture.completeExceptionally(e);
+
+                Position startPosition = new PositionImpl(ledgerId, entryId);
+                ManagedCursor cursor = null;
+                try {
+                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
+                } catch (ManagedLedgerException e) {
+                    return FutureUtil.failedFuture(e);
+                }
+
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
+                subscriptions.put(subscriptionName, subscription);
             }
 
-            return new PersistentSubscription(this, subscriptionName, cursor);
-        });
-
-        if (!subscriptionFuture.isDone()) {
-            subscriptionFuture.complete(subscription);
-        } else {
-            // failed to initialize managed-cursor: clean up created subscription
-            subscriptions.remove(subscriptionName);
+            if (startMessageRollbackDurationSec > 0) {
+                long timestamp = System.currentTimeMillis()
+                        - TimeUnit.SECONDS.toMillis(startMessageRollbackDurationSec);
+                CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
+                final Subscription finalSubscription = subscription;
+                subscription.resetCursor(timestamp).handle((s, ex) -> {
+                    if (ex != null) {
+                        log.warn("[{}] Failed to reset cursor {} position at timestamp {}", topic, subscriptionName,
+                                startMessageRollbackDurationSec);
+                    }
+                    subscriptionFuture.complete(finalSubscription);
+                    return null;
+                });
+                return subscriptionFuture;
+            } else {
+                return CompletableFuture.completedFuture(subscription);
+            }
         }
-
-        return subscriptionFuture;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
-        return getDurableSubscription(subscriptionName, initialPosition);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition, boolean replicateSubscriptionState) {
+        return getDurableSubscription(subscriptionName, initialPosition, 0 /*avoid reseting cursor*/, replicateSubscriptionState);
     }
 
     /**
@@ -712,11 +800,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> delete() {
-        return delete(false);
+        return delete(false, false, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions) {
-        return delete(failIfHasSubscriptions, false);
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean failIfHasBacklogs, boolean deleteSchema) {
+        return delete(failIfHasSubscriptions, failIfHasBacklogs, false, deleteSchema);
     }
 
     /**
@@ -728,7 +816,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, true);
+        return delete(false, false, true, false);
     }
 
     /**
@@ -741,26 +829,35 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * @param closeIfClientsConnected
      *            Flag indicate whether explicitly close connected producers/consumers/replicators before trying to delete topic. If
      *            any client is connected to a topic and if this flag is disable then this operation fails.
+     * @param deleteSchema
+     *            Flag indicating whether delete the schema defined for topic if exist.
      *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions, boolean closeIfClientsConnected) {
+    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
+                                           boolean failIfHasBacklogs,
+                                           boolean closeIfClientsConnected,
+                                           boolean deleteSchema) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
             if (isFenced) {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
-                deleteFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
-                return deleteFuture;
+                return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
+            } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
+                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions"));
+            } else if (failIfHasBacklogs && hasBacklogs()) {
+                return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions did not catch up"));
             }
 
+            isFenced = true; // Avoid clients reconnections while deleting
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
                 replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-                producers.forEach(producer -> futures.add(producer.disconnect()));
+                producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
                 FutureUtil.waitForAll(futures).thenRun(() -> {
                     closeClientFuture.complete(null);
@@ -775,22 +872,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }
 
             closeClientFuture.thenAccept(delete -> {
-                if (USAGE_COUNT_UPDATER.get(this) == 0) {
-                    isFenced = true;
+                // We can proceed with the deletion if either:
+                //  1. No one is connected
+                //  2. We want to kick out everyone and forcefully delete the topic.
+                //     In this case, we shouldn't care if the usageCount is 0 or not, just proceed
+                if (USAGE_COUNT_UPDATER.get(this) == 0 || (closeIfClientsConnected && !failIfHasSubscriptions)) {
+                    CompletableFuture<SchemaVersion> deleteSchemaFuture = deleteSchema ?
+                            deleteSchema()
+                            : CompletableFuture.completedFuture(null);
 
-                    List<CompletableFuture<Void>> futures = Lists.newArrayList();
-
-                    if (failIfHasSubscriptions) {
-                        if (!subscriptions.isEmpty()) {
-                            isFenced = false;
-                            deleteFuture.completeExceptionally(new TopicBusyException("Topic has subscriptions"));
-                            return;
-                        }
-                    } else {
-                        subscriptions.forEach((s, sub) -> futures.add(sub.delete()));
-                    }
-
-                    FutureUtil.waitForAll(futures).whenComplete((v, ex) -> {
+                    deleteSchemaFuture.whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
                             isFenced = false;
@@ -800,24 +891,36 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                                 @Override
                                 public void deleteLedgerComplete(Object ctx) {
                                     brokerService.removeTopicFromCache(topic);
+
+                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+
+                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+
                                     log.info("[{}] Topic deleted", topic);
                                     deleteFuture.complete(null);
                                 }
 
                                 @Override
                                 public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                                    isFenced = false;
-                                    log.error("[{}] Error deleting topic", topic, exception);
-                                    deleteFuture.completeExceptionally(new PersistenceException(exception));
+                                    if (exception.getCause() instanceof KeeperException.NoNodeException) {
+                                        log.info("[{}] Topic is already deleted {}", topic, exception.getMessage());
+                                        deleteLedgerComplete(ctx);
+                                    } else {
+                                        isFenced = false;
+                                        log.error("[{}] Error deleting topic", topic, exception);
+                                        deleteFuture.completeExceptionally(new PersistenceException(exception));
+                                    }
                                 }
                             }, null);
                         }
                     });
                 } else {
+                    isFenced = false;
                     deleteFuture.completeExceptionally(new TopicBusyException(
                             "Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
                 }
             }).exceptionally(ex->{
+                isFenced = false;
                 deleteFuture.completeExceptionally(
                         new TopicBusyException("Failed to close clients before deleting topic."));
                 return null;
@@ -829,18 +932,25 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return deleteFuture;
     }
 
+    public CompletableFuture<Void> close() {
+        return close(false);
+    }
+
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
      *
+     * @param closeWithoutWaitingClientDisconnect don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
      */
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
         try {
-            if (!isFenced) {
+            // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
+            // forcefully wants to close managed-ledger without waiting all resources to be closed.
+            if (!isFenced || closeWithoutWaitingClientDisconnect) {
                 isFenced = true;
             } else {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
@@ -854,16 +964,25 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
 
         replicators.forEach((cluster, replicator) -> futures.add(replicator.disconnect()));
-        producers.forEach(producer -> futures.add(producer.disconnect()));
+        producers.values().forEach(producer -> futures.add(producer.disconnect()));
         subscriptions.forEach((s, sub) -> futures.add(sub.disconnect()));
 
-        FutureUtil.waitForAll(futures).thenRun(() -> {
+        CompletableFuture<Void> clientCloseFuture = closeWithoutWaitingClientDisconnect ? CompletableFuture.completedFuture(null)
+                : FutureUtil.waitForAll(futures);
+
+        clientCloseFuture.thenRun(() -> {
             // After having disconnected all producers/consumers, close the managed ledger
             ledger.asyncClose(new CloseCallback() {
                 @Override
                 public void closeComplete(Object ctx) {
                     // Everything is now closed, remove the topic from map
                     brokerService.removeTopicFromCache(topic);
+
+                    replicatedSubscriptionsController.ifPresent(ReplicatedSubscriptionsController::close);
+
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
 
                     log.info("[{}] Topic closed", topic);
                     closeFuture.complete(null);
@@ -876,14 +995,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     closeFuture.complete(null);
                 }
             }, null);
-
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().close();
-            }
-            if (subscribeRateLimiter.isPresent()) {
-                subscribeRateLimiter.get().close();
-            }
-
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
             isFenced = false;
@@ -902,8 +1013,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }).exceptionally(th -> {
             log.error("[{}] Policies update failed {}, scheduled retry in {} seconds", topic, th.getMessage(),
                     POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, th);
-            brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
-                    POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            if (!(th.getCause() instanceof TopicFencedException)) {
+                // retriable exception
+                brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
+                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, TimeUnit.SECONDS);
+            }
             result.completeExceptionally(th);
             return null;
         });
@@ -966,7 +1080,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // doesn't serve global topic without local repl-cluster configured.
         if (TopicName.get(topic).isGlobal() && !configuredClusters.contains(localCluster)) {
             log.info("Deleting topic [{}] because local cluster is not part of global namespace repl list {}",
-                    configuredClusters);
+                    topic, configuredClusters);
             return deleteForcefully();
         }
 
@@ -1007,9 +1121,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
-            if (policies.message_ttl_in_seconds != 0) {
-                subscriptions.forEach((subName, sub) -> sub.expireMessages(policies.message_ttl_in_seconds));
-                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(policies.message_ttl_in_seconds));
+            int defaultTTL = brokerService.pulsar().getConfiguration().getTtlDurationDefaultInSeconds();
+            int message_ttl_in_seconds = (policies.message_ttl_in_seconds <= 0 && defaultTTL > 0) ? defaultTTL
+                    : policies.message_ttl_in_seconds;
+            if (message_ttl_in_seconds != 0) {
+                subscriptions.forEach((subName, sub) -> sub.expireMessages(message_ttl_in_seconds));
+                replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(message_ttl_in_seconds));
             }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
@@ -1031,7 +1148,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 .orElseThrow(() -> new KeeperException.NoNodeException());
 
 
-            if (policies.compaction_threshold != 0
+            if (isSystemTopic() || policies.compaction_threshold != 0
                 && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
@@ -1063,37 +1180,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
-        String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
-        ledger.asyncOpenCursor(name, new OpenCursorCallback() {
-            @Override
-            public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                boolean isReplicatorStarted = addReplicationCluster(remoteCluster, PersistentTopic.this, cursor, localCluster);
-                if (isReplicatorStarted) {
-                    future.complete(null);
-                } else {
-                    future.completeExceptionally(new NamingException(
-                            PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster));
-                }
-            }
-
-            @Override
-            public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(new PersistenceException(exception));
-            }
-
-        }, null);
+        String replicatorName = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
+        String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
+        boolean isReplicatorStarted = addReplicationCluster(remoteCluster, PersistentTopic.this, replicatorName, localCluster);
+        if (isReplicatorStarted) {
+            future.complete(null);
+        } else {
+            future.completeExceptionally(new NamingException(
+                PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster));
+        }
 
         return future;
     }
 
-    protected boolean addReplicationCluster(String remoteCluster, PersistentTopic persistentTopic, ManagedCursor cursor,
+    protected boolean addReplicationCluster(String remoteCluster, PersistentTopic persistentTopic, String replicatorName,
             String localCluster) {
         AtomicBoolean isReplicatorStarted = new AtomicBoolean(true);
         replicators.computeIfAbsent(remoteCluster, r -> {
             try {
-                return new PersistentReplicator(PersistentTopic.this, cursor, localCluster, remoteCluster,
-                        brokerService);
+                return new PersistentReplicator(PersistentTopic.this, replicatorName, localCluster, remoteCluster,
+                        brokerService, ledger);
             } catch (NamingException e) {
                 isReplicatorStarted.set(false);
                 log.error("[{}] Replicator startup failed due to partitioned-topic {}", topic, remoteCluster);
@@ -1142,16 +1248,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return messageDeduplication.isEnabled();
     }
 
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this).add("topic", topic).toString();
-    }
-
-    @Override
-    public ConcurrentOpenHashSet<Producer> getProducers() {
-        return producers;
-    }
-
     public int getNumberOfConsumers() {
         int count = 0;
         for (PersistentSubscription subscription : subscriptions.values()) {
@@ -1169,10 +1265,6 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return subscriptions.get(subscriptionName);
     }
 
-    public BrokerService getBrokerService() {
-        return brokerService;
-    }
-
     public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
         return replicators;
     }
@@ -1181,15 +1273,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return replicators.get(remoteCluster);
     }
 
-    @Override
-    public String getName() {
-        return topic;
-    }
-
     public ManagedLedger getManagedLedger() {
         return ledger;
     }
 
+    @Override
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
             ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
 
@@ -1204,7 +1292,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // start publisher stats
         topicStatsStream.startList("publishers");
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             producer.updateRates();
             PublisherStats publisherStats = producer.getStats();
 
@@ -1221,7 +1309,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }
         });
         topicStatsStream.endList();
-
+        // if publish-rate increases (eg: 0 to 1K) then pick max publish-rate and if publish-rate decreases then keep
+        // average rate.
+        lastUpdatedAvgPublishRateInMsg = topicStatsHelper.aggMsgRateIn > lastUpdatedAvgPublishRateInMsg
+                ? topicStatsHelper.aggMsgRateIn
+                : (topicStatsHelper.aggMsgRateIn + lastUpdatedAvgPublishRateInMsg) / 2;
+        lastUpdatedAvgPublishRateInByte = topicStatsHelper.aggMsgThroughputIn > lastUpdatedAvgPublishRateInByte
+                ? topicStatsHelper.aggMsgThroughputIn
+                : (topicStatsHelper.aggMsgThroughputIn + lastUpdatedAvgPublishRateInByte) / 2;
         // Start replicator stats
         topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStatsHelper.remotePublishersStats.size();
@@ -1302,14 +1397,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             // Start subscription name & consumers
             try {
                 topicStatsStream.startObject(subscriptionName);
-                Object[] consumers = subscription.getConsumers().array();
-                nsStats.consumerCount += consumers.length;
-                bundleStats.consumerCount += consumers.length;
-
                 topicStatsStream.startList("consumers");
 
-                for (Object consumerObj : consumers) {
-                    Consumer consumer = (Consumer) consumerObj;
+                for (Consumer consumer : subscription.getConsumers()) {
+                    ++nsStats.consumerCount;
+                    ++bundleStats.consumerCount;
                     consumer.updateRates();
 
                     ConsumerStats consumerStats = consumer.getStats();
@@ -1324,7 +1416,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
@@ -1332,7 +1424,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 topicStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage", subscription.getNumberOfEntriesSinceFirstNotAckedMessage());
                 topicStatsStream.writePair("totalNonContiguousDeletedMessagesRange", subscription.getTotalNonContiguousDeletedMessagesRange());
                 topicStatsStream.writePair("type", subscription.getTypeString());
-                if (SubType.Shared.equals(subscription.getType())) {
+                if (Subscription.isIndividualAckMode(subscription.getType())) {
                     if(subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers)subscription.getDispatcher();
                         topicStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
@@ -1345,7 +1437,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
                 topicStatsHelper.aggMsgRateOut += subMsgRateOut;
                 topicStatsHelper.aggMsgThroughputOut += subMsgThroughputOut;
-                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog();
+                nsStats.msgBacklog += subscription.getNumberOfEntriesInBacklog(false);
             } catch (Exception e) {
                 log.error("Got exception when creating consumer stats for subscription {}: {}", subscriptionName,
                         e.getMessage(), e);
@@ -1362,9 +1454,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         topicStatsStream.writePair("averageMsgSize", topicStatsHelper.averageMsgSize);
         topicStatsStream.writePair("msgRateIn", topicStatsHelper.aggMsgRateIn);
         topicStatsStream.writePair("msgRateOut", topicStatsHelper.aggMsgRateOut);
+        topicStatsStream.writePair("msgInCount", getMsgInCounter());
+        topicStatsStream.writePair("bytesInCount", getBytesInCounter());
+        topicStatsStream.writePair("msgOutCount", getMsgOutCounter());
+        topicStatsStream.writePair("bytesOutCount", getBytesOutCounter());
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
-        topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
+        topicStatsStream.writePair("storageSize", ledger.getTotalSize());
+        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
         topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
 
         nsStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
@@ -1381,15 +1478,29 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         // Close topic object
         topicStatsStream.endObject();
+
+        // add publish-latency metrics
+        this.addEntryLatencyStatsUsec.refresh();
+        NamespaceStats.copy(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
+        this.addEntryLatencyStatsUsec.reset();
     }
 
-    public TopicStats getStats() {
+    public double getLastUpdatedAvgPublishRateInMsg() {
+        return lastUpdatedAvgPublishRateInMsg;
+    }
+
+    public double getLastUpdatedAvgPublishRateInByte() {
+        return lastUpdatedAvgPublishRateInByte;
+    }
+
+    @Override
+    public TopicStats getStats(boolean getPreciseBacklog) {
 
         TopicStats stats = new TopicStats();
 
         ObjectObjectHashMap<String, PublisherStats> remotePublishersStats = new ObjectObjectHashMap<String, PublisherStats>();
 
-        producers.forEach(producer -> {
+        producers.values().forEach(producer -> {
             PublisherStats publisherStats = producer.getStats();
             stats.msgRateIn += publisherStats.msgRateIn;
             stats.msgThroughputIn += publisherStats.msgThroughputIn;
@@ -1402,12 +1513,17 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         stats.averageMsgSize = stats.msgRateIn == 0.0 ? 0.0 : (stats.msgThroughputIn / stats.msgRateIn);
+        stats.msgInCounter = getMsgInCounter();
+        stats.bytesInCounter = getBytesInCounter();
+        stats.msgChunkPublished = this.msgChunkPublished;
 
         subscriptions.forEach((name, subscription) -> {
-            SubscriptionStats subStats = subscription.getStats();
+            SubscriptionStats subStats = subscription.getStats(getPreciseBacklog);
 
             stats.msgRateOut += subStats.msgRateOut;
             stats.msgThroughputOut += subStats.msgThroughputOut;
+            stats.bytesOutCounter += subStats.bytesOutCounter;
+            stats.msgOutCounter += subStats.msgOutCounter;
             stats.subscriptions.put(name, subStats);
         });
 
@@ -1429,11 +1545,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             stats.replication.put(replicator.getRemoteCluster(), replicatorStats);
         });
 
-        stats.storageSize = ledger.getEstimatedBacklogSize();
+        stats.storageSize = ledger.getTotalSize();
+        stats.backlogSize = ledger.getEstimatedBacklogSize();
         stats.deduplicationStatus = messageDeduplication.getStatus().toString();
+
         return stats;
     }
 
+    @Override
     public PersistentTopicInternalStats getInternalStats() {
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
 
@@ -1452,7 +1571,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         stats.pendingAddEntriesCount = ml.getPendingAddEntriesCount();
 
         stats.lastConfirmedEntry = ml.getLastConfirmedEntry().toString();
-        stats.state = ml.getState().toString();
+        stats.state = ml.getState();
 
         stats.ledgers = Lists.newArrayList();
         ml.getLedgersInfo().forEach((id, li) -> {
@@ -1490,19 +1609,42 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return ledger.getEstimatedBacklogSize();
     }
 
-    public boolean isActive() {
-        if (TopicName.get(topic).isGlobal()) {
-            // No local consumers and no local producers
-            return !subscriptions.isEmpty() || hasLocalProducers();
+    public boolean isActive(InactiveTopicDeleteMode deleteMode) {
+        switch (deleteMode) {
+            case delete_when_no_subscriptions:
+                if (!subscriptions.isEmpty()) {
+                    return true;
+                }
+                break;
+            case delete_when_subscriptions_caught_up:
+                if (hasBacklogs()) {
+                    return true;
+                }
+                break;
         }
-        return USAGE_COUNT_UPDATER.get(this) != 0 || !subscriptions.isEmpty();
+        if (TopicName.get(topic).isGlobal()) {
+            // no local producers
+            return hasLocalProducers();
+        } else {
+            return USAGE_COUNT_UPDATER.get(this) != 0;
+        }
+    }
+
+    private boolean hasBacklogs() {
+        return subscriptions.values().stream().anyMatch(sub -> sub.getNumberOfEntriesInBacklog(false) > 0);
     }
 
     @Override
-    public void checkGC(int gcIntervalInSeconds) {
-        if (isActive()) {
+    public void checkGC() {
+        if (!isDeleteWhileInactive()) {
+            // This topic is not included in GC
+            return;
+        }
+        InactiveTopicDeleteMode deleteMode = inactiveTopicPolicies.getInactiveTopicDeleteMode();
+        int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
+        if (isActive(deleteMode)) {
             lastActive = System.nanoTime();
-        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
+        } else if (System.nanoTime() - lastActive < TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
         } else if (shouldTopicBeRetained()) {
@@ -1517,7 +1659,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // provided no remote producers connected to the broker.
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                            gcIntervalInSeconds);
+                        maxInactiveDurationInSec);
                 }
                 closeReplProducersIfNoBacklog().thenRun(() -> {
                     if (hasRemoteProducers()) {
@@ -1529,7 +1671,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                                 .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
                     } else {
                         log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
-                                gcIntervalInSeconds);
+                            maxInactiveDurationInSec);
                         replCloseFuture.complete(null);
                     }
                 }).exceptionally(e -> {
@@ -1543,7 +1685,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 replCloseFuture.complete(null);
             }
 
-            replCloseFuture.thenCompose(v -> delete(true))
+            replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, true))
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
                         if (e.getCause() instanceof TopicBusyException) {
@@ -1562,13 +1705,44 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public void checkInactiveSubscriptions() {
-        final long expirationTime = TimeUnit.MINUTES.toMillis(brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes());
-        if (expirationTime <= 0) return;
-        subscriptions.forEach((subName, sub) -> {
-            if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) return;
-            if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTime) {
-                sub.delete().thenAccept(
-                        v -> log.info("[{}][{}] The subscription was deleted due to expiration", topic, subName));
+        TopicName name = TopicName.get(topic);
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
+                    .getSubscriptionExpirationTimeMinutes();
+            final long expirationTimeMillis = TimeUnit.MINUTES
+                    .toMillis((policies.subscription_expiration_time_minutes <= 0 && defaultExpirationTime > 0)
+                            ? defaultExpirationTime
+                            : policies.subscription_expiration_time_minutes);
+            if (expirationTimeMillis > 0) {
+                subscriptions.forEach((subName, sub) -> {
+                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) {
+                        return;
+                    }
+                    if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
+                        sub.delete().thenAccept(v -> log.info("[{}][{}] The subscription was deleted due to expiration",
+                                topic, subName));
+                    }
+                });
+            }
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Error getting policies", topic);
+            }
+        }
+    }
+
+    @Override
+    public void checkBackloggedCursors() {
+        // activate caught up cursors which include consumers
+        subscriptions.forEach((subName, subscription) -> {
+            if (!subscription.getConsumers().isEmpty()
+                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+                subscription.getCursor().setActive();
+            } else {
+                subscription.getCursor().setInactive();
             }
         });
     }
@@ -1583,13 +1757,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()));
             // If no policies, the default is to have no retention and delete the inactive topic
-            return policies.map(p -> p.retention_policies).map(rp -> {
-                long retentionTime = TimeUnit.MINUTES.toNanos(rp.getRetentionTimeInMinutes());
+            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
+                    () -> new RetentionPolicies(
+                            brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
+                            brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB())
+            );
+            long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
 
-                // Negative retention time means the topic should be retained indefinitely,
-                // because its own data has to be retained
-                return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
-            }).orElse(false).booleanValue();
+            // Negative retention time means the topic should be retained indefinitely,
+            // because its own data has to be retained
+            return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
@@ -1607,21 +1784,44 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
         isEncryptionRequired = data.encryption_required;
 
-        schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                data.schema_auto_update_compatibility_strategy);
+        setSchemaCompatibilityStrategy(data);
+        isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
+
+        schemaValidationEnforced = data.schema_validation_enforced;
+
+        maxUnackedMessagesOnConsumer = unackedMessagesExceededOnConsumer(data);
+        maxUnackedMessagesOnSubscription = unackedMessagesExceededOnSubscription(data);
+
+        if (data.delayed_delivery_policies != null) {
+            delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
+            delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
+        }
+        if (data.inactive_topic_policies != null) {
+            this.inactiveTopicPolicies = data.inactive_topic_policies;
+        } else {
+            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
+        }
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
-        
-        producers.forEach(producer -> {
+
+        this.updateMaxPublishRate(data);
+
+        producers.values().forEach(producer -> {
             producer.checkPermissions();
             producer.checkEncryption();
         });
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
-            if (sub.getDispatcher().getRateLimiter().isPresent()) {
-                sub.getDispatcher().getRateLimiter().get().onPoliciesUpdate(data);
+            Dispatcher dispatcher = sub.getDispatcher();
+            if (dispatcher != null) {
+                dispatcher.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data));
             }
         });
+        replicators.forEach((name, replicator) ->
+            replicator.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data))
+        );
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
         CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
@@ -1633,7 +1833,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
         }
-    
+        getManagedLedger().getConfig().setLedgerOffloader(
+                brokerService.pulsar().getManagedLedgerOffloader(
+                        TopicName.get(topic).getNamespaceObject(), data.offload_policies));
+
         return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture);
     }
 
@@ -1644,11 +1847,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public BacklogQuota getBacklogQuota() {
         TopicName topicName = TopicName.get(this.getName());
-        String namespace = topicName.getNamespace();
-        String policyPath = AdminResource.path(POLICIES, namespace);
-
-        BacklogQuota backlogQuota = brokerService.getBacklogQuotaManager().getBacklogQuota(namespace, policyPath);
-        return backlogQuota;
+        return brokerService.getBacklogQuotaManager().getBacklogQuota(topicName);
     }
 
     /**
@@ -1664,7 +1863,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             if ((retentionPolicy == BacklogQuota.RetentionPolicy.producer_request_hold
                     || retentionPolicy == BacklogQuota.RetentionPolicy.producer_exception)
-                    && brokerService.isBacklogExceeded(this)) {
+                    && isBacklogExceeded()) {
                 log.info("[{}] Backlog quota exceeded. Cannot create producer [{}]", this.getName(), producerName);
                 return true;
             } else {
@@ -1674,9 +1873,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return false;
     }
 
-    @Override
-    public boolean isEncryptionRequired() {
-        return isEncryptionRequired;
+    /**
+     * @return determine if quota enforcement needs to be done for topic
+     */
+    public boolean isBacklogExceeded() {
+        TopicName topicName = TopicName.get(getName());
+        long backlogQuotaLimitInBytes = brokerService.getBacklogQuotaManager().getBacklogQuotaLimit(topicName);
+        if (backlogQuotaLimitInBytes < 0) {
+            return false;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] - backlog quota limit = [{}]", getName(), backlogQuotaLimitInBytes);
+        }
+
+        // check if backlog exceeded quota
+        long storageSize = getBacklogSize();
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Storage size = [{}], limit [{}]", getName(), storageSize, backlogQuotaLimitInBytes);
+        }
+
+        return (storageSize >= backlogQuotaLimitInBytes);
     }
 
     @Override
@@ -1689,7 +1905,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         ledger.asyncTerminate(new TerminateCallback() {
             @Override
             public void terminateComplete(Position lastCommittedPosition, Object ctx) {
-                producers.forEach(Producer::disconnect);
+                producers.values().forEach(Producer::disconnect);
                 subscriptions.forEach((name, sub) -> sub.topicTerminated());
 
                 PositionImpl lastPosition = (PositionImpl) lastCommittedPosition;
@@ -1773,10 +1989,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return FutureUtil.failedFuture(new BrokerServiceException("Cursor not found"));
     }
 
-    public void markBatchMessagePublished() {
-        this.hasBatchMessagePublished = true;
-    }
-
+    @Override
     public Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return this.dispatchRateLimiter;
     }
@@ -1790,8 +2003,38 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     @Override
-    public Position getLastMessageId() {
+    public Position getLastPosition() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageId() {
+        CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
+        PositionImpl position = (PositionImpl) ledger.getLastConfirmedEntry();
+        int partitionIndex = TopicName.getPartitionIndex(getName());
+        if (position.getEntryId() == -1) {
+            completableFuture
+                    .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+        }
+        ((ManagedLedgerImpl) ledger).asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                if (metadata.hasNumMessagesInBatch()) {
+                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                } else {
+                    completableFuture
+                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
+        return completableFuture;
     }
 
     public synchronized void triggerCompaction()
@@ -1826,18 +2069,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public synchronized void triggerOffload(MessageIdImpl messageId) throws AlreadyRunningException {
         if (currentOffload.isDone()) {
             CompletableFuture<MessageIdImpl> promise = currentOffload = new CompletableFuture<>();
+            log.info("[{}] Starting offload operation at messageId {}", topic, messageId);
             getManagedLedger().asyncOffloadPrefix(
                     PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
                     new OffloadCallback() {
                         @Override
                         public void offloadComplete(Position pos, Object ctx) {
                             PositionImpl impl = (PositionImpl)pos;
-
+                            log.info("[{}] Completed successfully offload operation at messageId {}", topic, messageId);
                             promise.complete(new MessageIdImpl(impl.getLedgerId(), impl.getEntryId(), -1));
                         }
 
                         @Override
                         public void offloadFailed(ManagedLedgerException exception, Object ctx) {
+                            log.warn("[{}] Failed offload operation at messageId {}", topic, messageId, exception);
                             promise.completeExceptionally(exception);
                         }
                     }, null);
@@ -1857,6 +2102,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     return OffloadProcessStatus.forSuccess(currentOffload.join());
                 }
             } catch (CancellationException | CompletionException e) {
+                log.warn("Failed to offload", e.getCause());
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
@@ -1865,45 +2111,68 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<Boolean> hasSchema() {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .getSchema(id).thenApply((schema) -> schema != null);
-    }
-
-    @Override
-    public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
-        if (schema == null) {
-            return CompletableFuture.completedFuture(SchemaVersion.Empty);
-        }
-
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> isSchemaCompatible(SchemaData schema) {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String id = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .isCompatibleWithLatestVersion(id, schema, schemaCompatibilityStrategy);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema()
             .thenCompose((hasSchema) -> {
-                    if (hasSchema || isActive() || ledger.getTotalSize() != 0) {
-                        return isSchemaCompatible(schema);
+                    if (hasSchema || isActive(InactiveTopicDeleteMode.delete_when_no_subscriptions) || ledger.getTotalSize() != 0) {
+                        return checkSchemaCompatibleForConsumer(schema);
                     } else {
-                        return addSchema(schema).thenApply((ignore) -> true);
+                        return addSchema(schema).thenCompose(schemaVersion ->
+                                CompletableFuture.completedFuture(null));
                     }
                 });
+    }
+
+    private synchronized void checkReplicatedSubscriptionControllerState() {
+        AtomicBoolean shouldBeEnabled = new AtomicBoolean(false);
+        subscriptions.forEach((name, subscription) -> {
+            if (subscription.isReplicated()) {
+                shouldBeEnabled.set(true);
+            }
+        });
+
+        if (shouldBeEnabled.get() == false) {
+            log.info("[{}] There are no replicated subscriptions on the topic", topic);
+        }
+
+        checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
+    }
+
+    private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
+        boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
+
+        if (shouldBeEnabled && !isCurrentlyEnabled) {
+            log.info("[{}] Enabling replicated subscriptions controller", topic);
+            replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
+                    brokerService.pulsar().getConfiguration().getClusterName()));
+        } else if (isCurrentlyEnabled && !shouldBeEnabled) {
+            log.info("[{}] Disabled replicated subscriptions controller", topic);
+            replicatedSubscriptionsController.get().close();
+            replicatedSubscriptionsController = Optional.empty();
+        }
+    }
+
+    void receivedReplicatedSubscriptionMarker(Position position, int markerType, ByteBuf payload) {
+        ReplicatedSubscriptionsController ctrl = replicatedSubscriptionsController.orElse(null);
+        if (ctrl == null) {
+            // Force to start the replication controller
+            checkReplicatedSubscriptionControllerState(true /* shouldBeEnabled */);
+            ctrl = replicatedSubscriptionsController.get();
+        }
+
+        ctrl.receivedReplicatedSubscriptionMarker(position, markerType, payload);
+     }
+
+    Optional<ReplicatedSubscriptionsController> getReplicatedSubscriptionController() {
+        return replicatedSubscriptionsController;
+    }
+
+    public CompactedTopic getCompactedTopic() {
+        return compactedTopic;
+    }
+
+    @Override
+    public boolean isSystemTopic() {
+        return false;
     }
 }

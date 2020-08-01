@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * Function that appends the instance id to the payload message
+ * Function that appends the instance id to the payload message.
  */
 public class InstanceIdAppenderFunction implements Function<String, String> {
 

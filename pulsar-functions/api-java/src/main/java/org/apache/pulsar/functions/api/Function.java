@@ -29,6 +29,7 @@ package org.apache.pulsar.functions.api;
 public interface Function<I, O> {
     /**
      * Process the input.
+     *
      * @return the output
      */
     O process(I input, Context context) throws Exception;

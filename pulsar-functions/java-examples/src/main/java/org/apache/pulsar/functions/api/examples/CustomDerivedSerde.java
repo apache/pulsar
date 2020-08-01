@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import java.nio.ByteBuffer;
 
 /**
- *  Example to derived object serialization
+ *  Example to derived object serialization.
  */
 public class CustomDerivedSerde implements SerDe<CustomDerivedObject> {
     @Override

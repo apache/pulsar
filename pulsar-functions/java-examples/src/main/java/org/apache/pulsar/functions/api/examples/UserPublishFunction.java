@@ -20,19 +20,25 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.Optional;
 
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * An example demonstrate publishing messages through Context
+ * An example demonstrate publishing messages through Context.
  */
 public class UserPublishFunction implements Function<String, Void> {
 
     @Override
     public Void process(String input, Context context) {
         Optional<Object> topicToWrite = context.getUserConfigValue("topic");
-        if (topicToWrite.get() != null) {
-            context.publish((String) topicToWrite.get(), input);
+        if (topicToWrite.isPresent()) {
+            try {
+                context.newOutputMessage((String) topicToWrite.get(), Schema.STRING).value(input).sendAsync();
+            } catch (PulsarClientException e) {
+                e.printStackTrace();
+            }
         }
         return null;
     }

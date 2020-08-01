@@ -24,8 +24,6 @@
 package org.apache.pulsar.functions.runtime;
 
 import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -33,14 +31,12 @@ import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.utils.Utils;
-import static org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime.PYTHON;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -49,7 +45,6 @@ public class RuntimeSpawner implements AutoCloseable {
     private final InstanceConfig instanceConfig;
     @Getter
     private final RuntimeFactory runtimeFactory;
-    private final String codeFile;
     private final String originalCodeFileName;
 
     @Getter
@@ -66,7 +61,6 @@ public class RuntimeSpawner implements AutoCloseable {
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
-        this.codeFile = codeFile;
         this.originalCodeFileName = originalCodeFileName;
         this.numRestarts = 0;
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
@@ -131,10 +125,10 @@ public class RuntimeSpawner implements AutoCloseable {
     public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
         return this.getFunctionStatus(instanceId).thenApply(msg -> {
             try {
-                return Utils.printJson(msg);
+                return FunctionCommon.printJson(msg);
             } catch (IOException e) {
                 throw new RuntimeException(
-                        instanceConfig.getFunctionDetails().getName() + " Exception parsing getstatus", e);
+                        instanceConfig.getFunctionDetails().getName() + " Exception parsing getStatus", e);
             }
         });
     }

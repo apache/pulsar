@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.testng.Assert;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import org.testng.annotations.Test;
 
 public class PublisherStatsTest {
@@ -26,51 +28,51 @@ public class PublisherStatsTest {
     @Test
     public void testPublisherStats() {
         PublisherStats stats = new PublisherStats();
-        Assert.assertNull(stats.getAddress());
-        Assert.assertNull(stats.getClientVersion());
-        Assert.assertNull(stats.getConnectedSince());
-        Assert.assertNull(stats.getProducerName());
+        assertNull(stats.getAddress());
+        assertNull(stats.getClientVersion());
+        assertNull(stats.getConnectedSince());
+        assertNull(stats.getProducerName());
         
         stats.setAddress("address");
-        Assert.assertEquals(stats.getAddress(), "address");
+        assertEquals(stats.getAddress(), "address");
         stats.setAddress("address1");
-        Assert.assertEquals(stats.getAddress(), "address1");
+        assertEquals(stats.getAddress(), "address1");
         
         stats.setClientVersion("version");
-        Assert.assertEquals(stats.getClientVersion(), "version");
-        Assert.assertEquals(stats.getAddress(), "address1");
+        assertEquals(stats.getClientVersion(), "version");
+        assertEquals(stats.getAddress(), "address1");
         
         stats.setConnectedSince("connected");
-        Assert.assertEquals(stats.getConnectedSince(), "connected");
-        Assert.assertEquals(stats.getAddress(), "address1");
-        Assert.assertEquals(stats.getClientVersion(), "version");
+        assertEquals(stats.getConnectedSince(), "connected");
+        assertEquals(stats.getAddress(), "address1");
+        assertEquals(stats.getClientVersion(), "version");
         
         stats.setProducerName("producer");
-        Assert.assertEquals(stats.getProducerName(), "producer");
-        Assert.assertEquals(stats.getConnectedSince(), "connected");
-        Assert.assertEquals(stats.getAddress(), "address1");
-        Assert.assertEquals(stats.getClientVersion(), "version");
+        assertEquals(stats.getProducerName(), "producer");
+        assertEquals(stats.getConnectedSince(), "connected");
+        assertEquals(stats.getAddress(), "address1");
+        assertEquals(stats.getClientVersion(), "version");
         
         stats.setAddress(null);
-        Assert.assertEquals(stats.getAddress(), null);
+        assertNull(stats.getAddress());
         
         stats.setConnectedSince("");
-        Assert.assertEquals(stats.getConnectedSince(), "");
+        assertEquals(stats.getConnectedSince(), "");
         
         stats.setClientVersion("version2");
-        Assert.assertEquals(stats.getClientVersion(), "version2");
+        assertEquals(stats.getClientVersion(), "version2");
         
         stats.setProducerName(null);
-        Assert.assertEquals(stats.getProducerName(), null);
+        assertNull(stats.getProducerName());
+
+        assertNull(stats.getAddress());
         
-        Assert.assertEquals(stats.getAddress(), null);
-        
-        Assert.assertEquals(stats.getClientVersion(), "version2");
+        assertEquals(stats.getClientVersion(), "version2");
         
         stats.setConnectedSince(null);
         stats.setClientVersion(null);
-        Assert.assertNull(stats.getConnectedSince());
-        Assert.assertNull(stats.getClientVersion());
+        assertNull(stats.getConnectedSince());
+        assertNull(stats.getClientVersion());
     }
 
     @Test
@@ -89,9 +91,9 @@ public class PublisherStatsTest {
         target.add(stats1);
         target.add(stats2);
 
-        Assert.assertEquals(target.msgRateIn, 2.0);
-        Assert.assertEquals(target.msgThroughputIn, 3.0);
-        Assert.assertEquals(target.averageMsgSize, 2.0);
+        assertEquals(target.msgRateIn, 2.0);
+        assertEquals(target.msgThroughputIn, 3.0);
+        assertEquals(target.averageMsgSize, 2.0);
     }
 
 }

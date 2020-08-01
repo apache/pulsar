@@ -28,6 +28,7 @@
 DECLARE_LOG_OBJECT()
 
 #include "ObjectPool.h"
+#include "TimeUtils.h"
 
 using namespace pulsar;
 
@@ -94,6 +95,12 @@ MessageBuilder& MessageBuilder::setPartitionKey(const std::string& partitionKey)
     return *this;
 }
 
+MessageBuilder& MessageBuilder::setOrderingKey(const std::string& orderingKey) {
+    checkMetadata();
+    impl_->metadata.set_ordering_key(orderingKey);
+    return *this;
+}
+
 MessageBuilder& MessageBuilder::setEventTimestamp(uint64_t eventTimestamp) {
     checkMetadata();
     impl_->metadata.set_event_time(eventTimestamp);
@@ -106,6 +113,16 @@ MessageBuilder& MessageBuilder::setSequenceId(int64_t sequenceId) {
     }
     checkMetadata();
     impl_->metadata.set_sequence_id(sequenceId);
+    return *this;
+}
+
+MessageBuilder& MessageBuilder::setDeliverAfter(std::chrono::milliseconds delay) {
+    return setDeliverAt(TimeUtils::currentTimeMillis() + delay.count());
+}
+
+MessageBuilder& MessageBuilder::setDeliverAt(uint64_t deliveryTimestamp) {
+    checkMetadata();
+    impl_->metadata.set_deliver_at_time(deliveryTimestamp);
     return *this;
 }
 

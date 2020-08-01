@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.security.Security;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  *
@@ -36,23 +40,24 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
  *
  */
 public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
-
+    private final static String AUTH_NAME = "tls";
     private static final long serialVersionUID = 1L;
 
     private String certFilePath;
     private String keyFilePath;
+    private Supplier<ByteArrayInputStream> certStreamProvider, keyStreamProvider;
 
-    // Load Bouncy Castle
-    static {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-    }
-    
     public AuthenticationTls() {
     }
-    
+
     public AuthenticationTls(String certFilePath, String keyFilePath) {
         this.certFilePath = certFilePath;
         this.keyFilePath = keyFilePath;
+    }
+
+    public AuthenticationTls(Supplier<ByteArrayInputStream> certStreamProvider, Supplier<ByteArrayInputStream> keyStreamProvider) {
+        this.certStreamProvider = certStreamProvider;
+        this.keyStreamProvider = keyStreamProvider;
     }
 
     @Override
@@ -62,21 +67,35 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
 
     @Override
     public String getAuthMethodName() {
-        return "tls";
+        return AUTH_NAME;
     }
 
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {
-            return new AuthenticationDataTls(certFilePath, keyFilePath);
+            if (certFilePath != null && keyFilePath != null) {
+                return new AuthenticationDataTls(certFilePath, keyFilePath);
+            } else if (certStreamProvider != null && keyStreamProvider != null) {
+                return new AuthenticationDataTls(certStreamProvider, keyStreamProvider);
+            }
         } catch (Exception e) {
             throw new PulsarClientException(e);
         }
+        throw new IllegalArgumentException("cert/key file path or cert/key stream must be present");
     }
 
     @Override
     public void configure(String encodedAuthParamString) {
-        setAuthParams(AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString));
+        Map<String, String> authParamsMap = null;
+        try {
+            authParamsMap = AuthenticationUtil.configureFromJsonString(encodedAuthParamString);
+        } catch (Exception e) {
+            // auth-param is not in json format
+        }
+        authParamsMap = (authParamsMap == null || authParamsMap.isEmpty())
+                ? AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString)
+                : authParamsMap;
+        setAuthParams(authParamsMap);
     }
 
     @Override
@@ -93,6 +112,16 @@ public class AuthenticationTls implements Authentication, EncodedAuthenticationP
     private void setAuthParams(Map<String, String> authParams) {
         certFilePath = authParams.get("tlsCertFile");
         keyFilePath = authParams.get("tlsKeyFile");
+    }
+
+    @VisibleForTesting
+    public String getCertFilePath() {
+        return certFilePath;
+    }
+
+    @VisibleForTesting
+    public String getKeyFilePath() {
+        return keyFilePath;
     }
 
 }

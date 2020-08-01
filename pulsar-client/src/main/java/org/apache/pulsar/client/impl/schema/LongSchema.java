@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import org.apache.pulsar.client.api.Schema;
+import io.netty.buffer.ByteBuf;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -26,21 +26,33 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * A schema for `Long`.
  */
-public class LongSchema implements Schema<Long> {
+public class LongSchema extends AbstractSchema<Long> {
+
+    private static final LongSchema INSTANCE;
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = new SchemaInfo()
+            .setName("INT64")
+            .setType(SchemaType.INT64)
+            .setSchema(new byte[0]);
+        INSTANCE = new LongSchema();
+    }
 
     public static LongSchema of() {
         return INSTANCE;
     }
 
-    private static final LongSchema INSTANCE = new LongSchema();
-    private static final SchemaInfo SCHEMA_INFO = new SchemaInfo()
-        .setName("INT64")
-        .setType(SchemaType.INT64)
-        .setSchema(new byte[0]);
-
     @Override
     public void validate(byte[] message) {
         if (message.length != 8) {
+            throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
+        }
+    }
+
+    @Override
+    public void validate(ByteBuf message) {
+        if (message.readableBytes() != 8) {
             throw new SchemaSerializationException("Size of data received by LongSchema is not 8");
         }
     }
@@ -74,6 +86,21 @@ public class LongSchema implements Schema<Long> {
             value <<= 8;
             value |= b & 0xFF;
         }
+        return value;
+    }
+
+    @Override
+    public Long decode(ByteBuf byteBuf) {
+        if (null == byteBuf) {
+            return null;
+        }
+        validate(byteBuf);
+        long value = 0L;
+        for (int i = 0; i < 8; i++) {
+            value <<= 8;
+            value |= byteBuf.getByte(i) & 0xFF;
+        }
+
         return value;
     }
 

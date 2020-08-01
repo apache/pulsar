@@ -18,7 +18,6 @@
  */
 #include <lib/auth/AuthAthenz.h>
 
-#include <unistd.h>
 #include <string.h>
 #include <time.h>
 
@@ -92,7 +91,7 @@ AuthenticationPtr AuthAthenz::create(ParamMap& params) {
 
 const std::string AuthAthenz::getAuthMethodName() const { return "athenz"; }
 
-Result AuthAthenz::getAuthData(AuthenticationDataPtr& authDataContent) const {
+Result AuthAthenz::getAuthData(AuthenticationDataPtr& authDataContent) {
     authDataContent = authDataAthenz_;
     return ResultOk;
 }

@@ -40,6 +40,13 @@ pulsar_consumer_type pulsar_consumer_configuration_get_consumer_type(
     return (pulsar_consumer_type)consumer_configuration->consumerConfiguration.getConsumerType();
 }
 
+void pulsar_consumer_configuration_set_schema_info(pulsar_consumer_configuration_t *consumer_configuration,
+                                                   pulsar_schema_type schemaType, const char *name,
+                                                   const char *schema, pulsar_string_map_t *properties) {
+    auto schemaInfo = pulsar::SchemaInfo((pulsar::SchemaType)schemaType, name, schema, properties->map);
+    consumer_configuration->consumerConfiguration.setSchema(schemaInfo);
+}
+
 static void message_listener_callback(pulsar::Consumer consumer, const pulsar::Message &msg,
                                       pulsar_message_listener listener, void *ctx) {
     pulsar_consumer_t c_consumer;
@@ -99,6 +106,34 @@ void pulsar_consumer_set_unacked_messages_timeout_ms(pulsar_consumer_configurati
 long pulsar_consumer_get_unacked_messages_timeout_ms(
     pulsar_consumer_configuration_t *consumer_configuration) {
     return consumer_configuration->consumerConfiguration.getUnAckedMessagesTimeoutMs();
+}
+
+void pulsar_configure_set_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration, long redeliveryDelayMillis) {
+    consumer_configuration->consumerConfiguration.setNegativeAckRedeliveryDelayMs(redeliveryDelayMillis);
+}
+
+long pulsar_configure_get_negative_ack_redelivery_delay_ms(
+    pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getNegativeAckRedeliveryDelayMs();
+}
+
+void pulsar_configure_set_ack_grouping_time_ms(pulsar_consumer_configuration_t *consumer_configuration,
+                                               long ackGroupingMillis) {
+    consumer_configuration->consumerConfiguration.setAckGroupingTimeMs(ackGroupingMillis);
+}
+
+long pulsar_configure_get_ack_grouping_time_ms(pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getAckGroupingTimeMs();
+}
+
+void pulsar_configure_set_ack_grouping_max_size(pulsar_consumer_configuration_t *consumer_configuration,
+                                                long maxGroupingSize) {
+    consumer_configuration->consumerConfiguration.setAckGroupingMaxSize(maxGroupingSize);
+}
+
+long pulsar_configure_get_ack_grouping_max_size(pulsar_consumer_configuration_t *consumer_configuration) {
+    return consumer_configuration->consumerConfiguration.getAckGroupingMaxSize();
 }
 
 int pulsar_consumer_is_encryption_enabled(pulsar_consumer_configuration_t *consumer_configuration) {

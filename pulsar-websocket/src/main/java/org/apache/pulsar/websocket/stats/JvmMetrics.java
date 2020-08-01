@@ -82,24 +82,6 @@ public class JvmMetrics {
         m.put("jvm_gc_old_pause", currentOldGcTime);
         m.put("jvm_gc_old_count", currentOldGcCount);
 
-        long totalAllocated = 0;
-        long totalUsed = 0;
-
-        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.metric().directArenas()) {
-            for (PoolChunkListMetric list : arena.chunkLists()) {
-                for (PoolChunkMetric chunk : list) {
-                    int size = chunk.chunkSize();
-                    int used = size - chunk.freeBytes();
-
-                    totalAllocated += size;
-                    totalUsed += used;
-                }
-            }
-        }
-
-        m.put("proxy_default_pool_allocated", totalAllocated);
-        m.put("proxy_default_pool_used", totalUsed);
-
         return m;
     }
 

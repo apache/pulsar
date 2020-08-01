@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.client.api.schema.FieldSchemaBuilder;
+import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -56,6 +57,13 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
     @Override
     public FieldSchemaBuilder field(String fieldName) {
         FieldSchemaBuilderImpl field = new FieldSchemaBuilderImpl(fieldName);
+        fields.add(field);
+        return field;
+    }
+
+    @Override
+    public FieldSchemaBuilder field(String fieldName, GenericSchema genericSchema) {
+        FieldSchemaBuilderImpl field = new FieldSchemaBuilderImpl(fieldName, genericSchema);
         fields.add(field);
         return field;
     }

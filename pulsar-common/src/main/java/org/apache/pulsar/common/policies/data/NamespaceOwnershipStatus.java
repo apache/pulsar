@@ -18,10 +18,16 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+/**
+ * Information about the namespace's ownership.
+ */
 public class NamespaceOwnershipStatus {
 
+    @SuppressWarnings("checkstyle:MemberName")
     public BrokerAssignment broker_assignment;
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean is_controlled;
+    @SuppressWarnings("checkstyle:MemberName")
     public boolean is_active;
 
     public NamespaceOwnershipStatus() {

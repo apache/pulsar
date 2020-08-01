@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import io.swagger.annotations.Api;
-import org.apache.pulsar.broker.admin.impl.SourceBase;
+import org.apache.pulsar.broker.admin.impl.SourcesBase;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.Path;
@@ -27,8 +27,12 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 @Path("/source")
-@Api(value = "/source", description = "Source admin apis", tags = "source", hidden = true)
+@Api(value = "/source", description = "Source admin apis", tags = "source")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class Source extends SourceBase {
+@Deprecated
+/**
+ * @deprecated in favor of {@link Sources}
+ */
+public class Source extends SourcesBase {
 }

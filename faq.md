@@ -92,13 +92,13 @@ This is a lightweight option of having multiple clusters for different users, si
 There is regex subscription coming up in Pulsar 2.0. See [PIP-13](https://github.com/apache/pulsar/wiki/PIP-13:-Subscribe-to-topics-represented-by-regular-expressions).
 
 ### Does Pulsar have, or plan to have, a concept of log compaction where only the latest message with the same key will be kept ?
-Yes, see [PIP-9](https://github.com/ivankelly/pulsar-wiki/pull/1/files) for more details.
+Yes, see [PIP-14](https://github.com/apache/pulsar/wiki/PIP-14:-Topic-compaction) for more details.
 
 ### When I use an exclusive subscription to a partitioned topic, is the subscription attached to the "whole topic" or to a "topic partition"? 
 On a partitioned topic, you can use all the 3 supported subscription types (exclusive, failover, shared), same as with non partitioned topics. 
 The “subscription” concept is roughly similar to a “consumer-group” in Kafka. You can have multiple of them in the same topic, with different names.
 
-If you use “exclusive”, a consumer will try to consume from all partitions, or fail if any partition is already being consumer.
+If you use “exclusive”, a consumer will try to consume from all partitions, or fail if any partition is already being consumed.
 
 The mode similar to Kafka is “failover” subscription. In this case, you have 1 active consumer per partition, the active/stand-by decision is made at the partition level, and Pulsar will make sure to spread the partition assignments evenly across consumer.
 

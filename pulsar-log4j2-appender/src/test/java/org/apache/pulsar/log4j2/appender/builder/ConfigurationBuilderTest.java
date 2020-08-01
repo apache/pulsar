@@ -109,7 +109,7 @@ public class ConfigurationBuilderTest {
 
     // TODO make test run properly on Windows
     @Test
-    public void testXmlConstructing() throws Exception {
+    public void testXmlConstructing() {
         //assumeTrue(System.lineSeparator().length() == 1); // Only run test on platforms with single character line endings (such as Linux), not on Windows
         final ConfigurationBuilder<BuiltConfiguration> builder = ConfigurationBuilderFactory.newConfigurationBuilder();
         addTestFixtures("config name", builder);

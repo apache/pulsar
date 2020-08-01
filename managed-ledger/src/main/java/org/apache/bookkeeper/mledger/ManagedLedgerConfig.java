@@ -24,10 +24,15 @@ import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
 import java.time.Clock;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
 
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
+
+import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -37,6 +42,8 @@ public class ManagedLedgerConfig {
 
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
+    private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInZk = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
@@ -54,14 +61,16 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
-    private long offloadLedgerDeletionLagMs = TimeUnit.HOURS.toMillis(4);
-    private long offloadAutoTriggerSizeThresholdBytes = -1;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
+    private boolean unackedRangesOpenCacheSetEnabled = true;
+    private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
+    private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
 
     public boolean isCreateIfMissing() {
@@ -236,6 +245,19 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * @return
+     */
+    public boolean isUnackedRangesOpenCacheSetEnabled() {
+        return unackedRangesOpenCacheSetEnabled;
+    }
+
+    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
+        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
+        return this;
+    }
+
+    /**
      * @return the metadataEnsemblesize
      */
     public int getMetadataEnsemblesize() {
@@ -390,48 +412,6 @@ public class ManagedLedgerConfig {
         return retentionSizeInMB;
     }
 
-    /**
-     * When a ledger is offloaded from bookkeeper storage to longterm storage, the bookkeeper ledger
-     * is not deleted immediately. Instead we wait for a grace period before deleting from bookkeeper.
-     * The offloadLedgerDeleteLag sets this grace period.
-     *
-     * @param lagTime period to wait before deleting offloaded ledgers from bookkeeper
-     * @param unit timeunit for lagTime
-     */
-    public ManagedLedgerConfig setOffloadLedgerDeletionLag(long lagTime, TimeUnit unit) {
-        this.offloadLedgerDeletionLagMs = unit.toMillis(lagTime);
-        return this;
-    }
-
-    /**
-     * Number of milliseconds before an offloaded ledger will be deleted from bookkeeper.
-     *
-     * @return the offload ledger deletion lag time in milliseconds
-     */
-    public long getOffloadLedgerDeletionLagMillis() {
-        return offloadLedgerDeletionLagMs;
-    }
-
-    /**
-     * Size, in bytes, at which the managed ledger will start to automatically offload ledgers to longterm storage.
-     * A negative value disables autotriggering. A threshold of 0 offloads data as soon as possible.
-     * Offloading will not occur if no offloader has been set {@link #setLedgerOffloader(LedgerOffloader)}.
-     * Automatical offloading occurs when the ledger is rolled, and the ledgers up to that point exceed the threshold.
-     *
-     * @param threshold Threshold in bytes at which offload is automatically triggered
-     */
-    public ManagedLedgerConfig setOffloadAutoTriggerSizeThresholdBytes(long threshold) {
-        this.offloadAutoTriggerSizeThresholdBytes = threshold;
-        return this;
-    }
-
-    /**
-     * Size, in bytes, at which offloading will automatically be triggered for this managed ledger.
-     * @return the trigger threshold, in bytes
-     */
-    public long getOffloadAutoTriggerSizeThresholdBytes() {
-        return this.offloadAutoTriggerSizeThresholdBytes;
-    }
 
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
@@ -451,6 +431,13 @@ public class ManagedLedgerConfig {
      */
     public int getMaxUnackedRangesToPersist() {
         return maxUnackedRangesToPersist;
+    }
+
+    /**
+     * @return max batch deleted index that will be persisted and recoverd.
+     */
+    public int getMaxBatchDeletedIndexToPersist() {
+        return maxBatchDeletedIndexToPersist;
     }
 
     /**
@@ -515,9 +502,9 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * 
+     *
      * Ledger-Op (Create/Delete) timeout
-     * 
+     *
      * @return
      */
     public long getMetadataOperationsTimeoutSeconds() {
@@ -526,17 +513,17 @@ public class ManagedLedgerConfig {
 
     /**
      * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
-     * 
+     *
      * @param metadataOperationsTimeoutSeconds
      */
     public ManagedLedgerConfig setMetadataOperationsTimeoutSeconds(long metadataOperationsTimeoutSeconds) {
         this.metadataOperationsTimeoutSeconds = metadataOperationsTimeoutSeconds;
         return this;
     }
-    
+
     /**
      * Ledger read-entry timeout
-     * 
+     *
      * @return
      */
     public long getReadEntryTimeoutSeconds() {
@@ -546,26 +533,82 @@ public class ManagedLedgerConfig {
     /**
      * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
      * readTimeoutSeconds <= 0)
-     * 
-     * @param readTimeoutSeconds
+     *
+     * @param readEntryTimeoutSeconds
      * @return
      */
     public ManagedLedgerConfig setReadEntryTimeoutSeconds(long readEntryTimeoutSeconds) {
         this.readEntryTimeoutSeconds = readEntryTimeoutSeconds;
         return this;
     }
-    
+
     public long getAddEntryTimeoutSeconds() {
         return addEntryTimeoutSeconds;
     }
 
     /**
      * Add-entry timeout after which add-entry callback will be failed if add-entry is not succeeded.
-     * 
+     *
      * @param addEntryTimeoutSeconds
      */
     public ManagedLedgerConfig setAddEntryTimeoutSeconds(long addEntryTimeoutSeconds) {
         this.addEntryTimeoutSeconds = addEntryTimeoutSeconds;
         return this;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy (eg: affinity to write ledgers to only setup of
+     * group of bookies).
+     * 
+     * @return
+     */
+    public Class<? extends EnsemblePlacementPolicy> getBookKeeperEnsemblePlacementPolicyClassName() {
+        return bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns EnsemblePlacementPolicy configured for the Managed-ledger.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicyClassName
+     */
+    public void setBookKeeperEnsemblePlacementPolicyClassName(
+            Class<? extends EnsemblePlacementPolicy> bookKeeperEnsemblePlacementPolicyClassName) {
+        this.bookKeeperEnsemblePlacementPolicyClassName = bookKeeperEnsemblePlacementPolicyClassName;
+    }
+
+    /**
+     * Returns properties required by configured bookKeeperEnsemblePlacementPolicy.
+     * 
+     * @return
+     */
+    public Map<String, Object> getBookKeeperEnsemblePlacementPolicyProperties() {
+        return bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    /**
+     * Managed-ledger can setup different custom EnsemblePlacementPolicy which needs
+     * bookKeeperEnsemblePlacementPolicy-Properties.
+     * 
+     * @param bookKeeperEnsemblePlacementPolicyProperties
+     */
+    public void setBookKeeperEnsemblePlacementPolicyProperties(
+            Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties) {
+        this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
+    }
+
+    public boolean isDeletionAtBatchIndexLevelEnabled() {
+        return deletionAtBatchIndexLevelEnabled;
+    }
+
+    public void setDeletionAtBatchIndexLevelEnabled(boolean deletionAtBatchIndexLevelEnabled) {
+        this.deletionAtBatchIndexLevelEnabled = deletionAtBatchIndexLevelEnabled;
+    }
+
+    public int getNewEntriesCheckDelayInMillis() {
+        return newEntriesCheckDelayInMillis;
+    }
+
+    public void setNewEntriesCheckDelayInMillis(int newEntriesCheckDelayInMillis) {
+        this.newEntriesCheckDelayInMillis = newEntriesCheckDelayInMillis;
     }
 }

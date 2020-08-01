@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.internal;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import lombok.experimental.UtilityClass;
@@ -33,6 +34,15 @@ class ReflectionUtils {
         try {
             return s.get();
         } catch (Throwable t) {
+            if (t instanceof InvocationTargetException) {
+                // exception is thrown during invocation
+                Throwable cause = t.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                } else {
+                    throw new RuntimeException(cause);
+                }
+            }
             throw new RuntimeException(t);
         }
     }
@@ -40,8 +50,16 @@ class ReflectionUtils {
     @SuppressWarnings("unchecked")
     static <T> Class<T> newClassInstance(String className) {
         try {
-            return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
-        } catch (ClassNotFoundException e) {
+            try {
+                // when the API is loaded in the same classloader as the impl
+                return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
+            } catch (Exception e) {
+                // when the API is loaded in a separate classloader as the impl
+                // the classloader that loaded the impl needs to be a child classloader of the classloader
+                // that loaded the API
+                return (Class<T>) Thread.currentThread().getContextClassLoader().loadClass(className);
+            }
+        } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new RuntimeException(e);
         }
     }

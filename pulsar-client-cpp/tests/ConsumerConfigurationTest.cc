@@ -69,6 +69,27 @@ TEST(ConsumerConfigurationTest, testReadCompactPersistentFailover) {
     consumer.close();
 }
 
+TEST(ConsumerConfigurationTest, testSubscribePersistentKeyShared) {
+    std::string lookupUrl = "pulsar://localhost:6650";
+    std::string topicName = "persist-key-shared-topic";
+    std::string subName = "test-persist-key-shared";
+
+    Result result;
+
+    ConsumerConfiguration config;
+    // now, key-shared not support read compact
+    config.setReadCompacted(false);
+    config.setConsumerType(ConsumerKeyShared);
+
+    ClientConfiguration clientConfig;
+    Client client(lookupUrl, clientConfig);
+
+    Consumer consumer;
+    result = client.subscribe(topicName, subName, config, consumer);
+    ASSERT_EQ(ResultOk, result);
+    consumer.close();
+}
+
 TEST(ConsumerConfigurationTest, testReadCompactPersistentShared) {
     std::string lookupUrl = "pulsar://localhost:6650";
     std::string topicName = "persist-topic";
@@ -151,4 +172,17 @@ TEST(ConsumerConfigurationTest, testSubscriptionInitialPosition) {
     ASSERT_EQ(ResultAlreadyClosed, consumer.close());
     ASSERT_EQ(ResultOk, producer.close());
     ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(ConsumerConfigurationTest, testResetAckTimeOut) {
+    Result result;
+
+    uint64_t milliSeconds = 50000;
+    ConsumerConfiguration config;
+    config.setUnAckedMessagesTimeoutMs(milliSeconds);
+    ASSERT_EQ(milliSeconds, config.getUnAckedMessagesTimeoutMs());
+
+    // should be able to set it back to 0.
+    config.setUnAckedMessagesTimeoutMs(0);
+    ASSERT_EQ(0, config.getUnAckedMessagesTimeoutMs());
 }

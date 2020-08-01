@@ -54,7 +54,7 @@ public class PulsarClusterSpec {
      * @return number of bookies.
      */
     @Default
-    int numBookies = 3;
+    int numBookies = 2;
 
     /**
      * Returns number of brokers.

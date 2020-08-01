@@ -20,6 +20,7 @@
 #include "CompressionCodecLZ4.h"
 #include "CompressionCodecZLib.h"
 #include "CompressionCodecZstd.h"
+#include "CompressionCodecSnappy.h"
 
 #include <cassert>
 
@@ -30,6 +31,7 @@ CompressionCodecNone CompressionCodecProvider::compressionCodecNone_;
 CompressionCodecLZ4 CompressionCodecProvider::compressionCodecLZ4_;
 CompressionCodecZLib CompressionCodecProvider::compressionCodecZLib_;
 CompressionCodecZstd CompressionCodecProvider::compressionCodecZstd_;
+CompressionCodecSnappy CompressionCodecProvider::compressionCodecSnappy_;
 
 CompressionCodec& CompressionCodecProvider::getCodec(CompressionType compressionType) {
     switch (compressionType) {
@@ -39,6 +41,8 @@ CompressionCodec& CompressionCodecProvider::getCodec(CompressionType compression
             return compressionCodecZLib_;
         case CompressionZSTD:
             return compressionCodecZstd_;
+        case CompressionSNAPPY:
+            return compressionCodecSnappy_;
         default:
             return compressionCodecNone_;
     }
@@ -54,6 +58,8 @@ CompressionType CompressionCodecProvider::convertType(proto::CompressionType typ
             return CompressionZLib;
         case proto::ZSTD:
             return CompressionZSTD;
+        case proto::SNAPPY:
+            return CompressionSNAPPY;
     }
 }
 
@@ -67,6 +73,8 @@ proto::CompressionType CompressionCodecProvider::convertType(CompressionType typ
             return proto::ZLIB;
         case CompressionZSTD:
             return proto::ZSTD;
+        case CompressionSNAPPY:
+            return proto::SNAPPY;
     }
 }
 

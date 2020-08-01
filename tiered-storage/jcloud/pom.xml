@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>tiered-storage-parent</artifactId>
-    <version>2.4.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -34,14 +34,15 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>managed-ledger-original</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>managed-ledger</artifactId>
       <version>${project.version}</version>
     </dependency>
+
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>jclouds-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${pulsar.jclouds.shaded.version}</version>
       <exclusions>
         <exclusion>
           <groupId>com.google.code.gson</groupId>
@@ -69,61 +70,21 @@
         </exclusion>
       </exclusions>
     </dependency>
+
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
     </dependency>
+
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>managed-ledger-original</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-sts</artifactId>
     </dependency>
 
-    <!-- we excluded the transitive dependencies above to make it work for standalone.
-         however it will cause test failures. bring following dependencies back for testing.
-         all these should be gone once we introduce NAR package for offloaders. -->
     <dependency>
-      <groupId>com.jamesmurty.utils</groupId>
-      <artifactId>java-xmlbuilder</artifactId>
-      <version>1.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>net.iharder</groupId>
-      <artifactId>base64</artifactId>
-      <version>2.3.8</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.ws.rs</groupId>
-      <artifactId>javax.ws.rs-api</artifactId>
-      <version>2.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>aopalliance</groupId>
-      <artifactId>aopalliance</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.inject</groupId>
-      <artifactId>javax.inject</artifactId>
-      <version>1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>javax.annotation</groupId>
-      <artifactId>jsr250-api</artifactId>
-      <version>1.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>error_prone_annotations</artifactId>
-      <version>2.1.0</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>testmocks</artifactId>
+      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import java.nio.ByteBuffer;
 
 /**
- * Example of using a byte buffer serialization for Custom object
+ * Example of using a byte buffer serialization for Custom object.
  */
 public class CustomBaseSerde implements SerDe<CustomBaseObject> {
     @Override

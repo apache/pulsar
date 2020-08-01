@@ -101,8 +101,7 @@ public class ProducerConfiguration implements Serializable {
      *            the time unit of the {@code sendTimeout}
      */
     public ProducerConfiguration setSendTimeout(int sendTimeout, TimeUnit unit) {
-        checkArgument(sendTimeout >= 0);
-        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
+        conf.setSendTimeoutMs(sendTimeout, unit);
         return this;
     }
 
@@ -123,7 +122,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setMaxPendingMessages(int maxPendingMessages) {
-        checkArgument(maxPendingMessages > 0);
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -154,7 +152,6 @@ public class ProducerConfiguration implements Serializable {
      * @param maxPendingMessagesAcrossPartitions
      */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= conf.getMaxPendingMessages());
         conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
     }
 
@@ -399,9 +396,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
-        long delayInMs = timeUnit.toMillis(batchDelay);
-        checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
-        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
+        conf.setBatchingMaxPublishDelayMicros(batchDelay, timeUnit);
         return this;
     }
 
@@ -425,7 +420,6 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
-        checkArgument(batchMessagesMaxMessagesPerBatch > 0);
         conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
