@@ -179,8 +179,7 @@ class LoggerWrapperFactory : public LoggerFactory {
     }
 };
 
-static ClientConfiguration& ClientConfiguration_setLogger(ClientConfiguration& conf,
-                                                          py::object logger) {
+static ClientConfiguration& ClientConfiguration_setLogger(ClientConfiguration& conf, py::object logger) {
     conf.setLogger(new LoggerWrapperFactory(logger));
     return conf;
 }
