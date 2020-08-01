@@ -84,7 +84,6 @@
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
-                  <include>org.apache.httpcomponents:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.google.auth:*</include>
                   <include>org.jvnet.mimepull:*</include>
@@ -206,10 +205,6 @@
                   <relocation>
                       <pattern>org.eclipse.jetty</pattern>
                       <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                  </relocation>
-                  <relocation>
-                      <pattern>org.apache.http</pattern>
-                      <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                   </relocation>
                   <relocation>
                       <pattern>org.objenesis</pattern>

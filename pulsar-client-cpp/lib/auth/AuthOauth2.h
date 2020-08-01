@@ -33,6 +33,8 @@ class ClientCredentialFlow : public Oauth2Flow {
    public:
     ClientCredentialFlow(const std::string& issuerUrl, const std::string& clientId,
                          const std::string& clientSecret, const std::string& audience);
+    ClientCredentialFlow(const std::string& issuerUrl, const std::string& credentialsFilePath,
+                         const std::string& audience);
     void initialize();
     Oauth2TokenResultPtr authenticate();
     void close();

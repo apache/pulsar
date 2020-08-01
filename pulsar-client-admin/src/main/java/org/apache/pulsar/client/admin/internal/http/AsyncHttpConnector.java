@@ -310,6 +310,7 @@ public class AsyncHttpConnector implements Connector {
     public void close() {
         try {
             httpClient.close();
+            delayer.shutdownNow();
         } catch (IOException e) {
             log.warn("Failed to close http client", e);
         }

@@ -101,6 +101,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -543,9 +544,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             ackType);
                 }
             } else {
-                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-                acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                    batchMessageId.getBatchSize(), ackType, properties);
+                if (conf.isBatchIndexAckEnabled()) {
+                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                    acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
+                            batchMessageId.getBatchSize(), ackType, properties);
+                }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
@@ -765,6 +768,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void connectionOpened(final ClientCnx cnx) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            setState(State.Closed);
+            closeConsumerTasks();
+            client.cleanupConsumer(this);
+            failPendingReceive();
+            clearReceiverQueue();
+            return;
+        }
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
@@ -1025,18 +1036,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         lock.readLock().lock();
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
-                while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
-                    if (receiveFuture != null) {
-                        receiveFuture.completeExceptionally(
-                            new PulsarClientException.AlreadyClosedException(
-                                String.format("The consumer which subscribes the topic %s with subscription name %s " +
-                                        "was already closed when cleaning and closing the consumers",
-                                    topicName.toString(), subscription)));
-                    } else {
-                        break;
-                    }
-                }
+                failPendingReceives(this.pendingReceives);
+                failPendingBatchReceives(this.pendingBatchReceives);
             }
         } finally {
             lock.readLock().unlock();
@@ -1345,6 +1346,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             possibleToDeadLetter = new ArrayList<>();
         }
         int skippedMessages = 0;
+        BitSetRecyclable ackBitSet = null;
+        if (ackSet != null && ackSet.size() > 0) {
+            ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+        }
         try {
             for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
@@ -1378,7 +1383,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
 
-                if (ackSet != null && BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)).get(i)) {
+                if (ackBitSet != null && !ackBitSet.get(i)) {
                     singleMessagePayload.release();
                     singleMessageMetadataBuilder.recycle();
                     ++skippedMessages;
@@ -1407,6 +1412,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 singleMessagePayload.release();
                 singleMessageMetadataBuilder.recycle();
+            }
+            if (ackBitSet != null) {
+                ackBitSet.recycle();
             }
         } catch (IOException e) {
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);

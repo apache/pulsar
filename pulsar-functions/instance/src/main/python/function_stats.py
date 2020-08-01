@@ -29,7 +29,7 @@ from ratelimit import limits, RateLimitException
 class Stats(object):
   metrics_label_names = ['tenant', 'namespace', 'name', 'instance_id', 'cluster', 'fqfn']
 
-  exception_metrics_label_names = metrics_label_names + ['error', 'ts']
+  exception_metrics_label_names = metrics_label_names + ['error']
 
   PULSAR_FUNCTION_METRICS_PREFIX = "pulsar_function_"
   USER_METRIC_PREFIX = "user_metric_"
@@ -185,13 +185,13 @@ class Stats(object):
 
     # report exception via prometheus
     try:
-      self.report_user_exception_prometheus(exception, ts)
+      self.report_user_exception_prometheus(exception)
     except RateLimitException:
       pass
 
   @limits(calls=5, period=60)
-  def report_user_exception_prometheus(self, exception, ts):
-    exception_metric_labels = self.metrics_labels + [str(exception), str(ts)]
+  def report_user_exception_prometheus(self, exception):
+    exception_metric_labels = self.metrics_labels + [str(exception)]
     self.user_exceptions.labels(*exception_metric_labels).set(1.0)
 
   def add_sys_exception(self, exception):
@@ -203,13 +203,13 @@ class Stats(object):
 
     # report exception via prometheus
     try:
-      self.report_system_exception_prometheus(exception, ts)
+      self.report_system_exception_prometheus(exception)
     except RateLimitException:
       pass
 
   @limits(calls=5, period=60)
-  def report_system_exception_prometheus(self, exception, ts):
-    exception_metric_labels = self.metrics_labels + [str(exception), str(ts)]
+  def report_system_exception_prometheus(self, exception):
+    exception_metric_labels = self.metrics_labels + [str(exception)]
     self.system_exceptions.labels(*exception_metric_labels).set(1.0)
 
   def reset(self):
