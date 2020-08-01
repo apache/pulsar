@@ -169,20 +169,6 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-  public Record<T> readInternal() {
-    try {
-      Record<T> record = batchSource.readNext();
-      log.info("Record: {}", record);
-      if (record != null) {
-        return record;
-      }
-    } catch (Exception e) {
-      log.error("Error on read", e);
-      throw new RuntimeException(e);
-    }
-    return null;
-  }
-
   @Override
   public void close() throws Exception {
     this.stop();
