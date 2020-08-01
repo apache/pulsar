@@ -555,7 +555,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         CompletableFuture<Boolean> isAuthorizedFuture;
 
         switch (operation) {
-            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
+            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, StringUtils.isBlank(originalRole) ? role : originalRole, authData);
                 break;
             case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, StringUtils.isBlank(originalRole) ? role : originalRole, authData);
                 break;
