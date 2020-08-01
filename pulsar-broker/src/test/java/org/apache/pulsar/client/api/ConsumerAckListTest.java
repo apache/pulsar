@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 public class ConsumerAckListTest extends ProducerConsumerBase {
@@ -45,24 +46,30 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 30000)
     public void testBatchListAck() throws Exception {
-        nonPartitionAckBatchMessage(true);
-        nonPartitionAckBatchMessage(false);
+        ackListMessage(true,true);
+        ackListMessage(true,false);
+        ackListMessage(false,false);
+        ackListMessage(false,true);
     }
 
-    public void nonPartitionAckBatchMessage(boolean isBatch) throws Exception {
+    public void ackListMessage(boolean isBatch, boolean isPartitioned) throws Exception {
         final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
         final String subName = "testBatchAck-sub" + UUID.randomUUID();
-        final int messageNum = 100;
-        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).enableBatching(isBatch).topic(topic);
+        final int messageNum = ThreadLocalRandom.current().nextInt(50, 100);
+        if (isPartitioned) {
+            admin.topics().createPartitionedTopic(topic, 3);
+        }
         @Cleanup
-        Producer<String> producer = producerBuilder.create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(isBatch)
+                .batchingMaxPublishDelay(50, TimeUnit.MILLISECONDS)
+                .topic(topic).create();
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionType(SubscriptionType.Shared)
                 .topic(topic)
-                .ackTimeout(1001, TimeUnit.MILLISECONDS)
                 .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
                 .subscriptionName(subName)
                 .subscribe();
@@ -72,42 +79,10 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
             messages.add(consumer.receive().getMessageId());
         }
         consumer.acknowledge(messages);
+        //Wait ack send.
+        Thread.sleep(1000);
         consumer.redeliverUnacknowledgedMessages();
-        Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
-        Assert.assertNull(msg);
-    }
-
-    @Test(timeOut = 20000)
-    public void testPartitionedTopicAckBatchMessage() throws Exception {
-        partitionedTopicAckBatchMessage(true);
-        partitionedTopicAckBatchMessage(false);
-    }
-
-    public void partitionedTopicAckBatchMessage(boolean isBatch) throws Exception {
-        final String topic = "persistent://my-property/my-ns/batch-ack-" + UUID.randomUUID();
-        final String subName = "testBatchAck-sub" + UUID.randomUUID();
-        final int messageNum = 100;
-        admin.topics().createPartitionedTopic(topic, 3);
-        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).enableBatching(isBatch).topic(topic);
-        @Cleanup
-        Producer<String> producer = producerBuilder.create();
-        @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionType(SubscriptionType.Shared)
-                .topic(topic)
-                .ackTimeout(1001, TimeUnit.MILLISECONDS)
-                .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
-                .subscriptionName(subName)
-                .subscribe();
-        sendMessagesAsyncAndWait(producer, messageNum);
-
-        List<MessageId> messages = new ArrayList<>();
-        for (int i = 0; i < messageNum; i++) {
-            messages.add(consumer.receive().getMessageId());
-        }
-        consumer.acknowledge(messages);
-        consumer.redeliverUnacknowledgedMessages();
-        Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+        Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(msg);
     }
 

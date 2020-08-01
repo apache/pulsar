@@ -570,8 +570,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
         List<MessageIdImpl> nonBatchMessageIds = new ArrayList<>();
-        MessageIdImpl messageIdImpl;
         for (MessageId messageId : messageIdList) {
+            MessageIdImpl messageIdImpl;
             if (messageId instanceof BatchMessageIdImpl
                     && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
@@ -583,7 +583,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
                 stats.incrementNumAcksSent(1);
-                nonBatchMessageIds.add((MessageIdImpl) messageId);
+                nonBatchMessageIds.add(messageIdImpl);
             }
             unAckedMessageTracker.remove(messageIdImpl);
             if (possibleSendToDeadLetterTopicMessages != null) {
