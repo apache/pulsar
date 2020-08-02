@@ -27,6 +27,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -143,6 +144,17 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
         }
 
+        if (sourceConfig.getProducerConfig() != null) {
+            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
+            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
+            }
+            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            }
+            sinkSpecBuilder.setProducerSpec(pbldr.build());
+        }
+
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         // use default resources if resources not set
@@ -211,6 +223,16 @@ public class SourceConfigUtils {
         }
         if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
+        }
+        if (sinkSpec.getProducerSpec() != null) {
+            ProducerConfig producerConfig = new ProducerConfig();
+            if (sinkSpec.getProducerSpec().getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(sinkSpec.getProducerSpec().getMaxPendingMessages());
+            }
+            if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            }
+            sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();

@@ -25,10 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
@@ -198,6 +195,16 @@ public class FunctionConfigUtils {
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
+        if (functionConfig.getProducerConfig() != null) {
+            Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
+            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
+                pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
+            }
+            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
+                pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
+            }
+            sinkSpecBuilder.setProducerSpec(pbldr.build());
+        }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         if (functionConfig.getTenant() != null) {
@@ -342,6 +349,16 @@ public class FunctionConfigUtils {
         }
         if (!isEmpty(functionDetails.getSink().getSchemaType())) {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
+        }
+        if (functionDetails.getSink().getProducerSpec() != null) {
+            ProducerConfig producerConfig = new ProducerConfig();
+            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessages() != 0) {
+                producerConfig.setMaxPendingMessages(functionDetails.getSink().getProducerSpec().getMaxPendingMessages());
+            }
+            if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
+                producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            }
+            functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
