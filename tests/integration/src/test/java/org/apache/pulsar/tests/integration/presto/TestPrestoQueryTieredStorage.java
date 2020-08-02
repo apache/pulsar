@@ -80,6 +80,7 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
                 .withNetworkAliases(S3Container.NAME);
         s3Container.start();
 
+        log.info("[setupPresto] prestoWorker: " + pulsarCluster.getPrestoWorkerContainer());
         pulsarCluster.startPrestoWorker(OFFLOAD_DRIVER, getOffloadProperties(BUCKET, null, ENDPOINT));
     }
 

@@ -332,6 +332,7 @@ public class PulsarCluster {
     }
 
     public void startPrestoWorker(String offloadDriver, String offloadProperties) {
+        log.info("[startPrestoWorker] offloadDriver: {}, offloadProperties: {}", offloadDriver, offloadProperties);
         if (null == prestoWorkerContainer) {
             prestoWorkerContainer = new PrestoWorkerContainer(clusterName, PrestoWorkerContainer.NAME)
                     .withNetwork(network)
@@ -342,11 +343,16 @@ public class PulsarCluster {
                     .withEnv("pulsar.zookeeper-uri", ZKContainer.NAME + ":" + ZKContainer.ZK_PORT)
                     .withEnv("pulsar.broker-service-url", "http://pulsar-broker-0:8080");
             if (offloadDriver != null && offloadProperties != null) {
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
+                log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
+                        offloadDriver, offloadProperties);
+                prestoWorkerContainer.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+                prestoWorkerContainer.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
+                // used in s3 tests
+                prestoWorkerContainer.withEnv("ENV_PREFIX_AWS_ACCESS_KEY_ID", "accesskey");
+                prestoWorkerContainer.withEnv("ENV_PREFIX_AWS_AWS_SECRET_KEY", "secretkey");
             }
         }
-        log.info("Starting Presto Worker");
+        log.info("[startPrestoWorker] Starting Presto Worker");
         prestoWorkerContainer.start();
     }
 

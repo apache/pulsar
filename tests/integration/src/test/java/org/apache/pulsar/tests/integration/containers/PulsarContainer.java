@@ -146,6 +146,11 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
         beforeStart();
         super.start();
+        if (this.getContainerName().contains("presto-worker")) {
+            this.tailContainerLog();
+            DockerUtils.runCommandAsync(this.getDockerClient(), this.getContainerId(),
+                    "tail", "-f", "/pulsar/lib/presto/var/log/server.log");
+        }
         log.info("Start pulsar service {} at container {}", serviceName, containerName);
     }
 
