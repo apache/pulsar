@@ -59,7 +59,7 @@ public class PulsarMetricsSender implements MetricsSender {
 
     private Producer<PulsarMetrics> producer;
 
-    public PulsarMetricsSender(PulsarService pulsar, MetricsSenderConfiguration conf) {
+    public PulsarMetricsSender(PulsarService pulsar, MetricsSenderConfiguration conf) throws PulsarServerException {
         this.pulsar = pulsar;
         this.conf = conf;
         this.metricsSenderExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-metrics-sender"));
@@ -68,9 +68,10 @@ public class PulsarMetricsSender implements MetricsSender {
                 "persistent", NamespaceName.get(this.conf.tenant, "brokers"), this.pulsar.getAdvertisedAddress());
 
         this.prepareTopics();
+        this.prepareProducer();
     }
 
-    public void prepareTopics() {
+    public void prepareTopics() throws PulsarServerException {
         try {
             ZooKeeper zk = this.pulsar.getZkClient();
             String cluster = this.pulsar.getConfig().getClusterName();
@@ -78,35 +79,27 @@ public class PulsarMetricsSender implements MetricsSender {
             createTenantIfAbsent(zk, topicToSend.getTenant(), cluster);
             createNamespaceIfAbsent(zk, topicToSend.getNamespaceObject(), cluster);
             createPartitionedTopic(zk, topicToSend, 1);
-        } catch (PulsarServerException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (KeeperException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            throw new PulsarServerException(e);
         }
     }
 
-    @Override
-    public void start() {
+    private void prepareProducer() throws PulsarServerException {
         try {
             this.producer = this.pulsar.getClient().newProducer(Schema.JSON(PulsarMetrics.class))
                     .topic(this.topicToSend.toString())
                     .enableBatching(true)
                     .producerName("metrics-sender-" + this.pulsar.getAdvertisedAddress())
                     .create();
-        } catch (PulsarClientException | PulsarServerException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            throw new PulsarServerException(e);
         }
+    }
 
-        //metricsToSend.addAll(new ManagedLedgerCacheMetrics(this.pulsar).generate());
-        //metricsToSend.addAll(new ManagedLedgerMetrics(pulsar).generate());
-        //metricsToSend.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());
-        //List<Metrics> yo = this.pulsar.getBrokerService().getTopicMetrics();
-        //metricsToSend.addAll(this.pulsar.getBrokerService().getTopicMetrics());
-
+    @Override
+    public void start() {
         final int initialDelay = 1;
         final int interval = this.conf.intervalInSeconds;
         log.info("Scheduling a thread to send metrics after [{}] seconds in background", interval);
@@ -121,8 +114,8 @@ public class PulsarMetricsSender implements MetricsSender {
     public void send(PulsarMetrics pulsarMetrics) {
         try {
             this.producer.send(pulsarMetrics);
-        } catch (PulsarClientException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            log.warn(e.getMessage(), e);
         }
     }
 
