@@ -70,7 +70,7 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
         super.afterPulsarStart();
         for (int i = 0; i < pulsarServices.length; i++) {
             TransactionBuffer tb = Mockito.mock(TransactionBuffer.class);
-            Mockito.when(tb.committingTxn(Mockito.any())).thenReturn(CompletableFuture.completedFuture(null));
+            Mockito.when(tb.endTxnOnPartition(Mockito.any())).thenReturn(CompletableFuture.completedFuture(null));
             Mockito.when(tb.commitPartitionTopic(Mockito.any()))
                     .thenReturn(CompletableFuture.completedFuture(PositionImpl.get(-1, -1)));
             Mockito.when(tb.commitTxn(Mockito.any(), Mockito.anyLong(), Mockito.anyLong()))

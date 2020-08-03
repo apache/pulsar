@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -107,12 +108,24 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
+        public CompletableFuture<TransactionMeta> committingTxn() {
+            status = TxnStatus.COMMITTING;
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
         public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
             try {
                 return CompletableFuture.completedFuture(commitAt(committedAtLedgerId, committedAtEntryId));
             } catch (UnexpectedTxnStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
+        }
+
+        @Override
+        public CompletableFuture<TransactionMeta> abortingTxn() {
+            status = TxnStatus.ABORTING;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override
@@ -268,7 +281,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Void> committingTxn(TxnID txnID) {
+    public CompletableFuture<Void> endTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
         return null;
     }
 

@@ -555,15 +555,16 @@ public class PulsarService implements AutoCloseable {
 
             // Register pulsar system namespaces and start transaction meta store service
             if (config.isTransactionCoordinatorEnabled()) {
+                transactionBufferClient = TransactionBufferClientImpl.create(
+                        getNamespaceService(), ((PulsarClientImpl) getClient()).getCnxPool());
+
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
-                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this);
+                        .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
+                        transactionBufferClient);
                 transactionMetadataStoreService.start();
 
                 transactionBufferProvider = TransactionBufferProvider
                         .newProvider(config.getTransactionBufferProviderClassName());
-
-                transactionBufferClient = TransactionBufferClientImpl.create(
-                        getNamespaceService(), ((PulsarClientImpl) getClient()).getCnxPool());
             }
 
             this.metricsGenerator = new MetricsGenerator(this);

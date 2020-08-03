@@ -163,6 +163,8 @@ public class PulsarClientTransactionTest extends TransactionTestBase {
 
         tnx.commit().get();
 
+        Thread.sleep(3000L);
+
         // the messageId callback should be called after commit
         futureList.forEach(messageIdFuture -> {
             try {

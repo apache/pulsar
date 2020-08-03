@@ -92,6 +92,12 @@ public interface TransactionMeta {
     CompletableFuture<Position> appendEntry(long sequenceId, Position position);
 
     /**
+     * Mark the transaction status is committing.
+     * @return
+     */
+    CompletableFuture<TransactionMeta> committingTxn();
+
+    /**
      * Mark the transaction is committed.
      *
      * @param committedAtLedgerId
@@ -99,6 +105,12 @@ public interface TransactionMeta {
      * @return
      */
     CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId);
+
+    /**
+     * Mark the transaction status is aborting.
+     * @return
+     */
+    CompletableFuture<TransactionMeta> abortingTxn();
 
     /**
      * Mark the transaction is aborted.

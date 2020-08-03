@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
@@ -36,16 +37,20 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 /**
@@ -58,6 +63,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
     private Topic originTopic;
+    private ConcurrentLinkedQueue<TxnID> pendingCommitTxn;
+    private volatile boolean pendingCommitHandling;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -89,6 +96,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         this.retentionCursor = ledger.newNonDurableCursor(
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
+        this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -134,9 +142,26 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf marker;
     }
 
-    // append committing marker to TB
     @Override
-    public CompletableFuture<Void> committingTxn(TxnID txnID) {
+    public CompletableFuture<Void> endTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        if (PulsarApi.TxnAction.COMMIT_VALUE == command.getTxnAction().getNumber()) {
+            committingTxn(txnID).whenComplete((ignored, throwable) -> {
+                if (throwable != null) {
+                    completableFuture.completeExceptionally(throwable);
+                    return;
+                }
+                completableFuture.complete(null);
+            });
+        } else if (PulsarApi.TxnAction.ABORT_VALUE == command.getTxnAction().getNumber()) {
+            // TODO handle abort operation
+            completableFuture.completeExceptionally(new Exception("Unsupported operation."));
+        }
+        return completableFuture;
+    }
+
+    private CompletableFuture<Void> committingTxn(TxnID txnID) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         txnCursor.getTxnMeta(txnID, false).whenComplete(((meta, txnMetaThrowable) -> {
 
@@ -144,19 +169,59 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                 completableFuture.completeExceptionally(txnMetaThrowable);
             }
 
+            if (meta.status().equals(TxnStatus.COMMITTING)) {
+                // the transaction status is committing, so return complete success
+                completableFuture.complete(null);
+                return;
+            } else if (!meta.status().equals(TxnStatus.OPEN)) {
+                // in normal, this condition should not happen
+                completableFuture.completeExceptionally(
+                        new UnexpectedTxnStatusException(txnID, TxnStatus.OPEN, meta.status()));
+            }
+
             long sequenceId = meta.lastSequenceId() + 1;
             MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
             ByteBuf committingMarker = Markers.newTxnCommittingMarker(
                     sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
-            publishMessage(txnID, committingMarker, sequenceId).whenComplete((position, publishThrowable) -> {
-                if (publishThrowable != null) {
-                    completableFuture.completeExceptionally(publishThrowable);
-                } else {
-                    completableFuture.complete(null);
-                }
-            });
+            publishMessage(txnID, committingMarker, sequenceId)
+                    .thenCompose(position -> meta.committingTxn()
+                    .thenAccept(committingTxn -> {
+                        pendingCommitTxn.add(txnID);
+                        if (!pendingCommitHandling) {
+                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
+                        }
+                        completableFuture.complete(null);
+                    }));
         }));
         return completableFuture;
+    }
+
+    private void handlePendingCommit() {
+        pendingCommitHandling = true;
+        TxnID txnID = pendingCommitTxn.peek();
+        txnCursor.getTxnMeta(txnID, false)
+            .thenAccept(meta -> {
+                if (meta.status().equals(TxnStatus.COMMITTING)) {
+                    commitPartitionTopic(txnID)
+                            .thenCompose(position -> commitTxn(txnID,
+                                    ((PositionImpl) position).getLedgerId(),
+                                    ((PositionImpl) position).getEntryId())
+                                    .whenComplete((ignored, throwable) -> {
+                                        if (throwable != null) {
+                                            handlePendingCommit();
+                                        } else {
+                                            pendingCommitTxn.remove(txnID);
+                                            if (pendingCommitTxn.peek() != null) {
+                                                handlePendingCommit();
+                                            } else {
+                                                pendingCommitHandling = false;
+                                            }
+                                        }
+                                    }));
+                } else {
+                    pendingCommitTxn.remove(txnID);
+                }
+            });
     }
 
     // append committed marker to partitioned topic

@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
  * A class represent a transaction buffer. The transaction buffer
@@ -86,12 +87,11 @@ public interface TransactionBuffer {
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
     /**
-     * Append committing marker to transaction buffer.
+     * Handle TC endTxnOnPartition command
      *
-     * @param txnID transaction id
      * @return
      */
-    CompletableFuture<Void> committingTxn(TxnID txnID);
+    CompletableFuture<Void> endTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command);
 
     /**
      * Append committed marker to the related origin topic partition.

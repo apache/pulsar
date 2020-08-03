@@ -1708,22 +1708,13 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive end txn by {} request {} from {} with txnId {}", newStatus, command.getRequestId(), remoteAddress, txnID);
         }
         final long requestId = command.getRequestId();
-        service.pulsar().getTransactionMetadataStoreService().updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
+        service.pulsar().getTransactionMetadataStoreService().endTransaction(txnID, newStatus, TxnStatus.OPEN)
             .thenRun(() -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Send response success for end txn request {}", command.getRequestId());
                 }
-                updateTBStatus(txnID, newStatus).thenRun(() -> {
-                    service.pulsar().getTransactionMetadataStoreService()
-                            .updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING);
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
-                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                }).exceptionally(throwable -> {
-                    log.error("Failed to get txn `" + txnID + "` txnMeta.", throwable);
-                    ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(),
-                            BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
-                    return null;
-                });
+                ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
             }).exceptionally(throwable -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Send response error for end txn request {}", command.getRequestId());
@@ -1734,47 +1725,9 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
-    private CompletableFuture<Void> updateTBStatus(TxnID txnID, TxnStatus newStatus) {
-        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
-        service.pulsar().getTransactionMetadataStoreService().getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
-            if (throwable != null) {
-                resultFuture.completeExceptionally(throwable);
-                return;
-            }
-            txnMeta.producedPartitions().forEach(partition -> {
-                CompletableFuture<TxnID> commitFuture = new CompletableFuture<>();
-                if (TxnStatus.COMMITTING.equals(newStatus)) {
-                    commitFuture = service.getPulsar().getTransactionBufferClient()
-                            .commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
-                } else if (TxnStatus.ABORTING.equals(newStatus)) {
-                    // TODO
-                    commitFuture.completeExceptionally(new Throwable("Unsupported exception."));
-                } else {
-                    // Unsupported txnStatus
-                    commitFuture.completeExceptionally(new Throwable(""));
-                }
-                commitFutureList.add(commitFuture);
-            });
-            try {
-                FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, waitThrowable) -> {
-                    if (waitThrowable != null) {
-                        resultFuture.completeExceptionally(waitThrowable);
-                        return;
-                    }
-                    resultFuture.complete(null);
-                });
-            } catch (Exception e) {
-                resultFuture.completeExceptionally(e);
-            }
-        });
-        return resultFuture;
-    }
-
     @Override
     protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
         log.info("handleEndTxnOnPartition requestId: {}", command.getRequestId());
-        final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final long requestId = command.getRequestId();
         service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
             if (!topic.isPresent()) {
@@ -1784,31 +1737,15 @@ public class ServerCnx extends PulsarHandler {
                 return;
             }
             topic.get().getTransactionBuffer(false).thenAccept(tb -> {
-                if (PulsarApi.TxnAction.COMMIT_VALUE == command.getTxnAction().getNumber()) {
-                    CompletableFuture<Void> commitFuture = tb.committingTxn(txnID)
-                            .thenCompose(ignored -> tb.commitPartitionTopic(txnID))
-                            .thenCompose(position -> tb.commitTxn(txnID,
-                                    ((PositionImpl) position).getLedgerId(),
-                                    ((PositionImpl) position).getEntryId()));
-                    commitFuture.whenComplete((ignored, throwable) -> {
-                        if (throwable != null) {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                    requestId, ServerError.UnknownError, throwable.getMessage()));
-                        } else {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
-                                    command.getTxnidLeastBits(), command.getTxnidMostBits()));
-                        }
-                    });
-                } else if (PulsarApi.TxnAction.ABORT_VALUE == command.getTxnAction().getNumber()) {
-                    tb.abortTxn(txnID).whenComplete((ignored, throwable) -> {
-                        if (throwable != null) {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                                    requestId, ServerError.UnknownError, throwable.getMessage()));
-                        } else {
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
-                                    command.getTxnidLeastBits(), command.getTxnidMostBits()));
-                        }                    });
-                }
+                tb.endTxnOnPartition(command).whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                requestId, ServerError.UnknownError, throwable.getMessage()));
+                        return;
+                    }
+                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                            command.getTxnidLeastBits(), command.getTxnidMostBits()));
+                });
             }).exceptionally(tbThrowable -> {
                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
                         requestId, ServerError.UnknownError, tbThrowable.getMessage()));
