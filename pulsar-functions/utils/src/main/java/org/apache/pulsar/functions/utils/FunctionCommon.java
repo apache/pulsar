@@ -45,6 +45,7 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
 
@@ -186,14 +187,21 @@ public class FunctionCommon {
         throw new RuntimeException("Unrecognized processing guarantee: " + processingGuarantees.name());
     }
 
-
     public static Class<?> getSourceType(String className, ClassLoader classLoader) throws ClassNotFoundException {
+        return getSourceType(classLoader.loadClass(className));
+    }
 
-        Class userClass = classLoader.loadClass(className);
+    public static Class<?>getSourceType(Class sourceClass) {
 
-        Class<?> typeArg = TypeResolver.resolveRawArgument(Source.class, userClass);
-
-        return typeArg;
+        if (Source.class.isAssignableFrom(sourceClass)) {
+            return TypeResolver.resolveRawArgument(Source.class, sourceClass);
+        } else if (BatchSource.class.isAssignableFrom(sourceClass)) {
+            return TypeResolver.resolveRawArgument(BatchSource.class, sourceClass);
+        } else {
+            throw new IllegalArgumentException(
+              String.format("Source class %s does not implement the correct interface",
+                sourceClass.getName()));
+        }
     }
 
     public static Class<?> getSinkType(String className, ClassLoader classLoader) throws ClassNotFoundException {
