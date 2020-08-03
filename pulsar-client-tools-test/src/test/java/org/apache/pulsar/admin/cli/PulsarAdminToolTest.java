@@ -875,6 +875,34 @@ public class PulsarAdminToolTest {
     }
 
     @Test
+    public void requestTimeout() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        try {
+            tool.run("--request-timeout 1".split(" "));
+        } catch (Exception e) {
+            //Ok
+        }
+
+        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
+        adminBuilderField.setAccessible(true);
+        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        Field requestTimeoutField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeout");
+        requestTimeoutField.setAccessible(true);
+        int requestTimeout = (int) requestTimeoutField.get(builder);
+
+        Field requestTimeoutUnitField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeoutUnit");
+        requestTimeoutUnitField.setAccessible(true);
+        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(builder);
+        assertEquals(1, requestTimeout);
+        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
+    }
+
+    @Test
     public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
