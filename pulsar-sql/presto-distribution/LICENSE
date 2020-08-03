@@ -564,4 +564,4 @@ Bouncy Castle License
     - bcpkix-jdk15on-1.60.jar
     - bcprov-ext-jdk15on-1.60.jar
     - bcprov-jdk15on-1.60.jar
-    - bouncy-castle-bc-2.7.0-SNAPSHOT.jar
+    - bouncy-castle-bc-2.7.0-SNAPSHOT-pkg.jar
