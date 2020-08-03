@@ -18,26 +18,23 @@
  */
 package org.apache.pulsar.functions.api.examples.window;
 
+import java.util.Arrays;
 import java.util.Collection;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.WindowContext;
-import org.apache.pulsar.functions.api.WindowFunction;
-import org.slf4j.Logger;
+import org.apache.pulsar.functions.api.*;
 
 /**
- * A function that demonstrates how to redirect logging to a topic.
- * In this particular example, for every input string, the function
- * does some logging. If --logTopic topic is specified, these log statements
- * end up in that specified pulsar topic.
+ * The classic word count example done using pulsar functions
+ * Each input message is a sentence that split into words and each word counted.
+ * The built in counter state is used to keep track of the word count in a
+ * persistent and consistent manner.
  */
-public class LoggingWindowFunction implements WindowFunction<String, Void> {
-
+public class WordCountWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
-        Logger log = context.getLogger();
-        for (Record<String> record : inputs) {
-            log.info(record + "-window-log");
+        for (Record<String> input : inputs) {
+            Arrays.asList(input.getValue().split("\\.")).forEach(word -> context.incrCounter(word, 1));
         }
         return null;
+
     }
 }
