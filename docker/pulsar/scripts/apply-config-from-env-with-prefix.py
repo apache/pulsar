@@ -22,7 +22,7 @@
 ## Edit a properties config file and replace values based on
 ## the ENV variables
 ## export my-key=new-value
-## ./apply-config-from-env-single SQL_PREFIX file.conf
+## ./apply-config-from-env-with-prefix SQL_PREFIX file.conf
 ##
 
 import os, sys
