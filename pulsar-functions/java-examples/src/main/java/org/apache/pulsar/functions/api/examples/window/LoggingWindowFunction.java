@@ -16,26 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
-
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.WindowContext;
-import org.apache.pulsar.functions.api.WindowFunction;
+package org.apache.pulsar.functions.api.examples.window;
 
 import java.util.Collection;
+import org.apache.pulsar.functions.api.*;
+import org.slf4j.Logger;
 
 /**
- * Example Function that acts on a window of tuples at a time rather than per tuple basis.
+ * A function that demonstrates how to redirect logging to a topic.
+ * In this particular example, for every input string, the function
+ * does some logging. If --logTopic topic is specified, these log statements
+ * end up in that specified pulsar topic.
  */
-@Slf4j
-public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
+public class LoggingWindowFunction implements WindowFunction<String, Void> {
+
     @Override
-    public Integer process(Collection<Record<Integer>> integers, WindowContext context) {
-        Integer retval = 0;
-        for (Record<Integer> record : integers) {
-            retval += record.getValue();
+    public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
+        Logger log = context.getLogger();
+        for (Record<String> record : inputs) {
+            log.info(record + "-window-log");
         }
-        return retval;
+        return null;
     }
 }
