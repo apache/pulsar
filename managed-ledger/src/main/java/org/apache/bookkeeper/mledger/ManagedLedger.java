@@ -193,6 +193,7 @@ public interface ManagedLedger {
      */
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
+    ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
