@@ -45,8 +45,10 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
             switch (initialPosition) {
                 case Latest:
                     initializeCursorPosition(ledger.getLastPositionAndCounter());
+                    break;
                 case Earliest:
                     initializeCursorPosition(ledger.getFirstPositionAndCounter());
+                    break;
             }
         } else if (startCursorPosition.getLedgerId() == PositionImpl.earliest.getLedgerId()) {
             // Start from invalid ledger to read from first available entry
