@@ -127,7 +127,7 @@
 </td>
 </tr>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>字符串的 <code>SchemaInfo</code>。</p>
 <pre><code class="hljs css language-json">{
     <span class="hljs-attr">"name"</span>: <span class="hljs-string">"test-string-schema"</span>,
@@ -183,7 +183,7 @@
 <tr><td>DATE</td><td>java.util.Date</td><td></td><td></td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>此示例展示了如何使用字符串 schema。</p>
 <ol>
 <li><p>创建一个带有字符串 schema 的 producer 并发送消息。</p>
@@ -219,7 +219,7 @@ consumer.receive();
 <p>在消息有效载荷中同时编码键/值对。</p>
 <h5><a class="anchor" aria-hidden="true" id="分离"></a><a href="#分离" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分离</h5>
 <p>键将在消息键中编码，值将在消息有效载荷中编码。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>本示例展示了如何创建一个键/值 schema，并使用它来 produce 和 consume 消息。</p>
 <ol>
 <li><p>创建具有<code>嵌入</code>编码类型的键/值 schema。</p>
@@ -286,7 +286,7 @@ KeyValue&lt;Integer, String&gt; kv = msg.getValue();
 </ul>
 <h5><a class="anchor" aria-hidden="true" id="静态"></a><a href="#静态" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>静态</h5>
 <p>可以预定义<code>结构</code> schema，可以是 Java 中的 POJO 模式，可以是 Go 中的<code>结构</code>，也可以是 Avro 或 Protobuf 工具生成的类。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>Pulsar 使用 Avro 库从预定义<code>结构</code>中获取 schema 定义。 Schema 定义是 schema 数据，存储在 <code>SchemaInfo</code> 中。</p>
 <ol>
 <li><p>Create the <em>User</em> class to define the messages sent to Pulsar topics.</p>
@@ -307,7 +307,7 @@ User user = consumer.receive();
 <h5><a class="anchor" aria-hidden="true" id="通用"></a><a href="#通用" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>通用</h5>
 <p>有时应用程序中不包含预定义 schema，则可以使用此方法来定义 schema 并访问数据。</p>
 <p>可以使用 <code>GenericSchemaBuilder</code> 来定义<code>结构</code> schema，使用 <code>GenericRecordBuilder</code> 来生成通用结构，并 consume 消息到 <code>GenericRecord</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ol>
 <li><p>使用 <code>RecordSchemaBuilder</code> 创建 schema。</p>
 <pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);
@@ -335,7 +335,7 @@ Producer&lt;GenericRecord&gt; producer = client.newProducer(Schema.generic(schem
 </table>
 <h4><a class="anchor" aria-hidden="true" id="auto_produce"></a><a href="#auto_produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>AUTO_PRODUCE</h4>
 <p><code>AUTO_PRODUCE</code> schema 帮助 producer 验证其发送的字节是否与 topic 的 schema 兼容。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>假设：</p>
 <ul>
 <li><p>You have a producer processing messages from a Kafka topic <em>K</em>.</p></li>
@@ -354,7 +354,7 @@ pulsarProducer.produce(kafkaMessageBytes);
 <h4><a class="anchor" aria-hidden="true" id="auto_consume"></a><a href="#auto_consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>AUTO_CONSUME</h4>
 <p><code>AUTO_CONSUME</code> schema 帮助 Pulsar topic 验证其发送的字节是否与 consumer 兼容，即 Pulsar topic 使用从 broker 端检索到的 <code>SchemaInfo</code> 将消息反序列化为特定语言的对象。</p>
 <p>Currently, <code>AUTO_CONSUME</code> only supports <strong>AVRO</strong> and <strong>JSON</strong> schemas. 将消息反序列化为<code>通用记录</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>假设：</p>
 <ul>
 <li><p>You have a Pulsar topic <em>P</em>.</p></li>
@@ -374,7 +374,7 @@ GenericRecord record = msg.getValue();
 <p>将给定 <code>SchemaInfo</code> 产生的消息标记为 schema 版本，这样当消息被 Pulsar 客户端 consume 时，Pulsar 客户端可以使用 schema 版本检索相应的 <code>SchemaInfo</code>，并使用 <code>SchemaInfo</code> 反序列化数据。</p>
 <p>Schema版本是连续的。 Schema 存储在负责处理相关 topic 的 broker 中，以进行版本分配。</p>
 <p>一旦分配/提供了schema的版本，后续由该生产者生产的所有消息，都将被恰当的版本所标记。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>以下示例展示了 schema 版本如何工作。</p>
 <p>假设通过下面的代码创建 Pulsar <a href="/docs/zh-CN/2.5.2/client-libraries-java">Java 客户端</a>，尝试连接到 Pulsar 并开始发送消息：</p>
 <pre><code class="hljs css language-java">PulsarClient client = PulsarClient.builder()

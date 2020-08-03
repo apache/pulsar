@@ -187,7 +187,7 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 <h2><a class="anchor" aria-hidden="true" id="use-log-topic"></a><a href="#use-log-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Use log topic</h2>
 <p>In Pulsar Functions, you can generate log information defined in functions to a specified log topic. You can configure consumers to consume messages from a specified log topic to check the log information.</p>
 <p><img src="/docs/assets/pulsar-functions-overview.png" alt="Pulsar Functions core programming model"></p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Context;
 <span class="hljs-keyword">import</span> org.apache.pulsar.functions.api.Function;
 <span class="hljs-keyword">import</span> org.slf4j.Logger;
@@ -209,7 +209,7 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 }
 </code></pre>
 <p>As shown in the example above, you can get the logger via <code>context.getLogger()</code> and assign the logger to the <code>LOG</code> variable of <code>slf4j</code>, so you can define your desired log information in a function using the <code>LOG</code> variable. Meanwhile, you need to specify the topic to which the log information is produced.</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">functions</span> create \
   --<span class="hljs-built_in">log</span>-topic persistent://public/default/logging-function-logs \
   <span class="hljs-comment"># Other function configs</span>
@@ -229,13 +229,13 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get information about a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p><strong>用法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> get options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>选项</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>标记</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
@@ -248,7 +248,7 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 <p><strong>Tip</strong></p>
 <p><code>--fqfn</code> 包含 <code>--name</code>, <code>--namespace</code> 和 <code>--租户</code>, 你可以指定 <code>--fqfn</code> 或 <code>--name</code> <code>--namespace</code> 和 <code>--租户</code>.</p>
 </blockquote>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>You can specify <code>--fqfn</code> to get information about a Pulsar Function.</p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> get public/default/ExclamationFunctio6
 </code></pre>
@@ -280,13 +280,13 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="status"></a><a href="#status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>status</code></h3>
 <p>Check the current status of a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p><strong>用法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> status options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>选项</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>标记</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
@@ -296,7 +296,7 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> status \
     --tenant public \
     --namespace default \
@@ -327,13 +327,13 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
 <p>Get the current stats of a Pulsar Function.</p>
-<p><strong>Usage</strong></p>
+<p><strong>用法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> stats options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>选项</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>标记</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
@@ -343,7 +343,7 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> stats \
     --tenant public \
     --namespace default \
@@ -387,20 +387,20 @@ Debugging with localrun mode for Pulsar Functions written in other languages wil
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List all Pulsar Functions running under a specific tenant and namespace.</p>
-<p><strong>Usage</strong></p>
+<p><strong>用法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> list options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>选项</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>标记</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--namespace</code></td><td>Pulsar Function 的命名空间。</td></tr>
 <tr><td><code>--tenant</code></td><td>Pulsar Function 的租户。</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> list \
     --tenant public \
     --namespace default
@@ -412,13 +412,13 @@ ExclamationFunctio3
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="trigger"></a><a href="#trigger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>trigger</code></h3>
 <p>Trigger a specified Pulsar Function with a supplied value. This command simulates the execution process of a Pulsar Function and verifies it.</p>
-<p><strong>Usage</strong></p>
+<p><strong>用法</strong></p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> trigger options
 </code></pre>
-<p><strong>Options</strong></p>
+<p><strong>选项</strong></p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th></tr>
+<tr><th>标记</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--fqfn</code></td><td>Pulsar Function 的完全限定函数名称（FQFN）。</td></tr>
@@ -430,7 +430,7 @@ ExclamationFunctio3
 <tr><td><code>--trigger-value</code></td><td>触发 Pulsar Function 的值。</td></tr>
 </tbody>
 </table>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-bash">$ ./bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger \
     --tenant public \
     --namespace default \

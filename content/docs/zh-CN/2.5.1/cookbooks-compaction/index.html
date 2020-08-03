@@ -77,44 +77,44 @@
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Topic compaction</h1></header><article><div><span><p>Pulsar's <a href="/docs/zh-CN/2.5.1/concepts-topic-compaction#compaction">topic compaction</a> feature enables you to create <strong>compacted</strong> topics in which older, &quot;obscured&quot; entries are pruned from the topic, allowing for faster reads through the topic's history (which messages are deemed obscured/outdated/irrelevant will depend on your use case).</p>
 <p>如要使用压缩：</p>
 <ul>
-<li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). 对于 stock ticker 的使用场景，stock 的符号---如 <code>AAPL</code> 或 <code>GOOG</code>---都可以用作这里需要的键 （详情请看 <a href="#when-should-i-use-compacted-topics">下面</a>）。 没有键的消息会被压缩进程单独留下。</li>
+<li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). 对于股票报价器这个使用场景，股票代码 <code>AAPL</code> 或 <code>GOOG</code>---都可以用作这里需要的 key （详情请看 <a href="#when-should-i-use-compacted-topics">下面</a>）。 没有 key 的消息会被压缩过程单独留出。</li>
 <li>压缩可以配置为 <a href="#configuring-compaction-to-run-automatically">自动</a> 运行，你也可以通过 Pulsar 的管理性 API 来手动 <a href="#trigger">触发</a> 压缩。</li>
 <li>你的消费者必须 <a href="#consumer-configuration">被配置为</a> 从压缩主题中进行读取 （比如，对于 <a href="#java">Java 消费者</a> 来说， <code>readCompacted</code> 设置项必须设置为 <code>true</code> ）。 如果没这么配置，消费者将仍能从非压缩主题中进行读取。</li>
 </ul>
 <blockquote>
-<p>Compaction only works on messages that have keys (as in the stock ticker example the stock symbol serves as the key for each message). Keys can thus be thought of as the axis along which compaction is applied. Messages that don't have keys are simply ignored by compaction.</p>
+<p>压缩只能在带 key 的消息上生效（如股票报价器示例中的股票代码就是每条消息的 key ）。 因此，有无 key 可以看作能否采用压缩的标志。 那些没有 key 的消息会直接被压缩过程无视掉。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="when-should-i-use-compacted-topics"></a><a href="#when-should-i-use-compacted-topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>When should I use compacted topics?</h2>
-<p>The classic example of a topic that could benefit from compaction would be a stock ticker topic through which consumers can access up-to-date values for specific stocks. Imagine a scenario in which messages carrying stock value data use the stock symbol as the key (<code>GOOG</code>, <code>AAPL</code>, <code>TWTR</code>, etc.). Compacting this topic would give consumers on the topic two options:</p>
+<p>如果要说主题能从压缩中得到什么好处，一个很好的示例就是股票报价器主题，因为消费者们能从中获取到指定股票的最新消息。 想象这样一个场景：包含股票数据的消息使用股票代码作为 key （如 <code>GOOG</code>, <code>AAPL</code>, <code>TWTR</code>)。 压缩这个主题将为消费者在这个主题上提供两个选项：</p>
 <ul>
-<li>They can read from the &quot;original,&quot; non-compacted topic in case they need access to &quot;historical&quot; values, i.e. the entirety of the topic's messages.</li>
-<li>They can read from the compacted topic if they only want to see the most up-to-date messages.</li>
+<li>如果他们需要访问“历史”值（主题的所有信息），他们可以从“原始”非压缩主题读取。</li>
+<li>如果他们只想看到最新消息，他们就可以从压缩主题中读取。</li>
 </ul>
-<p>Thus, if you're using a Pulsar topic called <code>stock-values</code>, some consumers could have access to all messages in the topic (perhaps because they're performing some kind of number crunching of all values in the last hour) while the consumers used to power the real-time stock ticker only see the compacted topic (and thus aren't forced to process outdated messages). Which variant of the topic any given consumer pulls messages from is determined by the consumer's <a href="#consumer-configuration">configuration</a>.</p>
+<p>因此，如果你在使用一个叫做 <code>stock-values（股票值）</code> 的 Pulsar 主题，即便一些消费者能访问主题中的所有消息（也许因为他们需要对过去几个小时的变化做计算），他们也会习惯性地使用实时股票报价器来仅仅查看压缩主题（从而不会强制处理那些过期的消息）。 要从哪种主题中拉取消息是由消费者的 <a href="#consumer-configuration">配置</a> 决定的。</p>
 <blockquote>
-<p>One of the benefits of compaction in Pulsar is that you aren't forced to choose between compacted and non-compacted topics, as the compaction process leaves the original topic as-is and essentially adds an alternate topic. In other words, you can run compaction on a topic and consumers that need access to the non-compacted version of the topic will not be adversely affected.</p>
+<p>在 Pulsar 中，压缩的好处之一是你无需强制在压缩与非压缩主题之间作出选择， 因为压缩过程会保留原来的主题，只是在此基础上增加了另一个选项。 换句话说，你可以在主题上使用压缩，而那些需要访问非压缩主题的消费者并不会受到负面影响。</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="configuring-compaction-to-run-automatically"></a><a href="#configuring-compaction-to-run-automatically" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring compaction to run automatically</h2>
 <p>Tenant administrators can configure a policy for compaction at the namespace level. The policy specifies how large the topic backlog can grow before compaction is triggered.</p>
-<p>For example, to trigger compaction when the backlog reaches 100MB:</p>
+<p>比如，当积压达到 100MB 时触发压缩：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin namespaces <span class="hljs-built_in">set</span>-compaction-threshold \
   --threshold 100M my-tenant/my-namespace
 </code></pre>
-<p>Configuring the compaction threshold on a namespace will apply to all topics within that namespace.</p>
+<p>为命名空间配置的压缩阈值将适用于命名空间中的所有主题。</p>
 <h2><a class="anchor" aria-hidden="true" id="triggering-compaction-manually"></a><a href="#triggering-compaction-manually" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Triggering compaction manually</h2>
-<p>In order to run compaction on a topic, you need to use the <a href="/docs/zh-CN/2.5.1/pulsar-admin#topics-compact"><code>topics compact</code></a> command for the <a href="/docs/zh-CN/2.5.1/pulsar-admin"><code>pulsar-admin</code></a> CLI tool. Here's an example:</p>
+<p>为了在主题上执行压缩，你需要在 <a href="/docs/zh-CN/2.5.1/pulsar-admin"><code>pulsar-admin</code></a> 命令行工具使用 <a href="/docs/zh-CN/2.5.1/pulsar-admin#topics-compact"><code>topics compact</code></a> 命令。 Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin topics compact \
   persistent://my-tenant/my-namespace/my-topic
 </code></pre>
-<p>The <code>pulsar-admin</code> tool runs compaction via the Pulsar <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
- API. To run compaction in its own dedicated process, i.e. <em>not</em> through the REST API, you can use the <a href="/docs/zh-CN/2.5.1/reference-cli-tools#pulsar-compact-topic"><code>pulsar compact-topic</code></a> command. Here's an example:</p>
+<p><code>pulsar-admin</code> 工具通过 Pulsar <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#/">REST</a>
+ API 来执行压缩。 To run compaction in its own dedicated process, i.e. <em>not</em> through the REST API, you can use the <a href="/docs/zh-CN/2.5.1/reference-cli-tools#pulsar-compact-topic"><code>pulsar compact-topic</code></a> command. Here's an example:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar compact-topic \
   --topic persistent://my-tenant-namespace/my-topic
 </code></pre>
 <blockquote>
-<p>Running compaction in its own process is recommended when you want to avoid interfering with the broker's performance. Broker performance should only be affected, however, when running compaction on topics with a large keyspace (i.e when there are many keys on the topic). The first phase of the compaction process keeps a copy of each key in the topic, which can create memory pressure as the number of keys grows. Using the <code>pulsar-admin topics compact</code> command to run compaction through the REST API should present no issues in the overwhelming majority of cases; using <code>pulsar compact-topic</code> should correspondingly be considered an edge case.</p>
+<p>当您想要避免干扰 broker 的性能时，建议在单独的过程中运行压缩。 Broker 的性能应该只会在一个场景下被影响：在拥有庞大 keyspace 的主题（比如主题上有许多的 key）上执行压缩。 压缩过程的第一阶段会为主题中的每个 key 保留一份拷贝，所以当 key 增加时会加大内存压力。 使用 <code>pulsar-admin topics compact</code> 命令来通过 REST API 执行压缩在绝大多数情况下都不会出现问题，使用 <code>pulsar compact-topic</code> 应该相应地被视为一种边缘情况。</p>
 </blockquote>
-<p>The <code>pulsar compact-topic</code> command communicates with <a href="https://zookeeper.apache.org">ZooKeeper</a> directly. In order to establish communication with ZooKeeper, though, the <code>pulsar</code> CLI tool will need to have a valid <a href="/docs/zh-CN/2.5.1/reference-configuration#broker">broker configuration</a>. You can either supply a proper configuration in <code>conf/broker.conf</code> or specify a non-default location for the configuration:</p>
+<p><code>pulsar compact-topic</code> 命令会直接与 <a href="https://zookeeper.apache.org">ZooKeeper</a> 进行通信。 不过，为了与 ZooKeeper 建立通信， <code>pulsar</code> 命令行工具需要有一个可用的 <a href="/docs/zh-CN/2.5.1/reference-configuration#broker">broker 配置</a>。 你可以在 <code>conf/broker.conf</code> 提供一个正确的配置，或在配置中指定一个非默认路径：</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar compact-topic \
   --broker-conf /path/to/broker.conf \
   --topic persistent://my-tenant/my-namespace/my-topic
@@ -123,8 +123,8 @@
 $ bin/pulsar compact-topic \
   --topic persistent://my-tenant/my-namespace/my-topic
 </code></pre>
-<h4><a class="anchor" aria-hidden="true" id="when-should-i-trigger-compaction"></a><a href="#when-should-i-trigger-compaction" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>When should I trigger compaction?</h4>
-<p>How often you <a href="#triggering-compaction-manually">trigger compaction</a> will vary widely based on the use case. If you want a compacted topic to be extremely speedy on read, then you should run compaction fairly frequently.</p>
+<h4><a class="anchor" aria-hidden="true" id="我该在什么时候触发压缩？"></a><a href="#我该在什么时候触发压缩？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>我该在什么时候触发压缩？</h4>
+<p><a href="#triggering-compaction-manually">触发压缩</a> 的频率会因使用场景而产生很大差异。 如果你想要一个压缩主题有极快的读取速度，那么你应该相当频繁地执行压缩。</p>
 <h2><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h2>
 <p>Pulsar consumers and readers need to be configured to read from compacted topics. The sections below show you how to enable compacted topic reads for Pulsar's language clients. If the</p>
 <h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
@@ -134,7 +134,7 @@ $ bin/pulsar compact-topic \
         .readCompacted(<span class="hljs-keyword">true</span>)
         .subscribe();
 </code></pre>
-<p>As mentioned above, topic compaction in Pulsar works on a <em>per-key basis</em>. That means that messages that you produce on compacted topics need to have keys (the content of the key will depend on your use case). Messages that don't have keys will be ignored by the compaction process. Here's an example Pulsar message with a key:</p>
+<p>As mentioned above, topic compaction in Pulsar works on a <em>per-key basis</em>. 这意味着您在压缩主题上生成的消息需要有 key（key 的内容将取决于你的用例)。 没有 key 的消息会被压缩过程单独留出。 下面是一个带 key 的 Pulsar 消息示例：</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Message;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.MessageBuilder;
 
@@ -143,7 +143,7 @@ Message&lt;<span class="hljs-keyword">byte</span>[]&gt; msg = MessageBuilder.cre
         .setKey(<span class="hljs-string">"some-key"</span>)
         .build();
 </code></pre>
-<p>The example below shows a message with a key being produced on a compacted Pulsar topic:</p>
+<p>下面的示例展示了一个带 key 的消息在 Pulsar 压缩主题上被生产的过程。</p>
 <pre><code class="hljs css language-java"><span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Message;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.MessageBuilder;
 <span class="hljs-keyword">import</span> org.apache.pulsar.client.api.Producer;

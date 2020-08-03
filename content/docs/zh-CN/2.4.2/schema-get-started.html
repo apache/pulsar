@@ -95,7 +95,7 @@
 </ul>
 <p>有几种方法可以避免并解决这些异常，例如，在解析错误时捕获异常会造成代码难以维护；采用 schema 管理系统来进化 schema，而不破坏下游应用程序；最大程度执行所使用语言的类型安全，Pulsar Schema 能够解决上述问题。</p>
 <p>在创建并处理从简单类型（如：<code>string</code>）到更复杂的因应用程序而异的数据类型时，通过 Pulsar schema 可以使用特定语言的数据类型。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>You can use the <em>User</em> class to define the messages sent to Pulsar topics.</p>
 <pre><code class="hljs">public class<span class="hljs-built_in"> User </span>{
     String name;
@@ -105,7 +105,7 @@
 <p>When constructing a producer with the <em>User</em> class, you can specify a schema or not as below.</p>
 <h3><a class="anchor" aria-hidden="true" id="无-schema-的情况"></a><a href="#无-schema-的情况" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>无 Schema 的情况</h3>
 <p>在不指定 schema 的情况下创建 producer，则 producer 只能 produce <code>byte[]</code> 类型的消息。 如果有 POJO 类，则需要在发送消息前将 POJO 序列化为字节。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs">Producer&lt;byte[]&gt; producer = client.newProducer()
         .topic(topic)
         .<span class="hljs-keyword">create</span>();
@@ -115,7 +115,7 @@ producer.send(message);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="有-schema-的情况"></a><a href="#有-schema-的情况" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>有 Schema 的情况</h3>
 <p>如果通过指定 schema 来创建 producer，则可以直接将类发送到 topic，而无需考虑如何将 POJO 序列化为字节。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>This example constructs a producer with the <em>JSONSchema</em>, and you can send the <em>User</em> class to topics directly without worrying about how to serialize it into bytes.</p>
 <pre><code class="hljs">Producer&lt;User&gt; producer = client.newProducer(JSONSchema.of(User.class))
         .topic(topic)

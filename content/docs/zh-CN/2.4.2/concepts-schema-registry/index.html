@@ -153,7 +153,7 @@ Producer&lt;SensorReading&gt; producer = client.newProducer(JSONSchema.of(Sensor
 <p>未来的Pulsar release将会支持其他更多schema格式。</p>
 </blockquote>
 <p>The following example shows how to define an Avro schema using the <code>GenericSchemaBuilder</code>, generate a generic Avro schema using <code>GenericRecordBuilder</code>, and consume messages into <code>GenericRecord</code>.</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ol>
 <li><p>Use the <code>RecordSchemaBuilder</code> to build a schema.</p>
 <pre><code class="hljs css language-java">RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record(<span class="hljs-string">"schemaName"</span>);

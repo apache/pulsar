@@ -95,7 +95,7 @@
 <p>BookKeeper is a replicated log storage system that Pulsar uses for durable storage of all messages.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>bookiePort</td><td>The port on which the bookie server listens.</td><td>3181</td></tr>
@@ -169,7 +169,7 @@
 <p>Pulsar brokers are responsible for handling incoming messages from producers, dispatching messages to consumers, replicating data between clusters, and more.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>enablePersistentTopics</td><td>Whether persistent topics are enabled on the broker</td><td>true</td></tr>
@@ -248,7 +248,7 @@
 <p>The <a href="/docs/zh-CN/2.1.1-incubating/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>webServiceUrl</td><td>群集的 web URL。</td><td><a href="http://localhost:8080/">http://localhost:8080/</a></td></tr>
@@ -263,7 +263,7 @@
 <h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>zookeeperServers</td><td>Zookeeper quorum connection string (comma-separated)</td><td></td></tr>
@@ -286,7 +286,7 @@
 <h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
 <table>
 <thead>
-<tr><th>Name</th><th>Default</th></tr>
+<tr><th>Name</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>pulsar.root.logger</td><td>WARN,CONSOLE</td></tr>
@@ -312,7 +312,7 @@
 <h2><a class="anchor" aria-hidden="true" id="log4j-shell"></a><a href="#log4j-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j shell</h2>
 <table>
 <thead>
-<tr><th>Name</th><th>Default</th></tr>
+<tr><th>Name</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>bookkeeper.root.logger</td><td>ERROR,CONSOLE</td></tr>
@@ -329,7 +329,7 @@
 <h2><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Standalone</h2>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
@@ -413,7 +413,7 @@
 <h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>configurationStoreServers</td><td></td><td></td></tr>
@@ -443,7 +443,7 @@
 <p>The <a href="/docs/zh-CN/2.1.1-incubating/concepts-architecture-overview#pulsar-proxy">Pulsar proxy</a> can be configured in the <code>conf/proxy.conf</code> file.</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>zookeeperServers</td><td>ZooKeeper quorum 连接字符串（以逗号分隔的列表）</td><td></td></tr>
@@ -476,7 +476,7 @@
 <p>ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the <code>conf/zookeeper.conf</code> file in your Pulsar installation. The following parameters are available:</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Description</th><th>Default</th></tr>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td>tickTime</td><td>The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.</td><td>2000</td></tr>

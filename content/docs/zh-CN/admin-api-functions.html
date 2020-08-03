@@ -99,7 +99,7 @@
 <p>可以在集群模式下使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 创建 Pulsar function（在 Pulsar 集群上部署）。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）"></a><a href="#admin-cli（命令行界面）" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-create"><code>create</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> create \</span>
   --tenant public \
   --namespace default \
@@ -131,7 +131,7 @@ admin.functions().createFunction(functionConfig, fileName);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来更新已经部署到 Pulsar 集群的 Pulsar function。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-1"></a><a href="#admin-cli（命令行界面）-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-update"><code>update</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> update \</span>
   --tenant public \
   --namespace default \
@@ -174,7 +174,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API来启动所有已停止的 function 实例。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-3"></a><a href="#admin-cli（命令行界面）-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-start"><code>start</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> start \</span>
   --tenant public \
   --namespace default \
@@ -190,7 +190,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API来停止一个 function 实例（通过 <code>instance-id</code>）。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-4"></a><a href="#admin-cli（命令行界面）-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-stop"><code>stop</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stop \</span>
   --tenant public \
   --namespace default \
@@ -207,7 +207,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来停止 function 的所有实例。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-5"></a><a href="#admin-cli（命令行界面）-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-stop"><code>stop</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stop \</span>
   --tenant public \
   --namespace default \
@@ -223,7 +223,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来重启单个 function 实例（通过 <code>instance-id</code>）。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-6"></a><a href="#admin-cli（命令行界面）-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-restart"><code>restart</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> restart \</span>
   --tenant public \
   --namespace default \
@@ -240,7 +240,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 重启 function 的所有实例。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-7"></a><a href="#admin-cli（命令行界面）-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-restart"><code>restart</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> restart \</span>
   --tenant public \
   --namespace default \
@@ -256,7 +256,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 列出指定租户和命名空间下正在运行的所有 Pulsar function。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-8"></a><a href="#admin-cli（命令行界面）-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-list"><code>list</code></a>子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> list \</span>
   --tenant public \
   --namespace default
@@ -271,7 +271,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 删除在 Pulsar 集群上运行的 Pulsar function。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-9"></a><a href="#admin-cli（命令行界面）-9" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-delete"><code>delete</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> delete \</span>
   --tenant public \
   --namespace default \
@@ -287,7 +287,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 来获取某个在集群模式下运行的 Pulsar function 的信息。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-10"></a><a href="#admin-cli（命令行界面）-10" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-get"><code>get</code></a>子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> get \</span>
   --tenant public \
   --namespace default \
@@ -303,7 +303,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过 <code>instance-id</code> 来获取单个 function 实例的当前状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-11"></a><a href="#admin-cli（命令行界面）-11" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-status"><code>status</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> status \</span>
   --tenant public \
   --namespace default \
@@ -320,7 +320,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 获取所有 function 实例的当前状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-12"></a><a href="#admin-cli（命令行界面）-12" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-status"><code>status</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> status \</span>
   --tenant public \
   --namespace default \
@@ -336,7 +336,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过 <code>instance-id</code> 获取单个 function 实例的当前数据。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-13"></a><a href="#admin-cli（命令行界面）-13" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-stats"><code>stats</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stats \</span>
   --tenant public \
   --namespace default \
@@ -353,7 +353,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 获取所有 function 实例的当前数据。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-14"></a><a href="#admin-cli（命令行界面）-14" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-stats"><code>stats</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> stats \</span>
   --tenant public \
   --namespace default \
@@ -369,7 +369,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 通过触发值触发指定的 Pulsar function。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-15"></a><a href="#admin-cli（命令行界面）-15" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-trigger"><code>trigger</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> trigger \</span>
   --tenant public \
   --namespace default \
@@ -388,7 +388,7 @@ admin.functions().updateFunction(functionConfig, userCodeFile, updateOptions);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 关联 Pulsar function 的状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-16"></a><a href="#admin-cli（命令行界面）-16" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-putstate"><code>putstate</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> putstate \</span>
   --tenant public \
   --namespace default \
@@ -407,7 +407,7 @@ admin.functions().putFunctionState(tenant, namespace, functionName, stateRepr);
 <p>可以使用 Admin CLI（命令行界面）、REST API 或 Java Admin API 获取与 Pulsar function 关联的状态。</p>
 <h4><a class="anchor" aria-hidden="true" id="admin-cli（命令行界面）-17"></a><a href="#admin-cli（命令行界面）-17" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Admin CLI（命令行界面）</h4>
 <p>使用 <a href="/docs/zh-CN/pulsar-admin#functions-querystate"><code>querystate</code></a> 子命令。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin <span class="hljs-built_in">functions</span> querystate \</span>
   --tenant public \
   --namespace default \

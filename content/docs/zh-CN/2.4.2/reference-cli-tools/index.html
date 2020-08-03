@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar command-line tools · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more."/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar command-line tools · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar command-line tools · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 提供了一些命令行工具，可以用于管理 Pulsar 的安装，测试性能，使用命令行生产者与消费者，等等。"/><meta name="docsearch:version" content="2.4.2"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar command-line tools · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar 提供了一些命令行工具，可以用于管理 Pulsar 的安装，测试性能，使用命令行生产者与消费者，等等。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,7 +74,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar command-line tools</h1></header><article><div><span><p>Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar command-line tools</h1></header><article><div><span><p>Pulsar 提供了一些命令行工具，可以用于管理 Pulsar 的安装，测试性能，使用命令行生产者与消费者，等等。</p>
 <p>All Pulsar command-line tools can be run from the <code>bin</code> directory of your <a href="/docs/zh-CN/2.4.2/standalone">installed Pulsar package</a>. The following tools are currently documented:</p>
 <ul>
 <li><a href="#pulsar"><code>pulsar</code></a></li>
@@ -84,19 +84,19 @@
 <li><a href="#bookkeeper"><code>bookkeeper</code></a></li>
 </ul>
 <blockquote>
-<h3><a class="anchor" aria-hidden="true" id="getting-help"></a><a href="#getting-help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Getting help</h3>
+<h3><a class="anchor" aria-hidden="true" id="获取帮助"></a><a href="#获取帮助" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取帮助</h3>
 <p>You can get help for any CLI tool, command, or subcommand using the <code>--help</code> flag, or <code>-h</code> for short. Here's an example:</p>
 <pre><code class="hljs css language-shell"></code></pre>
 </blockquote>
 <p>$ bin/pulsar broker --help</p>
 <pre><code class="hljs">
-<span class="hljs-comment">## `pulsar`</span>
+## `pulsar`
 
-The pulsar<span class="hljs-built_in"> tool </span>is used <span class="hljs-keyword">to</span> start Pulsar components, such as bookies <span class="hljs-keyword">and</span> ZooKeeper, <span class="hljs-keyword">in</span> the foreground.
+pulsar 工具用于在前台启动 Pulsar 组件，比如 bookies 和 Zookeeper
 
-These processes can also be started <span class="hljs-keyword">in</span> the background, using nohup, using the pulsar-daemon tool, which has the same command<span class="hljs-built_in"> interface </span>as pulsar.
+这些进程也可以在后台启动，使用 nohup，使用 pulsar-daemon 工具（它有着与 pulsar 相同的命令接口）。
 
-Usage:
+用法：
 
 ```bash
 $ pulsar command
@@ -115,198 +115,198 @@ $ pulsar command
 <li><code>zookeeper</code></li>
 <li><code>zookeeper-shell</code></li>
 </ul>
-<p>Example:</p>
+<p>例子：</p>
 <pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
-<p>The table below lists the environment variables that you can use to configure the <code>pulsar</code> tool.</p>
+<p>下表列出了你可以用来配置 <code>pulsar</code> 工具的环境变量。</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>变量</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td><code>conf/log4j2.yaml</code></td></tr>
-<tr><td><code>PULSAR_BROKER_CONF</code></td><td>Configuration file for broker</td><td><code>conf/broker.conf</code></td></tr>
-<tr><td><code>PULSAR_BOOKKEEPER_CONF</code></td><td>description: Configuration file for bookie</td><td><code>conf/bookkeeper.conf</code></td></tr>
-<tr><td><code>PULSAR_ZK_CONF</code></td><td>Configuration file for zookeeper</td><td><code>conf/zookeeper.conf</code></td></tr>
-<tr><td><code>PULSAR_CONFIGURATION_STORE_CONF</code></td><td>Configuration file for the configuration store</td><td><code>conf/global_zookeeper.conf</code></td></tr>
-<tr><td><code>PULSAR_DISCOVERY_CONF</code></td><td>Configuration file for discovery service</td><td><code>conf/discovery.conf</code></td></tr>
-<tr><td><code>PULSAR_WEBSOCKET_CONF</code></td><td>Configuration file for websocket proxy</td><td><code>conf/websocket.conf</code></td></tr>
-<tr><td><code>PULSAR_STANDALONE_CONF</code></td><td>Configuration file for standalone</td><td><code>conf/standalone.conf</code></td></tr>
-<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>Extra options to be passed to the jvm</td><td></td></tr>
-<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Extra paths for Pulsar's classpath</td><td></td></tr>
-<tr><td><code>PULSAR_PID_DIR</code></td><td>Folder where the pulsar server PID file should be stored</td><td></td></tr>
-<tr><td><code>PULSAR_STOP_TIMEOUT</code></td><td>Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful</td><td></td></tr>
+<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j 的配置文件</td><td><code>conf/log4j2.yaml</code></td></tr>
+<tr><td><code>PULSAR_BROKER_CONF</code></td><td>broker 的配置文件</td><td><code>conf/broker.conf</code></td></tr>
+<tr><td><code>PULSAR_BOOKKEEPER_CONF</code></td><td>bookie 的配置文件</td><td><code>conf/bookkeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_ZK_CONF</code></td><td>zookeeper 的配置文件</td><td><code>conf/zookeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_CONFIGURATION_STORE_CONF</code></td><td>配置存储的配置文件</td><td><code>conf/global_zookeeper.conf</code></td></tr>
+<tr><td><code>PULSAR_DISCOVERY_CONF</code></td><td>发现服务的配置文件</td><td><code>conf/discovery.conf</code></td></tr>
+<tr><td><code>PULSAR_WEBSOCKET_CONF</code></td><td>WebSocket 代理的配置文件</td><td><code>conf/websocket.conf</code></td></tr>
+<tr><td><code>PULSAR_STANDALONE_CONF</code></td><td>standalone 的配置文件</td><td><code>conf/standalone.conf</code></td></tr>
+<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>传递给 jvm 的额外选项</td><td></td></tr>
+<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Pulsar classpath 的额外路径</td><td></td></tr>
+<tr><td><code>PULSAR_PID_DIR</code></td><td>pulsar 服务器 PID 文件应该被存储的地方</td><td></td></tr>
+<tr><td><code>PULSAR_STOP_TIMEOUT</code></td><td>当尝试停止 Bookie 服务器失败时，在强制杀死它之前的等待时间。</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="bookie"></a><a href="#bookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
-<p>Starts up a bookie server</p>
-<p>Usage:</p>
+<p>启动 bookie 服务器</p>
+<p>用法：</p>
 <pre><code class="hljs css language-bash">$ pulsar bookie options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>选项</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-readOnly</code></td><td>Force start a read-only bookie server</td><td>false</td></tr>
-<tr><td><code>-withAutoRecovery</code></td><td>Start auto-recover service bookie server</td><td>false</td></tr>
+<tr><td><code>-withAutoRecovery</code></td><td>启动带自动恢复服务的 bookie 服务器</td><td>false</td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
   -readOnly \
   -withAutoRecovery
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker</code></h3>
-<p>Starts up a Pulsar broker</p>
-<p>Usage</p>
+<p>启动一个 Pulsar broker</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar broker options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Option</th><th>Description</th><th>Default</th></tr>
+<tr><th>选项</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>Configuration file for BookKeeper</td><td></td></tr>
-<tr><td><code>-rb</code> , <code>--run-bookie</code></td><td>Run a BookKeeper bookie on the same host as the Pulsar broker</td><td>false</td></tr>
-<tr><td><code>-ra</code> , <code>--run-bookie-autorecovery</code></td><td>Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker</td><td>false</td></tr>
+<tr><td><code>-bc</code> , <code>--bookie-conf</code></td><td>BookKeeper 的配置文件</td><td></td></tr>
+<tr><td><code>-rb</code> , <code>--run-bookie</code></td><td>在 Pulsar broker 的同一主机上运行 Bookeeper bookie</td><td>false</td></tr>
+<tr><td><code>-ra</code> , <code>--run-bookie-autorecovery</code></td><td>在 Pulsar broker 的同一主机上运行 BooKeeper 自动恢复守护进程。</td><td>false</td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="compact-topic"></a><a href="#compact-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact-topic</code></h3>
-<p>Run compaction against a Pulsar topic (in a new process)</p>
-<p>Usage</p>
+<p>对 Pulsar 主题执行压缩（在新进程里）</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar compact-topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-t</code> , <code>--topic</code></td><td>The Pulsar topic that you would like to compact</td><td></td></tr>
+<tr><td><code>-t</code> , <code>--topic</code></td><td>你想压缩的 Pulsar 主题</td><td></td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ pulsar compact-topic --topic topic-to-compact
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="discovery"></a><a href="#discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>discovery</code></h3>
-<p>Run a discovery server</p>
-<p>Usage</p>
+<p>运行发现服务器</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar discovery
 </code></pre>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="configuration-store"></a><a href="#configuration-store" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>configuration-store</code></h3>
-<p>Starts up the Pulsar configuration store</p>
-<p>Usage</p>
+<p>启动 Pulsar 配置存储</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar configuration-store
 </code></pre>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="initialize-cluster-metadata"></a><a href="#initialize-cluster-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>initialize-cluster-metadata</code></h3>
-<p>One-time cluster metadata initialization</p>
-<p>Usage</p>
+<p>一次性集群元数据初始化</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar initialize-cluster-metadata options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-ub</code> , <code>--broker-service-url</code></td><td>The broker service URL for the new cluster</td><td></td></tr>
-<tr><td><code>-tb</code> , <code>--broker-service-url-tls</code></td><td>The broker service URL for the new cluster with TLS encryption</td><td></td></tr>
-<tr><td><code>-c</code> , <code>--cluster</code></td><td>Cluster name</td><td></td></tr>
-<tr><td><code>--configuration-store</code></td><td>The configuration store quorum connection string</td><td></td></tr>
-<tr><td><code>-uw</code> , <code>--web-service-url</code></td><td>The web service URL for the new cluster</td><td></td></tr>
-<tr><td><code>-tw</code> , <code>--web-service-url-tls</code></td><td>The web service URL for the new cluster with TLS encryption</td><td></td></tr>
-<tr><td><code>-zk</code> , <code>--zookeeper</code></td><td>The local ZooKeeper quorum connection string</td><td></td></tr>
+<tr><td><code>-ub</code> , <code>--broker-service-url</code></td><td>新集群的 broker 服务 URL</td><td></td></tr>
+<tr><td><code>-tb</code> , <code>--broker-service-url-tls</code></td><td>新集群的broker 服务 URL（带 TLS 加密）</td><td></td></tr>
+<tr><td><code>-c</code> , <code>--cluster</code></td><td>集群名称</td><td></td></tr>
+<tr><td><code>--configuration-store</code></td><td>配置存储的仲裁连接字符串</td><td></td></tr>
+<tr><td><code>-uw</code> , <code>--web-service-url</code></td><td>新集群的 web 服务 URL</td><td></td></tr>
+<tr><td><code>-tw</code> , <code>--web-service-url-tls</code></td><td>新集群的 web 服务 URL（带 TLS 加密）</td><td></td></tr>
+<tr><td><code>-zk</code> , <code>--zookeeper</code></td><td>本地 ZooKeeper 的仲裁连接字符串</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="proxy"></a><a href="#proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>proxy</code></h3>
-<p>Manages the Pulsar proxy</p>
-<p>Usage</p>
+<p>管理 Pulsar 代理</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar proxy options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--configuration-store</code></td><td>Configuration store connection string</td><td></td></tr>
-<tr><td><code>-zk</code> , <code>--zookeeper-servers</code></td><td>Local ZooKeeper connection string</td><td></td></tr>
+<tr><td><code>--configuration-store</code></td><td>配置存储连接字符串</td><td></td></tr>
+<tr><td><code>-zk</code> , <code>--zookeeper-servers</code></td><td>本地 ZooKeeper 连接字符串</td><td></td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
   --configuration-store zk-0,zk-1,zk-2
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>standalone</code></h3>
-<p>Run a broker service with local bookies and local ZooKeeper</p>
-<p>Usage</p>
+<p>运行使用本地 bookies 和 本地 ZooKeeper 的 broker 服务</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar standalone options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-a</code> , <code>--advertised-address</code></td><td>The standalone broker advertised address</td><td></td></tr>
-<tr><td><code>--bookkeeper-dir</code></td><td>Local bookies’ base data directory</td><td>data/standalone/bookeeper</td></tr>
-<tr><td><code>--bookkeeper-port</code></td><td>Local bookies’ base port</td><td>3181</td></tr>
-<tr><td><code>--no-broker</code></td><td>Only start ZooKeeper and BookKeeper services, not the broker</td><td>false</td></tr>
-<tr><td><code>--num-bookies</code></td><td>The number of local bookies</td><td>1</td></tr>
-<tr><td><code>--only-broker</code></td><td>Only start the Pulsar broker service (not ZooKeeper or BookKeeper)</td><td></td></tr>
-<tr><td><code>--wipe-data</code></td><td>Clean up previous ZooKeeper/BookKeeper data</td><td></td></tr>
-<tr><td><code>--zookeeper-dir</code></td><td>Local ZooKeeper’s data directory</td><td>data/standalone/zookeeper</td></tr>
-<tr><td><code>--zookeeper-port</code></td><td>Local ZooKeeper’s port</td><td>2181</td></tr>
+<tr><td><code>-a</code> , <code>--advertised-address</code></td><td>standalone broker 广告的地址</td><td></td></tr>
+<tr><td><code>--bookkeeper-dir</code></td><td>本地 bookie 的基本数据目录</td><td>data/standalone/bookeeper</td></tr>
+<tr><td><code>--bookkeeper-port</code></td><td>本地 bookie 的基本端口目录</td><td>3181</td></tr>
+<tr><td><code>--no-broker</code></td><td>只启动 ZooKeeper 和 BookKeeper 服务，而不启动 broker</td><td>false</td></tr>
+<tr><td><code>--num-bookies</code></td><td>本地 bookies 的数量</td><td>1</td></tr>
+<tr><td><code>--only-broker</code></td><td>只启动 Pulsar broker 服务（而不启动 ZooKeeper 或 BookKeeper）</td><td></td></tr>
+<tr><td><code>--wipe-data</code></td><td>清除之前的 ZooKeeper/BookKeeper 数据</td><td></td></tr>
+<tr><td><code>--zookeeper-dir</code></td><td>本地 ZooKeeper 的数据目录</td><td>data/standalone/zookeeper</td></tr>
+<tr><td><code>--zookeeper-port</code></td><td>本地 ZooKeeper 的端口</td><td>2181</td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket</code></h3>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar websocket
 </code></pre>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper</code></h3>
-<p>Starts up a ZooKeeper cluster</p>
-<p>Usage</p>
+<p>启动 ZooKeeper 集群</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar zookeeper
 </code></pre>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="zookeeper-shell"></a><a href="#zookeeper-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>zookeeper-shell</code></h3>
-<p>Connects to a running ZooKeeper cluster using the ZooKeeper shell</p>
-<p>Usage</p>
+<p>使用 ZooKeeper shell 来连接到一个正在运行的 ZooKeeper 集群</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar zookeeper-shell options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration file for ZooKeeper</td><td></td></tr>
+<tr><td><code>-c</code>, <code>--conf</code></td><td>ZooKeeper 的配置文件</td><td></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-client"></a><a href="#pulsar-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-client</code></h2>
 <p>The pulsar-client tool</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-client <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands</p>
@@ -314,56 +314,56 @@ $ pulsar command
 <li><code>produce</code></li>
 <li><code>consume</code></li>
 </ul>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth-params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</td></tr>
-<tr><td><code>--auth-plugin</code></td><td>Authentication plugin class name</td><td>org.apache.pulsar.client.impl.auth.AuthenticationSasl</td></tr>
+<tr><td><code>--auth-params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}&quot;</td><td>{&quot;saslJaasClientSectionName&quot;:&quot;PulsarClient&quot;, &quot;serverType&quot;:&quot;broker&quot;}</td></tr>
+<tr><td><code>--auth-plugin</code></td><td>认证插件类名称</td><td>org.apache.pulsar.client.impl.auth.AuthenticationSasl</td></tr>
 <tr><td><code>--url</code></td><td>Broker URL to which to connect</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="produce"></a><a href="#produce" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
-<p>Send a message or messages to a specific broker and topic</p>
-<p>Usage</p>
+<p>发送单条或多条消息给指定的 broker 和主题</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-client produce topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-f</code>, <code>--files</code></td><td>Comma-separated file paths to send; either -m or -f must be specified</td><td>[]</td></tr>
-<tr><td><code>-m</code>, <code>--messages</code></td><td>Comma-separated string of messages to send; either -m or -f must be specified</td><td>[]</td></tr>
-<tr><td><code>-n</code>, <code>--num-produce</code></td><td>The number of times to send the message(s); the count of messages/files * num-produce should be below 1000</td><td>1</td></tr>
-<tr><td><code>-r</code>, <code>--rate</code></td><td>Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible</td><td>0.0</td></tr>
+<tr><td><code>-f</code>, <code>--files</code></td><td>将要发送的以逗号分隔的文件路径，必须指定 -m 或 -f</td><td>[]</td></tr>
+<tr><td><code>-m</code>, <code>--messages</code></td><td>将要发送的以逗号分隔的消息字符串，必须指定 -m 或 -f</td><td>[]</td></tr>
+<tr><td><code>-n</code>, <code>--num-produce</code></td><td>发送单条或多条消息的次数；消息/文件 * 生产次数 应小于 1000</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>生产消息的频率（单位是消息/秒），值为 0 表示尽可能快地生产消息</td><td>0.0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume"></a><a href="#consume" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
-<p>Consume messages from a specific broker and topic</p>
-<p>Usage</p>
+<p>从指定的 broker 和 主题 消费消息</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-client consume topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--hex</code></td><td>Display binary messages in hexadecimal format.</td><td>false</td></tr>
-<tr><td><code>-n</code>, <code>--num-messages</code></td><td>Number of messages to consume, 0 means to consume forever.</td><td>1</td></tr>
-<tr><td><code>-r</code>, <code>--rate</code></td><td>Rate (in messages per second) at which to consume; a value 0 means to consume messages as fast as possible</td><td>0.0</td></tr>
+<tr><td><code>--hex</code></td><td>以十六进制格式显示二进制消息。</td><td>false</td></tr>
+<tr><td><code>-n</code>, <code>--num-messages</code></td><td>要消费的消息数量，0 表示一直消费。</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>消费消息的频率（单位是消息/秒），值为 0 表示尽可能快地消费消息</td><td>0.0</td></tr>
 <tr><td><code>-s</code>, <code>--subscription-name</code></td><td>Subscription name</td><td></td></tr>
 <tr><td><code>-t</code>, <code>--subscription-type</code></td><td>The type of the subscription. Possible values: Exclusive, Shared, Failover, Key_Shared.</td><td>Exclusive</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-daemon"></a><a href="#pulsar-daemon" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-daemon</code></h2>
-<p>A wrapper around the pulsar tool that’s used to start and stop processes, such as ZooKeeper, bookies, and Pulsar brokers, in the background using nohup.</p>
-<p>pulsar-daemon has a similar interface to the pulsar command but adds start and stop commands for various services. For a listing of those services, run pulsar-daemon to see the help output or see the documentation for the pulsar command.</p>
-<p>Usage</p>
+<p>围绕着 pulsar 工具的包装，用于在后台用 nohup 启动和停止进程，比如 ZooKeeper，bookies 和 Pulsar brokers。</p>
+<p>pulsar-daemon 有一个与 pulsar 命令相似的接口，但是为各种服务添加了启动和停止命令。 如果需要这些服务的列表，运行 pulsar-daemon 来查看帮助文档的输出或查看 pulsar 命令的文档。</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands</p>
@@ -372,27 +372,27 @@ $ pulsar command
 <li><code>stop</code></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="start"></a><a href="#start" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>start</code></h3>
-<p>Start a service in the background using nohup.</p>
-<p>Usage</p>
+<p>使用 nohup 在后台启动服务</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon start service
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
-<p>Stop a service that’s already been started using start.</p>
-<p>Usage</p>
+<p>停止一个已经使用 start 命令启动了的服务</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-daemon stop service options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>-force</td><td>Stop the service forcefully if not stopped by normal shutdown.</td><td>false</td></tr>
+<tr><td>-force</td><td>如果无法正常停止则强制停止服务</td><td>false</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-perf"></a><a href="#pulsar-perf" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>pulsar-perf</code></h2>
-<p>A tool for performance testing a Pulsar broker.</p>
-<p>Usage</p>
+<p>用于性能测试 Pulsar broker 的工具。</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands</p>
@@ -407,36 +407,36 @@ $ pulsar command
 <li><code>simulation-controller</code></li>
 <li><code>help</code></li>
 </ul>
-<p>Environment variables</p>
-<p>The table below lists the environment variables that you can use to configure the pulsar-perf tool.</p>
+<p>环境变量</p>
+<p>下表列出了你可以用来配置 pulsar-perf 工具的环境变量。</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>变量</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
-<tr><td><code>PULSAR_CLIENT_CONF</code></td><td>Configuration file for the client</td><td>conf/client.conf</td></tr>
-<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>Extra options to be passed to the JVM</td><td></td></tr>
-<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Extra paths for Pulsar's classpath</td><td></td></tr>
+<tr><td><code>PULSAR_LOG_CONF</code></td><td>Log4j 的配置文件</td><td>conf/log4j2.yaml</td></tr>
+<tr><td><code>PULSAR_CLIENT_CONF</code></td><td>客户端的配置文件</td><td>conf/client.conf</td></tr>
+<tr><td><code>PULSAR_EXTRA_OPTS</code></td><td>传递给 JVM 的额外选项</td><td></td></tr>
+<tr><td><code>PULSAR_EXTRA_CLASSPATH</code></td><td>Pulsar classpath 的额外路径</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consume-1"></a><a href="#consume-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>consume</code></h3>
 <p>Run a consumer</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-perf consume options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--auth_params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--acks-delay-millis</code></td><td>Acknowlegments grouping delay in millis</td><td>100</td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The private key name to decrypt payload</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the private key to decrypt payload</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-n</code>, <code>--num-consumers</code></td><td>Number of consumers (per topic)</td><td>1</td></tr>
@@ -452,23 +452,23 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="produce-1"></a><a href="#produce-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>produce</code></h3>
 <p>Run a producer</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf produce options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--auth_params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>-b</code>, <code>--batch-time-window</code></td><td>Batch messages in a window of the specified number of milliseconds</td><td>1</td></tr>
 <tr><td><code>-z</code>, <code>--compression</code></td><td>Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
 <tr><td><code>-k</code>, <code>--encryption-key-name</code></td><td>The public key name to encrypt payload</td><td></td></tr>
 <tr><td><code>-v</code>, <code>--encryption-key-value-file</code></td><td>The file which contains the public key to encrypt payload</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>Max number of outstanding messages</td><td>1000</td></tr>
 <tr><td><code>-p</code>, <code>--max-outstanding-across-partitions</code></td><td>Max number of outstanding messages across partitions</td><td>50000</td></tr>
@@ -487,20 +487,20 @@ $ pulsar command
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="read"></a><a href="#read" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>read</code></h3>
-<p>Run a topic reader</p>
-<p>Usage</p>
+<p>运行主题读者</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">read</span> options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--auth_params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single broker</td><td>100</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Simulate a slow message reader (rate in msg/s)</td><td>0</td></tr>
@@ -513,112 +513,112 @@ $ pulsar command
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="websocket-producer"></a><a href="#websocket-producer" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>websocket-producer</code></h3>
-<p>Run a websocket producer</p>
-<p>Usage</p>
+<p>启动 websocket 生产者</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf websocket-producer options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--auth_params</code></td><td>Authentication parameters, whose format is determined by the implementation of method <code>configure</code> in authentication plugin class, for example &quot;key1:val1,key2:val2&quot; or &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
-<tr><td><code>--auth_plugin</code></td><td>Authentication plugin class name</td><td></td></tr>
+<tr><td><code>--auth_params</code></td><td>认证参数，其格式取决于认证插件类中 <code>configure</code> 方法的实现，例如 &quot;key1:val1,key2:val2&quot; 或 &quot;{&quot;key1&quot;:&quot;val1&quot;,&quot;key2&quot;:&quot;val2&quot;}.</td><td></td></tr>
+<tr><td><code>--auth_plugin</code></td><td>认证插件类名称</td><td></td></tr>
 <tr><td><code>--conf-file</code></td><td>Configuration file</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If 0, it will keep publishing</td><td>0</td></tr>
 <tr><td><code>-t</code>, <code>--num-topic</code></td><td>The number of topics</td><td>1</td></tr>
-<tr><td><code>-f</code>, <code>--payload-file</code></td><td>Use payload from a file instead of empty buffer</td><td></td></tr>
-<tr><td><code>-u</code>, <code>--proxy-url</code></td><td>Pulsar Proxy URL, e.g., &quot;<a href="ws://localhost:8080/">ws://localhost:8080/</a>&quot;</td><td></td></tr>
+<tr><td><code>-f</code>, <code>--payload-file</code></td><td>使用文件中的 payload 而不是空缓存中的</td><td></td></tr>
+<tr><td><code>-u</code>, <code>--proxy-url</code></td><td>Pulsar 代理 URL，比如 &quot;<a href="ws://localhost:8080/">ws://localhost:8080/</a>&quot;</td><td></td></tr>
 <tr><td><code>-r</code>, <code>--rate</code></td><td>Publish rate msg/s across topics</td><td>100</td></tr>
-<tr><td><code>-s</code>, <code>--size</code></td><td>Message size in byte</td><td>1024</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>消息大小（字节）</td><td>1024</td></tr>
 <tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration in secs. If 0, it will keep publishing</td><td>0</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="managed-ledger"></a><a href="#managed-ledger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>managed-ledger</code></h3>
-<p>Write directly on managed-ledgers</p>
-<p>Usage</p>
+<p>直接写入 managed-ledgers</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf managed-ledger options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--ack-quorum</code></td><td>Ledger ack quorum</td><td>1</td></tr>
 <tr><td><code>-dt</code>, <code>--digest-type</code></td><td>BookKeeper digest type. Possible Values: [CRC32, MAC, CRC32C, DUMMY]</td><td>CRC32C</td></tr>
-<tr><td><code>-e</code>, <code>--ensemble-size</code></td><td>Ledger ensemble size</td><td>1</td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
-<tr><td><code>-c</code>, <code>--max-connections</code></td><td>Max number of TCP connections to a single bookie</td><td>1</td></tr>
-<tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>Max number of outstanding requests</td><td>1000</td></tr>
+<tr><td><code>-e</code>, <code>--ensemble-size</code></td><td>Ledger 整体大小</td><td>1</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
+<tr><td><code>-c</code>, <code>--max-connections</code></td><td>单个 bookie 的最大 TCP 连接数</td><td>1</td></tr>
+<tr><td><code>-o</code>, <code>--max-outstanding</code></td><td>未处理请求的最大数量</td><td>1000</td></tr>
 <tr><td><code>-m</code>, <code>--num-messages</code></td><td>Number of messages to publish in total. If 0, it will keep publishing</td><td>0</td></tr>
-<tr><td><code>-t</code>, <code>--num-topic</code></td><td>Number of managed ledgers</td><td>1</td></tr>
-<tr><td><code>-r</code>, <code>--rate</code></td><td>Write rate msg/s across managed ledgers</td><td>100</td></tr>
-<tr><td><code>-s</code>, <code>--size</code></td><td>Message size in byte</td><td>1024</td></tr>
+<tr><td><code>-t</code>, <code>--num-topic</code></td><td>managed ledger 的数量</td><td>1</td></tr>
+<tr><td><code>-r</code>, <code>--rate</code></td><td>在managed ledger中的写入速率（消息/秒）</td><td>100</td></tr>
+<tr><td><code>-s</code>, <code>--size</code></td><td>消息大小（字节）</td><td>1024</td></tr>
 <tr><td><code>-time</code>, <code>--test-duration</code></td><td>Test duration in secs. If 0, it will keep publishing</td><td>0</td></tr>
-<tr><td><code>--threads</code></td><td>Number of threads writing</td><td>1</td></tr>
+<tr><td><code>--threads</code></td><td>正在写入的线程数</td><td>1</td></tr>
 <tr><td><code>-w</code>, <code>--write-quorum</code></td><td>Ledger write quorum</td><td>1</td></tr>
-<tr><td><code>-zk</code>, <code>--zookeeperServers</code></td><td>ZooKeeper connection string</td><td></td></tr>
+<tr><td><code>-zk</code>, <code>--zookeeperServers</code></td><td>ZooKeeper 连接字符串</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="monitor-brokers"></a><a href="#monitor-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>monitor-brokers</code></h3>
 <p>Continuously receive broker data and/or load reports</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf monitor-brokers options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--connect-string</code></td><td>A connection string for one or more ZooKeeper servers</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="simulation-client"></a><a href="#simulation-client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-client</code></h3>
 <p>Run a simulation server acting as a Pulsar client. Uses the client configuration specified in <code>conf/client.conf</code>.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf simulation-client options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--port</code></td><td>Port to listen on for controller</td><td>0</td></tr>
-<tr><td><code>--service-url</code></td><td>Pulsar Service URL</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>--port</code></td><td>用于监听控制器的端口</td><td>0</td></tr>
+<tr><td><code>--service-url</code></td><td>Pulsar 服务 URL</td><td></td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="simulation-controller"></a><a href="#simulation-controller" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>simulation-controller</code></h3>
 <p>Run a simulation controller to give commands to servers</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf simulation-controller options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--client-port</code></td><td>The port that the clients are listening on</td><td>0</td></tr>
 <tr><td><code>--clients</code></td><td>Comma-separated list of client hostnames</td><td></td></tr>
 <tr><td><code>--cluster</code></td><td>The cluster to test on</td><td></td></tr>
-<tr><td><code>-h</code>, <code>--help</code></td><td>Help message</td><td>false</td></tr>
+<tr><td><code>-h</code>, <code>--help</code></td><td>帮助信息</td><td>false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="help"></a><a href="#help" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>help</code></h3>
-<p>This help message</p>
-<p>Usage</p>
+<p>帮助消息</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-perf <span class="hljs-built_in">help</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookkeeper</code></h2>
 <p>A tool for managing BookKeeper.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands</p>
@@ -629,31 +629,31 @@ $ pulsar command
 <li><code>upgrade</code></li>
 <li><code>shell</code></li>
 </ul>
-<p>Environment variables</p>
+<p>环境变量</p>
 <p>The table below lists the environment variables that you can use to configure the bookkeeper tool.</p>
 <table>
 <thead>
-<tr><th>Variable</th><th>Description</th><th>Default</th></tr>
+<tr><th>变量</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>BOOKIE_LOG_CONF</td><td>Log4j configuration file</td><td>conf/log4j2.yaml</td></tr>
+<tr><td>BOOKIE_LOG_CONF</td><td>Log4j 的配置文件</td><td>conf/log4j2.yaml</td></tr>
 <tr><td>BOOKIE_CONF</td><td>BookKeeper configuration file</td><td>conf/bk_server.conf</td></tr>
-<tr><td>BOOKIE_EXTRA_OPTS</td><td>Extra options to be passed to the JVM</td><td></td></tr>
+<tr><td>BOOKIE_EXTRA_OPTS</td><td>传递给 JVM 的额外选项</td><td></td></tr>
 <tr><td>BOOKIE_EXTRA_CLASSPATH</td><td>Extra paths for BookKeeper's classpath</td><td></td></tr>
 <tr><td>ENTRY_FORMATTER_CLASS</td><td>The Java class used to format entries</td><td></td></tr>
 <tr><td>BOOKIE_PID_DIR</td><td>Folder where the BookKeeper server PID file should be stored</td><td></td></tr>
-<tr><td>BOOKIE_STOP_TIMEOUT</td><td>Wait time before forcefully killing the Bookie server instance if attempts to stop it are not successful</td><td></td></tr>
+<tr><td>BOOKIE_STOP_TIMEOUT</td><td>当尝试停止 Bookie 服务器失败时，在强制杀死它之前的等待时间。</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="auto-recovery"></a><a href="#auto-recovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>auto-recovery</code></h3>
 <p>Runs an auto-recovery service daemon</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper auto-recovery options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
@@ -661,13 +661,13 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="bookie-1"></a><a href="#bookie-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bookie</code></h3>
 <p>Starts up a BookKeeper server (aka bookie)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper bookie options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
@@ -677,18 +677,18 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="localbookie"></a><a href="#localbookie" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localbookie</code></h3>
 <p>Runs a test ensemble of N bookies locally</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper localbookie N
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="upgrade"></a><a href="#upgrade" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>upgrade</code></h3>
 <p>Upgrade the bookie’s filesystem</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper upgrade options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--conf</code></td><td>Configuration for the auto-recovery daemon</td><td></td></tr>
@@ -697,10 +697,10 @@ $ pulsar command
 </table>
 <h3><a class="anchor" aria-hidden="true" id="shell"></a><a href="#shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>shell</code></h3>
 <p>Run shell for admin commands. To see a full listing of those commands, run bookkeeper shell without an argument.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ bookkeeper shell
 </code></pre>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ bookkeeper shell bookiesanity
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.4.2/reference-terminology"><span class="arrow-prev">← </span><span>术语</span></a><a class="docs-next button" href="/docs/zh-CN/2.4.2/pulsar-admin"><span>Pulsar Admin CLI</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#pulsar-client"><code>pulsar-client</code></a><ul class="toc-headings"><li><a href="#produce"><code>produce</code></a></li><li><a href="#consume"><code>consume</code></a></li></ul></li><li><a href="#pulsar-daemon"><code>pulsar-daemon</code></a><ul class="toc-headings"><li><a href="#start"><code>start</code></a></li><li><a href="#stop"><code>stop</code></a></li></ul></li><li><a href="#pulsar-perf"><code>pulsar-perf</code></a><ul class="toc-headings"><li><a href="#consume-1"><code>consume</code></a></li><li><a href="#produce-1"><code>produce</code></a></li><li><a href="#read"><code>read</code></a></li><li><a href="#websocket-producer"><code>websocket-producer</code></a></li><li><a href="#managed-ledger"><code>managed-ledger</code></a></li><li><a href="#monitor-brokers"><code>monitor-brokers</code></a></li><li><a href="#simulation-client"><code>simulation-client</code></a></li><li><a href="#simulation-controller"><code>simulation-controller</code></a></li><li><a href="#help"><code>help</code></a></li></ul></li><li><a href="#bookkeeper"><code>bookkeeper</code></a><ul class="toc-headings"><li><a href="#auto-recovery"><code>auto-recovery</code></a></li><li><a href="#bookie-1"><code>bookie</code></a></li><li><a href="#localbookie"><code>localbookie</code></a></li><li><a href="#upgrade"><code>upgrade</code></a></li><li><a href="#shell"><code>shell</code></a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>

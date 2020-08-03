@@ -168,7 +168,7 @@
 <p>After opening a TCP connection to a broker, typically on port 6650, the client is responsible to initiate the session.</p>
 <p><img src="/docs/assets/binary-protocol-connect.png" alt="Connect interaction"></p>
 <p>After receiving a <code>Connected</code> response from the broker, the client can consider the connection ready to use. Alternatively, if the broker doesn't validate the client authentication, it will reply with an <code>Error</code> command and close the TCP connection.</p>
-<p>Example:</p>
+<p>例子：</p>
 <pre><code class="hljs css language-protobuf"><span class="hljs-class"><span class="hljs-keyword">message</span> <span class="hljs-title">CommandConnect</span> </span>{
   <span class="hljs-string">"client_version"</span> : <span class="hljs-string">"Pulsar-Client-Java-v1.15.2"</span>,
   <span class="hljs-string">"auth_method_name"</span> : <span class="hljs-string">"my-authentication-plugin"</span>,

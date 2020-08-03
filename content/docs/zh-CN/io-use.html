@@ -91,7 +91,7 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="配置连接器的默认存储位置"></a><a href="#配置连接器的默认存储位置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置连接器的默认存储位置</h3>
 <p>要配置内置连接器的默认文件夹，请在 <code>中设置 &lt;code&gt;连接目录</code> 参考/conf/functions_worker.yml</code> 配置文件。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>设置 <code>./connectors</code> 文件夹作为内置连接器的默认存储位置。</p>
 <pre><code class="hljs">########################
 # Connectors
@@ -203,7 +203,7 @@ configs:
 <li><p>Create a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                         String pkgUrl)</span><br />                  <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>支持的 URL是 <code>http</code> 和 <code>文件</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ul>
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
@@ -248,7 +248,7 @@ configs:
 <li><p>Create a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">createSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                    String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>支持的 URL是 <code>http</code> 和 <code>文件</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ul>
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
@@ -328,7 +328,7 @@ configs:
 </span></div></div><div id="tab-group-3278-content-3280" class="tab-pane" data-group="group_3278" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSourceInfo"><b>GET</b> <i>/admin/v3/sources/:tenant/:namespace/:sourceName</i></a>
 </p>
 </span></div></div><div id="tab-group-3278-content-3281" class="tab-pane" data-group="group_3278" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SourceConfig <span class="hljs-title">getSource</span><span class="hljs-params">(String tenant,<br />                       String namespace,<br />                       String source)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>这是一个源配置</p>
 <pre><code class="hljs css language-java">{<br /> <span class="hljs-string">"tenant"</span>: <span class="hljs-string">"tenantName"</span>,<br /> <span class="hljs-string">"namespace"</span>: <span class="hljs-string">"namespaceName"</span>,<br /> <span class="hljs-string">"name"</span>: <span class="hljs-string">"sourceName"</span>,<br /> <span class="hljs-string">"className"</span>: <span class="hljs-string">"className"</span>,<br /> <span class="hljs-string">"topicName"</span>: <span class="hljs-string">"topicName"</span>,<br /> <span class="hljs-string">"configs"</span>: {},<br /> <span class="hljs-string">"parallelism"</span>: <span class="hljs-number">1</span>,<br /> <span class="hljs-string">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,<br /> <span class="hljs-string">"resources"</span>: {<br />   <span class="hljs-string">"cpu"</span>: <span class="hljs-number">1.0</span>,<br />   <span class="hljs-string">"ram"</span>: <span class="hljs-number">1073741824</span>,<br />   <span class="hljs-string">"disk"</span>: <span class="hljs-number">10737418240</span><br /> }<br />}<br /></code></pre>
 <p>这是一个源配置示例。</p>
@@ -345,7 +345,7 @@ configs:
 </span></div></div><div id="tab-group-3282-content-3284" class="tab-pane" data-group="group_3282" tabindex="-1"><div><span><p>发送 <code>GET</code> 请求到此端点: <a href="https://pulsar.incubator.apache.org/en/admin-rest-api#operation/getSinkInfo"><b>GET</b> <i>/admin/v3/sinks/:tenant/:namespace/:sinkName</i></a>
 </p>
 </span></div></div><div id="tab-group-3282-content-3285" class="tab-pane" data-group="group_3282" tabindex="-1"><div><span><pre><code class="hljs css language-java"><span class="hljs-function">SinkConfig <span class="hljs-title">getSink</span><span class="hljs-params">(String tenant,<br />                   String namespace,<br />                   String sink)</span><br />            <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <p>这是一个 sinkConfig。</p>
 <pre><code class="hljs css language-json">{<br /><span class="hljs-attr">"tenant"</span>: <span class="hljs-string">"tenantName"</span>,<br /><span class="hljs-attr">"namespace"</span>: <span class="hljs-string">"namespaceName"</span>,<br /><span class="hljs-attr">"name"</span>: <span class="hljs-string">"sinkName"</span>,<br /><span class="hljs-attr">"className"</span>: <span class="hljs-string">"className"</span>,<br /><span class="hljs-attr">"inputSpecs"</span>: {<br /><span class="hljs-attr">"topicName"</span>: {<br />    <span class="hljs-attr">"isRegexPattern"</span>: <span class="hljs-literal">false</span><br />}<br />},<br /><span class="hljs-attr">"configs"</span>: {},<br /><span class="hljs-attr">"parallelism"</span>: <span class="hljs-number">1</span>,<br /><span class="hljs-attr">"processingGuarantees"</span>: <span class="hljs-string">"ATLEAST_ONCE"</span>,<br /><span class="hljs-attr">"retainOrdering"</span>: <span class="hljs-literal">false</span>,<br /><span class="hljs-attr">"autoAck"</span>: <span class="hljs-literal">true</span><br />}<br /></code></pre>
 <p>这是一个 sinkConfig 示例。</p>
@@ -483,7 +483,7 @@ configs:
 <li><p>Update a source connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSourceWithUrl</span><span class="hljs-params">(SourceConfig sourceConfig,<br />                     String pkgUrl)</span><br />              <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>支持的 URL是 <code>http</code> 和 <code>文件</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ul>
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>
@@ -547,7 +547,7 @@ configs:
 <li><p>Update a sink connector using a <strong>remote file</strong> with a URL from which fun-pkg can be downloaded.</p>
 <pre><code class="hljs css language-java"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">updateSinkWithUrl</span><span class="hljs-params">(SinkConfig sinkConfig,<br />                       String pkgUrl)</span><br />                <span class="hljs-keyword">throws</span> PulsarAdminException<br /></span></code></pre>
 <p>支持的 URL是 <code>http</code> 和 <code>文件</code>。</p>
-<p><strong>Example</strong></p>
+<p><strong>示例</strong></p>
 <ul>
 <li><p>HTTP: <a href="http://www.repo.com/fileName.jar">http://www.repo.com/fileName.jar</a></p></li>
 <li><p>文件: file:///dir/fileName.jar</p></li>

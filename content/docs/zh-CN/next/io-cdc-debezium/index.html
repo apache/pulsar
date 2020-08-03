@@ -23,7 +23,7 @@
 <p>Debezium 源连接器的配置具有以下属性。</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>task.class</code></td><td>true</td><td>null</td><td>A source task class that implemented in Debezium.</td></tr>
@@ -37,19 +37,19 @@
 </tbody>
 </table>
 <p>这是可选的，还有其他属性用于列出数据库和表格以包含或排除在监视之外。                                                                                              |
-| <code>key.converter</code>                       | true     | null    | The converter provided by Kafka Connect to convert record key.                                                                                                |
-| <code>value.converter</code>                     | true     | null    | The converter provided by Kafka Connect to convert record value.                                                                                              |
-| <code>database.history</code>                    | true     | null    | 数据库历史类的名称。                                                                                                                                                    |
-| <code>database.history.pulsar.topic</code>       | true     | null    | 连接器写入并恢复 DDL 语句的数据库历史主题名称。</p>
+| <code>key.converter</code>                       | true     | null | The converter provided by Kafka Connect to convert record key.                                                                                                |
+| <code>value.converter</code>                     | true     | null | The converter provided by Kafka Connect to convert record value.                                                                                              |
+| <code>database.history</code>                    | true     | null | 数据库历史类的名称。                                                                                                                                                    |
+| <code>database.history.pulsar.topic</code>       | true     | null | 连接器写入并恢复 DDL 语句的数据库历史主题名称。</p>
 <p><strong>注意：此主题仅供内部使用，消费者不应使用。</strong>                                                                                                    |
-| <code>database.history.pulsar.service.url</code> | true     | null    | 历史主题的 Pulsar 集群服务 URL                                                                                                                                         |
-| <code>pulsar.service.url</code>                  | true     | null    | Pulsar 群集服务 URL。                                                                                                                                              |
-| <code>offset.storage.topic</code>                | true     | null    | 记录连接器成功完成的最后一次承付偏移。                                                                                                                                           |
-| <code>mongodb.hosts</code>                       | true     | null    | MongoDB 服务器逗号分隔的主机名和端口对列表(在复制集中的 'host' 或 'host:port' 表单)。 列表包含单个主机名和端口对。 如果 mongodb.members.auto.found 设置为 false, 主机和端口对将以复制集合名称为前提(例如，rs0/localhost:27017)。 |
-| <code>mongodb.name</code>                        | true     | null    | 指定连接器和/或 MongoDB 复制器集合或共享集群的唯一名称。 每个服务器最多应由一个 Debezium 连接器监测。 因为这个服务器名称前缀，所以所有源自 MongoDB replica 集或集群的 Kafka 话题。                                              |
-| <code>mongodb.user</code>                        | true     | null    | 连接到 MongoDB 时要使用的数据库用户名称。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                      |
-| <code>mongodb.password</code>                    | true     | null    | 连接到 MongoDB 时使用的密码。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                            |
-| <code>mongodb.task.id</code>                     | true     | null    | MongoDB 连接器的任务 ID，试图为每个复制组使用一个单独的任务。                                                                                                                          |</p>
+| <code>database.history.pulsar.service.url</code> | true     | null | 历史主题的 Pulsar 集群服务 URL                                                                                                                                         |
+| <code>pulsar.service.url</code>                  | true     | null | Pulsar 群集服务 URL。                                                                                                                                              |
+| <code>offset.storage.topic</code>                | true     | null | 记录连接器成功完成的最后一次承付偏移。                                                                                                                                           |
+| <code>mongodb.hosts</code>                       | true     | null | MongoDB 服务器逗号分隔的主机名和端口对列表(在复制集中的 'host' 或 'host:port' 表单)。 列表包含单个主机名和端口对。 如果 mongodb.members.auto.found 设置为 false, 主机和端口对将以复制集合名称为前提(例如，rs0/localhost:27017)。 |
+| <code>mongodb.name</code>                        | true     | null | 指定连接器和/或 MongoDB 复制器集合或共享集群的唯一名称。 每个服务器最多应由一个 Debezium 连接器监测。 因为这个服务器名称前缀，所以所有源自 MongoDB replica 集或集群的 Kafka 话题。                                              |
+| <code>mongodb.user</code>                        | true     | null | 连接到 MongoDB 时要使用的数据库用户名称。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                      |
+| <code>mongodb.password</code>                    | true     | null | 连接到 MongoDB 时使用的密码。 只有当 MongoDB 被配置为使用身份验证时才需要这么做。                                                                                                            |
+| <code>mongodb.task.id</code>                     | true     | null | MongoDB 连接器的任务 ID，试图为每个复制组使用一个单独的任务。                                                                                                                          |</p>
 <h2><a class="anchor" aria-hidden="true" id="example-of-mysql"></a><a href="#example-of-mysql" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example of MySQL</h2>
 <p>你需要在使用 Pulsar Debezium 连接器之前创建一个配置文件。</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>

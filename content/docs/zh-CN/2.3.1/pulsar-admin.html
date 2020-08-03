@@ -75,7 +75,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar admin CLI</h1></header><article><div><span><p>The <code>pulsar-admin</code> tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">command</span>
 </code></pre>
 <p>Commands</p>
@@ -107,18 +107,18 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="allocator-stats"></a><a href="#allocator-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>allocator-stats</code></h3>
 <p>Dump allocator stats</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats allocator-stats allocator-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="topicsdestinations"></a><a href="#topicsdestinations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>topics(destinations)</code></h3>
 <p>Dump topic stats</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats topics options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-i</code>, <code>--indent</code></td><td>Indent JSON output</td><td>false</td></tr>
@@ -126,13 +126,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="mbeans"></a><a href="#mbeans" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>mbeans</code></h3>
 <p>Dump Mbean stats</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats mbeans options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-i</code>, <code>--indent</code></td><td>Indent JSON output</td><td>false</td></tr>
@@ -140,13 +140,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="monitoring-metrics"></a><a href="#monitoring-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>monitoring-metrics</code></h3>
 <p>Dump metrics for monitoring</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats monitoring-metrics options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-i</code>, <code>--indent</code></td><td>Indent JSON output</td><td>false</td></tr>
@@ -154,7 +154,7 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="load-report"></a><a href="#load-report" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>load-report</code></h3>
 <p>Dump broker load-report</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats load-report
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="brokers"></a><a href="#brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>brokers</code></h2>
@@ -174,18 +174,18 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List active brokers of the cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers list cluster-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="namespaces"></a><a href="#namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>namespaces</code></h3>
 <p>List namespaces owned by the broker</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers namespaces cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--url</code></td><td>The URL for the broker</td><td></td></tr>
@@ -193,13 +193,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-dynamic-config"></a><a href="#update-dynamic-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update-dynamic-config</code></h3>
 <p>Update a broker's dynamic service configuration</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers update-dynamic-config options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--config</code></td><td>Service configuration parameter name</td><td></td></tr>
@@ -208,32 +208,32 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-dynamic-config"></a><a href="#list-dynamic-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list-dynamic-config</code></h3>
 <p>Get list of updatable configuration name</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers list-dynamic-config
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-all-dynamic-config"></a><a href="#get-all-dynamic-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-all-dynamic-config</code></h3>
 <p>Get all overridden dynamic-configuration values</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers get-all-dynamic-config
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-internal-config"></a><a href="#get-internal-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-internal-config</code></h3>
 <p>Get internal configuration information</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers get-internal-config
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-runtime-config"></a><a href="#get-runtime-config" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-runtime-config</code></h3>
 <p>Get runtime configuration values</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers get-runtime-config
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="healthcheck"></a><a href="#healthcheck" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>healthcheck</code></h3>
 <p>Run a health check against the broker</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers healthcheck
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="clusters"></a><a href="#clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>clusters</code></h2>
 <p>Operations about clusters</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -253,18 +253,18 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get the configuration data for the specified cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters get cluster-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="create"></a><a href="#create" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Provisions a new cluster. This operation requires Pulsar super-user privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters create cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker-url</code></td><td>The URL for the broker service.</td><td></td></tr>
@@ -275,13 +275,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update"></a><a href="#update" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>Update the configuration for a cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters update cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker-url</code></td><td>The URL for the broker service.</td><td></td></tr>
@@ -292,23 +292,23 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete"></a><a href="#delete" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Deletes an existing cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters delete cluster-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list-1"></a><a href="#list-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List the existing clusters</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters list
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="update-peer-clusters"></a><a href="#update-peer-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update-peer-clusters</code></h3>
 <p>Update peer cluster names</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters update-peer-clusters cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--peer-clusters</code></td><td>Comma separated peer cluster names (Pass empty string &quot;&quot; to delete list)</td><td></td></tr>
@@ -316,18 +316,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-peer-clusters"></a><a href="#get-peer-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-peer-clusters</code></h3>
 <p>Get list of peer clusters</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters get-peer-clusters
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-failure-domain"></a><a href="#get-failure-domain" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-failure-domain</code></h3>
 <p>Get the configuration brokers of a failure domain</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters get-failure-domain cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--domain-name</code></td><td>The failure domain name, which is a logical domain under a Pulsar cluster</td><td></td></tr>
@@ -335,13 +335,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-failure-domain"></a><a href="#create-failure-domain" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create-failure-domain</code></h3>
 <p>Create a new failure domain for a cluster (updates it if already created)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters create-failure-domain cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker-list</code></td><td>Comma separated broker list</td><td></td></tr>
@@ -350,13 +350,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-failure-domain"></a><a href="#update-failure-domain" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update-failure-domain</code></h3>
 <p>Update failure domain for a cluster (creates a new one if not exist)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters update-failure-domain cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker-list</code></td><td>Comma separated broker list</td><td></td></tr>
@@ -365,13 +365,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-failure-domain"></a><a href="#delete-failure-domain" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete-failure-domain</code></h3>
 <p>Delete an existing failure domain</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters delete-failure-domain cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--domain-name</code></td><td>The failure domain name, which is a logical domain under a Pulsar cluster</td><td></td></tr>
@@ -379,12 +379,12 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-failure-domains"></a><a href="#list-failure-domains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list-failure-domains</code></h3>
 <p>List the existing failure domains for a cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters list-failure-domains cluster-name
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="functions"></a><a href="#functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>functions</code></h2>
 <p>A command-line interface for Pulsar Functions</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -401,13 +401,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="localrun"></a><a href="#localrun" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localrun</code></h3>
 <p>Run a Pulsar Function locally</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> localrun options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--cpu</code></td><td>The CPU to allocate to each function instance (in number of cores)</td><td></td></tr>
@@ -446,13 +446,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-1"></a><a href="#create-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Creates a new Pulsar Function on the target infrastructure</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-admin functions create options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--cpu</code></td><td>The CPU to allocate to each function instance (in number of cores)</td><td></td></tr>
@@ -486,13 +486,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-1"></a><a href="#delete-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Deletes an existing Pulsar Function</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> delete options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>The name of the function to delete</td><td></td></tr>
@@ -502,13 +502,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-1"></a><a href="#update-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>Updates an existing Pulsar Function</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> update options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--cpu</code></td><td>The CPU to allocate to each function instance (in number of cores)</td><td></td></tr>
@@ -542,13 +542,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-1"></a><a href="#get-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Fetch information about an existing Pulsar Function</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> get options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>函数的名称</td><td></td></tr>
@@ -558,13 +558,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="restart"></a><a href="#restart" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>restart</code></h3>
 <p>Restarts either all instances or one particular instance of a function</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> restart options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>函数的名称</td><td></td></tr>
@@ -575,13 +575,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="stop"></a><a href="#stop" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stop</code></h3>
 <p>Temporary stops function instance. (If worker restarts then it reassigns and starts functiona again)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> stop options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>函数的名称</td><td></td></tr>
@@ -592,13 +592,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="getstatus"></a><a href="#getstatus" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>getstatus</code></h3>
 <p>Get the status of an existing Pulsar Function</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> getstatus options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>函数的名称</td><td></td></tr>
@@ -609,13 +609,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-2"></a><a href="#list-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List all Pulsar Functions for a specific tenant and namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> list options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--namespace</code></td><td>The namespace of the function</td><td></td></tr>
@@ -624,13 +624,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="querystate"></a><a href="#querystate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>querystate</code></h3>
 <p>Retrieve the current state of a Pulsar Function by key</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> querystate options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-k</code>, <code>--key</code></td><td>The key for the state you want to fetch</td><td></td></tr>
@@ -643,13 +643,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="trigger"></a><a href="#trigger" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>trigger</code></h3>
 <p>Triggers the specified Pulsar Function with a supplied value or file data</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> trigger options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>The name of the Pulsar Function to trigger</td><td></td></tr>
@@ -721,28 +721,28 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="list-3"></a><a href="#list-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>Get the namespaces for a tenant</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces list tenant-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="topics"></a><a href="#topics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>topics</code></h3>
 <p>Get the list of topics for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces topics tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="policies"></a><a href="#policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>policies</code></h3>
 <p>Get the configuration policies of a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces policies tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="create-2"></a><a href="#create-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Create a new namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces create tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundles</code></td><td>The number of bundles to activate</td><td>0</td></tr>
@@ -751,18 +751,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-2"></a><a href="#delete-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Deletes a namespace. The namespace needs to be empty</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces delete tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-deduplication"></a><a href="#set-deduplication" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-deduplication</code></h3>
 <p>Enable or disable message deduplication on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-deduplication tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--enable</code>, <code>-e</code></td><td>Enable message deduplication on the specified namespace</td><td>false</td></tr>
@@ -771,18 +771,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="permissions"></a><a href="#permissions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>permissions</code></h3>
 <p>Get the permissions on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces permissions tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="grant-permission"></a><a href="#grant-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>grant-permission</code></h3>
 <p>Grant permissions on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces grant-permission tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
@@ -791,13 +791,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission"></a><a href="#revoke-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
 <p>Revoke permissions on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces revoke-permission tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--role</code></td><td>The client role to which to revoke the permissions</td><td></td></tr>
@@ -805,13 +805,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="grant-subscription-permission"></a><a href="#grant-subscription-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>grant-subscription-permission</code></h3>
 <p>Grant permissions to access subscription admin-api</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces grant-subscription-permission tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--roles</code></td><td>The client roles to which to grant the permissions (comma separated roles)</td><td></td></tr>
@@ -820,13 +820,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-subscription-permission"></a><a href="#revoke-subscription-permission" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-subscription-permission</code></h3>
 <p>Revoke permissions to access subscription admin-api</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces revoke-subscription-permission tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--role</code></td><td>The client role to which to revoke the permissions</td><td></td></tr>
@@ -835,13 +835,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-clusters"></a><a href="#set-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-clusters</code></h3>
 <p>Set replication clusters for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-clusters tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--clusters</code></td><td>Replication clusters ID list (comma-separated values)</td><td></td></tr>
@@ -849,53 +849,53 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-clusters"></a><a href="#get-clusters" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-clusters</code></h3>
 <p>Get replication clusters for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-clusters tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-backlog-quotas"></a><a href="#get-backlog-quotas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-backlog-quotas</code></h3>
 <p>Get the backlog quota policies for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-backlog-quotas tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-backlog-quota"></a><a href="#set-backlog-quota" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-backlog-quota</code></h3>
 <p>Set a backlog quota policy for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-backlog-quota tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-l</code>, <code>--limit</code></td><td>The backlog size limit (for example <code>10M</code> or <code>16G</code>)</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--policy</code></td><td>The retention policy to enforce when the limit is reached. The valid options are: <code>producer_request_hold</code>, <code>producer_exception</code> or <code>consumer_backlog_eviction</code></td><td></td></tr>
 </tbody>
 </table>
-<p>Example</p>
+<p>示例</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-backlog-quota my-tenant/my-ns \
 --<span class="hljs-built_in">limit</span> 2G \
 --policy producer_request_hold
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="remove-backlog-quota"></a><a href="#remove-backlog-quota" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>remove-backlog-quota</code></h3>
 <p>Remove a backlog quota policy from a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces remove-backlog-quota tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-persistence"></a><a href="#get-persistence" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-persistence</code></h3>
 <p>Get the persistence policies for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-persistence tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-persistence"></a><a href="#set-persistence" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-persistence</code></h3>
 <p>Set the persistence policies for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-persistence tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-a</code>, <code>--bookkeeper-ack-quorom</code></td><td>The number of acks (guaranteed copies) to wait for each entry</td><td>0</td></tr>
@@ -906,18 +906,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-message-ttl"></a><a href="#get-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-message-ttl</code></h3>
 <p>Get the message TTL for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-message-ttl tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-message-ttl"></a><a href="#set-message-ttl" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-message-ttl</code></h3>
 <p>Set the message TTL for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-message-ttl tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-ttl</code>, <code>--messageTTL</code></td><td>Message TTL in seconds</td><td>0</td></tr>
@@ -925,18 +925,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-anti-affinity-group"></a><a href="#get-anti-affinity-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-anti-affinity-group</code></h3>
 <p>Get Anti-affinity group name for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-anti-affinity-group tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-anti-affinity-group"></a><a href="#set-anti-affinity-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-anti-affinity-group</code></h3>
 <p>Set Anti-affinity group name for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-anti-affinity-group tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity group name</td><td></td></tr>
@@ -944,39 +944,39 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-anti-affinity-namespaces"></a><a href="#get-anti-affinity-namespaces" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-anti-affinity-namespaces</code></h3>
 <p>Get Anti-affinity namespaces grouped with the given anti-affinity group name</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-anti-affinity-namespaces options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-c</code>, <code>--cluster</code></td><td>Cluster name</td><td></td></tr>
+<tr><td><code>-c</code>, <code>--cluster</code></td><td>集群名称</td><td></td></tr>
 <tr><td><code>-g</code>, <code>--group</code></td><td>Anti-affinity group name</td><td></td></tr>
 <tr><td><code>-p</code>, <code>--tenant</code></td><td>Tenant is only used for authorization. Client has to be admin of any of the tenant to access this api</td><td></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-anti-affinity-group"></a><a href="#delete-anti-affinity-group" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete-anti-affinity-group</code></h3>
 <p>Remove Anti-affinity group name for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-retention"></a><a href="#get-retention" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-retention</code></h3>
 <p>Get the retention policy for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-retention tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-retention"></a><a href="#set-retention" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-retention</code></h3>
 <p>Set the retention policy for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-retention tenant/namespace
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--size</code></td><td>The retention size limits (for example 10M, 16G or 3T). 0 means no retention and -1 means infinite size retention</td><td></td></tr>
@@ -985,13 +985,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="unload"></a><a href="#unload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unload</code></h3>
 <p>Unload a namespace or namespace bundle from the current serving broker.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces unload tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
@@ -999,13 +999,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="split-bundle"></a><a href="#split-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>split-bundle</code></h3>
 <p>Split a namespace-bundle from the current serving broker</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces split-bundle tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
@@ -1014,13 +1014,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-dispatch-rate"></a><a href="#set-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-dispatch-rate</code></h3>
 <p>Set message-dispatch-rate for all topics of the namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-dispatch-rate tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>The byte dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
@@ -1030,18 +1030,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-dispatch-rate"></a><a href="#get-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-dispatch-rate</code></h3>
 <p>Get configured message-dispatch-rate for all topics of the namespace (Disabled if value &lt; 0)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-dispatch-rate tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-subscribe-rate"></a><a href="#set-subscribe-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-subscribe-rate</code></h3>
 <p>Set subscribe-rate per consumer for all topics of the namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-subscribe-rate tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-sr</code>, <code>--subscribe-rate</code></td><td>The subscribe rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
@@ -1050,18 +1050,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-subscribe-rate"></a><a href="#get-subscribe-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-subscribe-rate</code></h3>
 <p>Get configured subscribe-rate per consumer for all topics of the namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-subscribe-rate tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-subscription-dispatch-rate"></a><a href="#set-subscription-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-subscription-dispatch-rate</code></h3>
 <p>Set subscription message-dispatch-rate for all subscription of the namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-subscription-dispatch-rate tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-bd</code>, <code>--byte-dispatch-rate</code></td><td>The byte dispatch rate (default -1 will be overwrite if not passed)</td><td>-1</td></tr>
@@ -1071,18 +1071,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-subscription-dispatch-rate"></a><a href="#get-subscription-dispatch-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-subscription-dispatch-rate</code></h3>
 <p>Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value &lt; 0)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="clear-backlog"></a><a href="#clear-backlog" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>clear-backlog</code></h3>
 <p>Clear the backlog for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces clear-backlog tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
@@ -1092,13 +1092,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="unsubscribe"></a><a href="#unsubscribe" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unsubscribe</code></h3>
 <p>Unsubscribe the given subscription on all destinations on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces unsubscribe tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)</td><td></td></tr>
@@ -1107,13 +1107,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-encryption-required"></a><a href="#set-encryption-required" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-encryption-required</code></h3>
 <p>Enable or disable message encryption required for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-encryption-required tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-d</code>, <code>--disable</code></td><td>Disable message encryption required</td><td>false</td></tr>
@@ -1122,13 +1122,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-subscription-auth-mode"></a><a href="#set-subscription-auth-mode" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-subscription-auth-mode</code></h3>
 <p>Set subscription auth mode on a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-subscription-auth-mode tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-m</code>, <code>--subscription-auth-mode</code></td><td>Subscription authorization mode for Pulsar policies. Valid options are: [None, Prefix]</td><td></td></tr>
@@ -1136,18 +1136,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-producers-per-topic"></a><a href="#get-max-producers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-producers-per-topic</code></h3>
 <p>Get maxProducersPerTopic for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-max-producers-per-topic tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-max-producers-per-topic"></a><a href="#set-max-producers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-max-producers-per-topic</code></h3>
 <p>Set maxProducersPerTopic for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-max-producers-per-topic tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-p</code>, <code>--max-producers-per-topic</code></td><td>maxProducersPerTopic for a namespace</td><td>0</td></tr>
@@ -1155,18 +1155,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-consumers-per-topic"></a><a href="#get-max-consumers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-consumers-per-topic</code></h3>
 <p>Get maxConsumersPerTopic for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-max-consumers-per-topic tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-max-consumers-per-topic"></a><a href="#set-max-consumers-per-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-max-consumers-per-topic</code></h3>
 <p>Set maxConsumersPerTopic for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-max-consumers-per-topic tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--max-consumers-per-topic</code></td><td>maxConsumersPerTopic for a namespace</td><td>0</td></tr>
@@ -1174,18 +1174,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-max-consumers-per-subscription"></a><a href="#get-max-consumers-per-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-max-consumers-per-subscription</code></h3>
 <p>Get maxConsumersPerSubscription for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-max-consumers-per-subscription tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-max-consumers-per-subscription"></a><a href="#set-max-consumers-per-subscription" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-max-consumers-per-subscription</code></h3>
 <p>Set maxConsumersPerSubscription for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-max-consumers-per-subscription tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--max-consumers-per-subscription</code></td><td>maxConsumersPerSubscription for a namespace</td><td>0</td></tr>
@@ -1193,18 +1193,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-compaction-threshold"></a><a href="#get-compaction-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-compaction-threshold</code></h3>
 <p>Get compactionThreshold for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-compaction-threshold tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-compaction-threshold"></a><a href="#set-compaction-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-compaction-threshold</code></h3>
 <p>Set compactionThreshold for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-compaction-threshold tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-t</code>, <code>--threshold</code></td><td>Maximum number of bytes in a topic backlog before compaction is triggered (eg: 10M, 16G, 3T). 0 disables automatic compaction</td><td>0</td></tr>
@@ -1212,18 +1212,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-offload-threshold"></a><a href="#get-offload-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-offload-threshold</code></h3>
 <p>Get offloadThreshold for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-offload-threshold tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-offload-threshold"></a><a href="#set-offload-threshold" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-offload-threshold</code></h3>
 <p>Set offloadThreshold for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-threshold tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--size</code></td><td>Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.</td><td>-1</td></tr>
@@ -1231,18 +1231,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-offload-deletion-lag"></a><a href="#get-offload-deletion-lag" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-offload-deletion-lag</code></h3>
 <p>Get offloadDeletionLag, in minutes, for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-offload-deletion-lag tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-offload-deletion-lag"></a><a href="#set-offload-deletion-lag" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-offload-deletion-lag</code></h3>
 <p>Set offloadDeletionLag for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-offload-deletion-lag tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-l</code>, <code>--lag</code></td><td>Duration to wait after offloading a ledger segment, before deleting the copy of that segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).</td><td>-1</td></tr>
@@ -1250,23 +1250,23 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="clear-offload-deletion-lag"></a><a href="#clear-offload-deletion-lag" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>clear-offload-deletion-lag</code></h3>
 <p>Clear offloadDeletionLag for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces clear-offload-deletion-lag tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-schema-autoupdate-strategy"></a><a href="#get-schema-autoupdate-strategy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-schema-autoupdate-strategy</code></h3>
 <p>Get the schema auto-update strategy for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-schema-autoupdate-strategy tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-schema-autoupdate-strategy"></a><a href="#set-schema-autoupdate-strategy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-schema-autoupdate-strategy</code></h3>
 <p>Set the schema auto-update strategy for a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-schema-autoupdate-strategy tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--compatibility</code></td><td>Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).</td><td>Full</td></tr>
@@ -1275,7 +1275,7 @@
 </table>
 <h2><a class="anchor" aria-hidden="true" id="ns-isolation-policy"></a><a href="#ns-isolation-policy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ns-isolation-policy</code></h2>
 <p>Operations for managing namespace isolation policies.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1289,13 +1289,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="set"></a><a href="#set" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set</code></h3>
 <p>Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy <span class="hljs-built_in">set</span> cluster-name policy-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--auto-failover-policy-params</code></td><td>Comma-separated name=value auto failover policy parameters</td><td>[]</td></tr>
@@ -1307,33 +1307,33 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-2"></a><a href="#get-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get the namespace isolation policy of a cluster. This operation requires Pulsar superuser privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy get cluster-name policy-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list-4"></a><a href="#list-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List all namespace isolation policies of a cluster. This operation requires Pulsar superuser privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy list cluster-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="delete-3"></a><a href="#delete-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Delete namespace isolation policy of a cluster. This operation requires superuser privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy delete
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="brokers-1"></a><a href="#brokers-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>brokers</code></h3>
 <p>List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy brokers cluster-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker</code></h3>
 <p>Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy broker cluster-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker</code></td><td>Broker name to get namespace-isolation policies attached to it</td><td></td></tr>
@@ -1341,7 +1341,7 @@
 </table>
 <h2><a class="anchor" aria-hidden="true" id="sink"></a><a href="#sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>sink</code></h2>
 <p>An interface for managing Pulsar IO sinks (egress data from Pulsar)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1354,13 +1354,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="create-3"></a><a href="#create-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Submit a Pulsar IO sink connector to run in a Pulsar cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink create options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--classname</code></td><td>The sink’s Java class name</td><td></td></tr>
@@ -1386,13 +1386,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-2"></a><a href="#update-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>Submit a Pulsar IO sink connector to run in a Pulsar cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink update options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--classname</code></td><td>The sink’s Java class name</td><td></td></tr>
@@ -1416,13 +1416,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-4"></a><a href="#delete-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Stops a Pulsar IO sink</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink delete options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>The name of the function to delete</td><td></td></tr>
@@ -1432,13 +1432,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="localrun-1"></a><a href="#localrun-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localrun</code></h3>
 <p>Run the Pulsar sink locally (rather than in the Pulsar cluster)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink localrun options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--broker-service-url</code></td><td>The URL for the Pulsar broker</td><td></td></tr>
@@ -1465,12 +1465,12 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="available-sinks"></a><a href="#available-sinks" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available-sinks</code></h3>
 <p>Get a list of all built-in sink connectors</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink available-sinks
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="source"></a><a href="#source" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>source</code></h2>
 <p>An interface for managing Pulsar IO sources (ingress data into Pulsar)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1483,13 +1483,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="create-4"></a><a href="#create-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Submit a Pulsar IO source connector to run in a Pulsar cluster</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> create options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--classname</code></td><td>The source’s Java class name</td><td></td></tr>
@@ -1512,13 +1512,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-3"></a><a href="#update-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>Update a already submitted Pulsar IO source connector</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> update options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--classname</code></td><td>The source’s Java class name</td><td></td></tr>
@@ -1541,13 +1541,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-5"></a><a href="#delete-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Stops a Pulsar IO source</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> delete options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--name</code></td><td>The name of the function to delete</td><td></td></tr>
@@ -1557,13 +1557,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="localrun-2"></a><a href="#localrun-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localrun</code></h3>
 <p>Run the Pulsar source locally (rather than in the Pulsar cluster)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> localrun options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--classname</code></td><td>The source’s Java class name</td><td></td></tr>
@@ -1586,12 +1586,12 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="available-sources"></a><a href="#available-sources" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>available-sources</code></h3>
 <p>Get a list of all built-in source connectors</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> available-sources
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="topics-1"></a><a href="#topics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>topics</code></h2>
 <p>Operations for managing Pulsar topics (both persistent and non persistent)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1630,18 +1630,18 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="compact"></a><a href="#compact" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact</code></h3>
 <p>Run compaction on the specified topic (persistent topics only)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-admin topics compact persistent://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="compaction-status"></a><a href="#compaction-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compaction-status</code></h3>
 <p>Check the status of a topic compaction (persistent topics only)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics compaction-status persistent://tenant/namespace/topic
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
@@ -1649,13 +1649,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload"></a><a href="#offload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload</code></h3>
 <p>Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics offload persistent://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--size-threshold</code></td><td>The maximum amount of data to keep in BookKeeper for the specific topic</td><td></td></tr>
@@ -1663,13 +1663,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="offload-status"></a><a href="#offload-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>offload-status</code></h3>
 <p>Check the status of data offloading from a topic to long-term storage</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics offload-status persistent://tenant/namespace/topic op
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-w</code>, <code>--wait-complete</code></td><td>Wait for compaction to complete</td><td>false</td></tr>
@@ -1677,13 +1677,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="create-partitioned-topic"></a><a href="#create-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create-partitioned-topic</code></h3>
 <p>Create a partitioned topic. A partitioned topic must be created before producers can publish to it.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics create-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
@@ -1691,28 +1691,28 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-partitioned-topic"></a><a href="#delete-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete-partitioned-topic</code></h3>
 <p>Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="create-5"></a><a href="#create-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics create {persistent|non-persistent}://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-partitioned-topic-metadata"></a><a href="#get-partitioned-topic-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-partitioned-topic-metadata</code></h3>
 <p>Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics get-partitioned-topic-metadata {persistent|non-persistent}://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="update-partitioned-topic"></a><a href="#update-partitioned-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update-partitioned-topic</code></h3>
 <p>Update existing non-global partitioned topic. New updating number of partitions must be greater than existing number of partitions.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics update-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-p</code>, <code>--partitions</code></td><td>The number of partitions for the topic</td><td>0</td></tr>
@@ -1720,18 +1720,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="list-5"></a><a href="#list-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>Get the list of topics under a namespace</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-admin topics list tenant/cluster/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list-in-bundle"></a><a href="#list-in-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list-in-bundle</code></h3>
 <p>Get a list of non-persistent topics present under a namespace bundle</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-admin topics list-in-bundle tenant/namespace options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>The bundle range</td><td></td></tr>
@@ -1739,23 +1739,23 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="terminate"></a><a href="#terminate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>terminate</code></h3>
 <p>Terminate a topic (disallow further messages from being published on the topic)</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics terminate {persistent|non-persistent}://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="permissions-1"></a><a href="#permissions-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>permissions</code></h3>
 <p>Get the permissions on a topic. Retrieve the effective permissions for a desination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics permissions topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="grant-permission-1"></a><a href="#grant-permission-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>grant-permission</code></h3>
 <p>Grant a new permission to a client role on a single topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics grant-permission {persistent|non-persistent}://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--actions</code></td><td>Actions to be granted (<code>produce</code> or <code>consume</code>)</td><td></td></tr>
@@ -1764,43 +1764,43 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="revoke-permission-1"></a><a href="#revoke-permission-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>revoke-permission</code></h3>
 <p>Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics revoke-permission topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="lookup"></a><a href="#lookup" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>lookup</code></h3>
 <p>Look up a topic from the current serving broker</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics lookup topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="bundle-range"></a><a href="#bundle-range" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>bundle-range</code></h3>
 <p>Get the namespace bundle which contains the given topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics bundle-range topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="delete-6"></a><a href="#delete-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics delete topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unload-1"></a><a href="#unload-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unload</code></h3>
 <p>Unload a topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics unload topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="subscriptions"></a><a href="#subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>subscriptions</code></h3>
 <p>Get the list of subscriptions on the topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics subscriptions topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="unsubscribe-1"></a><a href="#unsubscribe-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>unsubscribe</code></h3>
 <p>Delete a durable subscriber from a topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics unsubscribe topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to delete</td><td></td></tr>
@@ -1808,28 +1808,28 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="stats"></a><a href="#stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats</code></h3>
 <p>Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics stats topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="stats-internal"></a><a href="#stats-internal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>stats-internal</code></h3>
 <p>Get the internal stats for the topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics stats-internal topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="info-internal"></a><a href="#info-internal" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>info-internal</code></h3>
 <p>Get the internal metadata info for the topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics info-internal topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="partitioned-stats"></a><a href="#partitioned-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>partitioned-stats</code></h3>
 <p>Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics partitioned-stats topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--per-partition</code></td><td>Get per-partition stats</td><td>false</td></tr>
@@ -1837,13 +1837,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="skip"></a><a href="#skip" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>skip</code></h3>
 <p>Skip some messages for the subscription</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics skip topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages to skip</td><td>0</td></tr>
@@ -1852,13 +1852,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="skip-all"></a><a href="#skip-all" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>skip-all</code></h3>
 <p>Skip all the messages for the subscription</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics skip-all topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--subscription</code></td><td>The subscription to clear</td><td></td></tr>
@@ -1866,13 +1866,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages"></a><a href="#expire-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages</code></h3>
 <p>Expire messages that are older than the given expiry time (in seconds) for the subscription.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics expire-messages topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
@@ -1881,13 +1881,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="expire-messages-all-subscriptions"></a><a href="#expire-messages-all-subscriptions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>expire-messages-all-subscriptions</code></h3>
 <p>Expire messages older than the given expiry time (in seconds) for all subscriptions</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics expire-messages-all-subscriptions topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-t</code>, <code>--expireTime</code></td><td>Expire messages older than the time (in seconds)</td><td>0</td></tr>
@@ -1895,13 +1895,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="peek-messages"></a><a href="#peek-messages" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>peek-messages</code></h3>
 <p>Peek some messages for the subscription.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics peek-messages topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-n</code>, <code>--count</code></td><td>The number of messages</td><td>0</td></tr>
@@ -1910,13 +1910,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reset-cursor</code></h3>
 <p>Reset position for subscription to closest to timestamp</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics reset-cursor topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-s</code>, <code>--subscription</code></td><td>Subscription to reset position on</td><td></td></tr>
@@ -1925,7 +1925,7 @@
 </table>
 <h2><a class="anchor" aria-hidden="true" id="tenants"></a><a href="#tenants" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>tenants</code></h2>
 <p>Operations for managing tenants</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1938,23 +1938,23 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="list-6"></a><a href="#list-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List the existing tenants</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants list
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-3"></a><a href="#get-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Gets the configuration of a tenant</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants get tenant-name
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="create-6"></a><a href="#create-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Creates a new tenant</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants create tenant-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
@@ -1963,13 +1963,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="update-4"></a><a href="#update-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>update</code></h3>
 <p>Updates a tenant</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants update tenant-name options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-r</code>, <code>--admin-roles</code></td><td>Comma-separated admin roles</td><td></td></tr>
@@ -1978,12 +1978,12 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-7"></a><a href="#delete-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Deletes an existing tenant</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants delete tenant-name
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="resource-quotas"></a><a href="#resource-quotas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>resource-quotas</code></h2>
 <p>Operations for managing resource quotas</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin resource-quotas subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -1994,13 +1994,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="get-4"></a><a href="#get-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get the resource quota for a specified namespace bundle, or default quota if no namespace/bundle is specified.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin resource-quotas get options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>A bundle of the form {start-boundary}_{end_boundary}. This must be specified together with -n/--namespace.</td><td></td></tr>
@@ -2009,13 +2009,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="set-1"></a><a href="#set-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set</code></h3>
 <p>Set the resource quota for the specified namespace bundle, or default quota if no namespace/bundle is specified.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin resource-quotas <span class="hljs-built_in">set</span> options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-bi</code>, <code>--bandwidthIn</code></td><td>The expected inbound bandwidth (in bytes/second)</td><td>0</td></tr>
@@ -2030,13 +2030,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reset-namespace-bundle-quota"></a><a href="#reset-namespace-bundle-quota" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reset-namespace-bundle-quota</code></h3>
 <p>Reset the specifed namespace bundle's resource quota to a default value.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin resource-quotas reset-namespace-bundle-quota options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-b</code>, <code>--bundle</code></td><td>A bundle of the form {start-boundary}_{end_boundary}. This must be specified together with -n/--namespace.</td><td></td></tr>
@@ -2045,7 +2045,7 @@
 </table>
 <h2><a class="anchor" aria-hidden="true" id="schemas"></a><a href="#schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>schemas</code></h2>
 <p>Operations related to Schemas associated with Pulsar topics.</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs">$ pulsar-admin schemas subcommand
 </code></pre>
 <p>Subcommands</p>
@@ -2057,13 +2057,13 @@
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="upload"></a><a href="#upload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>upload</code></h3>
 <p>Upload the schema definition for a topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin schemas upload persistent://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--filename</code></td><td>The path to the schema definition file. An example schema file is available under conf directory.</td><td></td></tr>
@@ -2071,18 +2071,18 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="delete-8"></a><a href="#delete-8" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>delete</code></h3>
 <p>Delete the schema definition associated with a topic</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin schemas delete persistent://tenant/namespace/topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-5"></a><a href="#get-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Retrieve the schema definition assoicated with a topic (at a given version if version is supplied).</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin schemas get persistent://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>--version</code></td><td>The version of the schema definition to retrive for a topic.</td><td></td></tr>
@@ -2090,13 +2090,13 @@
 </table>
 <h3><a class="anchor" aria-hidden="true" id="extract"></a><a href="#extract" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>extract</code></h3>
 <p>Provide the schema definition for a topic via Java class name contained in a JAR file</p>
-<p>Usage</p>
+<p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin schemas extract persistent://tenant/namespace/topic options
 </code></pre>
-<p>Options</p>
+<p>选项</p>
 <table>
 <thead>
-<tr><th>Flag</th><th>Description</th><th>Default</th></tr>
+<tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
 <tr><td><code>-c</code>, <code>--classname</code></td><td>The Java class name</td><td></td></tr>
