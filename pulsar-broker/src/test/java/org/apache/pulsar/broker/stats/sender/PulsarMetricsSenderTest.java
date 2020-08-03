@@ -29,7 +29,8 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
         conf.setMetricsSenderEnabled(true);
-        conf.setMetricsSenderDestinationTenant("metrics");
+        conf.setMetricsSenderDestinationTenant("metrics-tenant");
+        conf.setMetricsSenderDestinationNamespace("metrics-ns");
         conf.setMetricsSenderIntervalInSeconds(3);
         internalSetup();
     }
@@ -62,8 +63,8 @@ public class PulsarMetricsSenderTest extends MockedPulsarServiceBaseTest {
 
         TopicName metricsTopic = TopicName.get(
                 "persistent",
-                NamespaceName.get(conf.getMetricsSenderDestinationTenant(), "brokers"),
-                this.pulsar.getAdvertisedAddress());
+                NamespaceName.get(conf.getMetricsSenderDestinationTenant(), conf.getMetricsSenderDestinationNamespace()),
+                "broker-" + this.pulsar.getAdvertisedAddress());
 
         Consumer<PulsarMetrics> cMetrics = pulsarClient.newConsumer(Schema.JSON(PulsarMetrics.class))
                 .topic(metricsTopic.toString())

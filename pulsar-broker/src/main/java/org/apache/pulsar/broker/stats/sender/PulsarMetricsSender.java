@@ -65,7 +65,7 @@ public class PulsarMetricsSender implements MetricsSender {
         this.metricsSenderExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-metrics-sender"));
 
         this.topicToSend = TopicName.get(
-                "persistent", NamespaceName.get(this.conf.tenant, "brokers"), this.pulsar.getAdvertisedAddress());
+                "persistent", NamespaceName.get(this.conf.tenant, this.conf.namespace), "broker-" + this.pulsar.getAdvertisedAddress());
 
         this.prepareTopics();
         this.prepareProducer();

@@ -1836,7 +1836,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_METRICS,
             doc = "Define metrics dedicated tenant to send metrics"
     )
-    private String metricsSenderDestinationTenant = "pulsar-metrics";
+    private String metricsSenderDestinationTenant = "pulsar-metrics-tenant";
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Define metrics dedicated tenant to send metrics"
+    )
+    private String metricsSenderDestinationNamespace = "pulsar-metrics-ns";
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Define metrics sending interval in seconds"
