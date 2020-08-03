@@ -600,8 +600,10 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             validateWriteOperationOnTopic(authoritative);
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
             return;
         } catch (Exception e) {
@@ -886,8 +888,10 @@ public class PersistentTopicsBase extends AdminResource {
             topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
             asyncResponse.resume(subscriptions);
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to get subscriptions for non-partitioned topic {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
             return;
         } catch (Exception e) {
@@ -1223,8 +1227,10 @@ public class PersistentTopicsBase extends AdminResource {
                 asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Subscription has active connected consumers"));
             } else if (e instanceof WebApplicationException) {
-                log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
-                        clientAppId(), topicName, e);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
                 asyncResponse.resume(e);
             } else {
                 log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, e);
@@ -1305,8 +1311,10 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
             if (e instanceof WebApplicationException) {
-                log.debug("[{}] Failed to delete subscription forcefully from topic {}, redirecting to other brokers.",
-                        clientAppId(), topicName, e);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to delete subscription forcefully from topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
                 asyncResponse.resume(e);
             } else {
                 log.error("[{}] Failed to delete subscription forcefully {} {}", clientAppId(), topicName, subName, e);
@@ -1402,8 +1410,10 @@ public class PersistentTopicsBase extends AdminResource {
                 sub.clearBacklog().whenComplete(biConsumer);
             }
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to skip all messages for subscription on topic {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to skip all messages for subscription on topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
         } catch (Exception e) {
             log.error("[{}] Failed to skip all messages for subscription {} on topic {}", clientAppId(), subName, topicName, e);
@@ -1507,8 +1517,10 @@ public class PersistentTopicsBase extends AdminResource {
 
             topic = (PersistentTopic) getTopicReference(topicName);
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to expire messages for all subscription on topic {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to expire messages for all subscription on topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
             return;
         } catch (Exception e) {
@@ -1791,8 +1803,10 @@ public class PersistentTopicsBase extends AdminResource {
                 asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Unable to find position for position specified: " + t.getMessage()));
             } else if (e instanceof WebApplicationException) {
-                log.debug("[{}] [{}] Failed to create subscription {} at message id {}, redirecting to other brokers.", clientAppId(), topicName,
-                        subscriptionName, targetMessageId, e);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Failed to create subscription {} at message id {}, redirecting to other brokers.", clientAppId(), topicName,
+                            subscriptionName, targetMessageId, e);
+                }
                 asyncResponse.resume(e);
             } else if (t instanceof SubscriptionBusyException) {
                 asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
@@ -2732,8 +2746,10 @@ public class PersistentTopicsBase extends AdminResource {
             validateReadOperationOnTopic(authoritative);
             topic = getTopicReference(topicName);
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
             return;
         } catch (Exception e) {
