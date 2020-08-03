@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +34,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.annotations.AfterClass;
@@ -270,5 +273,46 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(receivedMsgs.contains("msg-" + i));
         }
         t.interrupt();
+    }
+
+    @Test
+    public void testOrderingDispatch() throws PulsarClientException {
+        String topic = "persistent://public/default/testOrderingDispatch-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        final int N = 1000;
+
+        for (int i = 0; i < N; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        List<Message<String>> receives = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            Message<String> received = consumer.receive();
+            receives.add(received);
+            consumer.acknowledge(received);
+        }
+
+        assertEquals(receives.size(), N);
+
+        for (int i = 0; i < N; i++) {
+            if (i < N - 1) {
+                assertTrue(receives.get(i).getMessageId().compareTo(receives.get(i + 1).getMessageId()) < 0);
+            }
+        }
     }
 }
