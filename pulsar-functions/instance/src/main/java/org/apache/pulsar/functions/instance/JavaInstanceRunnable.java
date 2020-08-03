@@ -70,6 +70,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
@@ -762,9 +763,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
             object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
         } else {
-            object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
-                    this.functionClassLoader);
+
+            // check if source is a batch source
+            if (sourceSpec.getClassName().equals(BatchSourceExecutor.class.getName())) {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.instanceClassLoader);
+            } else {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.functionClassLoader);
+            }
         }
 
         Class<?>[] typeArgs;
