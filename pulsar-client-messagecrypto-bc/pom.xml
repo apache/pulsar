@@ -45,6 +45,7 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.parent.version}</version>
+      <classifier>pkg</classifier>
     </dependency>
 
   </dependencies>
