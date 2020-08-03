@@ -650,8 +650,8 @@ public class PulsarService implements AutoCloseable {
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
 
-            LOG.info("Starting Metrics Sender");
             if (config.isMetricsSenderEnabled() && this.metricsSender != null) {
+                LOG.info("Starting Metrics Sender");
                 this.metricsSender.start();
             }
 
