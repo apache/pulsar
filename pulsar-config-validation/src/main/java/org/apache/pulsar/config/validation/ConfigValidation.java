@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;
+
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -25,15 +26,19 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-
 /**
  * The class that does the validation of all the members of a given object.
  */
-@Slf4j
 public class ConfigValidation {
 
-    public static void validateConfig(Object config) {
+    private static final Class DEFAULT_ANNOTATION_CLASS = ConfigValidationAnnotations.class;
+
+    /**
+     * Validate the config object with annotations from annotationClass
+     * @param config config object
+     * @param annotationClass class with annotations to use
+     */
+    public static void validateConfig(Object config, Class annotationClass) {
         for (Field field : config.getClass().getDeclaredFields()) {
             Object value = null;
             field.setAccessible(true);
@@ -42,25 +47,33 @@ public class ConfigValidation {
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
-            validateField(field, value);
+            validateField(field, value, annotationClass);
         }
-        validateClass(config);
+        validateClass(config, annotationClass);
     }
 
-    private static void validateClass(Object config) {
-        processAnnotations(config.getClass().getAnnotations(), config.getClass().getName(), config);
+    /**
+     * Validate the config object with default annotation class
+     * @param config config object
+     */
+    public static void validateConfig(Object config) {
+        validateConfig(config, DEFAULT_ANNOTATION_CLASS);
     }
 
-    private static void validateField(Field field, Object value) {
-        processAnnotations(field.getAnnotations(), field.getName(), value);
+    private static void validateClass(Object config, Class annotationClass) {
+        processAnnotations(config.getClass().getAnnotations(), config.getClass().getName(), config, annotationClass);
     }
 
-    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value) {
+    private static void validateField(Field field, Object value, Class annotationClass) {
+        processAnnotations(field.getAnnotations(), field.getName(), value, annotationClass);
+    }
+
+    private static void processAnnotations(Annotation[] annotations, String fieldName, Object value, Class annotationClass) {
         try {
             for (Annotation annotation : annotations) {
                 String type = annotation.annotationType().getName();
                 Class<?> validatorClass = null;
-                Class<?>[] classes = ConfigValidationAnnotations.class.getDeclaredClasses();
+                Class<?>[] classes = annotationClass.getDeclaredClasses();
                 //check if annotation is one of our
                 for (Class<?> clazz : classes) {
                     if (clazz.getName().equals(type)) {
