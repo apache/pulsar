@@ -1433,4 +1433,47 @@ public interface Topics {
      *             Unexpected error
      */
     void removeBacklogQuota(String topic) throws PulsarAdminException;
+
+    /**
+     * Set message TTL for a topic.
+     *
+     * @param topic
+     *          Topic name
+     * @param messageTTLInSecond
+     *          Message TTL in second.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMessageTTL(String topic, int messageTTLInSecond) throws PulsarAdminException;
+
+    /**
+     * Get message TTL for a topic.
+     *
+     * @param topic
+     * @return Message TTL in second.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove message TTL for a topic.
+     *
+     * @param topic
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeMessageTTL(String topic) throws PulsarAdminException;
 }

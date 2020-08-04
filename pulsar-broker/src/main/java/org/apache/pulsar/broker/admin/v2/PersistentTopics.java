@@ -1032,6 +1032,53 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Get message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry")})
+    public int getMessageTTL(@PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return getTopicPolicies(topicName)
+                .map(TopicPolicies::getMessageTTLInSeconds)
+                .orElse(0);  //same as default ttl at namespace level
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+                            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void setMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+                              @QueryParam("messageTTL") int messageTTL) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, messageTTL);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void removeMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, null);
+    }
+
     @POST
     @Path("/{tenant}/{namespace}/{topic}/terminate")
     @ApiOperation(value = "Terminate a topic. A topic that is terminated will not accept any more "

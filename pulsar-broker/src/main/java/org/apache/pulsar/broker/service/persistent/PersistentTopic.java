@@ -112,6 +112,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -1065,7 +1066,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return future;
         }
 
-        final int newMessageTTLinSeconds = policies.message_ttl_in_seconds;
+        //Ignore current broker's config for messageTTL for replication.
+        final int newMessageTTLinSeconds = getMessageTTL(getTopicPolicies(name), policies, -1);
 
         Set<String> configuredClusters;
         if (policies.replication_clusters != null) {
@@ -1122,8 +1124,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     .get(AdminResource.path(POLICIES, name.getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             int defaultTTL = brokerService.pulsar().getConfiguration().getTtlDurationDefaultInSeconds();
-            int message_ttl_in_seconds = (policies.message_ttl_in_seconds <= 0 && defaultTTL > 0) ? defaultTTL
-                    : policies.message_ttl_in_seconds;
+            TopicPolicies topicPolicies = getTopicPolicies(name);
+            //If topic level policy or message ttl is not set, fall back to namespace level config.
+            int message_ttl_in_seconds = getMessageTTL(topicPolicies, policies, defaultTTL);
+
             if (message_ttl_in_seconds != 0) {
                 subscriptions.forEach((subName, sub) -> sub.expireMessages(message_ttl_in_seconds));
                 replicators.forEach((region, replicator) -> ((PersistentReplicator)replicator).expireMessages(message_ttl_in_seconds));
@@ -2106,6 +2110,37 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return OffloadProcessStatus.forError(e.getMessage());
             }
         }
+    }
+
+    /**
+     * Get {@link TopicPolicies} for this topic.
+     * @param topicName
+     * @return TopicPolicies is exist else return null.
+     */
+    private TopicPolicies getTopicPolicies(TopicName topicName) {
+        try {
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            return null;
+        }
+    }
+
+    /**
+     * Get message TTL for this topic.
+     * @param topicPolicies TopicPolicies
+     * @param policies      NameSpace policy
+     * @param brokerDefaultMessageTTL
+     * @return Message TTL in second.
+     */
+    private int getMessageTTL(TopicPolicies topicPolicies, Policies policies, int brokerDefaultMessageTTL) {
+        //Return Topic level message TTL if exist. If topic level policy or message ttl is not set,
+        //fall back to namespace level message ttl then message ttl set for current broker.
+        return (topicPolicies == null || topicPolicies.getMessageTTLInSeconds() == null) ?
+                ((policies.message_ttl_in_seconds <= 0 && brokerDefaultMessageTTL > 0) ?
+                        brokerDefaultMessageTTL :
+                        policies.message_ttl_in_seconds) :
+                topicPolicies.getMessageTTLInSeconds();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
