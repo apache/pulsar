@@ -363,8 +363,6 @@ The `getUserConfigValueOrDefault` API gets a user-defined key/value or a default
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
 ```
 
-### Example
-
 This example demonstrates how to access key/value pairs provided to Pulsar window functions.
 
 Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON). 
@@ -439,9 +437,9 @@ public class PublishWindowFunction implements WindowFunction<String, Void> {
 
 ## State storage
 
-Pulsar window functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. StreamNative Platform installation (including the standalone installation) includes the deployment of BookKeeper bookies.
+Pulsar window functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Apache Pulsar installation (including the standalone installation) includes the deployment of BookKeeper bookies.
 
-StreamNative Platform integrates with Apache BookKeeper `table service` to store the `state` for functions. For example, the `WordCount` function can store its `counters` state into BookKeeper table service via Pulsar Functions state APIs.
+Apache Pulsar integrates with Apache BookKeeper `table service` to store the `state` for functions. For example, the `WordCount` function can store its `counters` state into BookKeeper table service via Pulsar Functions state APIs.
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data—counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function and shared between instances of that function.
 
@@ -474,7 +472,7 @@ Applications use the `incrCounter` API to change the counter of a given `key` by
 
 The `getCounter` API gets the counter value for the key.
 
-Applications can use the `getCounter` API to retrieve the counter of a given `key` changed by the `incrCounter` API.
+Applications uses the `getCounter` API to retrieve the counter of a given `key` changed by the `incrCounter` API.
 
 ```java
     /**
@@ -501,8 +499,6 @@ The `putState` API updates the state value for the key.
      */
     void putState(String key, ByteBuffer value);
 ```
-
-### Example
 
 This example demonstrates how applications store states in Pulsar window functions.
 
