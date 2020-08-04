@@ -613,10 +613,6 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
-            if (config.isMetricsSenderEnabled()) {
-                this.metricsSender = new PulsarMetricsSender(this, new MetricsSenderConfiguration(this.config));
-            }
-
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
             // to be done only when the broker is fully operative.
@@ -650,8 +646,9 @@ public class PulsarService implements AutoCloseable {
             LOG.info("messaging service is ready, {}, cluster={}, configs={}", bootstrapMessage,
                     config.getClusterName(), ReflectionToStringBuilder.toString(config));
 
-            if (config.isMetricsSenderEnabled() && this.metricsSender != null) {
+            if (config.isMetricsSenderEnabled()) {
                 LOG.info("Starting Metrics Sender");
+                this.metricsSender = new PulsarMetricsSender(this, new MetricsSenderConfiguration(this.config));
                 this.metricsSender.start();
             }
 
