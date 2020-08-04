@@ -7,6 +7,95 @@
 
 * [IO] If Function Authorization is enabled, users have to be given the source/sink entitlement to run them. See https://github.com/apache/pulsar/pull/7466
 
+### 2.6.1 &mdash; 2020-08-17 <a id=“2.6.1”></a>
+
+#### Fixes and Enhancements
+
+##### Broker
+
+- [Broker] Limiting batch size to the minimum of the maxNumberOfMessages and maxSizeOfMessages https://github.com/apache/pulsar/pull/6865
+- [Broker] Fix hash range conflict issue in Key_Shared with sticky hash range https://github.com/apache/pulsar/pull/7231
+- [Broker] Fix get lookup permission error https://github.com/apache/pulsar/pull/7234
+- [Broker] Update Jetty to 9.4.29 https://github.com/apache/pulsar/pull/7235
+- [Broker] Fixed readers backlog stats after data is skipped https://github.com/apache/pulsar/pull/7236
+- [Broker] Fix the regression in isSupperUser https://github.com/apache/pulsar/pull/7241
+- [Broker] Avoid introduce null read position for the managed cursor https://github.com/apache/pulsar/pull/7264
+- [Broker] Fix permission operation check on setRetention admin operation https://github.com/apache/pulsar/pull/7281
+- [Broker] Handling error in creation of non-durable cursor https://github.com/apache/pulsar/pull/7355
+- [Broker] Fix bug related to managedLedger properties https://github.com/apache/pulsar/pull/7357
+- [Broker] Add tenant name check in list namespaces function https://github.com/apache/pulsar/pull/7369
+- [Broker] Avoid the NPE occurs in method `ManagedLedgerImpl.isOffloadedNeedsDelete` https://github.com/apache/pulsar/pull/7389
+- [Broker] Fix producer stuck issue due to NPE thrown when creating a new ledger https://github.com/apache/pulsar/pull/7401
+- [Broker] Avoid NPEs at ledger creation when DNS failures happen https://github.com/apache/pulsar/pull/7403
+- [Broker] Decompression payload if needed in KeyShared subscription https://github.com/apache/pulsar/pull/7416
+- [Broker] Fix update-cluster cli updates proxy-url https://github.com/apache/pulsar/pull/7422
+- [Broker] Handle NotAllowed Exception at the client side https://github.com/apache/pulsar/pull/7430
+- [Broker] Shaded jclouds to avoid gson conflict https://github.com/apache/pulsar/pull/7435
+- [Broker] Consumer is registered on dispatcher even if hash range conflicts on Key_Shared subscription https://github.com/apache/pulsar/pull/7444
+- [Broker] Add pulsar-client-messagecrypto-bc into pulsar-client dependency to avoid method not found https://github.com/apache/pulsar/pull/7447
+- [Broker] Fix update partitions error for non-persistent topic https://github.com/apache/pulsar/pull/7459
+- [Broker] Use CGroup CPU usage when present https://github.com/apache/pulsar/pull/7475
+- [Broker] Fix ArrayIndexOutOfBoundsException when dispatch messages to consumer https://github.com/apache/pulsar/pull/7483
+- [Broker] Get last entry is trying to read entry -1 https://github.com/apache/pulsar/pull/7495
+- [Broker] Timeout opening managed ledger operation https://github.com/apache/pulsar/pull/7506
+- [Broker] Fixes #7512 handle exception occurred when the geo-replication policy is updated https://github.com/apache/pulsar/pull/7514
+- [Broker] Update Jackson to 2.11.1 and ensure all dependencies are pinned https://github.com/apache/pulsar/pull/7519
+- [Broker] Fix protobuf generation on handling repeated long number https://github.com/apache/pulsar/pull/7540
+- [Broker] Add more logging to the auth operations on failure https://github.com/apache/pulsar/pull/7567
+- [Broker] Use Consume/Produce/Lookup interfaces for specific operations in allowTopicOperation https://github.com/apache/pulsar/pull/7587
+- [Broker] Support configuring DeleteInactiveTopic setting in namespace policy https://github.com/apache/pulsar/pull/7598
+- [Broker] Fix NPE when using advertisedListeners https://github.com/apache/pulsar/pull/7620
+- [Broker] Fix deduplication cursor does not delete after disabling message deduplication https://github.com/apache/pulsar/pull/7656
+- [Broker] Add missing AuthenticationDataSource to canConsumeAsync method call https://github.com/apache/pulsar/pull/7694
+- [Broker] Close the previous reader of the health check topic https://github.com/apache/pulsar/pull/7724
+- [Broker] Change some WebApplicationException log level to debug https://github.com/apache/pulsar/pull/7725
+
+##### Zookeeper
+
+- [Zookeeper] Use hostname for bookie rackawareness mapping https://github.com/apache/pulsar/pull/7361
+
+##### Java Client
+
+- [Java Client] Fix issue where HTTP header used in Athenz authentication can not be renamed https://github.com/apache/pulsar/pull/7311
+- [Java Client] Add more detail information of retry errors https://github.com/apache/pulsar/pull/7341
+- [Java Client] Support for tombstones (null value in messages) does not work https://github.com/apache/pulsar/pull/7408
+- [Java Client] Fix batch ackset recycled multiple times. https://github.com/apache/pulsar/pull/7409
+- [Java Client] Add authentication client with oauth2 support https://github.com/apache/pulsar/pull/7420
+- [Java Client] Ensure the create subscription can be completed when the operation timeout happens https://github.com/apache/pulsar/pull/7522
+- [Java Client] Don't try to subscribe to the topic if the consumer is closed https://github.com/apache/pulsar/pull/7589
+- [Java Client] Fix validation never return false https://github.com/apache/pulsar/pull/7593
+- [Java Client] Make OAuth2 auth plugin to use AsyncHttpClient https://github.com/apache/pulsar/pull/7615
+- [Java Client] Support to set listener name for client cli https://github.com/apache/pulsar/pull/7621
+- [Java Client] Fix batch index filter issue in Consumer https://github.com/apache/pulsar/pull/7654
+- [Java Client] Fix backward compatibility issues with batch index acknowledgment. https://github.com/apache/pulsar/pull/7655
+- [Java Client] Fix batchReceiveAsync not completed exceptionally when closing Consumer  https://github.com/apache/pulsar/pull/7661
+- [Java Client] Fix producer stats recorder time unit error https://github.com/apache/pulsar/pull/7670
+- [Java Client] Fix shutdown AsyncHttpConnector.delayer https://github.com/apache/pulsar/pull/7687
+
+##### CPP Client
+
+- [CPP Client] Fix partition index error in close callback https://github.com/apache/pulsar/pull/7282
+- [CPP Client] Reduce log level for ack-grouping tracker https://github.com/apache/pulsar/pull/7373
+- [CPP Client] Cpp oauth2 auth client https://github.com/apache/pulsar/pull/7467
+- [CPP Client] Fix segment crashes that caused by race condition of timer in cpp client https://github.com/apache/pulsar/pull/7572
+- [CPP Client] Fix multitopic consumer segfault on connect error https://github.com/apache/pulsar/pull/7588
+- [CPP Client] Add support to read credentials from file https://github.com/apache/pulsar/pull/7606
+
+##### Pulsar Functions
+
+- [Pulsar Function] Use fully qualified hostname as default to advertise worker https://github.com/apache/pulsar/pull/7360
+- [Pulsar Function] Fix: function BC issue introduced in 2.6 https://github.com/apache/pulsar/pull/7528
+- [Pulsar Functions] Improve security setting of Pulsar Functions https://github.com/apache/pulsar/pull/7578
+
+##### Go Function
+
+- [Go Function] Fixing go instance config port https://github.com/apache/pulsar/pull/7322
+- [Go Function] Remove timestamp from metrics https://github.com/apache/pulsar/pull/7539
+
+##### Pulsar Perf
+
+- [Pulsar Perf] Supports `tlsAllowInsecureConnection` in pulsar-perf produce/consume/read https://github.com/apache/pulsar/pull/7300
+
 ### 2.6.0 &mdash; 2020-06-17 <a id=“2.6.0”></a>
 
 #### Features
