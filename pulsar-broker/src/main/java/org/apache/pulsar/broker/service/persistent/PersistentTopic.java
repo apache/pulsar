@@ -2279,10 +2279,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         getTransactionBuffer(false).thenAccept(tb -> {
-            tb.endTxnOnPartition(command).whenComplete((ignored, throwable) -> {
+            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     completableFuture.completeExceptionally(throwable);
                     return;

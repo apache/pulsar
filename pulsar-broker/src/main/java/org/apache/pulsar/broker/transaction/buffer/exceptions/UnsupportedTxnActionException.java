@@ -28,7 +28,7 @@ public class UnsupportedTxnActionException extends TransactionBufferException {
 
     private static final long serialVersionUID = 0L;
 
-    public UnsupportedTxnActionException(TxnID txnId, PulsarApi.TxnAction txnAction) {
-        super("Transaction `" + txnId + "` receive unsupported txnAction " + txnAction);
+    public UnsupportedTxnActionException(TxnID txnId, int txnAction) {
+        super("Transaction `" + txnId + "` receive unsupported txnAction " + PulsarApi.TxnAction.valueOf(txnAction));
     }
 }

@@ -1681,15 +1681,16 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleEndTxn(PulsarApi.CommandEndTxn command) {
         final long requestId = command.getRequestId();
-        final long mostBits = command.getTxnidMostBits();
-        final long leastBits = command.getTxnidLeastBits();
+        final int txnAction = command.getTxnAction().getNumber();
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
-        service.pulsar().getTransactionMetadataStoreService().endTransaction(command)
+        service.pulsar().getTransactionMetadataStoreService().endTransaction(txnID, txnAction)
             .thenRun(() -> {
-                ctx.writeAndFlush(Commands.newEndTxnResponse(requestId, leastBits, mostBits));
+                ctx.writeAndFlush(Commands.newEndTxnResponse(requestId,
+                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
             }).exceptionally(throwable -> {
                 log.error("Send response error for end txn request.", throwable);
-                ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), mostBits,
+                ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
                         BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
                 return null;
         });
@@ -1698,8 +1699,8 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleEndTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
         final long requestId = command.getRequestId();
-        final long mostBits = command.getTxnidMostBits();
-        final long leastBits = command.getTxnidLeastBits();
+        final int txnAction = command.getTxnAction().getNumber();
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
         service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
             if (!topic.isPresent()) {
@@ -1708,15 +1709,17 @@ public class ServerCnx extends PulsarHandler {
                         "Topic " + command.getTopic() + " is not found."));
                 return;
             }
-            topic.get().endTxnOnPartitionWithTB(command).whenComplete((ignored, throwable) -> {
-                if (throwable != null) {
-                    log.error("Handle endTxnOnPartition {} failed.", command.getTopic(), throwable);
-                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                            requestId, ServerError.UnknownError, throwable.getMessage()));
-                    return;
-                }
-                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId, leastBits, mostBits));
-            });
+            topic.get().endTxn(txnID, txnAction)
+                .whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Handle endTxnOnPartition {} failed.", command.getTopic(), throwable);
+                        ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                requestId, ServerError.UnknownError, throwable.getMessage()));
+                        return;
+                    }
+                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                            txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                });
         });
     }
 

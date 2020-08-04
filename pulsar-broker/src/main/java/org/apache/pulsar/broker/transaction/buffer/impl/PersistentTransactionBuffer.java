@@ -143,16 +143,15 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
         return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartitionWithTB in PersistentTransactionBuffer."));
+                new Exception("Unsupported operation endTxn in PersistentTransactionBuffer."));
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
+    public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
-        if (PulsarApi.TxnAction.COMMIT_VALUE == command.getTxnAction().getNumber()) {
+        if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
             committingTxn(txnID).whenComplete((ignored, throwable) -> {
                 if (throwable != null) {
                     completableFuture.completeExceptionally(throwable);
@@ -160,7 +159,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                 }
                 completableFuture.complete(null);
             });
-        } else if (PulsarApi.TxnAction.ABORT_VALUE == command.getTxnAction().getNumber()) {
+        } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
             // TODO handle abort operation
             completableFuture.completeExceptionally(new Exception("Unsupported operation."));
         }

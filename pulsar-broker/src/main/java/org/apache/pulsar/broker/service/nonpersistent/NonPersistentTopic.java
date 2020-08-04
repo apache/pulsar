@@ -981,8 +981,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command) {
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
         return FutureUtil.failedFuture(
-                new Exception("Unsupported operation endTxnOnPartitionWithTB in non-persistent topic."));
+                new Exception("Unsupported operation endTxn in non-persistent topic."));
     }
 }

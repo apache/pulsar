@@ -243,6 +243,13 @@ public interface Topic {
      */
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
 
-    CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command);
+    /**
+     * End the transaction in this topic.
+     *
+     * @param txnID Transaction id
+     * @param txnAction Transaction action.
+     * @return
+     */
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction);
 
 }
