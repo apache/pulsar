@@ -1566,7 +1566,40 @@ public interface Topics {
      * <p/>
      * Get the retention configuration for a topic.
      * <p/>
-     * Response example:
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
+
+    /**
+     * Remove the retention configuration for all the topics on a topic.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeRetention(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the retention configuration for all the topics on a topic asynchronously.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
      * <p/>
      *
      * <pre>
@@ -1581,6 +1614,5 @@ public interface Topics {
      * @param topic
      *            Topic name
      */
-    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
-
+    CompletableFuture<Void> removeRetentionAsync(String topic);
 }

@@ -204,17 +204,39 @@ public class TopicTopicPoliciesQuotaTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetRetention() throws Exception {
+        RetentionPolicies retention = new RetentionPolicies(60, 1024);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
 
-        RetentionPolicies retentionPolicies = new RetentionPolicies();
-        log.info("Retention: {} will set to the topic: {}", retentionPolicies, testTopic);
-
-        admin.topics().setRetention(testTopic, retentionPolicies);
+        admin.topics().setRetention(testTopic, retention);
         log.info("Retention set success on topic: {}", testTopic);
 
         Thread.sleep(3000);
         RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
         log.info("Retention {} get on topic: {}", getRetention, testTopic);
-        Assert.assertEquals(getRetention, retentionPolicies);
+        Assert.assertEquals(getRetention, retention);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveRetention() throws Exception {
+
+        RetentionPolicies retention = new RetentionPolicies(60, 1024);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+
+        admin.topics().setRetention(testTopic, retention);
+        log.info("Retention set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
+        log.info("Retention {} get on topic: {}", getRetention, testTopic);
+        Assert.assertEquals(getRetention, retention);
+
+        admin.topics().removeRetention(testTopic);
+        Thread.sleep(3000);
+        log.info("Retention {} get on topic: {} after remove", getRetention, testTopic);
+        getRetention = admin.topics().getRetention(testTopic);
+        Assert.assertNull(getRetention);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }

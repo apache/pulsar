@@ -2175,8 +2175,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalSetRetention(AsyncResponse asyncResponse,
-            RetentionPolicies retention){
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
+            RetentionPolicies retention) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
@@ -2206,16 +2205,44 @@ public class PersistentTopicsBase extends AdminResource {
         pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
                 .whenComplete((r, ex) -> {
                     if (ex != null) {
-                        log.error("Failed updated backlog quota map",ex);
+                        log.error("Failed updated retention",ex);
                         asyncResponse.resume(new RestException(ex));
                     } else {
                         try {
-                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, retention={}",
+                            log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
                                     clientAppId(),
                                     namespaceName,
                                     topicName.getLocalName(),
                                     jsonMapper().writeValueAsString(retention));
                         } catch (JsonProcessingException ignore) { }
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+    }
+
+    protected void internalRemoveRetention(AsyncResponse asyncResponse) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        checkTopicLevelPolicyEnable();
+        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
+        if (!topicPolicies.isPresent()) {
+            asyncResponse.resume(Response.noContent().build());
+            return;
+        }
+        topicPolicies.get().setRetentionPolicies(null);
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get())
+                .whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed updated retention",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        log.info("[{}] Successfully remove retention: namespace={}, topic={}",
+                                clientAppId(),
+                                namespaceName,
+                                topicName.getLocalName());
                         asyncResponse.resume(Response.noContent().build());
                     }
                 });

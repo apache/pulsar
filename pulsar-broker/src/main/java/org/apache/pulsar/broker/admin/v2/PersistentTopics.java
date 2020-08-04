@@ -1103,7 +1103,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @ApiOperation(value = " Set retention configuration on a topic.")
+    @ApiOperation(value = "Set retention configuration on a topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -1117,6 +1117,28 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
             internalSetRetention(asyncResponse, retention);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/retention")
+    @ApiOperation(value = "Remove retention configuration on a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
+    public void removeRetention(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            internalRemoveRetention(asyncResponse);
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {

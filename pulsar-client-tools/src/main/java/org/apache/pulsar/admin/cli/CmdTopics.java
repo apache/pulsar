@@ -110,6 +110,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
+        jcommander.addCommand("remove-retention", new RemoveRetention());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -977,6 +978,18 @@ public class CmdTopics extends CmdBase {
                 retentionSizeInMB = -1;
             }
             admin.topics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the retention policy for a topic")
+    private class RemoveRetention extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeRetention(persistentTopic);
         }
     }
 }
