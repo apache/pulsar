@@ -152,7 +152,7 @@ properties:
   saslJaasBrokerSectionName: Broker
 ```
 
-For *Token Authentication* prodivder, add necessary settings under `properties` if needed.
+For *Token Authentication* provider, add necessary settings under `properties` if needed.
 See [Token Authentication](security-jwt.md) for more details.
 ```
 properties:
