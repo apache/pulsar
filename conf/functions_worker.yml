@@ -235,3 +235,6 @@ tlsCertRefreshCheckDurationSec: 300
 
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
+
+# Should connector config be validated during during submission
+#validateConnectorConfig: true
