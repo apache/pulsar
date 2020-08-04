@@ -92,70 +92,70 @@
 <li><a href="#zookeeper">ZooKeeper</a></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
-<p>BookKeeper is a replicated log storage system that Pulsar uses for durable storage of all messages.</p>
+<p>BookKeeper 是一个冗余的日志存储系统，Pulsar 用它来持久化存储所有消息。</p>
 <table>
 <thead>
 <tr><th>Name</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td>bookiePort</td><td>The port on which the bookie server listens.</td><td>3181</td></tr>
-<tr><td>allowLoopback</td><td>Whether the bookie is allowed to use a loopback interface as its primary interface (i.e. the interface used to establish its identity). By default, loopback interfaces are not allowed as the primary interface. Using a loopback interface as the primary interface usually indicates a configuration error. For example, it’s fairly common in some VPS setups to not configure a hostname or to have the hostname resolve to <code>127.0.0.1</code>. If this is the case, then all bookies in the cluster will establish their identities as <code>127.0.0.1:3181</code> and only one will be able to join the cluster. For VPSs configured like this, you should explicitly set the listening interface.</td><td>false</td></tr>
+<tr><td>bookiePort</td><td>bookie 服务器监听的端口。</td><td>3181</td></tr>
+<tr><td>allowLoopback</td><td>是否允许 bookie 使用 loopback 接口作为它的主要接口（例如，用于确立身份的接口）。 默认情况下，loopback 接口不允许作为主接口。 使用 loopback 接口作为主接口通常意味着配置错误。 例如，在某些 VPS 设置中，通常不会配置主机名或使主机名解析为 <code>127.0.0.1</code>。 如果情况如此，那么集群中的所有 bookie 都会将其身份设置为 <code>127.0.0.1:3181</code> 并且只有一个能成功加入集群。 对于像这样配置的 VPS，你应该显性地设置监听接口。</td><td>false</td></tr>
 <tr><td>listeningInterface</td><td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.</td><td>eth0</td></tr>
-<tr><td>journalDirectory</td><td>The directory where Bookkeeper outputs its write-ahead log (WAL)</td><td>data/bookkeeper/journal</td></tr>
-<tr><td>ledgerDirectories</td><td>The directory where Bookkeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by comma, for example <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>. Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.</td><td>data/bookkeeper/ledgers</td></tr>
-<tr><td>ledgerManagerType</td><td>The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> for more info.</td><td>hierarchical</td></tr>
+<tr><td>journalDirectory</td><td>BookKeeper 输出 write-ahead 日志（WAL）的目录</td><td>data/bookkeeper/journal</td></tr>
+<tr><td>ledgerDirectories</td><td>BookKeeper 输出 ledger 快照的目录。 这可以定义多个目录来存储以逗号分隔的快照，比如 <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>。 最理想的情况是，ledger 目录和日志目录都是在不同的设备中，这减少了随机读写和顺序写入之间的争执。 可以用单个磁盘运行，但性能将显著降低。</td><td>data/bookkeeper/ledgers</td></tr>
+<tr><td>ledgerManagerType</td><td>用于管理 ledger 如何存储、管理与垃圾收集的 ledger 管理器类型。 查看 <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> 获取更多信息。</td><td>hierarchical</td></tr>
 <tr><td>zkLedgersRootPath</td><td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.</td><td>/ledgers</td></tr>
-<tr><td>ledgerStorageClass</td><td>Ledger storage implementation class</td><td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td></tr>
-<tr><td>entryLogFilePreallocationEnabled</td><td>Enable or disable entry logger preallocation</td><td>true</td></tr>
+<tr><td>ledgerStorageClass</td><td>Ledger 存储实现类</td><td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td></tr>
+<tr><td>entryLogFilePreallocationEnabled</td><td>启用或禁用条目日志记录器预分配</td><td>true</td></tr>
 <tr><td>logSizeLimit</td><td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.</td><td>2147483648</td></tr>
-<tr><td>minorCompactionThreshold</td><td>Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.</td><td>0.2</td></tr>
-<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled.</td><td>3600</td></tr>
-<tr><td>majorCompactionThreshold</td><td>The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.</td><td>0.5</td></tr>
+<tr><td>minorCompactionThreshold</td><td>次级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在次级压缩中被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.2</td></tr>
+<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. 如果设置为零，次级压缩将被禁用。</td><td>3600</td></tr>
+<tr><td>majorCompactionThreshold</td><td>首级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在首级压缩中被压缩。 剩余大小百分比仍高于阈值的条目日志文件永远不会被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.5</td></tr>
 <tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled.</td><td>86400</td></tr>
-<tr><td>compactionMaxOutstandingRequests</td><td>Sets the maximum number of entries that can be compacted without flushing. When compacting, the entries are written to the entrylog and the new offsets are cached in memory. Once the entrylog is flushed the index is updated with the new offsets. This parameter controls the number of entries added to the entrylog before a flush is forced. A higher value for this parameter means more memory will be used for offsets. Each offset consists of 3 longs. This parameter should not be modified unless you’re fully aware of the consequences.</td><td>100000</td></tr>
-<tr><td>compactionRate</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
-<tr><td>isThrottleByBytes</td><td>Throttle compaction by bytes or by entries.</td><td>false</td></tr>
-<tr><td>compactionRateByEntries</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
+<tr><td>compactionMaxOutstandingRequests</td><td>设置压缩过程中无需刷写的最大条目数。 在压缩时，条目被写入条目日志，新的偏移被缓存在内存中。 一旦条目日志被刷写，索引将被新的偏移量更新。 此参数控制在强制刷写之前添加到条目日志的条目数量。 此参数的值越狱高意味着将有更多内存用于偏移量。 每个偏移量由三个 long 型组成。 此参数不应被修改，除非你完全了解其后果。</td><td>100000</td></tr>
+<tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
+<tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
+<tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
 <tr><td>compactionRateByBytes</td><td>Set the rate at which compaction will readd entries. The unit is bytes added per second.</td><td>1000000</td></tr>
 <tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
 <tr><td>journalMaxBackups</td><td>The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
-<tr><td>journalPreAllocSizeMB</td><td>How space to pre-allocate at a time in the journal.</td><td>16</td></tr>
-<tr><td>journalWriteBufferSizeKB</td><td>The of the write buffers used for the journal.</td><td>64</td></tr>
-<tr><td>journalRemoveFromPageCache</td><td>Whether pages should be removed from the page cache after force write.</td><td>true</td></tr>
-<tr><td>journalAdaptiveGroupWrites</td><td>Whether to group journal force writes, which optimizes group commit for higher throughput.</td><td>true</td></tr>
-<tr><td>journalMaxGroupWaitMSec</td><td>The maximum latency to impose on a journal write to achieve grouping.</td><td>1</td></tr>
-<tr><td>journalAlignmentSize</td><td>All the journal writes and commits should be aligned to given size</td><td>4096</td></tr>
-<tr><td>journalBufferedWritesThreshold</td><td>Maximum writes to buffer to achieve grouping</td><td>524288</td></tr>
-<tr><td>journalFlushWhenQueueEmpty</td><td>If we should flush the journal when journal queue is empty</td><td>false</td></tr>
-<tr><td>numJournalCallbackThreads</td><td>The number of threads that should handle journal callbacks</td><td>8</td></tr>
-<tr><td>rereplicationEntryBatchSize</td><td>The number of max entries to keep in fragment for re-replication</td><td>5000</td></tr>
-<tr><td>gcWaitTime</td><td>How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.</td><td>900000</td></tr>
-<tr><td>gcOverreplicatedLedgerWaitTime</td><td>How long the interval to trigger next garbage collection of overreplicated ledgers, in milliseconds. This should not be run very frequently since we read the metadata for all the ledgers on the bookie from zk.</td><td>86400000</td></tr>
-<tr><td>flushInterval</td><td>How long the interval to flush ledger index pages to disk, in milliseconds. Flushing index files will introduce much random disk I/O. If separating journal dir and ledger dirs each on different devices, flushing would not affect performance. But if putting journal dir and ledger dirs on same device, performance degrade significantly on too frequent flushing. You can consider increment flush interval to get better performance, but you need to pay more time on bookie server restart after failure.</td><td>60000</td></tr>
-<tr><td>bookieDeathWatchInterval</td><td>Interval to watch whether bookie is dead or not, in milliseconds</td><td>1000</td></tr>
+<tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
+<tr><td>journalWriteBufferSizeKB</td><td>日志使用的写缓冲区大小。</td><td>64</td></tr>
+<tr><td>journalRemoveFromPageCache</td><td>强制写入后，页是否应从页缓存中删除。</td><td>true</td></tr>
+<tr><td>journalAdaptiveGroupWrites</td><td>是否将日志的强制写入进行分组，这能优化分组提交获得更高吞吐量。</td><td>true</td></tr>
+<tr><td>journalMaxGroupWaitMSec</td><td>实现分组写入日志的最大延迟。</td><td>1</td></tr>
+<tr><td>journalAlignmentSize</td><td>所有日志的写入和提交应与给定的大小对齐</td><td>4096</td></tr>
+<tr><td>journalBufferedWritesThreshold</td><td>要实现分组的最大写入缓存</td><td>524288</td></tr>
+<tr><td>journalFlushWhenQueueEmpty</td><td>是否在日志队列为空时刷写日志</td><td>false</td></tr>
+<tr><td>numJournalCallbackThreads</td><td>处理日志回调的线程数</td><td>8</td></tr>
+<tr><td>rereplicationEntryBatchSize</td><td>重复制时在 fragment 中保存的最大条目数</td><td>5000</td></tr>
+<tr><td>gcWaitTime</td><td>触发下一次垃圾收集的时间间隔（毫秒）。 由于垃圾收集工作在后台进行，过于频繁的垃圾收集工作将降低性能。 如果磁盘容量足够，最好用更大的 gc 时间间隔。</td><td>900000</td></tr>
+<tr><td>gcOverreplicatedLedgerWaitTime</td><td>触发下一次垃圾收集器收集过度复制的 ledger 的时间间隔（毫秒）。 这种情况不应经常发生，因为我们从 zookeeper 的 bookie 上读取所有 ledger 的元数据。</td><td>86400000</td></tr>
+<tr><td>flushInterval</td><td>刷新 ledger 索引页到磁盘的间隔，以毫秒计。 刷新索引文件会引入大量随机磁盘 I/O。 如果在不同的设备上将日志目录和 ledger 目录分开，刷写就不会影响性能。 但是，如果在同一设备上放置日志目录和 ledger 目录，性能会在频繁刷写的情况下大幅下降。 你可以考虑增加刷写间隔来获得更好的性能，但你需要在 bookie 服务器失败重启后花更多时间。</td><td>60000</td></tr>
+<tr><td>bookieDeathWatchInterval</td><td>查看 bookie 是否已死亡的时间间隔，以毫秒为单位</td><td>1000</td></tr>
 <tr><td>zkServers</td><td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.</td><td>localhost:2181</td></tr>
-<tr><td>zkTimeout</td><td>ZooKeeper client session timeout in milliseconds Bookie server will exit if it received SESSION_EXPIRED because it was partitioned off from ZooKeeper for more than the session timeout JVM garbage collection, disk I/O will cause SESSION_EXPIRED. Increment this value could help avoiding this issue</td><td>30000</td></tr>
-<tr><td>serverTcpNoDelay</td><td>This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.</td><td>true</td></tr>
-<tr><td>openFileLimit</td><td>Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.</td><td>0</td></tr>
-<tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficent when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.</td><td>8192</td></tr>
-<tr><td>pageLimit</td><td>How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain bettern performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
-<tr><td>readOnlyModeEnabled</td><td>If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.</td><td>true</td></tr>
-<tr><td>diskUsageThreshold</td><td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).</td><td>0.95</td></tr>
-<tr><td>diskCheckInterval</td><td>Disk check interval in milli seconds, interval to check the ledger dirs usage.</td><td>10000</td></tr>
-<tr><td>auditorPeriodicCheckInterval</td><td>Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.</td><td>604800</td></tr>
-<tr><td>auditorPeriodicBookieCheckInterval</td><td>The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.</td><td>86400</td></tr>
+<tr><td>zkTimeout</td><td>ZooKeeper 客户端会话超时时间，以毫秒为单位。Bookie 服务器如果收到 SESSION_EXPIRED，将退出，因为它从 ZooKeeper 进行分区超过了会话超时时间。JVM 垃圾收集和磁盘 I/O 会导致 SESSION_EXPIRED。 增加这个值可以帮助避免这个问题</td><td>30000</td></tr>
+<tr><td>serverTcpNoDelay</td><td>此设置用于启用/禁用 Nagle 的算法，该算法能通过减少通过网络发送的数据包数量来提高 TCP/IP 网络效率。 如果你正在发送许多小消息，这样在单个 IP 数据包中就可以放入不止一个消息，设置 server.tcpnodelay 为 false 来启用 Nagle 算法可以提供更好的性能。</td><td>true</td></tr>
+<tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
+<tr><td>pageSize</td><td>ledger 缓存中索引页的大小，以字节为单位。一个大的索引页可以改善将页写入磁盘的性能。当你有少量有 ledger 并且这些 ledger 有着相似数量的条目时，会很高效。 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>
+<tr><td>pageLimit</td><td>在 ledger 缓存中提供多少索引页面。如果索引页面数量达到此限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 当你发现交换变得更频繁时，可以增加这个值。 但请确认 pageLimit*page 的大小不应超过 JVM 最大内存限制，否则你将会得到 OutOfMemoryException。 总的来说，使用更小的索引页面可以在 ledger 量大而条目数量少的情况下获得更好的性能。如果 pageLimit 为 -1, bookie 服务器会使用 1/3 的 JVM 内存来计算索引页面的限制数量。</td><td>0</td></tr>
+<tr><td>readOnlyModeEnabled</td><td>如果所有已配置的 ledger 目录已满，则只支持客户的读取请求。 如果 “readOnlyModeEnabled=true” 那么当所有的 ledger 磁盘满时，bookie 会被转换为只读模式并只处理读请求。 否则 bookie 将被关闭。 默认情况下，这会被禁用。</td><td>true</td></tr>
+<tr><td>diskUsageThreshold</td><td>对于每个 ledger 目录，可使用的最大磁盘空间。 默认值为 0.95f。 比如，最多只能使用 95% 的磁盘，此后不会将任何内容写入该分区。 如果所有 ledger 目录分区已满，并且设置了“readOnlyModeEnabled=true”，那么 bookie 将会转为只读模式。 有效值应在 0 和 1 之间(不包含端点)。</td><td>0.95</td></tr>
+<tr><td>diskCheckInterval</td><td>磁盘检查间隔，以毫秒为单位，检查 ledger 目录使用情况的时间间隔。</td><td>10000</td></tr>
+<tr><td>auditorPeriodicCheckInterval</td><td>审查者对集群内所有 ledger 进行核对的时间间隔。 默认情况下，每周运行一次。 间隔以秒为单位。 要完全禁用定期检查，请将此设置为 0。 请注意，定期检查会给集群带来额外的负荷，因此每天的运行次数不应超过一次。</td><td>604800</td></tr>
+<tr><td>auditorPeriodicBookieCheckInterval</td><td>审查者 bookie 检查的时间间隔。 审查者 bookie 检查，检查 ledger 的元数据来查看哪些 bookie 应该包含各个 ledger 的条目。 如果本应包含条目的 bookie 不可用，包含该条目的 ledger 会被标记去做恢复。 设置为 0 会禁用定期检查。 当 bookie 失效时，bookie 检查仍然会进行。 间隔以秒为单位。</td><td>86400</td></tr>
 <tr><td>numAddWorkerThreads</td><td>number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
 <tr><td>numReadWorkerThreads</td><td>number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
-<tr><td>maxPendingReadRequestsPerThread</td><td>If read workers threads are enabled, limit the number of pending requests, to avoid the executor queue to grow indefinitely.</td><td>2500</td></tr>
-<tr><td>readBufferSizeBytes</td><td>The number of bytes we should use as capacity for BufferedReadChannel.</td><td>4096</td></tr>
-<tr><td>writeBufferSizeBytes</td><td>The number of bytes used as capacity for the write buffer</td><td>65536</td></tr>
+<tr><td>maxPendingReadRequestsPerThread</td><td>如果启用了读取工人线程，限制待处理请求的数量，以避免执行器队列无止境增长。</td><td>2500</td></tr>
+<tr><td>readBufferSizeBytes</td><td>用作 BufferedReadChannel 容量的字节数量。</td><td>4096</td></tr>
+<tr><td>writeBufferSizeBytes</td><td>用作写缓存容量的字节数</td><td>65536</td></tr>
 <tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.</td><td>false</td></tr>
 <tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
 <tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
-<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub</td><td>25% of direct memory</td></tr>
-<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% of direct memory</td></tr>
-<tr><td>dbStorage_readAheadCacheBatchSize</td><td>How many entries to pre-fill in cache after a read cache miss</td><td>1000</td></tr>
-<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% of direct memory</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheBatchSize</td><td>当读缓存 miss 发生后预装填的条目数量</td><td>1000</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% 的直接内存</td></tr>
 <tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
