@@ -29,17 +29,13 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TopicBacklogQuotaTest.class);
+public class TopicTopicPoliciesQuotaTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
 
@@ -47,18 +43,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
 
     private final String myNamespace = testTenant + "/" + testNamespace;
 
-    private final String backlogQuotaTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
-
-    public void disableTopicLevelPolicies() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-    }
+    private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
     @BeforeMethod
     @Override
@@ -71,7 +56,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+        admin.topics().createPartitionedTopic(testTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "lookup-topic").create();
         producer.close();
         Thread.sleep(3000);
@@ -87,68 +72,68 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
     public void testSetBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
-        admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
-        log.info("Backlog quota set success on topic: {}", backlogQuotaTopic);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", testTopic);
 
         Thread.sleep(3000);
-        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
+        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, backlogQuotaTopic);
+        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, testTopic);
         Assert.assertEquals(getBacklogQuota, backlogQuota);
 
         BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(backlogQuotaTopic));
-        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, backlogQuotaTopic);
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
+        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
         Assert.assertEquals(backlogQuotaInManager, backlogQuota);
 
-        admin.topics().deletePartitionedTopic(backlogQuotaTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
     public void testRemoveBacklogQuota() throws Exception {
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
-        admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
-        log.info("Backlog quota set success on topic: {}", backlogQuotaTopic);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        log.info("Backlog quota set success on topic: {}", testTopic);
 
         Thread.sleep(3000);
-        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
+        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, backlogQuotaTopic);
+        log.info("Backlog quota {} get on topic: {}", getBacklogQuota, testTopic);
         Assert.assertEquals(backlogQuota, getBacklogQuota);
 
         BacklogQuotaManager backlogQuotaManager = pulsar.getBrokerService().getBacklogQuotaManager();
-        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(backlogQuotaTopic));
-        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, backlogQuotaTopic);
+        BacklogQuota backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
+        log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInManager, testTopic);
         Assert.assertEquals(backlogQuota, backlogQuotaInManager);
 
-        admin.topics().removeBacklogQuota(backlogQuotaTopic);
-        getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
+        admin.topics().removeBacklogQuota(testTopic);
+        getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, backlogQuotaTopic);
+        log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, testTopic);
         Assert.assertNull(getBacklogQuota);
 
-        backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(backlogQuotaTopic));
+        backlogQuotaInManager = backlogQuotaManager.getBacklogQuota(TopicName.get(testTopic));
         log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInManager,
-                backlogQuotaTopic);
+                testTopic);
         Assert.assertEquals(backlogQuotaManager.getDefaultQuota(), backlogQuotaInManager);
 
-        admin.topics().deletePartitionedTopic(backlogQuotaTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
-    public void testCheckQuota() throws Exception {
+    public void testCheckBlcklogQuota() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
-        String namespace = TopicName.get(backlogQuotaTopic).getNamespace();
+        String namespace = TopicName.get(testTopic).getNamespace();
         admin.namespaces().setRetention(namespace, retentionPolicies);
 
         BacklogQuota backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
-            admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -156,9 +141,9 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(3000);
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 + 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
-            admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -166,44 +151,71 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(3000);
         backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024 - 1, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
-        admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
         Thread.sleep(3000);
-        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(backlogQuotaTopic)
+        BacklogQuota getBacklogQuota = admin.topics().getBacklogQuotaMap(testTopic)
                 .get(BacklogQuota.BacklogQuotaType.destination_storage);
-        log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, backlogQuotaTopic);
+        log.info("Backlog quota {} get on topic: {} after remove", getBacklogQuota, testTopic);
         Assert.assertEquals(getBacklogQuota, backlogQuota);
 
-        admin.topics().deletePartitionedTopic(backlogQuotaTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
-    public void testBacklogQuotaDisabled() throws Exception {
-        disableTopicLevelPolicies();
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+    public void testCheckRetention() throws Exception {
+        BacklogQuota backlogQuota =
+                new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(10, 11);
+        String namespace = TopicName.get(testTopic).getNamespace();
+        admin.namespaces().setRetention(namespace, retentionPolicies);
+        admin.topics().setBacklogQuota(testTopic, backlogQuota);
+        Thread.sleep(3000);
 
-        BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
-
+        RetentionPolicies retention = new RetentionPolicies(10, 10);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
         try {
-            admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
+            admin.topics().setRetention(testTopic, retention);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), 412);
         }
 
+        retention = new RetentionPolicies(10, 9);
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
         try {
-            admin.topics().removeBacklogQuota(backlogQuotaTopic);
+            admin.topics().setRetention(testTopic, retention);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
+            Assert.assertEquals(e.getStatusCode(), 412);
         }
 
-        try {
-            admin.topics().getBacklogQuotaMap(backlogQuotaTopic);
-            Assert.fail();
-        } catch (PulsarAdminException e) {
-            Assert.assertEquals(e.getStatusCode(), 405);
-        }
+        Thread.sleep(3000);
+        retention = new RetentionPolicies(10, 12);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
+        admin.topics().setRetention(testTopic, retention);
+        Thread.sleep(3000);
+        RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
+        log.info("Backlog quota {} get on topic: {}", getRetention, testTopic);
+        Assert.assertEquals(getRetention, retention);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetRetention() throws Exception {
+
+        RetentionPolicies retentionPolicies = new RetentionPolicies();
+        log.info("Retention: {} will set to the topic: {}", retentionPolicies, testTopic);
+
+        admin.topics().setRetention(testTopic, retentionPolicies);
+        log.info("Retention set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        RetentionPolicies getRetention = admin.topics().getRetention(testTopic);
+        log.info("Retention {} get on topic: {}", getRetention, testTopic);
+        Assert.assertEquals(getRetention, retentionPolicies);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
     }
 }

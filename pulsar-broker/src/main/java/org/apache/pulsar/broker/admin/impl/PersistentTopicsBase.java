@@ -94,6 +94,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
@@ -2154,6 +2156,69 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalRemoveBacklogQuota(AsyncResponse asyncResponse,
             BacklogQuota.BacklogQuotaType backlogQuotaType) {
         internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
+    }
+
+    protected void internalGetRetention(AsyncResponse asyncResponse){
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        checkTopicLevelPolicyEnable();
+        Optional<RetentionPolicies> retention = getTopicPolicies(topicName)
+                .map(TopicPolicies::getRetentionPolicies);
+        if (!retention.isPresent()) {
+            asyncResponse.resume(Response.noContent().build());
+        }else {
+            asyncResponse.resume(retention.get());
+        }
+    }
+
+    protected void internalSetRetention(AsyncResponse asyncResponse,
+            RetentionPolicies retention){
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        checkTopicLevelPolicyEnable();
+        if (retention == null) {
+            asyncResponse.resume(Response.noContent().build());
+        }
+        TopicPolicies topicPolicies = getTopicPolicies(topicName)
+                .orElseGet(TopicPolicies::new);
+        BacklogQuota backlogQuota =
+                    topicPolicies.getBackLogQuotaMap().get(BacklogQuota.BacklogQuotaType.destination_storage.name());
+        if (backlogQuota == null){
+            Policies policies = getNamespacePolicies(topicName.getNamespaceObject());
+            backlogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        }
+        if(!checkBacklogQuota(backlogQuota, retention)){
+            log.warn(
+                    "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
+                    clientAppId(), topicName);
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Retention Quota must exceed configured backlog quota for topic. " +
+                            "Please increase retention quota and retry");
+        }
+        topicPolicies.setRetentionPolicies(retention);
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed updated backlog quota map",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        try {
+                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, retention={}",
+                                    clientAppId(),
+                                    namespaceName,
+                                    topicName.getLocalName(),
+                                    jsonMapper().writeValueAsString(retention));
+                        } catch (JsonProcessingException ignore) { }
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
     }
 
     protected MessageId internalTerminate(boolean authoritative) {

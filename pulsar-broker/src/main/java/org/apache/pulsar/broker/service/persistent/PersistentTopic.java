@@ -87,6 +87,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -1757,27 +1758,47 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     private boolean shouldTopicBeRetained() {
         TopicName name = TopicName.get(topic);
+        RetentionPolicies retentionPolicies = null;
         try {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()));
-            // If no policies, the default is to have no retention and delete the inactive topic
-            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
-                    () -> new RetentionPolicies(
-                            brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
-                            brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB())
-            );
-            long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
-
-            // Negative retention time means the topic should be retained indefinitely,
-            // because its own data has to be retained
-            return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
+            retentionPolicies = getTopicPolicies(name)
+                    .map(TopicPolicies::getRetentionPolicies)
+                    .orElse( null);
+            if (retentionPolicies == null){
+                retentionPolicies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, name.getNamespace()))
+                        .map(p -> p.retention_policies)
+                        .orElse(null);
+            }
+            if (retentionPolicies == null){
+                // If no policies, the default is to have no retention and delete the inactive topic
+                retentionPolicies = new RetentionPolicies(
+                        brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
+                        brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB());
+            }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
             }
-
             // Don't delete in case we cannot get the policies
             return true;
+        }
+
+        long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
+        // Negative retention time means the topic should be retained indefinitely,
+        // because its own data has to be retained
+        return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
+    }
+
+    private Optional<TopicPolicies> getTopicPolicies(TopicName topicName){
+        if (!brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
+            return Optional.empty();
+        }
+        try {
+            TopicPoliciesService topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
+            return Optional.ofNullable(topicPoliciesService.getTopicPolicies(topicName));
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName);
+            return Optional.empty();
         }
     }
 
