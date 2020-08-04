@@ -878,6 +878,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public void resetCursorOnPosition(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -890,8 +891,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
             MessageIdImpl messageId) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @GET
