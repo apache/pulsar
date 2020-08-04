@@ -162,7 +162,8 @@ public class TestPrestoQueryTieredStorage extends PulsarTestSuite {
                 firstLedgerId = messageId.getLedgerId();
             }
             currentLedgerId = messageId.getLedgerId();
-            Thread.sleep(1000);
+            log.info("firstLedgerId: {}, currentLedgerId: {}", firstLedgerId, currentLedgerId);
+            Thread.sleep(100);
         }
         producer.flush();
 
