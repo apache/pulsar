@@ -16,18 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.batch;
+package org.apache.pulsar.functions.source.batch;
 
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
-import org.apache.pulsar.io.core.*;
+import org.apache.pulsar.io.core.BatchSource;
+import org.apache.pulsar.io.core.BatchSourceTriggerer;
+import org.apache.pulsar.io.core.Source;
+import org.apache.pulsar.io.core.SourceContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -162,20 +169,6 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-  public org.apache.pulsar.functions.api.Record<T> readInternal() {
-    try {
-      Record<T> record = batchSource.readNext();
-      log.info("Record: {}", record);
-      if (record != null) {
-        return record;
-      }
-    } catch (Exception e) {
-      log.error("Error on read", e);
-      throw new RuntimeException(e);
-    }
-    return null;
-  }
-
   @Override
   public void close() throws Exception {
     this.stop();
@@ -235,6 +228,6 @@ public class BatchSourceExecutor<T> implements Source<T> {
     currentTask = intermediateTopicConsumer.receive();
     return;
   }
-  
+
 }
 
