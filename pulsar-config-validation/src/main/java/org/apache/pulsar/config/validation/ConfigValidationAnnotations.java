@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -129,15 +129,6 @@ public class ConfigValidationAnnotations {
         Class<?>[] keyValidatorClasses();
 
         Class<?>[] valueValidatorClasses();
-    }
-
-    /**
-     * checks if the topic name is valid.
-     */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.FIELD)
-    public @interface TopicName {
-        Class<?> validatorClass() default ValidatorImpls.TopicNameValidator.class;
     }
 
     /**
