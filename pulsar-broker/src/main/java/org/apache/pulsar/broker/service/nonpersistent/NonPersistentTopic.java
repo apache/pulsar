@@ -971,12 +971,18 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     @Override
     public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
-        return null;
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation getTransactionBuffer in non-persistent topic."));
     }
 
     @Override
     public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
-        throw new UnsupportedOperationException("publishTxnMessage is not supported on non-persistent topic");
+        throw new UnsupportedOperationException("PublishTxnMessage is not supported by non-persistent topic");
     }
 
+    @Override
+    public CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command) {
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation endTxnOnPartitionWithTB in non-persistent topic."));
+    }
 }

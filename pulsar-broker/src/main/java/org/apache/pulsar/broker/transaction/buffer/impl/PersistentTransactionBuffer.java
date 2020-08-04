@@ -143,6 +143,12 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
+    public CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command) {
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation endTxnOnPartitionWithTB in PersistentTransactionBuffer."));
+    }
+
+    @Override
     public CompletableFuture<Void> endTxnOnPartition(PulsarApi.CommandEndTxnOnPartition command) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());

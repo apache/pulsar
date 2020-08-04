@@ -224,9 +224,25 @@ public interface Topic {
         return false;
     }
 
-    /** Transaction related **/
+    /* ------ Transaction related ------ */
+
+    /**
+     * Get the ${@link TransactionBuffer} of this Topic.
+     *
+     * @param createIfMissing Create the TransactionBuffer if missing.
+     * @return TransactionBuffer CompletableFuture
+     */
     CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
 
+    /**
+     * Publish Transaction message to this Topic's TransactionBuffer
+     *
+     * @param txnID Transaction Id
+     * @param headersAndPayload Message data
+     * @param publishContext Publish context
+     */
     void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
+
+    CompletableFuture<Void> endTxnOnPartitionWithTB(PulsarApi.CommandEndTxnOnPartition command);
 
 }

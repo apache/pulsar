@@ -20,11 +20,15 @@ package org.apache.pulsar.broker;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.UnsupportedTxnActionException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -173,8 +177,26 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus);
     }
 
-    public CompletableFuture<Void> endTransaction(TxnID txnID, TxnStatus newStatus, TxnStatus expectedStatus) {
-        CompletableFuture<Void> completableFuture = updateTxnStatus(txnID, newStatus, expectedStatus)
+    public CompletableFuture<Void> endTransaction(PulsarApi.CommandEndTxn command) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        TxnStatus newStatus;
+        switch (command.getTxnAction()) {
+            case COMMIT:
+                newStatus = TxnStatus.COMMITTING;
+                break;
+            case ABORT:
+                newStatus = TxnStatus.ABORTING;
+                break;
+            default:
+                UnsupportedTxnActionException exception =
+                        new UnsupportedTxnActionException(txnID, command.getTxnAction());
+                LOG.error(exception.getMessage());
+                completableFuture.completeExceptionally(exception);
+                return completableFuture;
+        }
+
+        completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
                 .thenCompose(ignored -> endTransactionBuffer(txnID, newStatus));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
