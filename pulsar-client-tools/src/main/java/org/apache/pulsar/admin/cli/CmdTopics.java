@@ -104,6 +104,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
         jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
         jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
+        jcommander.addCommand("get-message-ttl", new GetMessageTTL());
+        jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -878,6 +881,50 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeBacklogQuota(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the message TTL for a topic")
+    private class GetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMessageTTL(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set message TTL for a topic")
+    private class SetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private int messageTTLInSecond;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (messageTTLInSecond < 0) {
+                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMessageTTL(persistentTopic, messageTTLInSecond);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove message TTL for a topic")
+    private class RemoveMessageTTL extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMessageTTL(persistentTopic);
         }
     }
 }
