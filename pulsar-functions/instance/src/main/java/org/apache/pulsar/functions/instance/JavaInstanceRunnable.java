@@ -803,6 +803,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
 
+                if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
+                    pulsarSinkConfig.setProducerSpec(this.instanceConfig.getFunctionDetails().getSink().getProducerSpec());
+                }
+
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }
         } else {
