@@ -41,12 +41,9 @@ Spec contains the basic information of a function.
 
 ### Get input topics
 
-`getInputTopics` method gets the **name list** of all input topics.
+The `getInputTopics` method gets the **name list** of all input topics.
 
 This example demonstrates how to get the name list of all input topics in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetInputTopicsWindowFunction implements WindowFunction<String, Void> {
@@ -60,16 +57,12 @@ public class GetInputTopicsWindowFunction implements WindowFunction<String, Void
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get output topic
 
-`getOutputTopic` method gets the **name of a topic** to which the message is sent.
+The `getOutputTopic` method gets the **name of a topic** to which the message is sent.
 
 This example demonstrates how to get the name of an output topic in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetOutputTopicWindowFunction implements WindowFunction<String, Void> {
@@ -82,16 +75,12 @@ public class GetOutputTopicWindowFunction implements WindowFunction<String, Void
     }
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get tenant
 
-`getTenant` method gets the tenant name associated with the window function.
+The `getTenant` method gets the tenant name associated with the window function.
 
 This example demonstrates how to get the tenant name in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetTenantWindowFunction implements WindowFunction<String, Void> {
@@ -105,16 +94,12 @@ public class GetTenantWindowFunction implements WindowFunction<String, Void> {
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get namespace
 
-`getNamespace` method gets the namespace associated with the window function.
+The `getNamespace` method gets the namespace associated with the window function.
 
 This example demonstrates how to get the namespace in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetNamespaceWindowFunction implements WindowFunction<String, Void> {
@@ -128,16 +113,12 @@ public class GetNamespaceWindowFunction implements WindowFunction<String, Void> 
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get function name
 
-`getFunctionName` method gets the window function name.
+The `getFunctionName` method gets the window function name.
 
 This example demonstrates how to get the function name in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetNameOfWindowFunction implements WindowFunction<String, Void> {
@@ -151,16 +132,12 @@ public class GetNameOfWindowFunction implements WindowFunction<String, Void> {
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get function ID
 
-`getFunctionId` method gets the window function ID.
+The `getFunctionId` method gets the window function ID.
 
 This example demonstrates how to get the function ID in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetFunctionIDWindowFunction implements WindowFunction<String, Void> {
@@ -174,16 +151,12 @@ public class GetFunctionIDWindowFunction implements WindowFunction<String, Void>
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get function version
 
-`getFunctionVersion` method gets the window function version.
+The `getFunctionVersion` method gets the window function version.
 
 This example demonstrates how to get the function version of a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetVersionOfWindowFunction implements WindowFunction<String, Void> {
@@ -197,16 +170,12 @@ public class GetVersionOfWindowFunction implements WindowFunction<String, Void> 
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get instance ID
 
-`getInstanceId` method gets the instance ID of a window function.
+The `getInstanceId` method gets the instance ID of a window function.
 
 This example demonstrates how to get the instance ID in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetInstanceIDWindowFunction implements WindowFunction<String, Void> {
@@ -220,16 +189,12 @@ public class GetInstanceIDWindowFunction implements WindowFunction<String, Void>
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get num instances
 
-`getNumInstances` method gets the number of instances that invoke the window function.
+The `getNumInstances` method gets the number of instances that invoke the window function.
 
 This example demonstrates how to get the number of instances in a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetNumInstancesWindowFunction implements WindowFunction<String, Void> {
@@ -243,16 +208,12 @@ public class GetNumInstancesWindowFunction implements WindowFunction<String, Voi
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ### Get output schema type
 
-`getOutputSchemaType` method gets the built-in type or custom class name of the output schema.
+The `getOutputSchemaType` method gets the built-in type or custom class name of the output schema.
 
 This example demonstrates how to get the output schema type of a Java window function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class GetOutputSchemaTypeWindowFunction implements WindowFunction<String, Void> {
@@ -267,16 +228,11 @@ public class GetOutputSchemaTypeWindowFunction implements WindowFunction<String,
 }
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
-
 ## Logger
 
 Pulsar window functions using Java SDK has access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level.
 
 This example logs either a `WARNING`-level or `INFO`-level log based on whether the incoming string contains the word `danger` or not in a Java function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 import java.util.Collection;
@@ -297,7 +253,6 @@ public class LoggingWindowFunction implements WindowFunction<String, Void> {
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 If you need your function to produce logs, specify a log topic when creating or running the function. 
 
@@ -322,9 +277,6 @@ Pulsar window functions can publish arbitrary metrics to the metrics interface w
 You can record metrics using the context object on a per-key basis. 
 
 This example sets a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message in a Java function. 
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 import java.util.Collection;
@@ -351,11 +303,10 @@ public class UserMetricWindowFunction implements WindowFunction<String, Void> {
     }
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## User config
 
-When you run or update Pulsar Functions created using SDK, you can pass arbitrary key/values to them with the `--user-config` flag. Key/values **must** be specified as JSON. 
+When you run or update Pulsar Functions that are created using SDK, you can pass arbitrary key/value pairs to them with the `--user-config` flag. Key/value pairs **must** be specified as JSON. 
 
 This example passes a user configured key/value to a function.
 
@@ -385,7 +336,7 @@ You can use the following APIs to get user-defined information for window functi
 
 #### getUserConfigValue
 
-`getUserConfigValue` API gets a user-defined key/value.
+The `getUserConfigValue` API gets a user-defined key/value.
 
 ```java
 /**
@@ -399,7 +350,7 @@ You can use the following APIs to get user-defined information for window functi
 
 #### getUserConfigValueOrDefault
 
-`getUserConfigValueOrDefault` API gets a user-defined key/value or a default value if none is present.
+The `getUserConfigValueOrDefault` API gets a user-defined key/value or a default value if none is present.
 
 ```java
 /**
@@ -432,11 +383,8 @@ bin/pulsar-admin functions create \
 
 This example accesses values in a Java window function.
 
-`UserConfigFunction` function logs the string `"The word of the day is verdure"` every time the function is invoked (which means every time a message arrives). The user config of `word-of-the-day` is changed **only** when the function is updated with a new config value via 
+The `UserConfigFunction` function logs the string `"The word of the day is verdure"` every time the function is invoked (which means every time a message arrives). The user config of `word-of-the-day` is changed **only** when the function is updated with a new config value via 
 multiple ways, such as the command line tool or REST API.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -458,7 +406,6 @@ public class UserConfigWindowFunction implements WindowFunction<String, String> 
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 If no value is provided, you can access the entire user config map or set a default value.
 
@@ -472,12 +419,9 @@ String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicaci
 
 ## Routing
 
-When you want to publish as many results as you want, you can use the `context.publish()` interface.
+You can use the `context.publish()` interface to publish as many results as you want.
 
 This example shows that the `PublishFunction` class uses the built-in function in the context to publish messages to the `publishTopic` in a Java function.
-
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
 
 ```java
 public class PublishWindowFunction implements WindowFunction<String, Void> {
@@ -492,7 +436,6 @@ public class PublishWindowFunction implements WindowFunction<String, Void> {
 
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
 ## State storage
 
@@ -514,9 +457,9 @@ You can use the following APIs to access, update, and manage states in Java wind
 
 #### incrCounter
 
-`incrCounter` API increases a built-in distributed counter referred by key.
+The `incrCounter` API increases a built-in distributed counter referred by key.
 
-Applications uses the `incrCounter` API to change the counter of a given `key` by the given `amount`. If the `key` does not exist, a new key is created.
+Applications use the `incrCounter` API to change the counter of a given `key` by the given `amount`. If the `key` does not exist, a new key is created.
 
 ```java
     /**
@@ -529,7 +472,7 @@ Applications uses the `incrCounter` API to change the counter of a given `key` b
 
 #### getCounter
 
-`getCounter` API gets the counter value for the key.
+The `getCounter` API gets the counter value for the key.
 
 Applications can use the `getCounter` API to retrieve the counter of a given `key` changed by the `incrCounter` API.
 
@@ -547,7 +490,7 @@ Except the `getCounter` API, Pulsar also exposes a general key/value API (`putSt
 
 #### putState
 
-`putState` API updates the state value for the key.
+The `putState` API updates the state value for the key.
 
 ```java
     /**
@@ -569,9 +512,6 @@ The logic of the `WordCountWindowFunction` is simple and straightforward.
 
 2. For each `word`, the function increments the corresponding `counter` by 1 via `incrCounter(key, amount)`.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
-
 ```java
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -589,5 +529,4 @@ public class WordCountWindowFunction implements WindowFunction<String, Void> {
     }
 }
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
 
