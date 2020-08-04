@@ -21,9 +21,9 @@
 
 #include <iostream>
 
-using namespace pulsar;
+namespace pulsar {
 
-const char* pulsar::strResult(Result result) {
+const char* strResult(Result result) {
     switch (result) {
         case ResultOk:
             return "Ok";
@@ -144,6 +144,9 @@ const char* pulsar::strResult(Result result) {
 
         case ResultInvalidTxnStatusError:
             return "ResultInvalidTxnStatusError";
+
+        case ResultNotAllowedError:
+            return "ResultNotAllowedError";
     };
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -152,3 +155,5 @@ const char* pulsar::strResult(Result result) {
 }
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }
+
+}  // namespace pulsar

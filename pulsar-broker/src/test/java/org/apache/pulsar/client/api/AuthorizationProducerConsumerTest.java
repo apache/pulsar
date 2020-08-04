@@ -29,6 +29,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
 
@@ -48,7 +50,11 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -112,17 +118,18 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        String lookupUrl = pulsar.getBrokerServiceUrl();
 
         Authentication authentication = new ClientAuthentication(clientRole);
         Authentication authenticationInvalidRole = new ClientAuthentication("test-role");
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
         @Cleanup
         PulsarClient pulsarClientInvalidRole = PulsarClient.builder().serviceUrl(lookupUrl)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -188,9 +195,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin sub1Admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(subAdminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
         superAdmin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
@@ -201,7 +205,10 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         tenantAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
                 Collections.singleton(AuthAction.consume));
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
         // (1) Create subscription name
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .subscribe();
@@ -224,7 +231,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         // grant subscription access to specific different role and only that role can access the subscription
         String otherPrincipal = "Principal-1-to-access-sub";
-        superAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
+        tenantAdmin.namespaces().grantPermissionOnSubscription(namespace, subscriptionName,
                 Collections.singleton(otherPrincipal));
 
         // now, subscriptionRole doesn't have subscription level access so, it will fail to access subscription
@@ -270,12 +277,12 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin = spy(
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
-        String lookupUrl;
-        lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-
         Authentication authentication = new ClientAuthentication(clientRole);
 
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).authentication(authentication).build();
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .authentication(authentication)
+                .build();
 
         admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
 
@@ -463,6 +470,16 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
+        public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role, AuthenticationDataSource authenticationData) {
+            return null;
+        }
+
+        @Override
         public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
                 String role, String authenticationData) {
             return CompletableFuture.completedFuture(null);
@@ -484,6 +501,41 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         public CompletableFuture<Void> revokeSubscriptionPermissionAsync(NamespaceName namespace,
                 String subscriptionName, String role, String authDataJson) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> isTenantAdmin(String tenant, String role, TenantInfo tenantInfo, AuthenticationDataSource authenticationData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role, TenantOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation, AuthenticationDataSource authData) {
+            return true;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowNamespaceOperation(NamespaceName namespaceName, String originalRole, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
+            return CompletableFuture.completedFuture(true);
+        }
+
+        @Override
+        public Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
+            return true;
         }
     }
 
@@ -513,21 +565,32 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     public static class TestAuthorizationProviderWithSubscriptionPrefix extends TestAuthorizationProvider {
+        @Override
+        public Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
+            try {
+                return allowTopicOperationAsync(topicName, originalRole, role, operation, authData).get();
+            } catch (InterruptedException e) {
+                throw new RestException(e);
+            } catch (ExecutionException e) {
+                throw new RestException(e.getCause());
+            }
+        }
 
         @Override
-        public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                AuthenticationDataSource authenticationData, String subscription) {
+        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
-            if (isNotBlank(subscription)) {
-                if (!subscription.startsWith(role)) {
-                    future.completeExceptionally(new PulsarServerException(
-                            "The subscription name needs to be prefixed by the authentication role"));
+            if (authData.hasSubscription()) {
+                String subscription = authData.getSubscription();
+                if (isNotBlank(subscription)) {
+                    if (!subscription.startsWith(role)) {
+                        future.completeExceptionally(new PulsarServerException(
+                                "The subscription name needs to be prefixed by the authentication role"));
+                    }
                 }
             }
             future.complete(clientRole.equals(role));
             return future;
         }
-
     }
 
     public static class TestAuthorizationProviderWithGrantPermission extends TestAuthorizationProvider {

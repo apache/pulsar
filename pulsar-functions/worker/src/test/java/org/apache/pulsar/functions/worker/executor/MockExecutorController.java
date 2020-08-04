@@ -53,7 +53,6 @@ import org.mockito.stubbing.Answer;
 public class MockExecutorController {
 
     @Data
-    @Getter
     private class DeferredTask implements ScheduledFuture<Void> {
 
         private final Runnable runnable;

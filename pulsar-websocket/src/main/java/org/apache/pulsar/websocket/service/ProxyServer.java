@@ -81,7 +81,7 @@ public class ProxyServer {
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.getTlsRequireTrustedClientCertOnConnect(),
+                        config.isTlsRequireTrustedClientCertOnConnect(),
                         true,
                         config.getTlsCertRefreshCheckDurationSec());
                 connectorTls = new ServerConnector(server, -1, -1, sslCtxFactory);
@@ -122,23 +122,23 @@ public class ProxyServer {
 
     public void start() throws PulsarServerException {
         log.info("Starting web socket proxy at port {}", conf.getWebServicePort().get());
+        RequestLogHandler requestLogHandler = new RequestLogHandler();
+        Slf4jRequestLog requestLog = new Slf4jRequestLog();
+        requestLog.setExtended(true);
+        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
+        requestLog.setLogLatency(true);
+        requestLogHandler.setRequestLog(requestLog);
+        handlers.add(0, new ContextHandlerCollection());
+        handlers.add(requestLogHandler);
+
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
+
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
+        server.setHandler(handlerCollection);
+
         try {
-            RequestLogHandler requestLogHandler = new RequestLogHandler();
-            Slf4jRequestLog requestLog = new Slf4jRequestLog();
-            requestLog.setExtended(true);
-            requestLog.setLogTimeZone(TimeZone.getDefault().getID());
-            requestLog.setLogLatency(true);
-            requestLogHandler.setRequestLog(requestLog);
-            handlers.add(0, new ContextHandlerCollection());
-            handlers.add(requestLogHandler);
-
-            ContextHandlerCollection contexts = new ContextHandlerCollection();
-            contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
-
-            HandlerCollection handlerCollection = new HandlerCollection();
-            handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-            server.setHandler(handlerCollection);
-
             server.start();
         } catch (Exception e) {
             throw new PulsarServerException(e);

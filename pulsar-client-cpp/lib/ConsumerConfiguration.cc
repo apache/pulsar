@@ -92,10 +92,16 @@ void ConsumerConfiguration::setConsumerName(const std::string& consumerName) {
 long ConsumerConfiguration::getUnAckedMessagesTimeoutMs() const { return impl_->unAckedMessagesTimeoutMs; }
 
 void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeconds) {
-    if (milliSeconds < 10000) {
+    if (milliSeconds < 10000 && milliSeconds != 0) {
         throw "Consumer Config Exception: Unacknowledged message timeout should be greater than 10 seconds.";
     }
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
+}
+
+long ConsumerConfiguration::getTickDurationInMs() const { return impl_->tickDurationInMs; }
+
+void ConsumerConfiguration::setTickDurationInMs(const uint64_t milliSeconds) {
+    impl_->tickDurationInMs = milliSeconds;
 }
 
 void ConsumerConfiguration::setNegativeAckRedeliveryDelayMs(long redeliveryDelayMillis) {
@@ -105,6 +111,18 @@ void ConsumerConfiguration::setNegativeAckRedeliveryDelayMs(long redeliveryDelay
 long ConsumerConfiguration::getNegativeAckRedeliveryDelayMs() const {
     return impl_->negativeAckRedeliveryDelayMs;
 }
+
+void ConsumerConfiguration::setAckGroupingTimeMs(long ackGroupingMillis) {
+    impl_->ackGroupingTimeMs = ackGroupingMillis;
+}
+
+long ConsumerConfiguration::getAckGroupingTimeMs() const { return impl_->ackGroupingTimeMs; }
+
+void ConsumerConfiguration::setAckGroupingMaxSize(long maxGroupingSize) {
+    impl_->ackGroupingMaxSize = maxGroupingSize;
+}
+
+long ConsumerConfiguration::getAckGroupingMaxSize() const { return impl_->ackGroupingMaxSize; }
 
 bool ConsumerConfiguration::isEncryptionEnabled() const { return (impl_->cryptoKeyReader != NULL); }
 

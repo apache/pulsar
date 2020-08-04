@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.commons.lang3.StringUtils;
@@ -44,6 +45,10 @@ public class PulsarAdminTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
+    @Parameter(names = { "--request-timeout" }, description = "Request time out in seconds for "
+            + "the pulsar admin client for any request")
+    int requestTimeout = PulsarAdmin.DEFAULT_REQUEST_TIMEOUT_SECONDS;
+
     @Parameter(
         names = { "--auth-params" },
         description = "Authentication parameters, whose format is determined by the implementation " +
@@ -53,15 +58,21 @@ public class PulsarAdminTool {
 
     @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")
     Boolean tlsAllowInsecureConnection;
-    
+
     @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
     String tlsTrustCertsFilePath;
-    
+
     @Parameter(names = { "--tls-enable-hostname-verification" }, description = "Enable TLS common name verification")
     Boolean tlsEnableHostnameVerification;
 
     @Parameter(names = { "-h", "--help", }, help = true, description = "Show this help.")
     boolean help;
+
+    // for tls with keystore type config
+    boolean useKeyStoreTls = false;
+    String tlsTrustStoreType = "JKS";
+    String tlsTrustStorePath = null;
+    String tlsTrustStorePassword = null;
 
     PulsarAdminTool(Properties properties) throws Exception {
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
@@ -80,9 +91,19 @@ public class PulsarAdminTool {
                 ? this.tlsTrustCertsFilePath
                 : properties.getProperty("tlsTrustCertsFilePath");
 
+        this.useKeyStoreTls = Boolean
+                .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
+        this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
+        this.tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
+        this.tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
+
         adminBuilder = PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(tlsEnableHostnameVerification)
-                .tlsTrustCertsFilePath(tlsTrustCertsFilePath);
+                .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
+                .useKeyStoreTls(useKeyStoreTls)
+                .tlsTrustStoreType(tlsTrustStoreType)
+                .tlsTrustStorePath(tlsTrustStorePath)
+                .tlsTrustStorePassword(tlsTrustStorePassword);
 
         jcommander = new JCommander();
         jcommander.setProgramName("pulsar-admin");
@@ -106,10 +127,16 @@ public class PulsarAdminTool {
 
 
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
+        // pulsar-proxy cli
+        commandMap.put("proxy-stats", CmdProxyStats.class);
+
         commandMap.put("functions", CmdFunctions.class);
         commandMap.put("functions-worker", CmdFunctionWorker.class);
         commandMap.put("sources", CmdSources.class);
         commandMap.put("sinks", CmdSinks.class);
+
+        // Automatically generate documents for pulsar-admin
+        commandMap.put("documents", CmdGenerateDocument.class);
 
         // To remain backwards compatibility for "source" and "sink" commands
         // TODO eventually remove this
@@ -121,6 +148,7 @@ public class PulsarAdminTool {
         try {
             adminBuilder.serviceHttpUrl(serviceUrl);
             adminBuilder.authentication(authPluginClassName, authParams);
+            adminBuilder.requestTimeout(requestTimeout, TimeUnit.SECONDS);
             PulsarAdmin admin = adminFactory.apply(adminBuilder);
             for (Map.Entry<String, Class<?>> c : commandMap.entrySet()) {
                 addCommand(c, admin);

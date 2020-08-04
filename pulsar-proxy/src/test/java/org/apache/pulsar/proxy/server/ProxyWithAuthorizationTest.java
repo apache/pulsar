@@ -20,13 +20,14 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
 
+import com.google.common.collect.Sets;
+
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -55,8 +56,6 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
-import com.google.common.collect.Sets;
-
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
 
@@ -78,7 +77,10 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] hostnameVerificationCodecProvider() {
-        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+        return new Object[][] {
+            { Boolean.TRUE },
+            { Boolean.FALSE }
+        };
     }
 
     @DataProvider(name = "protocolsCiphersProvider")
@@ -130,10 +132,16 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
-        return new Object[][] { { ciphers_1, protocols_1, Boolean.FALSE }, { ciphers_2, protocols_2, Boolean.FALSE },
-                { ciphers_3, protocols_3, Boolean.TRUE }, { ciphers_4, protocols_4, Boolean.TRUE },
-                { ciphers_5, protocols_5, Boolean.TRUE }, { ciphers_6, protocols_6, Boolean.FALSE },
-                { ciphers_7, protocols_7, Boolean.FALSE }, { ciphers_8, protocols_8, Boolean.FALSE } };
+        return new Object[][] {
+            { ciphers_1, protocols_1, Boolean.FALSE },
+            { ciphers_2, protocols_2, Boolean.FALSE },
+            { ciphers_3, protocols_3, Boolean.TRUE },
+            { ciphers_4, protocols_4, Boolean.TRUE },
+            { ciphers_5, protocols_5, Boolean.TRUE },
+            { ciphers_6, protocols_6, Boolean.FALSE },
+            { ciphers_7, protocols_7, Boolean.FALSE },
+            { ciphers_8, protocols_8, Boolean.FALSE }
+        };
     }
 
     @BeforeMethod
@@ -144,8 +152,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setBrokerServicePortTls(Optional.ofNullable(BROKER_PORT_TLS));
-        conf.setWebServicePortTls(Optional.ofNullable(BROKER_WEBSERVICE_PORT_TLS));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
@@ -170,13 +178,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
-        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
 
-        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setServicePortTls(Optional.of(0));
+        proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -225,9 +233,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, PulsarClient.builder());
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
 
@@ -278,9 +285,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl,
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().enableTlsHostnameVerification(hostnameVerificationEnabled));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -330,9 +336,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
         createAdminClient();
-        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl,
+        PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
                 PulsarClient.builder().operationTimeout(1, TimeUnit.SECONDS));
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -388,13 +393,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
-        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
 
-        proxyConfig.setServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePort(Optional.ofNullable(PortManager.nextFreePort()));
-        proxyConfig.setWebServicePortTls(Optional.ofNullable(PortManager.nextFreePort()));
+        proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setServicePortTls(Optional.of(0));
+        proxyConfig.setWebServicePort(Optional.of(0));
+        proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
@@ -433,8 +438,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         }, 3, 1000);
         try {
 
-            final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls().get();
-            PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, PulsarClient.builder());
+            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
@@ -474,6 +478,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
-                .authentication(authTls).enableTls(true).build();
+                .authentication(authTls).enableTls(true)
+                .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
     }
 }

@@ -32,6 +32,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -121,11 +122,17 @@ public interface Topic {
 
     CompletableFuture<Void> checkReplication();
 
-    CompletableFuture<Void> close();
+    CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
-    void checkGC(int gcInterval);
+    void checkGC();
 
     void checkInactiveSubscriptions();
+
+    /**
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
+     * backlog.
+     */
+    void checkBackloggedCursors();
 
     void checkMessageExpiry();
 
@@ -140,6 +147,14 @@ public interface Topic {
     void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
 
     boolean isPublishRateExceeded();
+
+    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
+
+    boolean isBrokerPublishRateExceeded();
+
+    void disableCnxAutoRead();
+
+    void enableCnxAutoRead();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -161,11 +176,13 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
 
-    TopicStats getStats();
+    TopicStats getStats(boolean getPreciseBacklog);
 
     PersistentTopicInternalStats getInternalStats();
 
-    Position getLastMessageId();
+    Position getLastPosition();
+
+    CompletableFuture<MessageId> getLastMessageId();
 
     /**
      * Whether a topic has had a schema defined for it.
@@ -199,5 +216,9 @@ public interface Topic {
 
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
+    }
+
+    default boolean isSystemTopic() {
+        return false;
     }
 }

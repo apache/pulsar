@@ -162,7 +162,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         future = findMessage(result, c1, beginTimestamp);
         future.get();
         assertNull(result.exception);
-        assertEquals(result.position, c1.getFirstPosition());
+        assertNull(result.position);
 
         result.reset();
         future = findMessage(result, c1, endTimestamp);

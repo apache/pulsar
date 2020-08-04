@@ -90,7 +90,7 @@ To install the Python bindings:
                     batching_max_publish_delay_ms=10
                 )
 
-    def send_callback(res, msg):
+    def send_callback(res, msg_id):
         print('Message published res=%s', res)
 
     while True:
@@ -113,6 +113,7 @@ import re
 _retype = type(re.compile('x'))
 
 import certifi
+from datetime import timedelta
 
 
 class MessageId:
@@ -549,7 +550,7 @@ class Client:
                   This method will accept these forms:
                     - `topic='my-topic'`
                     - `topic=['topic-1', 'topic-2', 'topic-3']`
-                    - `topic=re.compile('topic-.*')`
+                    - `topic=re.compile('persistent://public/default/topic-*')`
         * `subscription`: The name of the subscription.
 
         **Options**
@@ -809,6 +810,8 @@ class Producer:
              replication_clusters=None,
              disable_replication=False,
              event_timestamp=None,
+             deliver_at=None,
+             deliver_after=None,
              ):
         """
         Publish a message on the topic. Blocks until the message is acknowledged
@@ -836,9 +839,17 @@ class Producer:
           Do not replicate this message.
         * `event_timestamp`:
           Timestamp in millis of the timestamp of event creation
+        * `deliver_at`:
+          Specify the this message should not be delivered earlier than the
+          specified timestamp.
+          The timestamp is milliseconds and based on UTC
+        * `deliver_after`:
+          Specify a delay in timedelta for the delivery of the messages.
+
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication, event_timestamp)
+                              replication_clusters, disable_replication, event_timestamp,
+                              deliver_at, deliver_after)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
@@ -847,7 +858,9 @@ class Producer:
                    sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False,
-                   event_timestamp=None
+                   event_timestamp=None,
+                   deliver_at=None,
+                   deliver_after=None,
                    ):
         """
         Send a message asynchronously.
@@ -858,7 +871,7 @@ class Producer:
         Example:
 
             #!python
-            def callback(res, msg):
+            def callback(res, msg_id):
                 print('Message published: %s' % res)
 
             producer.send_async(msg, callback)
@@ -889,9 +902,16 @@ class Producer:
           Do not replicate this message.
         * `event_timestamp`:
           Timestamp in millis of the timestamp of event creation
+        * `deliver_at`:
+          Specify the this message should not be delivered earlier than the
+          specified timestamp.
+          The timestamp is milliseconds and based on UTC
+        * `deliver_after`:
+          Specify a delay in timedelta for the delivery of the messages.
         """
         msg = self._build_msg(content, properties, partition_key, sequence_id,
-                              replication_clusters, disable_replication, event_timestamp)
+                              replication_clusters, disable_replication, event_timestamp,
+                              deliver_at, deliver_after)
         self._producer.send_async(msg, callback)
 
 
@@ -910,7 +930,8 @@ class Producer:
         self._producer.close()
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
-                   replication_clusters, disable_replication, event_timestamp):
+                   replication_clusters, disable_replication, event_timestamp,
+                   deliver_at, deliver_after):
         data = self._schema.encode(content)
 
         _check_type(bytes, data, 'data')
@@ -920,6 +941,8 @@ class Producer:
         _check_type_or_none(list, replication_clusters, 'replication_clusters')
         _check_type(bool, disable_replication, 'disable_replication')
         _check_type_or_none(int, event_timestamp, 'event_timestamp')
+        _check_type_or_none(int, deliver_at, 'deliver_at')
+        _check_type_or_none(timedelta, deliver_after, 'deliver_after')
 
         mb = _pulsar.MessageBuilder()
         mb.content(data)
@@ -936,6 +959,11 @@ class Producer:
             mb.disable_replication(disable_replication)
         if event_timestamp:
             mb.event_timestamp(event_timestamp)
+        if deliver_at:
+            mb.deliver_at(deliver_at)
+        if deliver_after:
+            mb.deliver_after(deliver_after)
+        
         return mb.build()
 
 

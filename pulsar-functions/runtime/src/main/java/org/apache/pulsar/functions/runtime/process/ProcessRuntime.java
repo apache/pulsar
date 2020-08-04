@@ -50,6 +50,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * A function container implemented using java thread.
@@ -73,12 +76,14 @@ class ProcessRuntime implements Runtime {
     private final Long expectedHealthCheckInterval;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private final String extraDependenciesDir;
+    private final String narExtractionDirectory;
     private static final long GRPC_TIMEOUT_SECS = 5;
     private final String funcLogDir;
 
     ProcessRuntime(InstanceConfig instanceConfig,
                    String instanceFile,
                    String extraDependenciesDir,
+                   String narExtractionDirectory,
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl,
@@ -109,6 +114,7 @@ class ProcessRuntime implements Runtime {
                 break;
         }
         this.extraDependenciesDir = extraDependenciesDir;
+        this.narExtractionDirectory = narExtractionDirectory;
         this.processArgs = RuntimeUtils.composeCmd(
             instanceConfig,
             instanceFile,
@@ -130,11 +136,11 @@ class ProcessRuntime implements Runtime {
             false,
             null,
             null,
-                this.metricsPort);
+                this.metricsPort, narExtractionDirectory);
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function.
+     * The core logic that initialize the process container and executes the function.
      */
     @Override
     public void start() {

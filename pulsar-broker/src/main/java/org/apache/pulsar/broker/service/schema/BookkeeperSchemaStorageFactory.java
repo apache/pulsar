@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 
 @SuppressWarnings("unused")
 public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {

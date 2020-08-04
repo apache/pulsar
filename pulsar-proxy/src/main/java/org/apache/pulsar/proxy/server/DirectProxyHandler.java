@@ -33,7 +33,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
@@ -42,26 +41,34 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 import javax.net.ssl.SSLSession;
 
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import lombok.Getter;
+
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
+import org.apache.pulsar.common.stats.Rate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class DirectProxyHandler {
 
+    @Getter
     private Channel inboundChannel;
+    @Getter
     Channel outboundChannel;
+    @Getter
+    private final Rate inboundChannelRequestsRate;
     protected static Map<ChannelId, ChannelId> inboundOutboundChannelMap = new ConcurrentHashMap<>();
     private String originalPrincipal;
     private AuthData clientAuthData;
@@ -70,18 +77,21 @@ public class DirectProxyHandler {
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
-    private final SslContext sslCtx;
+    private final Supplier<SslHandler> sslHandlerSupplier;
     private AuthenticationDataProvider authenticationDataProvider;
+    private ProxyService service;
 
     public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String targetBrokerUrl,
-            int protocolVersion, SslContext sslCtx) {
+            int protocolVersion, Supplier<SslHandler> sslHandlerSupplier) {
+        this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
+        this.inboundChannelRequestsRate = new Rate();
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         this.protocolVersion = protocolVersion;
-        this.sslCtx = sslCtx;
+        this.sslHandlerSupplier = sslHandlerSupplier;
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -94,8 +104,8 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                if (sslCtx != null) {
-                    ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+                if (sslHandlerSupplier != null) {
+                    ch.pipeline().addLast(TLS_HANDLER, sslHandlerSupplier.get());
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
@@ -127,7 +137,7 @@ public class DirectProxyHandler {
             cnx.setRemoteHostName(targetBroker.getHost());
 
             // if enable full parsing feature
-            if (ProxyService.proxyLogLevel == 2) {
+            if (service.getProxyLogLevel() == 2) {
                 //Set a map between inbound and outbound,
                 //so can find inbound by outbound or find outbound by inbound
                 inboundOutboundChannelMap.put(outboundChannel.id() , inboundChannel.id());
@@ -218,7 +228,7 @@ public class DirectProxyHandler {
                 outboundChannel.writeAndFlush(request);
                 outboundChannel.read();
             } catch (Exception e) {
-                log.error("Error mutual verify: {}", e);
+                log.error("Error mutual verify", e);
                 return;
             }
         }
@@ -270,7 +280,7 @@ public class DirectProxyHandler {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
                 }
-                if (ProxyService.proxyLogLevel == 0) {
+                if (service.getProxyLogLevel() == 0) {
                     // direct tcp proxy
                     inboundChannel.pipeline().remove("frameDecoder");
                     outboundChannel.pipeline().remove("frameDecoder");
@@ -288,20 +298,20 @@ public class DirectProxyHandler {
                                                                + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                                                            new ParserProxyHandler(inboundChannel,
+                                                            new ParserProxyHandler(service, inboundChannel,
                                                                                    ParserProxyHandler.FRONTEND_CONN,
                                                                                    connected.getMaxMessageSize()));
                         outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                                                             new ParserProxyHandler(outboundChannel,
+                                                             new ParserProxyHandler(service, outboundChannel,
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     connected.getMaxMessageSize()));
                     } else {
                         inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                                                            new ParserProxyHandler(inboundChannel,
+                                                            new ParserProxyHandler(service, inboundChannel,
                                                                                    ParserProxyHandler.FRONTEND_CONN,
                                                                                    Commands.DEFAULT_MAX_MESSAGE_SIZE));
                         outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                                                             new ParserProxyHandler(outboundChannel,
+                                                             new ParserProxyHandler(service, outboundChannel,
                                                                                     ParserProxyHandler.BACKEND_CONN,
                                                                                     Commands.DEFAULT_MAX_MESSAGE_SIZE));
                     }
@@ -333,7 +343,7 @@ public class DirectProxyHandler {
             SSLSession sslSession = null;
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
-                return (new DefaultHostnameVerifier()).verify(hostname, sslSession);
+                return (new TlsHostnameVerifier()).verify(hostname, sslSession);
             }
             return false;
         }

@@ -24,7 +24,7 @@ RUN mkdir /pulsar
 ADD protobuf.patch /pulsar
 
 RUN apt-get update && \
-    apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
+    apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
                 curl doxygen openjdk-8-jdk-headless clang-format-5.0 \
@@ -78,3 +78,16 @@ RUN git clone https://github.com/google/protobuf.git /pulsar/protobuf && \
     autoreconf --install && \
     ./configure && \
     make
+
+# Installation
+ARG MAVEN_FILENAME="apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+ARG MAVEN_URL="http://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${MAVEN_FILENAME}"
+ARG MAVEN_TMP="/tmp/${MAVEN_FILENAME}"
+RUN wget --no-verbose -O ${MAVEN_TMP} ${MAVEN_URL} 
+
+# Cleanup
+RUN tar xzf ${MAVEN_TMP}  -C /opt/ \
+        && ln -s /opt/apache-maven-${MAVEN_VERSION} ${MAVEN_HOME} \
+        && ln -s ${MAVEN_HOME}/bin/mvn /usr/local/bin 
+
+RUN unset MAVEN_VERSION

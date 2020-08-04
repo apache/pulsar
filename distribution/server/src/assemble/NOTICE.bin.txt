@@ -185,10 +185,6 @@ for non-commercial or commercial purposes and without fee is
 granted provided that the copyright notice appears in all copies.
 
 ------------------------------------------------------------------------------------
-- org.xerial.snappy-snappy-java-1.1.1.3.jar
-
-This product includes software developed by Google
- Snappy: http://code.google.com/p/snappy/ (New BSD License)
 
 This product includes software developed by Apache
  PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/

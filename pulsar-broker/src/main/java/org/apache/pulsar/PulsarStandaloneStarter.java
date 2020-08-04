@@ -67,7 +67,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             zkServers = this.getAdvertisedAddress();
         } else if (isBlank(config.getAdvertisedAddress())) {
             // Use advertised address as local hostname
-            config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+            config.setAdvertisedAddress("localhost");
         } else {
             // Use advertised address from config file
         }
@@ -102,7 +102,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                         bkEnsemble.stop();
                     }
                 } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage());
+                    log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
             }
         });

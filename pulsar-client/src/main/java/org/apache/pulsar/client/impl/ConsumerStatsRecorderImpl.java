@@ -105,10 +105,10 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
 
         try {
-            log.info("Starting Pulsar consumer perf with config: {}", w.writeValueAsString(conf));
+            log.info("Starting Pulsar consumer status recorder with config: {}", w.writeValueAsString(conf));
             log.info("Pulsar client config: {}", w.withoutAttribute("authentication").writeValueAsString(pulsarClient.getConfiguration()));
         } catch (IOException e) {
-            log.error("Failed to dump config info: {}", e);
+            log.error("Failed to dump config info", e);
         }
 
         stat = (timeout) -> {
@@ -166,7 +166,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     public void updateNumMsgsReceived(Message<?> message) {
         if (message != null) {
             numMsgsReceived.increment();
-            numBytesReceived.add(message.getData().length);
+            numBytesReceived.add(message.getData() == null ? 0 : message.getData().length);
         }
     }
 

@@ -47,6 +47,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
@@ -332,6 +333,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             response = FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
@@ -356,6 +358,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             response = FunctionStatus.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
@@ -378,6 +381,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             response = FunctionStats.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
@@ -400,6 +404,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
             response = FunctionStats.FunctionInstanceStats.FunctionInstanceStatsData.class
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
@@ -513,6 +518,7 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
     @POST
     @ApiOperation(value = "Restart an instance of a Pulsar Function", response = Void.class)
     @ApiResponses(value = {
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
             @ApiResponse(code = 500, message = "Internal server error")
@@ -686,5 +692,26 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
      */
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions.getListOfConnectors();
+    }
+
+    @PUT
+    @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have super-user permissions"),
+            @ApiResponse(code = 404, message = "The function does not exist"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 307, message = "Redirecting to the worker leader"),
+            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+    })
+    @Path("/leader/{tenant}/{namespace}/{functionName}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public void updateFunctionOnWorkerLeader(final @PathParam("tenant") String tenant,
+                                                 final @PathParam("namespace") String namespace,
+                                                 final @PathParam("functionName") String functionName,
+                                                 final @FormDataParam("functionMetaData") InputStream uploadedInputStream,
+                                                 final @FormDataParam("delete") boolean delete) {
+
+        functions.updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
+                delete, uri.getRequestUri(), clientAppId());
     }
 }

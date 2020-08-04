@@ -21,3 +21,5 @@ name: kafka
 description: Kafka source and sink connector
 sourceClass: org.apache.pulsar.io.kafka.KafkaBytesSource
 sinkClass: org.apache.pulsar.io.kafka.KafkaBytesSink
+sourceConfigClass: org.apache.pulsar.io.kafka.KafkaSourceConfig
+sinkConfigClass: org.apache.pulsar.io.kafka.KafkaSinkConfig

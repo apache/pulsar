@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import java.time.Clock;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 
@@ -110,6 +111,14 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
+
+    /**
+     * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
+     *
+     * @param name the listener name
+     * @return the client builder instance
+     */
+    ClientBuilder listenerName(String name);
 
     /**
      * Set the authentication provider to use in the Pulsar client instance.
@@ -290,6 +299,69 @@ public interface ClientBuilder extends Cloneable {
     ClientBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification);
 
     /**
+     * If Tls is enabled, whether use KeyStore type as tls configuration parameter.
+     * False means use default pem type configuration.
+     *
+     * @param useKeyStoreTls
+     * @return the client builder instance
+     */
+    ClientBuilder useKeyStoreTls(boolean useKeyStoreTls);
+
+    /**
+     * The name of the security provider used for SSL connections.
+     * Default value is the default security provider of the JVM.
+     *
+     * @param sslProvider
+     * @return the client builder instance
+     */
+    ClientBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the trust store file.
+     *
+     * @param tlsTrustStoreType
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStoreType(String tlsTrustStoreType);
+
+    /**
+     * The location of the trust store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsTrustStorePassword
+     * @return the client builder instance
+     */
+    ClientBuilder tlsTrustStorePassword(String tlsTrustStorePassword);
+
+    /**
+     * A list of cipher suites.
+     * This is a named combination of authentication, encryption, MAC and key exchange algorithm
+     * used to negotiate the security settings for a network connection using TLS or SSL network protocol.
+     * By default all the available cipher suites are supported.
+     *
+     * @param tlsCiphers
+     * @return the client builder instance
+     */
+    ClientBuilder tlsCiphers(Set<String> tlsCiphers);
+
+    /**
+     * The SSL protocol used to generate the SSLContext.
+     * Default setting is TLS, which is fine for most cases.
+     * Allowed values in recent JVMs are TLS, TLSv1.1 and TLSv1.2. SSL, SSLv2.
+     *
+     * @param tlsProtocols
+     * @return the client builder instance
+     */
+    ClientBuilder tlsProtocols(Set<String> tlsProtocols);
+
+    /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsInterval It should be set to at least 1 second.
      *
@@ -321,6 +393,15 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder maxLookupRequests(int maxLookupRequests);
+
+    /**
+     * Set the maximum number of times a lookup-request to a broker will be redirected.
+     *
+     * @since 2.6.0
+     * @param maxLookupRedirects the maximum number of redirects
+     * @return the client builder instance
+     */
+    ClientBuilder maxLookupRedirects(int maxLookupRedirects);
 
     /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
@@ -387,4 +468,14 @@ public interface ClientBuilder extends Cloneable {
      * @return the client builder instance
      */
     ClientBuilder clock(Clock clock);
+
+    /**
+     * Proxy-service url when client would like to connect to broker via proxy. Client can choose type of proxy-routing
+     * using {@link ProxyProtocol}.
+     *
+     * @param proxyServiceUrl proxy service url
+     * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
+     * @return
+     */
+    ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
 }

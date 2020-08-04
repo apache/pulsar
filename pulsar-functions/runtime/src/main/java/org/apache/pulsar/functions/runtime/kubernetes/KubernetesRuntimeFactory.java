@@ -67,8 +67,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private String k8Uri;
     private String jobNamespace;
     private String pulsarDockerImageName;
+    private Map<String, String> functionDockerImages;
     private String imagePullPolicy;
     private String pulsarRootDir;
+    private String configAdminCLI;
     private String pulsarAdminUrl;
     private String pulsarServiceUrl;
     private String pythonDependencyRepository;
@@ -92,6 +94,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private boolean authenticationEnabled;
     private Integer grpcPort;
     private Integer metricsPort;
+    private String narExtractionDirectory;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -141,6 +144,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         } else {
             this.pulsarDockerImageName = "apachepulsar/pulsar";
         }
+        this.functionDockerImages = factoryConfig.getFunctionDockerImages();
         if (!isEmpty(factoryConfig.getImagePullPolicy())) {
             this.imagePullPolicy = factoryConfig.getImagePullPolicy();
         } else {
@@ -150,6 +154,11 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             this.pulsarRootDir = factoryConfig.getPulsarRootDir();
         } else {
             this.pulsarRootDir = "/pulsar";
+        }
+        if (!isEmpty(factoryConfig.getConfigAdminCLI())) {
+            this.configAdminCLI = factoryConfig.getConfigAdminCLI();
+        } else {
+            this.configAdminCLI = "/bin/pulsar-admin";
         }
 
         this.submittingInsidePod = factoryConfig.getSubmittingInsidePod();
@@ -223,6 +232,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
 
         this.grpcPort = factoryConfig.getGrpcPort();
         this.metricsPort = factoryConfig.getMetricsPort();
+        this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
     }
 
     @Override
@@ -264,12 +274,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             pythonDependencyRepository,
             pythonExtraDependencyRepository,
             pulsarDockerImageName,
+            functionDockerImages,
             imagePullPolicy,
             pulsarRootDir,
             instanceConfig,
             instanceFile,
             extraDependenciesDir,
             logDirectory,
+            configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
             pulsarServiceUrl,
@@ -285,6 +297,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             authenticationEnabled,
             grpcPort,
             metricsPort,
+            narExtractionDirectory,
             manifestCustomizer);
     }
 

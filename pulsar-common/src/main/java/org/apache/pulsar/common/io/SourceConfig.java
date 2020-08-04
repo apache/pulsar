@@ -22,22 +22,14 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 
 /**
  * Pulsar source configuration.
  */
-@Getter
-@Setter
 @Data
-@EqualsAndHashCode
-@ToString
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
@@ -71,4 +63,7 @@ public class SourceConfig {
     // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
     // interface
     private String customRuntimeOptions;
+
+    // If this is a BatchSource, its batch related configs are stored here
+    private BatchSourceConfig batchSourceConfig;
 }

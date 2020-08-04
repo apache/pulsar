@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.junit.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 import java.util.HashMap;
@@ -53,7 +54,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster("test", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
@@ -162,6 +163,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.schemas().createSchema(topicName, foo1SchemaInfo);
+            fail("Should have failed");
         } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("HTTP 409 Conflict"));
         }
@@ -171,6 +173,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.schemas().createSchema(topicName, fooSchemaInfo);
+            fail("Should have failed");
         } catch (PulsarAdminException.NotFoundException e) {
             assertTrue(e.getMessage().contains("HTTP 404 Not Found"));
         }

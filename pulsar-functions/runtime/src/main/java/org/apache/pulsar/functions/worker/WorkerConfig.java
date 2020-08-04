@@ -35,6 +35,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -43,21 +45,16 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactoryConfig;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class WorkerConfig implements Serializable, PulsarConfiguration {
@@ -73,6 +70,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Category
     private static final String CATEGORY_FUNC_RUNTIME_MNG = "Function Runtime Management";
     @Category
+    private static final String CATEGORY_FUNC_SCHEDULE_MNG = "Function Scheduling Management";
+    @Category
     private static final String CATEGORY_SECURITY = "Common Security Settings (applied for both worker and client)";
     @Category
     private static final String CATEGORY_WORKER_SECURITY = "Worker Security Settings";
@@ -82,6 +81,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private static final String CATEGORY_STATE = "State Management";
     @Category
     private static final String CATEGORY_CONNECTORS = "Connectors";
+    @Category
+    private static final String CATEGORY_FUNCTIONS = "Functions";
 
     @FieldContext(
         category = CATEGORY_WORKER,
@@ -103,6 +104,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The port for serving worker https requests"
     )
     private Integer workerPortTls;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = true;
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Whether the '/metrics' endpoint should return default prometheus metrics. Defaults to false."
+    )
+    private boolean includeStandardPrometheusMetrics = false;
     @FieldContext(
         category = CATEGORY_WORKER,
         doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -129,15 +141,40 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperOperationTimeoutSeconds = 30;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "ZooKeeper cache expiry time in seconds"
+        )
+    private int zooKeeperCacheExpirySeconds = 300;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )
     private String connectorsDirectory = "./connectors";
     @FieldContext(
+        category = CATEGORY_CONNECTORS,
+        doc = "The directory where nar packages are extractors"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Should we validate connector config during submission"
+    )
+    private Boolean validateConnectorConfig = false;
+    @FieldContext(
+        category = CATEGORY_FUNCTIONS,
+        doc = "The path to the location to locate builtin functions"
+    )
+    private String functionsDirectory = "./functions";
+    @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The pulsar topic used for storing function metadata"
     )
     private String functionMetadataTopicName;
+    @FieldContext(
+            category = CATEGORY_FUNC_METADATA_MNG,
+            doc = "Should the metadata topic be compacted?"
+    )
+    private Boolean useCompactedMetadataTopic = false;
     @FieldContext(
         category = CATEGORY_FUNC_METADATA_MNG,
         doc = "The web service url for function workers"
@@ -184,33 +221,38 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String stateStorageServiceUrl;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The pulsar topic used for storing function assignment informations"
     )
     private String functionAssignmentTopicName;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_SCHEDULE_MNG,
         doc = "The scheduler class used by assigning functions to workers"
     )
     private String schedulerClassName;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The frequency of failure checks, in milliseconds"
     )
     private long failureCheckFreqMs;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The reschedule timeout of function assignment, in milliseconds"
     )
     private long rescheduleTimeoutMs;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+            category = CATEGORY_FUNC_RUNTIME_MNG,
+            doc = "The frequency to check whether the cluster needs rebalancing"
+    )
+    private long rebalanceCheckFreqSec;
+    @FieldContext(
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for initial broker reconnects when function metadata manager"
             + " tries to create producer on metadata topics"
     )
     private int initialBrokerReconnectMaxRetries;
     @FieldContext(
-        category = CATEGORY_FUNC_METADATA_MNG,
+        category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The max number of retries for writing assignment to assignment topic"
     )
     private int assignmentWriteMaxRetries;
@@ -223,12 +265,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationPlugin;
+    private String brokerClientAuthenticationPlugin;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
     )
-    private String clientAuthenticationParameters;
+    private String brokerClientAuthenticationParameters;
     @FieldContext(
         category = CATEGORY_CLIENT_SECURITY,
         doc = "Authentication plugin to use when connecting to bookies"
@@ -267,7 +309,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private String tlsKeyFilePath;
     @FieldContext(
-        category = CATEGORY_SECURITY,
+        category = CATEGORY_WORKER_SECURITY,
         doc = "Path for the trusted TLS certificate file"
     )
     private String tlsTrustCertsFilePath = "";
@@ -294,7 +336,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_SECURITY,
         doc = "Whether to enable hostname verification on TLS connections"
     )
-    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsEnableHostnameVerification = false;
     @FieldContext(
             category = CATEGORY_SECURITY,
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
@@ -331,6 +373,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     public boolean getTlsEnabled() {
     	return tlsEnabled || workerPortTls != null;
     }
+
+    /******** security settings for pulsar broker client **********/
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTrustCertsFilePath;
 
 
     /******** Function Runtime configurations **********/
@@ -371,7 +421,20 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     "  The Function Authentication Provider is responsible to distributing the necessary" +
                     " authentication information to individual functions e.g. user tokens"
     )
-    private String functionAuthProviderClassName;
+    @Getter(AccessLevel.NONE) private String functionAuthProviderClassName;
+
+    public String getFunctionAuthProviderClassName() {
+        // if we haven't set a value and are running kubernetes, we default to the SecretsTokenAuthProvider
+        // as that matches behavior before this property could be overridden
+        if (!StringUtils.isEmpty(functionAuthProviderClassName)) {
+            return functionAuthProviderClassName;
+        } else {
+            if (StringUtils.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName()) || getKubernetesContainerFactory() != null) {
+                return KubernetesSecretsTokenAuthProvider.class.getName();
+            }
+            return null;
+        }
+    }
 
     @FieldContext(
             doc = "The full class-name of an instance of RuntimeCustomizer." +
@@ -386,6 +449,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     " as this config is the the same across all functions"
     )
     private Map<String, Object> runtimeCustomizerConfig = Collections.emptyMap();
+
+    @FieldContext(
+            doc = "Max pending async requests per instance to avoid large number of concurrent requests."
+                  + "Only used in AsyncFunction. Default: 1000"
+    )
+    private int maxPendingAsyncRequests = 1000;
 
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
@@ -436,7 +505,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public static String unsafeLocalhostResolve() {
         try {
-            return InetAddress.getLocalHost().getHostName();
+            // Get the fully qualified hostname
+            return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
@@ -496,4 +566,33 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     @Deprecated
     private KubernetesContainerFactory kubernetesContainerFactory;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The parameters of the authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationParameters;
+    @FieldContext(
+            category = CATEGORY_CLIENT_SECURITY,
+            doc = "The authentication plugin used by function workers to talk to brokers"
+    )
+    @Deprecated
+    private String clientAuthenticationPlugin;
+
+    public String getBrokerClientAuthenticationPlugin() {
+        if (null == brokerClientAuthenticationPlugin) {
+            return clientAuthenticationPlugin;
+        } else {
+            return brokerClientAuthenticationPlugin;
+        }
+    }
+
+    public String getBrokerClientAuthenticationParameters() {
+        if (null == brokerClientAuthenticationParameters) {
+            return clientAuthenticationParameters;
+        } else {
+            return brokerClientAuthenticationParameters;
+        }
+    }
 }

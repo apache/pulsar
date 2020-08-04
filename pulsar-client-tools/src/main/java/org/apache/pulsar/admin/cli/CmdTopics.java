@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -74,6 +77,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("info-internal", new GetInternalInfo());
 
         jcommander.addCommand("partitioned-stats", new GetPartitionedStats());
+        jcommander.addCommand("partitioned-stats-internal", new GetPartitionedStatsInternal());
 
         jcommander.addCommand("skip", new Skip());
         jcommander.addCommand("clear-backlog", new ClearBacklog());
@@ -82,12 +86,14 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("expire-messages-all-subscriptions", new ExpireMessagesForAllSubscriptions());
 
         jcommander.addCommand("create-partitioned-topic", new CreatePartitionedCmd());
+        jcommander.addCommand("create-missed-partitions", new CreateMissedPartitionsCmd());
         jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
+        jcommander.addCommand("get-message-by-id", new GetMessageById());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
         jcommander.addCommand("compact", new Compact());
@@ -95,6 +101,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("offload", new Offload());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
         jcommander.addCommand("last-message-id", new GetLastMessageId());
+        jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
+        jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
+        jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -211,6 +220,21 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             topics.createPartitionedTopic(topic, numPartitions);
+        }
+    }
+
+    @Parameters(commandDescription = "Try to create partitions for partitioned topic. \n"
+            + "\t\t     The partitions of partition topic has to be created, can be used by repair partitions when \n"
+            + "\t\t     topic auto creation is disabled")
+    private class CreateMissedPartitionsCmd extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            topics.createMissedPartitions(topic);
         }
     }
 
@@ -338,13 +362,17 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+            "--force" }, description = "Disconnect and close all consumers and delete subscription forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be deleted", required = true)
         private String subName;
 
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            topics.deleteSubscription(topic, subName);
+            topics.deleteSubscription(topic, subName, force);
         }
     }
 
@@ -354,10 +382,14 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
-            print(topics.getStats(topic));
+            print(topics.getStats(topic, getPreciseBacklog));
         }
     }
 
@@ -396,10 +428,27 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = "--per-partition", description = "Get per partition stats")
         private boolean perPartition = false;
 
+        @Parameter(names = { "-gpb",
+            "--get-precise-backlog" }, description = "Set true to get precise backlog")
+        private boolean getPreciseBacklog = false;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(topics.getPartitionedStats(topic, perPartition));
+            print(topics.getPartitionedStats(topic, perPartition, getPreciseBacklog));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the internal stats for the partitioned topic and its connected producers and consumers. \n"
+            + "\t       All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.")
+    private class GetPartitionedStatsInternal extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(topics.getPartitionedInternalStats(topic));
         }
     }
 
@@ -592,6 +641,32 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get message by its ledgerId and entryId")
+    private class GetMessageById extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--ledgerId" },
+            description = "ledger id pointing to the desired ledger",
+            required = true)
+        private long ledgerId;
+
+        @Parameter(names = { "-e", "--entryId" },
+            description = "entry id pointing to the desired entry",
+            required = true)
+        private long entryId;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            Message<byte[]> message = topics.getMessageById(persistentTopic, ledgerId, entryId);
+
+            ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+            System.out.println(ByteBufUtil.prettyHexDump(date));
+        }
+    }
+
     @Parameters(commandDescription = "Compact a topic")
     private class Compact extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -747,6 +822,62 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(topics.getLastMessageId(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the backlog quota policies for a topic")
+    private class GetBacklogQuotaMap extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getBacklogQuotaMap(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set a backlog quota policy for a topic")
+    private class SetBacklogQuota extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
+        private String limitStr;
+
+        @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
+                + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
+        private String policyStr;
+
+        @Override
+        void run() throws PulsarAdminException {
+            BacklogQuota.RetentionPolicy policy;
+            long limit;
+
+            try {
+                policy = BacklogQuota.RetentionPolicy.valueOf(policyStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid options are: %s",
+                        policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
+            }
+
+            limit = validateSizeString(limitStr);
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, policy));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove a backlog quota policy from a topic")
+    private class RemoveBacklogQuota extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeBacklogQuota(persistentTopic);
         }
     }
 }

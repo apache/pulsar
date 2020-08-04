@@ -166,7 +166,7 @@ public class OffloadIndexTest {
         OffloadIndexEntry e2 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                                                         wrapper.readLong(), dataHeaderLength);
         OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
-                                                        wrapper.readLong(), dataHeaderLength);;
+                                                        wrapper.readLong(), dataHeaderLength);
 
         assertEquals(e1.getEntryId(),entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());

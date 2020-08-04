@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ConnectorSession;
-import com.facebook.presto.spi.ConnectorSplitSource;
-import com.facebook.presto.spi.connector.ConnectorTransactionHandle;
-import com.facebook.presto.spi.predicate.Domain;
-import com.facebook.presto.spi.predicate.Range;
-import com.facebook.presto.spi.predicate.TupleDomain;
-import com.facebook.presto.spi.predicate.ValueSet;
 import io.airlift.log.Logger;
+import io.prestosql.spi.connector.ColumnHandle;
+import io.prestosql.spi.connector.ConnectorSession;
+import io.prestosql.spi.connector.ConnectorSplitSource;
+import io.prestosql.spi.connector.ConnectorTransactionHandle;
+import io.prestosql.spi.predicate.Domain;
+import io.prestosql.spi.predicate.Range;
+import io.prestosql.spi.predicate.TupleDomain;
+import io.prestosql.spi.predicate.ValueSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.mockito.invocation.InvocationOnMock;
@@ -41,8 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
-import static com.facebook.presto.spi.type.IntegerType.INTEGER;
+import static io.prestosql.spi.type.IntegerType.INTEGER;
+import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -54,7 +54,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertNotNull;
 
-@Test(singleThreaded = true)
 public class TestPulsarSplitManager extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarSplitManager.class);
@@ -72,7 +71,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<TopicName> topics = new LinkedList<>();
@@ -87,7 +86,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, TupleDomain.all());
 
             final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
-            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any());
+            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
 
             ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
@@ -95,7 +94,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
                     pulsarTableLayoutHandle, null);
 
             verify(this.pulsarSplitManager, times(1))
-                    .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any());
+                    .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
             int totalSize = 0;
             for (PulsarSplit pulsarSplit : resultCaptor.getResult()) {
@@ -121,7 +120,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testPartitionedTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : partitionedTopicNames) {
@@ -134,13 +133,13 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, TupleDomain.all());
 
             final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
-            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any());
+            doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
             this.pulsarSplitManager.getSplits(mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
                     pulsarTableLayoutHandle, null);
 
             verify(this.pulsarSplitManager, times(1))
-                    .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any());
+                    .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
             int partitions = partitionedTopicsToPartitions.get(topicName.toString());
 
@@ -178,7 +177,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }).collect(Collectors.toList());
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testPublishTimePredicatePushdown(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = TOPIC_1;
@@ -200,8 +199,8 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         PulsarTableLayoutHandle pulsarTableLayoutHandle = new PulsarTableLayoutHandle(pulsarTableHandle, tupleDomain);
 
         final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
-        doAnswer(resultCaptor).when(this.pulsarSplitManager).getSplitsNonPartitionedTopic(anyInt(), any(), any(), any
-                (), any());
+        doAnswer(resultCaptor).when(this.pulsarSplitManager)
+                .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
         ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
                 mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
@@ -209,7 +208,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         verify(this.pulsarSplitManager, times(1))
-                .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any());
+                .getSplitsNonPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
         int totalSize = 0;
         int initalStart = 1;
@@ -235,7 +234,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testPublishTimePredicatePushdownPartitionedTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = PARTITIONED_TOPIC_1;
@@ -258,7 +257,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
         final ResultCaptor<Collection<PulsarSplit>> resultCaptor = new ResultCaptor<>();
         doAnswer(resultCaptor).when(this.pulsarSplitManager)
-                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any());
+                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
         ConnectorSplitSource connectorSplitSource = this.pulsarSplitManager.getSplits(
                 mock(ConnectorTransactionHandle.class), mock(ConnectorSession.class),
@@ -266,7 +265,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
 
         verify(this.pulsarSplitManager, times(1))
-                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any());
+                .getSplitsPartitionedTopic(anyInt(), any(), any(), any(), any(), any());
 
 
         int partitions = partitionedTopicsToPartitions.get(topicName.toString());
@@ -296,7 +295,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testPartitionFilter(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : partitionedTopicNames) {
@@ -315,7 +314,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             TupleDomain<ColumnHandle> tupleDomain = TupleDomain.withColumnDomains(domainMap);
             Collection<PulsarSplit> splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
-                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain);
+                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 2);
             }
@@ -332,7 +331,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
             splits = this.pulsarSplitManager.getSplitsPartitionedTopic(1, topicName, pulsarTableHandle,
-                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain);
+                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 2);
             }
@@ -348,7 +347,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
             splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
-                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain);
+                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 3);
             }
@@ -367,7 +366,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
             domainMap.put(PulsarInternalColumn.PARTITION.getColumnHandle(pulsarConnectorId.toString(), false), domain);
             tupleDomain = TupleDomain.withColumnDomains(domainMap);
             splits = this.pulsarSplitManager.getSplitsPartitionedTopic(2, topicName, pulsarTableHandle,
-                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain);
+                schemas.getSchemaInfo(topicName.getSchemaName()), tupleDomain, null);
             if (topicsToNumEntries.get(topicName.getSchemaName()) > 1) {
                 Assert.assertEquals(splits.size(), 4);
             }
@@ -382,7 +381,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter")
+    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
     public void testGetSplitNonSchema(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = NON_SCHEMA_TOPIC;

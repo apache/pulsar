@@ -44,6 +44,7 @@ public class PulsarSourceBuilder<T> {
     private static final String SERVICE_URL = "pulsar://localhost:6650";
     private static final long ACKNOWLEDGEMENT_BATCH_SIZE = 100;
     private static final long MAX_ACKNOWLEDGEMENT_BATCH_SIZE = 1000;
+    private static final int DEFAULT_MESSAGE_RECEIVE_TIMEOUT_MS = 100;
     private static final String SUBSCRIPTION_NAME = "flink-sub";
 
     final DeserializationSchema<T> deserializationSchema;
@@ -52,6 +53,8 @@ public class PulsarSourceBuilder<T> {
     ConsumerConfigurationData<byte[]> consumerConfigurationData;
 
     long acknowledgementBatchSize = ACKNOWLEDGEMENT_BATCH_SIZE;
+    //
+    int messageReceiveTimeoutMs = DEFAULT_MESSAGE_RECEIVE_TIMEOUT_MS;
 
     private PulsarSourceBuilder(DeserializationSchema<T> deserializationSchema) {
         this.deserializationSchema = deserializationSchema;
@@ -190,6 +193,19 @@ public class PulsarSourceBuilder<T> {
         }
         throw new IllegalArgumentException(
             "acknowledgementBatchSize can only take values > 0 and <= " + MAX_ACKNOWLEDGEMENT_BATCH_SIZE);
+    }
+
+    /**
+     * parameterize messageReceiveTimeoutMs for `PulsarConsumerSource`.
+     * @param timeout timeout in ms, should be gt 0
+     * @return this builder
+     */
+    public PulsarSourceBuilder<T> messageReceiveTimeoutMs(int timeout) {
+        if (timeout <= 0) {
+            throw new IllegalArgumentException("messageReceiveTimeoutMs can only take values > 0");
+        }
+        this.messageReceiveTimeoutMs = timeout;
+        return this;
     }
 
     /**

@@ -182,11 +182,12 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.flush();
 
         // Repeat the messages and verify they're not received by consumer
-        producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();
-        producer.newMessage().value("my-message-2".getBytes()).sequenceId(4).sendAsync();
-        producer.close();
+        producer.newMessage().value("my-message-0".getBytes()).sequenceId(2).sendAsync();
+        producer.newMessage().value("my-message-1".getBytes()).sequenceId(4).sendAsync();
+        producer.newMessage().value("my-message-3".getBytes()).sequenceId(6).sendAsync();
+        producer.flush();
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             Message<byte[]> msg = consumer.receive();
             assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer.acknowledge(msg);
@@ -196,11 +197,12 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
 
+        producer.close();
         // Kill and restart broker
         restartBroker();
 
         producer = producerBuilder.create();
-        assertEquals(producer.getLastSequenceId(), 5L);
+        assertEquals(producer.getLastSequenceId(), 6L);
 
         // Repeat the messages and verify they're not received by consumer
         producer.newMessage().value("my-message-1".getBytes()).sequenceId(2).sendAsync();

@@ -63,7 +63,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
         return select(Murmur3_32Hash.getInstance().makeHash(stickyKey));
     }
 
-    public Consumer select(int hash) {
+    Consumer select(int hash) {
         if (rangeMap.size() > 0) {
             int slot = hash % rangeSize;
             Map.Entry<Integer, Consumer> ceilingEntry = rangeMap.ceilingEntry(slot);
@@ -106,7 +106,14 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
             }
 
             if (ceilingEntry != null && floorEntry != null && ceilingEntry.getValue().equals(floorEntry.getValue())) {
-                throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                PulsarApi.KeySharedMeta keySharedMeta = ceilingEntry.getValue().getKeySharedMeta();
+                for (PulsarApi.IntRange range : keySharedMeta.getHashRangesList()) {
+                    int start = Math.max(intRange.getStart(), range.getStart());
+                    int end = Math.min(intRange.getEnd(), range.getEnd());
+                    if (end >= start) {
+                        throw new BrokerServiceException.ConsumerAssignException("Range conflict with consumer " + ceilingEntry.getValue());
+                    }
+                }
             }
         }
     }

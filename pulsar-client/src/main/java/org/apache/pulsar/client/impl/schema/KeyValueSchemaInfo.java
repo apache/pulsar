@@ -48,6 +48,11 @@ public final class KeyValueSchemaInfo {
         public SchemaInfo getSchemaInfo() {
             return BytesSchema.BYTES.getSchemaInfo();
         }
+
+        @Override
+        public Schema<SchemaInfo> clone() {
+            return this;
+        }
     };
 
     private static final String KEY_SCHEMA_NAME = "key.schema.name";

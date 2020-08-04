@@ -43,11 +43,4 @@ public interface StickyKeyConsumerSelector {
      * @return consumer
      */
     Consumer select(byte[] stickyKey);
-
-    /**
-     * Select a consumer by hash of the sticky they
-     * @param keyHash hash of sticky key
-     * @return
-     */
-    Consumer select(int keyHash);
 }

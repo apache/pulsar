@@ -22,10 +22,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -37,10 +33,6 @@ import java.util.List;
  * Configuration object for all Redis Sink components.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class RedisAbstractConfig implements Serializable {
 
@@ -113,7 +105,7 @@ public class RedisAbstractConfig implements Serializable {
     }
 
     public List<HostAndPort> getHostAndPorts() {
-        List<HostAndPort> hostAndPorts = Lists.newArrayList();;
+        List<HostAndPort> hostAndPorts = Lists.newArrayList();
         Preconditions.checkNotNull(redisHosts, "redisHosts property not set.");
         String[] hosts = StringUtils.split(redisHosts, ",");
         for (String host : hosts) {

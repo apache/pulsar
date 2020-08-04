@@ -21,10 +21,6 @@ package org.apache.pulsar.io.hbase;
 import com.google.common.base.Preconditions;
 import java.io.Serializable;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -32,10 +28,6 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  * Configuration object for all Hbase Sink components.
  */
 @Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
 @Accessors(chain = true)
 public class HbaseAbstractConfig implements Serializable {
 

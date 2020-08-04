@@ -19,19 +19,8 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import com.google.common.annotations.VisibleForTesting;
-
-import java.net.BindException;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.TimeZone;
-
-import javax.servlet.DispatcherType;
-
+import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -47,12 +36,23 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
+
+import java.net.BindException;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.TimeZone;
+
+import javax.servlet.DispatcherType;
 
 @Slf4j
 public class WorkerServer {
@@ -103,7 +103,8 @@ public class WorkerServer {
                 newServletContextHandler("/admin/v2", new ResourceConfig(Resources.getApiV2Resources()), workerService));
         handlers.add(
                 newServletContextHandler("/admin/v3", new ResourceConfig(Resources.getApiV3Resources()), workerService));
-        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService));
+        // don't require auth for metrics or config routes
+        handlers.add(newServletContextHandler("/", new ResourceConfig(Resources.getRootResources()), workerService, workerConfig.isAuthenticateMetricsEndpoint()));
 
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
@@ -118,7 +119,17 @@ public class WorkerServer {
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
         handlerCollection.setHandlers(new Handler[] { contexts, new DefaultHandler(), requestLogHandler });
-        server.setHandler(handlerCollection);
+
+        // Metrics handler
+        StatisticsHandler stats = new StatisticsHandler();
+        stats.setHandler(handlerCollection);
+        try {
+            new JettyStatisticsCollector(stats).register();
+        } catch (IllegalArgumentException e) {
+            // Already registered. Eg: in unit tests
+        }
+        handlers.add(stats);
+        server.setHandler(stats);
 
         if (this.workerConfig.getWorkerPortTls() != null) {
             try {
@@ -142,6 +153,10 @@ public class WorkerServer {
     }
 
     public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
+        return newServletContextHandler(contextPath, config, workerService, true);
+    }
+
+    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService, boolean requireAuthentication) {
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
@@ -153,7 +168,7 @@ public class WorkerServer {
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
         contextHandler.addServlet(apiServlet, "/*");
-        if (workerService.getWorkerConfig().isAuthenticationEnabled()) {
+        if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }

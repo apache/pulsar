@@ -50,8 +50,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
 
 import lombok.Getter;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
@@ -88,6 +89,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaInfoUtil;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,12 +142,13 @@ public class ClientCnx extends PulsarHandler {
     protected String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
 
-    private static final DefaultHostnameVerifier HOSTNAME_VERIFIER = new DefaultHostnameVerifier();
+    private static final TlsHostnameVerifier HOSTNAME_VERIFIER = new TlsHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
 
     // Added for mutual authentication.
     protected AuthenticationDataProvider authenticationDataProvider;
+    private TransactionBufferHandler transactionBufferHandler;
 
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -261,8 +264,8 @@ public class ClientCnx extends PulsarHandler {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
-            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
-                    isKnownException(cause) ? null : cause);
+            log.warn("[{}] Got exception {}", remoteAddress,
+                    ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
@@ -336,7 +339,10 @@ public class ClientCnx extends PulsarHandler {
                     connectionFuture.completeExceptionally(writeFuture.cause());
                 }
             });
-            state = State.Connecting;
+
+            if (state == State.SentConnectFrame) {
+                state = State.Connecting;
+            }
         } catch (Exception e) {
             log.error("{} Error mutual verify: {}", ctx.channel(), e);
             connectionFuture.completeExceptionally(e);
@@ -380,7 +386,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
-            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), headersAndPayload, this);
+            consumer.messageReceived(cmdMessage.getMessageId(), cmdMessage.getRedeliveryCount(), cmdMessage.getAckSetList(), headersAndPayload, this);
         }
     }
 
@@ -593,7 +599,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleError(CommandError error) {
-        checkArgument(state == State.Ready);
+        checkArgument(state == State.SentConnectFrame || state == State.Ready);
 
         log.warn("{} Received error from server: {}", ctx.channel(), error.getMessage());
         long requestId = error.getRequestId();
@@ -810,7 +816,7 @@ public class ClientCnx extends PulsarHandler {
             if (!writeFuture.isSuccess()) {
                 log.warn("{} Failed to send GetSchema request to broker: {}", ctx.channel(),
                         writeFuture.cause().getMessage());
-                pendingGetLastMessageIdRequests.remove(requestId);
+                pendingGetSchemaRequests.remove(requestId);
                 future.completeExceptionally(writeFuture.cause());
             }
         });
@@ -862,6 +868,22 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleEndTxnOnPartitionResponse(PulsarApi.CommandEndTxnOnPartitionResponse command) {
+        TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
+        if (handler != null) {
+            handler.handleEndTxnOnTopicResponse(command.getRequestId(), command);
+        }
+    }
+
+    @Override
+    protected void handleEndTxnOnSubscriptionResponse(PulsarApi.CommandEndTxnOnSubscriptionResponse command) {
+        TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
+        if (handler != null) {
+            handler.handleEndTxnOnSubscriptionResponse(command.getRequestId(), command);
+        }
+    }
+
+    @Override
     protected void handleEndTxnResponse(PulsarApi.CommandEndTxnResponse command) {
         TransactionMetaStoreHandler handler = checkAndGetTransactionMetaStoreHandler(command.getTxnidMostBits());
         if (handler != null) {
@@ -876,6 +898,14 @@ public class ClientCnx extends PulsarHandler {
             log.warn("Close the channel since can't get the transaction meta store handler, will reconnect later.");
         }
         return handler;
+    }
+
+    private TransactionBufferHandler checkAndGetTransactionBufferHandler() {
+        if (transactionBufferHandler == null) {
+            channel().close();
+            log.warn("Close the channel since can't get the transaction buffer handler.");
+        }
+        return transactionBufferHandler;
     }
 
     /**
@@ -952,6 +982,10 @@ public class ClientCnx extends PulsarHandler {
         transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
+    public void registerTransactionBufferHandler(final TransactionBufferHandler handler) {
+        transactionBufferHandler = handler;
+    }
+
     void removeProducer(final long producerId) {
         producers.remove(producerId);
     }
@@ -997,6 +1031,10 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.IncompatibleSchemaException(errorMsg);
         case TopicNotFound:
             return new PulsarClientException.TopicDoesNotExistException(errorMsg);
+        case ConsumerAssignError:
+            return new PulsarClientException.ConsumerAssignException(errorMsg);
+        case NotAllowedError:
+            return new PulsarClientException.NotAllowedException(errorMsg);
         case UnknownError:
         default:
             return new PulsarClientException(errorMsg);

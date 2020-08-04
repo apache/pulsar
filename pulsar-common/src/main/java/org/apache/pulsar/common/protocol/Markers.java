@@ -49,9 +49,7 @@ public class Markers {
         msgMetadataBuilder.setSequenceId(0);
         msgMetadataBuilder.setMarkerType(markerType.getNumber());
 
-        if (restrictToCluster.isPresent()) {
-            msgMetadataBuilder.addReplicateTo(restrictToCluster.get());
-        }
+        restrictToCluster.ifPresent(msgMetadataBuilder::addReplicateTo);
 
         MessageMetadata msgMetadata = msgMetadataBuilder.build();
         try {

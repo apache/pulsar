@@ -34,9 +34,9 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -57,24 +57,32 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private FunctionCacheManager fnCache;
     private PulsarClient pulsarClient;
     private String storageServiceUrl;
-    private SecretsProvider secretsProvider;
+    private SecretsProvider defaultSecretsProvider;
     private CollectorRegistry collectorRegistry;
+    private String narExtractionDirectory;
     private volatile boolean closed;
+    private SecretsProviderConfigurator secretsProviderConfigurator;
+    private ClassLoader rootClassLoader;
 
+    /**
+     * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime) that rely on ThreadRuntime to actually run an instance of the function.
+     * When used by other runtimes, the arguments such as secretsProvider and rootClassLoader will be provided.
+     */
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl, String storageServiceUrl,
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
-                                CollectorRegistry collectorRegistry, ClassLoader rootClassLoader) throws Exception {
+                                CollectorRegistry collectorRegistry, String narExtractionDirectory,
+                                ClassLoader rootClassLoader) throws Exception {
         initialize(threadGroupName, createPulsarClient(pulsarServiceUrl, authConfig),
-                storageServiceUrl, secretsProvider, collectorRegistry, rootClassLoader);
+                storageServiceUrl, null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
     @VisibleForTesting
     public ThreadRuntimeFactory(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
                                 SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                                ClassLoader rootClassLoader) {
+                                String narExtractionDirectory, ClassLoader rootClassLoader) {
 
         initialize(threadGroupName, pulsarClient, storageServiceUrl,
-                secretsProvider, collectorRegistry, rootClassLoader);
+                null, secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader);
     }
 
     private static PulsarClient createPulsarClient(String pulsarServiceUrl, AuthenticationConfig authConfig)
@@ -93,24 +101,28 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 clientBuilder.enableTlsHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
                 clientBuilder.tlsTrustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
             }
+            clientBuilder.ioThreads(Runtime.getRuntime().availableProcessors());
             return clientBuilder.build();
         }
         return null;
     }
 
     private void initialize(String threadGroupName, PulsarClient pulsarClient, String storageServiceUrl,
-                            SecretsProvider secretsProvider, CollectorRegistry collectorRegistry,
-                            ClassLoader rootClassLoader) {
+                            SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
+                            CollectorRegistry collectorRegistry,  String narExtractionDirectory, ClassLoader rootClassLoader) {
         if (rootClassLoader == null) {
             rootClassLoader = Thread.currentThread().getContextClassLoader();
         }
 
-        this.secretsProvider = secretsProvider;
+        this.rootClassLoader = rootClassLoader;
+        this.secretsProviderConfigurator = secretsProviderConfigurator;
+        this.defaultSecretsProvider = secretsProvider;
         this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
+        this.narExtractionDirectory = narExtractionDirectory;
     }
 
     @Override
@@ -123,14 +135,23 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
 
         initialize(factoryConfig.getThreadGroupName(),
                 createPulsarClient(workerConfig.getPulsarServiceUrl(), authenticationConfig),
-                workerConfig.getStateStorageServiceUrl(), new ClearTextSecretsProvider(),
-                null, null);
+                workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
+                null, workerConfig.getNarExtractionDirectory(), null);
     }
 
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
                                          String originalCodeFileName,
                                          Long expectedHealthCheckInterval) {
+        SecretsProvider secretsProvider = defaultSecretsProvider;
+        if (secretsProvider == null) {
+            String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
+            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
+            log.info("Initializing secrets provider {} with configs: {}",
+              secretsProvider.getClass().getName(), secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+            secretsProvider.init(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+        }
+
         return new ThreadRuntime(
             instanceConfig,
             fnCache,
@@ -139,7 +160,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             pulsarClient,
             storageServiceUrl,
             secretsProvider,
-            collectorRegistry);
+            collectorRegistry,
+            narExtractionDirectory);
     }
 
     @Override

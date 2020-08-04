@@ -85,6 +85,7 @@ import java.util.regex.Pattern;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
@@ -130,9 +131,11 @@ public class KubernetesRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final Map<String, String> customLabels;
+    private final Map<String, String> functionDockerImages;
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
+    private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
     private final String pulsarAdminUrl;
@@ -144,6 +147,7 @@ public class KubernetesRuntime implements Runtime {
     private final AuthenticationConfig authConfig;
     private Integer grpcPort;
     private Integer metricsPort;
+    private String narExtractionDirectory;
     private final Optional<KubernetesManifestCustomizer> manifestCustomizer;
 
     KubernetesRuntime(AppsV1Api appsClient,
@@ -154,12 +158,14 @@ public class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      Map<String, String> functionDockerImages,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
                       String instanceFile,
                       String extraDependenciesDir,
                       String logDirectory,
+                      String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
                       String pulsarServiceUrl,
@@ -175,15 +181,18 @@ public class KubernetesRuntime implements Runtime {
                       boolean authenticationEnabled,
                       Integer grpcPort,
                       Integer metricsPort,
+                      String narExtractionDirectory,
                       Optional<KubernetesManifestCustomizer> manifestCustomizer) throws Exception {
         this.appsClient = appsClient;
         this.coreClient = coreClient;
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
+        this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
+        this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.originalCodeFileName = pulsarRootDir + "/" + originalCodeFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
@@ -216,6 +225,7 @@ public class KubernetesRuntime implements Runtime {
 
         this.grpcPort = grpcPort;
         this.metricsPort = metricsPort;
+        this.narExtractionDirectory = narExtractionDirectory;
 
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
@@ -242,7 +252,8 @@ public class KubernetesRuntime implements Runtime {
                         installUserCodeDependencies,
                         pythonDependencyRepository,
                         pythonExtraDependencyRepository,
-                        metricsPort));
+                        metricsPort,
+                        narExtractionDirectory));
 
         doChecks(instanceConfig.getFunctionDetails());
     }
@@ -804,7 +815,7 @@ public class KubernetesRuntime implements Runtime {
                     && isNotBlank(authConfig.getClientAuthenticationParameters())
                     && instanceConfig.getFunctionAuthenticationSpec() != null) {
                 return Arrays.asList(
-                        pulsarRootDir + "/bin/pulsar-admin",
+                        pulsarRootDir + configAdminCLI,
                         "--auth-plugin",
                         authConfig.getClientAuthenticationPlugin(),
                         "--auth-params",
@@ -825,7 +836,7 @@ public class KubernetesRuntime implements Runtime {
         }
 
         return Arrays.asList(
-                pulsarRootDir + "/bin/pulsar-admin",
+                pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
                 "functions",
@@ -970,8 +981,35 @@ public class KubernetesRuntime implements Runtime {
     V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        // set up the container images
-        container.setImage(pulsarDockerImageName);
+        Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
+
+        String imageName = null;
+        if (functionDockerImages != null) {
+            switch (runtime) {
+                case JAVA:
+                    if (functionDockerImages.get("JAVA") != null) {
+                        imageName = functionDockerImages.get("JAVA");
+                        break;
+                    }
+                case PYTHON:
+                    if (functionDockerImages.get("PYTHON") != null) {
+                        imageName = functionDockerImages.get("PYTHON");
+                        break;
+                    }
+                case GO:
+                    if (functionDockerImages.get("GO") != null) {
+                        imageName = functionDockerImages.get("GO");
+                        break;
+                    }
+                default:
+                    imageName = pulsarDockerImageName;
+                    break;
+            }
+            container.setImage(imageName);
+        } else {
+            container.setImage(pulsarDockerImageName);
+        }
+
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command

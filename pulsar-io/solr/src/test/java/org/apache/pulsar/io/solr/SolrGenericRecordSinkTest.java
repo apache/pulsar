@@ -19,8 +19,6 @@
 package org.apache.pulsar.io.solr;
 
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -55,8 +53,6 @@ public class SolrGenericRecordSinkTest {
      * A Simple class to test solr class
      */
     @Data
-    @ToString
-    @EqualsAndHashCode
     public static class Foo {
         private String field1;
         private String field2;

@@ -18,49 +18,49 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static com.facebook.presto.spi.StandardErrorCode.NOT_FOUND;
-import static com.facebook.presto.spi.StandardErrorCode.NOT_SUPPORTED;
-import static com.facebook.presto.spi.StandardErrorCode.QUERY_REJECTED;
-import static com.facebook.presto.spi.type.DateType.DATE;
-import static com.facebook.presto.spi.type.TimeType.TIME;
-import static com.facebook.presto.spi.type.TimestampType.TIMESTAMP;
+import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
+import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static io.prestosql.spi.type.DateType.DATE;
+import static io.prestosql.spi.type.TimeType.TIME;
+import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.restoreNamespaceDelimiterIfNeeded;
 import static org.apache.pulsar.sql.presto.PulsarConnectorUtils.rewriteNamespaceDelimiterIfNeeded;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertColumnHandle;
 import static org.apache.pulsar.sql.presto.PulsarHandleResolver.convertTableHandle;
 
-import com.facebook.presto.spi.ColumnHandle;
-import com.facebook.presto.spi.ColumnMetadata;
-import com.facebook.presto.spi.ConnectorSession;
-import com.facebook.presto.spi.ConnectorTableHandle;
-import com.facebook.presto.spi.ConnectorTableLayout;
-import com.facebook.presto.spi.ConnectorTableLayoutHandle;
-import com.facebook.presto.spi.ConnectorTableLayoutResult;
-import com.facebook.presto.spi.ConnectorTableMetadata;
-import com.facebook.presto.spi.Constraint;
-import com.facebook.presto.spi.PrestoException;
-import com.facebook.presto.spi.SchemaTableName;
-import com.facebook.presto.spi.SchemaTablePrefix;
-import com.facebook.presto.spi.TableNotFoundException;
-import com.facebook.presto.spi.connector.ConnectorMetadata;
-import com.facebook.presto.spi.type.BigintType;
-import com.facebook.presto.spi.type.BooleanType;
-import com.facebook.presto.spi.type.DateType;
-import com.facebook.presto.spi.type.DoubleType;
-import com.facebook.presto.spi.type.IntegerType;
-import com.facebook.presto.spi.type.RealType;
-import com.facebook.presto.spi.type.SmallintType;
-import com.facebook.presto.spi.type.TimeType;
-import com.facebook.presto.spi.type.TimestampType;
-import com.facebook.presto.spi.type.TinyintType;
-import com.facebook.presto.spi.type.Type;
-import com.facebook.presto.spi.type.VarbinaryType;
-import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.airlift.log.Logger;
+import io.prestosql.spi.PrestoException;
+import io.prestosql.spi.connector.ColumnHandle;
+import io.prestosql.spi.connector.ColumnMetadata;
+import io.prestosql.spi.connector.ConnectorMetadata;
+import io.prestosql.spi.connector.ConnectorSession;
+import io.prestosql.spi.connector.ConnectorTableHandle;
+import io.prestosql.spi.connector.ConnectorTableLayout;
+import io.prestosql.spi.connector.ConnectorTableLayoutHandle;
+import io.prestosql.spi.connector.ConnectorTableLayoutResult;
+import io.prestosql.spi.connector.ConnectorTableMetadata;
+import io.prestosql.spi.connector.Constraint;
+import io.prestosql.spi.connector.SchemaTableName;
+import io.prestosql.spi.connector.SchemaTablePrefix;
+import io.prestosql.spi.connector.TableNotFoundException;
+import io.prestosql.spi.type.BigintType;
+import io.prestosql.spi.type.BooleanType;
+import io.prestosql.spi.type.DateType;
+import io.prestosql.spi.type.DoubleType;
+import io.prestosql.spi.type.IntegerType;
+import io.prestosql.spi.type.RealType;
+import io.prestosql.spi.type.SmallintType;
+import io.prestosql.spi.type.TimeType;
+import io.prestosql.spi.type.TimestampType;
+import io.prestosql.spi.type.TinyintType;
+import io.prestosql.spi.type.Type;
+import io.prestosql.spi.type.VarbinaryType;
+import io.prestosql.spi.type.VarcharType;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -80,7 +80,9 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
@@ -138,7 +140,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @Override
     public List<ConnectorTableLayoutResult> getTableLayouts(ConnectorSession session, ConnectorTableHandle table,
-                                                            Constraint<ColumnHandle> constraint,
+                                                            Constraint constraint,
                                                             Optional<Set<ColumnHandle>> desiredColumns) {
 
         PulsarTableHandle handle = convertTableHandle(table);
@@ -165,10 +167,11 @@ public class PulsarMetadata implements ConnectorMetadata {
     }
 
     @Override
-    public List<SchemaTableName> listTables(ConnectorSession session, String schemaNameOrNull) {
+    public List<SchemaTableName> listTables(ConnectorSession session, Optional<String> schemaName) {
         ImmutableList.Builder<SchemaTableName> builder = ImmutableList.builder();
 
-        if (schemaNameOrNull != null) {
+        if (schemaName.isPresent()) {
+            String schemaNameOrNull = schemaName.get();
 
             if (schemaNameOrNull.equals(INFORMATION_SCHEMA)) {
                 // no-op for now but add pulsar connector specific system tables here
@@ -222,7 +225,8 @@ public class PulsarMetadata implements ConnectorMetadata {
                     pulsarColumnMetadata.isHidden(),
                     pulsarColumnMetadata.isInternal(),
                     pulsarColumnMetadata.getFieldNames(),
-                    pulsarColumnMetadata.getPositionIndices());
+                    pulsarColumnMetadata.getPositionIndices(),
+                    pulsarColumnMetadata.getHandleKeyValueType());
 
             columnHandles.put(
                     columnMetadata.getName(),
@@ -254,10 +258,10 @@ public class PulsarMetadata implements ConnectorMetadata {
         ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
 
         List<SchemaTableName> tableNames;
-        if (prefix.getTableName() == null) {
-            tableNames = listTables(session, prefix.getSchemaName());
+        if (!prefix.getTable().isPresent()) {
+            tableNames = listTables(session, prefix.getSchema());
         } else {
-            tableNames = ImmutableList.of(new SchemaTableName(prefix.getSchemaName(), prefix.getTableName()));
+            tableNames = ImmutableList.of(new SchemaTableName(prefix.getSchema().get(), prefix.getTable().get()));
         }
 
         for (SchemaTableName tableName : tableNames) {
@@ -324,7 +328,7 @@ public class PulsarMetadata implements ConnectorMetadata {
             }
         }
         List<ColumnMetadata> handles = getPulsarColumns(
-                topicName, schemaInfo, withInternalColumns
+                topicName, schemaInfo, withInternalColumns, PulsarColumnHandle.HandleKeyValueType.NONE
         );
 
 
@@ -336,12 +340,15 @@ public class PulsarMetadata implements ConnectorMetadata {
      */
     static List<ColumnMetadata> getPulsarColumns(TopicName topicName,
                                                  SchemaInfo schemaInfo,
-                                                 boolean withInternalColumns) {
+                                                 boolean withInternalColumns,
+                                                 PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         SchemaType schemaType = schemaInfo.getType();
         if (schemaType.isStruct()) {
-            return getPulsarColumnsFromStructSchema(topicName, schemaInfo, withInternalColumns);
+            return getPulsarColumnsFromStructSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
         } else if (schemaType.isPrimitive()) {
-            return getPulsarColumnsFromPrimitiveSchema(topicName, schemaInfo, withInternalColumns);
+            return getPulsarColumnsFromPrimitiveSchema(topicName, schemaInfo, withInternalColumns, handleKeyValueType);
+        } else if (schemaType.equals(SchemaType.KEY_VALUE)) {
+            return getPulsarColumnsFromKeyValueSchema(topicName, schemaInfo, withInternalColumns);
         } else {
             throw new IllegalArgumentException("Unsupported schema : " + schemaInfo);
         }
@@ -349,15 +356,16 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     static List<ColumnMetadata> getPulsarColumnsFromPrimitiveSchema(TopicName topicName,
                                                                     SchemaInfo schemaInfo,
-                                                                    boolean withInternalColumns) {
+                                                                    boolean withInternalColumns,
+                                        PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
 
         ColumnMetadata valueColumn = new PulsarColumnMetadata(
-                "__value__",
+                PulsarColumnMetadata.getColumnName(handleKeyValueType, "__value__"),
                 convertPulsarType(schemaInfo.getType()),
                 "The value of the message with primitive type schema", null, false, false,
                 new String[0],
-                new Integer[0]);
+                new Integer[0], handleKeyValueType);
 
         builder.add(valueColumn);
 
@@ -372,8 +380,8 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     static List<ColumnMetadata> getPulsarColumnsFromStructSchema(TopicName topicName,
                                                                  SchemaInfo schemaInfo,
-                                                                 boolean withInternalColumns) {
-
+                                                                 boolean withInternalColumns,
+                                     PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
             throw new PrestoException(NOT_SUPPORTED, "Topic " + topicName.toString()
@@ -389,7 +397,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
         ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
 
-        builder.addAll(getColumns(null, schema, new HashSet<>(), new Stack<>(), new Stack<>()));
+        builder.addAll(getColumns(null, schema, new HashSet<>(), new Stack<>(), new Stack<>(), handleKeyValueType));
 
         if (withInternalColumns) {
             PulsarInternalColumn.getInternalFields()
@@ -398,6 +406,29 @@ public class PulsarMetadata implements ConnectorMetadata {
         }
          return builder.build();
     }
+
+    static List<ColumnMetadata> getPulsarColumnsFromKeyValueSchema(TopicName topicName,
+                                                                   SchemaInfo schemaInfo,
+                                                                   boolean withInternalColumns) {
+        ImmutableList.Builder<ColumnMetadata> builder = ImmutableList.builder();
+        KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
+        SchemaInfo keySchemaInfo = kvSchemaInfo.getKey();
+        List<ColumnMetadata> keyColumnMetadataList = getPulsarColumns(topicName, keySchemaInfo, false,
+                PulsarColumnHandle.HandleKeyValueType.KEY);
+        builder.addAll(keyColumnMetadataList);
+
+        SchemaInfo valueSchemaInfo = kvSchemaInfo.getValue();
+        List<ColumnMetadata> valueColumnMetadataList = getPulsarColumns(topicName, valueSchemaInfo, false,
+                PulsarColumnHandle.HandleKeyValueType.VALUE);
+        builder.addAll(valueColumnMetadataList);
+
+        if (withInternalColumns) {
+            PulsarInternalColumn.getInternalFields()
+                    .forEach(pulsarInternalColumn -> builder.add(pulsarInternalColumn.getColumnMetadata(false)));
+        }
+        return builder.build();
+    }
+
     @VisibleForTesting
     static Type convertPulsarType(SchemaType pulsarType) {
         switch (pulsarType) {
@@ -435,18 +466,20 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @VisibleForTesting
     static List<PulsarColumnMetadata> getColumns(String fieldName, Schema fieldSchema,
-                                                  Set<String> fieldTypes,
-                                                  Stack<String> fieldNames,
-                                                  Stack<Integer> positionIndices) {
+                                                 Set<String> fieldTypes,
+                                                 Stack<String> fieldNames,
+                                                 Stack<Integer> positionIndices,
+                                                 PulsarColumnHandle.HandleKeyValueType handleKeyValueType) {
 
         List<PulsarColumnMetadata> columnMetadataList = new LinkedList<>();
 
         if (isPrimitiveType(fieldSchema.getType())) {
-            columnMetadataList.add(new PulsarColumnMetadata(fieldName,
+            columnMetadataList.add(new PulsarColumnMetadata(
+                    PulsarColumnMetadata.getColumnName(handleKeyValueType, fieldName),
                     convertType(fieldSchema.getType(), fieldSchema.getLogicalType()),
                     null, null, false, false,
                     fieldNames.toArray(new String[fieldNames.size()]),
-                    positionIndices.toArray(new Integer[positionIndices.size()])));
+                    positionIndices.toArray(new Integer[positionIndices.size()]), handleKeyValueType));
         } else if (fieldSchema.getType() == Schema.Type.UNION) {
             boolean canBeNull = false;
             for (Schema type : fieldSchema.getTypes()) {
@@ -454,17 +487,19 @@ public class PulsarMetadata implements ConnectorMetadata {
                     PulsarColumnMetadata columnMetadata;
                     if (type.getType() != Schema.Type.NULL) {
                         if (!canBeNull) {
-                            columnMetadata = new PulsarColumnMetadata(fieldName,
+                            columnMetadata = new PulsarColumnMetadata(
+                                    PulsarColumnMetadata.getColumnName(handleKeyValueType, fieldName),
                                     convertType(type.getType(), type.getLogicalType()),
                                     null, null, false, false,
                                     fieldNames.toArray(new String[fieldNames.size()]),
-                                    positionIndices.toArray(new Integer[positionIndices.size()]));
+                                    positionIndices.toArray(new Integer[positionIndices.size()]), handleKeyValueType);
                         } else {
-                            columnMetadata = new PulsarColumnMetadata(fieldName,
+                            columnMetadata = new PulsarColumnMetadata(
+                                    PulsarColumnMetadata.getColumnName(handleKeyValueType, fieldName),
                                     convertType(type.getType(), type.getLogicalType()),
                                     "field can be null", null, false, false,
                                     fieldNames.toArray(new String[fieldNames.size()]),
-                                    positionIndices.toArray(new Integer[positionIndices.size()]));
+                                    positionIndices.toArray(new Integer[positionIndices.size()]), handleKeyValueType);
                         }
                         columnMetadataList.add(columnMetadata);
                     } else {
@@ -472,7 +507,7 @@ public class PulsarMetadata implements ConnectorMetadata {
                     }
                 } else {
                     List<PulsarColumnMetadata> columns = getColumns(fieldName, type, fieldTypes, fieldNames,
-                        positionIndices);
+                        positionIndices, handleKeyValueType);
                     columnMetadataList.addAll(columns);
                 }
             }
@@ -488,10 +523,11 @@ public class PulsarMetadata implements ConnectorMetadata {
                     positionIndices.push(i);
                     List<PulsarColumnMetadata> columns;
                     if (fieldName == null) {
-                        columns = getColumns(field.name(), field.schema(), fieldTypes, fieldNames, positionIndices);
+                        columns = getColumns(field.name(), field.schema(), fieldTypes, fieldNames, positionIndices,
+                                handleKeyValueType);
                     } else {
                         columns = getColumns(String.format("%s.%s", fieldName, field.name()), field.schema(),
-                            fieldTypes, fieldNames, positionIndices);
+                            fieldTypes, fieldNames, positionIndices, handleKeyValueType);
 
                     }
                     positionIndices.pop();
@@ -507,11 +543,12 @@ public class PulsarMetadata implements ConnectorMetadata {
         } else if (fieldSchema.getType() == Schema.Type.MAP) {
 
         } else if (fieldSchema.getType() == Schema.Type.ENUM) {
-            PulsarColumnMetadata columnMetadata = new PulsarColumnMetadata(fieldName,
+            PulsarColumnMetadata columnMetadata = new PulsarColumnMetadata(
+                    PulsarColumnMetadata.getColumnName(handleKeyValueType, fieldName),
                     convertType(fieldSchema.getType(), fieldSchema.getLogicalType()),
                     null, null, false, false,
                     fieldNames.toArray(new String[fieldNames.size()]),
-                    positionIndices.toArray(new Integer[positionIndices.size()]));
+                    positionIndices.toArray(new Integer[positionIndices.size()]), handleKeyValueType);
             columnMetadataList.add(columnMetadata);
 
         } else if (fieldSchema.getType() == Schema.Type.FIXED) {

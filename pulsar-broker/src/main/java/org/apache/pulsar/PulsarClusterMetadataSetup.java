@@ -53,6 +53,7 @@ import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,8 +110,26 @@ public class PulsarClusterMetadataSetup {
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
+        @Parameter(names = {
+            "--bookkeeper-metadata-service-uri" }, description = "Metadata service uri of BookKeeper")
+        private String bkMetadataServiceUri;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
+    }
+
+    /**
+     * a wrapper for ZkUtils.createFullPathOptimistic but ignore exception of node exists
+     */
+    private static void createZkNode(ZooKeeper zkc, String path,
+                                     byte[] data, final List<ACL> acl, final CreateMode createMode)
+        throws KeeperException, InterruptedException {
+
+        try {
+            ZkUtils.createFullPathOptimistic(zkc, path, data, acl, createMode);
+        } catch (NodeExistsException e) {
+            // Ignore
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -135,7 +154,7 @@ public class PulsarClusterMetadataSetup {
         }
 
         if (arguments.configurationStore != null && arguments.globalZookeeper != null) {
-            System.err.println("Configuration store argument (--configuration-store) supercedes the deprecated (--global-zookeeper) argument");
+            System.err.println("Configuration store argument (--configuration-store) supersedes the deprecated (--global-zookeeper) argument");
             jcommander.usage();
             System.exit(1);
         }
@@ -157,68 +176,52 @@ public class PulsarClusterMetadataSetup {
 
         // Format BookKeeper ledger storage metadata
         ServerConfiguration bkConf = new ServerConfiguration();
-        bkConf.setZkServers(arguments.zookeeper);
-        bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
-        if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
-                && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
-            throw new IOException("Failed to initialize BookKeeper metadata");
+        if (arguments.bkMetadataServiceUri == null) {
+            bkConf.setZkServers(arguments.zookeeper);
+            bkConf.setZkTimeout(arguments.zkSessionTimeoutMillis);
+            if (localZk.exists("/ledgers", false) == null // only format if /ledgers doesn't exist
+                    && !BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
+                throw new IOException("Failed to initialize BookKeeper metadata");
+            }
         }
 
         // Format BookKeeper stream storage metadata
         if (arguments.numStreamStorageContainers > 0) {
-            ServiceURI bkMetadataServiceUri = ServiceURI.create(bkConf.getMetadataServiceUri());
+            String uriStr = arguments.bkMetadataServiceUri == null ? bkConf.getMetadataServiceUri() : arguments.bkMetadataServiceUri;
+            ServiceURI bkMetadataServiceUri = ServiceURI.create(uriStr);
             ClusterInitializer initializer = new ZkClusterInitializer(arguments.zookeeper);
             initializer.initializeCluster(bkMetadataServiceUri.getUri(), arguments.numStreamStorageContainers);
         }
 
         if (localZk.exists(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, false) == null) {
-            try {
-                localZk.create(ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, "{}".getBytes(), Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (NodeExistsException e) {
-                // Ignore
-            }
+            createZkNode(localZk, ZkBookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH,
+                "{}".getBytes(), Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         }
 
-        try {
-            localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
-        }
+        createZkNode(localZk, "/managed-ledgers", new byte[0],
+            ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-        localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+        createZkNode(localZk, "/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
-        try {
-            ZkUtils.createFullPathOptimistic(configStoreZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
-        }
+        createZkNode(configStoreZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            CreateMode.PERSISTENT);
 
-        try {
-            ZkUtils.createFullPathOptimistic(configStoreZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
-        }
+        createZkNode(configStoreZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            CreateMode.PERSISTENT);
 
         ClusterData clusterData = new ClusterData(arguments.clusterWebServiceUrl, arguments.clusterWebServiceUrlTls,
                 arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
-        configStoreZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                CreateMode.PERSISTENT);
+        createZkNode(configStoreZk,"/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            CreateMode.PERSISTENT);
 
         // Create marker for "global" cluster
         ClusterData globalClusterData = new ClusterData(null, null);
         byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
 
-        try {
-            configStoreZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                    CreateMode.PERSISTENT);
-        } catch (NodeExistsException e) {
-            // Ignore
-        }
+        createZkNode(configStoreZk, "/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            CreateMode.PERSISTENT);
 
         // Create public tenant, whitelisted to use the this same cluster, along with other clusters
         createTenantIfAbsent(configStoreZk, TopicName.PUBLIC_TENANT, arguments.cluster);
@@ -248,13 +251,9 @@ public class PulsarClusterMetadataSetup {
         if (stat == null) {
             TenantInfo publicTenant = new TenantInfo(Collections.emptySet(), Collections.singleton(cluster));
 
-            try {
-                ZkUtils.createFullPathOptimistic(configStoreZk, tenantPath,
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-            } catch (NodeExistsException e) {
-                // Ignore
-            }
+            createZkNode(configStoreZk, tenantPath,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(publicTenant),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         } else {
             // Update existing public tenant with new cluster
             byte[] content = configStoreZk.getData(tenantPath, false, null);
@@ -280,16 +279,12 @@ public class PulsarClusterMetadataSetup {
             policies.bundles = getBundles(16);
             policies.replication_clusters = Collections.singleton(cluster);
 
-            try {
-                ZkUtils.createFullPathOptimistic(
-                        configStoreZk,
-                        namespacePath,
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-            } catch (NodeExistsException e) {
-                // Ignore
-            }
+            createZkNode(
+                configStoreZk,
+                namespacePath,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
         } else {
             byte[] content = configStoreZk.getData(namespacePath, false, null);
             policies = ObjectMapperFactory.getThreadLocal().readValue(content, Policies.class);
@@ -309,17 +304,13 @@ public class PulsarClusterMetadataSetup {
         Stat stat = configStoreZk.exists(partitionedTopicPath, false);
         PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions);
         if (stat == null) {
-            try {
-                ZkUtils.createFullPathOptimistic(
-                        configStoreZk,
-                        partitionedTopicPath,
-                        ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata),
-                        ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT
-                );
-            } catch (NodeExistsException e) {
-                // Ignore
-            }
+            createZkNode(
+                configStoreZk,
+                partitionedTopicPath,
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(metadata),
+                ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT
+            );
         } else {
             byte[] content = configStoreZk.getData(partitionedTopicPath, false, null);
             PartitionedTopicMetadata existsMeta = ObjectMapperFactory.getThreadLocal().readValue(content, PartitionedTopicMetadata.class);
@@ -344,12 +335,8 @@ public class PulsarClusterMetadataSetup {
             ZooKeeper chrootZk = zkfactory.create(
                 zkConnectForChrootCreation, SessionType.ReadWrite, sessionTimeout).get();
             if (chrootZk.exists(chrootPath, false) == null) {
-                try {
-                    ZkUtils.createFullPathOptimistic(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
-                        CreateMode.PERSISTENT);
-                } catch (NodeExistsException e) {
-                    // Ignore
-                }
+                createZkNode(chrootZk, chrootPath, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+                    CreateMode.PERSISTENT);
                 log.info("Created zookeeper chroot path {} successfully", chrootPath);
             }
             chrootZk.close();

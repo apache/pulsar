@@ -20,13 +20,19 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+
+import lombok.Cleanup;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -40,6 +46,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.zookeeper.ZooKeeper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -74,7 +81,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/crash-broker";
@@ -168,7 +177,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         // Ensure intended state for autoSkipNonRecoverableData
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
 
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/crash-broker";
@@ -269,7 +280,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     @Test(timeOut=20000)
     public void testTopicWithWildCardChar() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
         final String ns1 = "prop/usc/topicWithSpecialChar";
@@ -292,6 +305,56 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         consumer.close();
         producer.close();
         client.close();
+    }
+
+
+    @Test
+    public void testDeleteTopicWithMissingData() throws Exception {
+        String namespace = "prop/usc-" + System.nanoTime();
+        admin.namespaces().createNamespace(namespace);
+
+        String topic = namespace + "/my-topic-" + System.nanoTime();
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+
+        @Cleanup
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test").subscribe();
+
+        @Cleanup
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.send("Hello");
+
+        // Stop all bookies, to get all data offline
+        bkEnsemble.stopBK();
+
+        // Unload the topic. Since all the bookies are down, the recovery
+        // will fail and the topic will not get reloaded.
+        admin.topics().unload(topic);
+
+        Thread.sleep(1000);
+
+        CompletableFuture<Optional<Topic>> future = pulsar.getBrokerService().getTopicIfExists(topic);
+        try {
+            future.get();
+            fail("Should have thrown exception");
+        } catch (ExecutionException e) {
+            // Expected
+        }
+
+        // Deletion must succeed
+        admin.topics().delete(topic);
+
+        // Topic will not be there after
+        assertEquals(pulsar.getBrokerService().getTopicIfExists(topic).join(), Optional.empty());
     }
 
 }
