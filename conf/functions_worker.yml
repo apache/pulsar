@@ -237,4 +237,4 @@ connectorsDirectory: ./connectors
 functionsDirectory: ./functions
 
 # Should connector config be validated during during submission
-#validateConnectorConfig: true
+validateConnectorConfig: false
