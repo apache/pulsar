@@ -135,9 +135,9 @@ public class ZookeeperCacheLoader implements Closeable {
 
             for (CompletableFuture<Optional<LoadManagerReport>> loadReportFuture : loadReportFutureList) {
                 try {
-                    LoadManagerReport loadReport = loadReportFuture.get().get();
-                    if (loadReport != null) {
-                        newAvailableBrokers.add(loadReport);
+                    Optional<LoadManagerReport> loadReport = loadReportFuture.get();
+                    if (loadReport.isPresent()) {
+                        newAvailableBrokers.add(loadReport.get());
                     }
                 } catch (Exception e) {
                     future.completeExceptionally(e);
