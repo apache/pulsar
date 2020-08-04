@@ -16,22 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
 
-import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.naming.TopicName;
-
 /**
  * System defined Validator Annotations.
  */
-@Slf4j
 public class ValidatorImpls {
+
+    private static final Logger log = LoggerFactory.getLogger(ValidatorImpls.class);
+
     /**
      * Validates a positive number.
      */
@@ -272,8 +273,11 @@ public class ValidatorImpls {
     /**
      * validates that the string is equal to one of the specified ones in the list.
      */
-    @NoArgsConstructor
     public static class StringValidator extends Validator {
+
+        public StringValidator() {
+
+        }
 
         private HashSet<String> acceptedValues = null;
 
@@ -345,26 +349,6 @@ public class ValidatorImpls {
             } catch (NoSuchMethodException | IllegalAccessException
                     | InvocationTargetException | InstantiationException e) {
                 throw new RuntimeException(e);
-            }
-        }
-    }
-
-    /**
-     * Validates that the field is a valid topic name.
-     */
-    @NoArgsConstructor
-    public static class TopicNameValidator extends Validator {
-
-        @Override
-        public void validateField(String name, Object o) {
-            if (o == null) {
-                return;
-            }
-            new StringValidator().validateField(name, o);
-            String topic = (String) o;
-            if (!TopicName.isValid(topic)) {
-                throw new IllegalArgumentException(
-                        String.format("The topic name %s is invalid for field '%s'", topic, name));
             }
         }
     }

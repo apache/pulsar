@@ -16,12 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;
 
 import org.testng.annotations.Test;
 
-import java.util.*;
-import static org.testng.Assert.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 
 public class ConfigValidationTest {
 
@@ -66,8 +71,6 @@ public class ConfigValidationTest {
         public Map stringIntegerMap;
         @ConfigValidationAnnotations.StringList
         public List stringList;
-        @ConfigValidationAnnotations.TopicName
-        public String topic;
         @ConfigValidationAnnotations.CustomType(validatorClass = TestValidator.class)
         public String customString;
     }
@@ -119,14 +122,6 @@ public class ConfigValidationTest {
     }
 
     @Test
-    public void testTopicName() {
-        TestConfig testConfig = createGoodConfig();
-        testConfig.topic = "http://google.com";
-        Exception e = expectThrows(IllegalArgumentException.class, () -> ConfigValidation.validateConfig(testConfig));
-        assertTrue(e.getMessage().contains("topic"));
-    }
-
-    @Test
     public void testCustomString() {
         TestConfig testConfig = createGoodConfig();
         testConfig.customString = "http://google.com";
@@ -141,7 +136,6 @@ public class ConfigValidationTest {
         testConfig.integerList = testIntegerList;
         testConfig.stringIntegerMap = testStringIntegerMap;
         testConfig.stringList = testStringList;
-        testConfig.topic = topic;
         testConfig.customString = "ABCDEabcde";
         return testConfig;
     }
