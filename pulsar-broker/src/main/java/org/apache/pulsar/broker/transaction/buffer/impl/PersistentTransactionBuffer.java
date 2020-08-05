@@ -204,29 +204,28 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private void handlePendingCommit() {
         pendingCommitHandling = true;
         TxnID txnID = pendingCommitTxn.peek();
-        txnCursor.getTxnMeta(txnID, false)
-            .thenAccept(meta -> {
-                if (meta.status().equals(TxnStatus.COMMITTING)) {
-                    commitPartitionTopic(txnID)
-                            .thenCompose(position -> commitTxn(txnID,
-                                    ((PositionImpl) position).getLedgerId(),
-                                    ((PositionImpl) position).getEntryId())
-                                    .whenComplete((ignored, throwable) -> {
-                                        if (throwable != null) {
-                                            handlePendingCommit();
-                                        } else {
-                                            pendingCommitTxn.remove(txnID);
-                                            if (pendingCommitTxn.peek() != null) {
-                                                handlePendingCommit();
-                                            } else {
-                                                pendingCommitHandling = false;
-                                            }
-                                        }
-                                    }));
-                } else {
-                    pendingCommitTxn.remove(txnID);
-                }
-            });
+        txnCursor.getTxnMeta(txnID, false).thenAccept(meta -> {
+            if (meta.status().equals(TxnStatus.COMMITTING)) {
+                commitPartitionTopic(txnID).thenCompose(position ->
+                    commitTxn(txnID,
+                        ((PositionImpl) position).getLedgerId(),
+                        ((PositionImpl) position).getEntryId())
+                        .whenComplete((ignored, throwable) -> {
+                            if (throwable != null) {
+                                handlePendingCommit();
+                            } else {
+                                pendingCommitTxn.remove(txnID);
+                                if (pendingCommitTxn.peek() != null) {
+                                    handlePendingCommit();
+                                } else {
+                                    pendingCommitHandling = false;
+                                }
+                            }
+                        }));
+            } else {
+                pendingCommitTxn.remove(txnID);
+            }
+        });
     }
 
     // append committed marker to partitioned topic

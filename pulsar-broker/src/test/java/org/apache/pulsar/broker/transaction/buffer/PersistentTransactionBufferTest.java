@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -73,9 +74,12 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionMetaImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -96,6 +100,7 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -206,7 +211,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
     @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks()
-        throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException {
+            throws BrokerServiceException.NamingException, ManagedLedgerException, InterruptedException, ExecutionException {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursor.class);
         final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
@@ -312,7 +317,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
 
-        this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService, null);
+        PersistentTopic topic = new PersistentTopic(
+                "public/default/topic-" + RandomUtils.nextInt(), ledgerMock, brokerService);
+        this.buffer = new PersistentTransactionBuffer(successTopicName, factory.open("hello"), brokerService, topic);
     }
 
     @AfterMethod
@@ -372,14 +379,15 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testOpenReaderOnCommittedTxn() throws ExecutionException, InterruptedException {
+    public void testOpenReaderOnCommittedTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
         TransactionMeta meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        buffer.commitTxn(txnID, 22L, 33L).get();
+        endTxnAndWaitTillFinish(buffer, txnID, PulsarApi.TxnAction.COMMIT);
+//        buffer.commitTxn(txnID, 22L, 33L).get();
 
         meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
@@ -407,6 +415,17 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testEndOnPartition() throws Exception {
+        final int numEntries = 10;
+        TxnID commitTxn = new TxnID(RandomUtils.nextLong(), RandomUtils.nextLong());
+        appendEntries(buffer, commitTxn, numEntries, 0L);
+        endTxnAndWaitTillFinish(buffer, commitTxn, PulsarApi.TxnAction.COMMIT);
+
+        TransactionMeta meta = buffer.getTransactionMeta(commitTxn).get();
+        assertEquals(meta.status(), TxnStatus.COMMITTED);
+    }
+
+    @Test()
     public void testCommitTxn() throws Exception {
         final int numEntries = 10;
         appendEntries(buffer, txnID, numEntries, 0L);
@@ -415,7 +434,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(meta.status(), TxnStatus.OPEN);
 
-        buffer.commitTxn(txnID, 22L, 33L).get();
+        endTxnAndWaitTillFinish(buffer, txnID, PulsarApi.TxnAction.COMMIT);
+//        buffer.commitTxn(txnID, 22L, 33L).get();
         meta = buffer.getTransactionMeta(txnID).get();
 
         assertEquals(txnID, meta.id());
@@ -465,7 +485,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.OPEN, meta.status());
 
-        buffer.commitTxn(txnID, 22L, 33L).get();
+        endTxnAndWaitTillFinish(buffer, txnID, PulsarApi.TxnAction.COMMIT);
+//        buffer.commitTxn(txnID, 22L, 33L).get();
         meta = buffer.getTransactionMeta(txnID).get();
         assertEquals(txnID, meta.id());
         assertEquals(TxnStatus.COMMITTED, meta.status());
@@ -548,11 +569,12 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testAppendEntry() throws ExecutionException, InterruptedException, ManagedLedgerException,
-                                         BrokerServiceException.NamingException {
+    public void testAppendEntry() throws Exception {
         ManagedLedger ledger = factory.open("test_ledger");
+        PersistentTopic topic = new PersistentTopic(
+                "public/default/topic-" + RandomUtils.nextInt(), ledger, brokerService);
         PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                brokerService, null);
+                                                                                brokerService, topic);
         final int numEntries = 10;
         TxnID txnID = new TxnID(1111L, 2222L);
         List<ByteBuf> appendEntries =  appendEntries(newBuffer, txnID, numEntries, 0L);
@@ -564,7 +586,8 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
 
         verifyEntries(ledger, appendEntries, meta.getEntries());
 
-        newBuffer.commitTxn(txnID, 22L, 33L).get();
+        endTxnAndWaitTillFinish(newBuffer, txnID, PulsarApi.TxnAction.COMMIT);
+//        newBuffer.commitTxn(txnID, 22L, 33L).get();
         meta = (TransactionMetaImpl) newBuffer.getTransactionMeta(txnID).get();
 
         assertEquals(meta.id(), txnID);
@@ -653,8 +676,10 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         throws ManagedLedgerException, InterruptedException, BrokerServiceException.NamingException,
                ExecutionException {
         ManagedLedger ledger = factory.open("test_deduplicate");
-        PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(successTopicName, ledger,
-                                                                                brokerService, null);
+        PersistentTopic topic = new PersistentTopic(
+                "public/default/topic-" + RandomUtils.nextInt(), ledger, brokerService);
+        PersistentTransactionBuffer newBuffer = new PersistentTransactionBuffer(
+                successTopicName, ledger, brokerService, topic);
         final int numEntries = 10;
 
         TxnID txnID = new TxnID(1234L, 5678L);
@@ -726,6 +751,17 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                     UTF_8
                 ), "message-" + i);
             }
+        }
+    }
+
+    private void endTxnAndWaitTillFinish(TransactionBuffer tb,
+                                         TxnID txnId, PulsarApi.TxnAction txnAction) throws Exception {
+        tb.endTxnOnPartition(txnId, txnAction.getNumber());
+        TransactionMeta meta = tb.getTransactionMeta(txnId).get();
+        while (meta.status().equals(TxnStatus.OPEN)
+                || meta.status().equals(TxnStatus.COMMITTING)
+                || meta.status().equals(TxnStatus.ABORTING)) {
+            Thread.sleep(1000);
         }
     }
 
