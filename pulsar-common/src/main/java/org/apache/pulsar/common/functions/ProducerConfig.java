@@ -16,26 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.sink;
+package org.apache.pulsar.common.functions;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.functions.proto.Function;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
 
-import java.util.Map;
-
-@Getter
-@Setter
-@ToString
-public class PulsarSinkConfig {
-    private FunctionConfig.ProcessingGuarantees processingGuarantees;
-    private String topic;
-    private String serdeClassName;
-    private String schemaType;
-    private Map<String, String> schemaProperties;
-    private String typeClassName;
-    private boolean forwardSourceMessageProperty;
-    private Function.ProducerSpec producerSpec;
+/**
+ * Configuration of the producer inside the function.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode
+public class ProducerConfig {
+    private Integer maxPendingMessages;
+    private Integer maxPendingMessagesAcrossPartitions;
 }
