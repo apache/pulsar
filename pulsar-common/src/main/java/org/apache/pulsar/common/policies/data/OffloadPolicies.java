@@ -35,6 +35,8 @@ import org.apache.commons.lang3.StringUtils;
 @Data
 public class OffloadPolicies implements Serializable {
 
+    private final static long serialVersionUID = 0L;
+
     public final static int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
     public final static int DEFAULT_OFFLOAD_MAX_THREADS = 2;

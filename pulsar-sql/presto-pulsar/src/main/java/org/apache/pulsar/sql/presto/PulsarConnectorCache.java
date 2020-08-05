@@ -81,13 +81,8 @@ public class PulsarConnectorCache {
 
         this.statsProvider.start(clientConfiguration);
 
-        Properties offloadProperties = new Properties();
-        offloadProperties.putAll(pulsarConnectorConfig.getOffloaderProperties());
-        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
-        offloadPolicies.setManagedLedgerOffloadDriver(pulsarConnectorConfig.getManagedLedgerOffloadDriver());
-        offloadPolicies.setManagedLedgerOffloadMaxThreads(pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
-        offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
-        this.defaultOffloader = initManagedLedgerOffloader(offloadPolicies, pulsarConnectorConfig);
+        this.defaultOffloader = initManagedLedgerOffloader(
+                pulsarConnectorConfig.getOffloadPolices(), pulsarConnectorConfig);
     }
 
     public static PulsarConnectorCache getConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {

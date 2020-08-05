@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -66,6 +67,37 @@ public class TestPulsarConnectorConfig {
         Assert.assertEquals(0L, connectorConfig.getManagedLedgerCacheSizeMB());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumWorkerThreads());
         Assert.assertEquals(availableProcessors, connectorConfig.getManagedLedgerNumSchedulerThreads());
+    }
+
+    @Test
+    public void testGetOffloadPolices() throws Exception {
+        PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
+
+        final String managedLedgerOffloadDriver = "s3";
+        final String offloaderDirectory = "/pulsar/offloaders";
+        final int managedLedgerOffloadMaxThreads = 5;
+        final String bucket = "offload-bucket";
+        final String region = "us-west-2";
+        final String endpoint = "http://s3.amazonaws.com";
+        final String offloadProperties = "{"
+                + "\"s3ManagedLedgerOffloadBucket\":\"" + bucket + "\","
+                + "\"s3ManagedLedgerOffloadRegion\":\"" + region + "\","
+                + "\"s3ManagedLedgerOffloadServiceEndpoint\":\"" + endpoint + "\""
+                + "}";
+
+        connectorConfig.setManagedLedgerOffloadDriver(managedLedgerOffloadDriver);
+        connectorConfig.setOffloadersDirectory(offloaderDirectory);
+        connectorConfig.setManagedLedgerOffloadMaxThreads(managedLedgerOffloadMaxThreads);
+        connectorConfig.setOffloaderProperties(offloadProperties);
+
+        OffloadPolicies offloadPolicies = connectorConfig.getOffloadPolices();
+        Assert.assertNotNull(offloadPolicies);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), managedLedgerOffloadDriver);
+        Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloaderDirectory);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endpoint);
     }
 
 }
