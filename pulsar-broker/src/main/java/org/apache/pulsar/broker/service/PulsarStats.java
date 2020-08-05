@@ -69,7 +69,7 @@ public class PulsarStats implements Closeable {
         this.nsStats = new NamespaceStats();
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
-        this.bundleStats = Maps.newHashMap();
+        this.bundleStats = Maps.newConcurrentMap();
         this.tempMetricsCollection = Lists.newArrayList();
         this.metricsCollection = Lists.newArrayList();
         this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
