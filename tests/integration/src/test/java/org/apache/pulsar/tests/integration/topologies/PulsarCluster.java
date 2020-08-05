@@ -345,9 +345,9 @@ public class PulsarCluster {
             if (offloadDriver != null && offloadProperties != null) {
                 log.info("[startPrestoWorker] set offload env offloadDriver: {}, offloadProperties: {}",
                         offloadDriver, offloadProperties);
-                prestoWorkerContainer.withEnv("SQL_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
-                prestoWorkerContainer.withEnv("SQL_PREFIX_pulsar.offloader-properties", offloadProperties);
-                prestoWorkerContainer.withEnv("SQL_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.managed-ledger-offload-driver", offloadDriver);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloader-properties", offloadProperties);
+                prestoWorkerContainer.withEnv("PULSAR_PREFIX_pulsar.offloaders-directory", "/pulsar/offloaders");
                 // used in s3 tests
                 prestoWorkerContainer.withEnv("AWS_ACCESS_KEY_ID", "accesskey");
                 prestoWorkerContainer.withEnv("AWS_SECRET_KEY", "secretkey");

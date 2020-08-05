@@ -61,12 +61,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-client-admin-original</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>jakarta.ws.rs</groupId>
-                    <artifactId>javax.ws.rs-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
 
         <dependency>
