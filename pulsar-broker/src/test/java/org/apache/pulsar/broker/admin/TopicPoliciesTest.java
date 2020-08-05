@@ -35,7 +35,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class TopicTopicPoliciesQuotaTest extends MockedPulsarServiceBaseTest {
+public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
 
@@ -57,7 +57,7 @@ public class TopicTopicPoliciesQuotaTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "lookup-topic").create();
+        Producer producer = pulsarClient.newProducer().topic(testTopic).create();
         producer.close();
         Thread.sleep(3000);
     }
