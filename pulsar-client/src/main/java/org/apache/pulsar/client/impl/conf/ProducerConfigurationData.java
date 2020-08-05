@@ -62,7 +62,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
     private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
-    private MessageRoutingMode messageRoutingMode = null;
+    private MessageRoutingMode messageRoutingMode = MessageRoutingMode.RoundRobinPartition;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
