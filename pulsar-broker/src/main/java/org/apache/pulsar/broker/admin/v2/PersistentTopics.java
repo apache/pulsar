@@ -1066,7 +1066,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
-    @ApiOperation(value = "Set message TTL in seconds for a topic")
+    @ApiOperation(value = "Remove message TTL in seconds for a topic")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
