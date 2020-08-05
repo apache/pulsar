@@ -65,6 +65,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -522,7 +523,7 @@ public class NamespaceService {
                 }
 
                 // Now setting the redirect url
-                createLookupResult(candidateBroker, authoritativeRedirect)
+                createLookupResult(candidateBroker, authoritativeRedirect, options.getAdvertisedListenerName())
                         .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
@@ -536,7 +537,7 @@ public class NamespaceService {
         }
     }
 
-    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect)
+    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect, final String advertisedListenerName)
             throws Exception {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
@@ -547,10 +548,23 @@ public class NamespaceService {
                     uri.getPort());
             pulsar.getLocalZkCache().getDataAsync(path, pulsar.getLoadManager().get().getLoadReportDeserializer()).thenAccept(reportData -> {
                 if (reportData.isPresent()) {
-                    ServiceLookupData lookupData = reportData.get();
-                    lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
-                            lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
-                            lookupData.getPulsarServiceUrlTls(), authoritativeRedirect));
+                    LocalBrokerData lookupData = (LocalBrokerData) reportData.get();
+                    if (StringUtils.isNotBlank(advertisedListenerName)) {
+                        AdvertisedListener listener = lookupData.getAdvertisedListeners().get(advertisedListenerName);
+                        if (listener == null) {
+                            lookupFuture.completeExceptionally(
+                                    new PulsarServerException("the broker do not have " + advertisedListenerName + " listener"));
+                        } else {
+                            URI urlTls = listener.getBrokerServiceUrlTls();
+                            lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
+                                    lookupData.getWebServiceUrlTls(), listener.getBrokerServiceUrl().toString(),
+                                    urlTls == null ? null : urlTls.toString(), authoritativeRedirect));
+                        }
+                    } else {
+                        lookupFuture.complete(new LookupResult(lookupData.getWebServiceUrl(),
+                                lookupData.getWebServiceUrlTls(), lookupData.getPulsarServiceUrl(),
+                                lookupData.getPulsarServiceUrlTls(), authoritativeRedirect));
+                    }
                 } else {
                     lookupFuture.completeExceptionally(new KeeperException.NoNodeException(path));
                 }
