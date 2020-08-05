@@ -153,6 +153,14 @@ public class FunctionConfigUtils {
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
         }
+        if (isNotBlank(functionConfig.getSubPosition())) {
+            try {
+                sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.valueOf(functionConfig.getSubPosition()));
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(String.format("Incorrect subscription position %s , options:[%s,%s]"
+                        , functionConfig.getOutput(), Function.SubscriptionPosition.EARLIEST.name(), Function.SubscriptionPosition.LATEST.name()));
+            }
+        }
 
         if (typeArgs != null) {
             sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
@@ -325,6 +333,9 @@ public class FunctionConfigUtils {
         functionConfig.setInputSpecs(consumerConfigMap);
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
+        }
+        if (functionDetails.getSource().getSubscriptionPosition() != null) {
+            functionConfig.setSubPosition(functionDetails.getSource().getSubscriptionPosition().name());
         }
         functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
         functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());

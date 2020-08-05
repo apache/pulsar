@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -97,6 +99,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -508,6 +511,95 @@ public class PulsarFunctionE2ETest {
         String jarFilePathUrl = String.format("http://127.0.0.1:%d/pulsar-functions-api-examples.jar",
                 fileServer.getAddress().getPort());
         testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000)
+    public void testReadPositionLatest() throws Exception{
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1" + UUID.randomUUID().toString();
+        final String sinkTopic = "persistent://" + replNamespace + "/output" + UUID.randomUUID().toString();
+        final String functionName = "PulsarFunction-test" + UUID.randomUUID().toString();
+        final String subscriptionName = "test-sub" + UUID.randomUUID().toString();
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        final int messageNum = 20;
+        // 1 Setup producer and send message
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        for (int j = 0; j < messageNum; j++) {
+            producer.newMessage().value("my-message-" + j).send();
+        }
+
+        //2 Setup function
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        functionConfig.setTopicsPattern(null);
+        functionConfig.setInputs(Collections.singleton(sourceTopic));
+        functionConfig.setSubPosition(Function.SubscriptionPosition.LATEST.name());
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        //3 consumer should receive message from latest
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
+        consumer.close();
+        producer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testReadPositionEarliest() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1" + UUID.randomUUID().toString();
+        final String sinkTopic = "persistent://" + replNamespace + "/output" + UUID.randomUUID().toString();
+        final String functionName = "PulsarFunction-test" + UUID.randomUUID().toString();
+        final String subscriptionName = "test-sub" + UUID.randomUUID().toString();
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        final int messageNum = 20;
+        // 1 Setup producer and send message
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        for (int j = 0; j < messageNum; j++) {
+            producer.newMessage().value("my-message-" + j).send();
+        }
+
+        //2 Setup function
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        functionConfig.setTopicsPattern(null);
+        functionConfig.setInputs(Collections.singleton(sourceTopic));
+        functionConfig.setSubPosition(Function.SubscriptionPosition.EARLIEST.name());
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        //3 consumer should receive message from earliest
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+        int count = 0;
+        while (true) {
+            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+            count++;
+        }
+        assertEquals(count, messageNum);
+        consumer.close();
+        producer.close();
     }
 
     @Test(timeOut = 30000)

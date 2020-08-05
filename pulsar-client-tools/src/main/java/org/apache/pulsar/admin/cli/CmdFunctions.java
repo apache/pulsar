@@ -266,6 +266,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants a specific subscription-position for input-topic consumer")
+        protected String subsPosition;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -415,6 +417,9 @@ public class CmdFunctions extends CmdBase {
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
+            }
+            if (isNotBlank(subsPosition)) {
+                functionConfig.setSubPosition(subsPosition);
             }
 
             if (null != userConfigString) {

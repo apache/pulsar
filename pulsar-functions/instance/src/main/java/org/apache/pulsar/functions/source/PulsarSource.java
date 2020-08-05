@@ -74,7 +74,6 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
                     // consume message even if can't decrypt and deliver it along with encryption-ctx
                     .cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                     .subscriptionName(pulsarSourceConfig.getSubscriptionName())
-                    .subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition())
                     .subscriptionType(pulsarSourceConfig.getSubscriptionType());
 
             if (conf.getConsumerProperties() != null && !conf.getConsumerProperties().isEmpty()) {
@@ -82,6 +81,7 @@ public class PulsarSource<T> extends PushSource<T> implements MessageListener<T>
             }
             //messageListener is annotated with @JsonIgnore,so setting messageListener should be put behind loadConf
             cb.messageListener(this);
+            cb.subscriptionInitialPosition(pulsarSourceConfig.getSubscriptionPosition());
 
             if (conf.isRegexPattern) {
                 cb = cb.topicsPattern(topic);
