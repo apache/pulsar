@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONF
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +46,8 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -269,9 +272,11 @@ public class BrokersBase extends AdminResource {
         PulsarClient client = pulsar().getClient();
 
         String messageStr = UUID.randomUUID().toString();
-        // create non-partitioned topic manually
+        // create non-partitioned topic manually and close the previous reader if present.
         try {
-            pulsar().getBrokerService().getTopic(topic, true).get();
+            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
+                t.getSubscriptions().values().forEach(Subscription::deleteForcefully);
+            });
         } catch (Exception e) {
             asyncResponse.resume(new RestException(e));
             return;

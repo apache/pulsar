@@ -25,7 +25,8 @@
       "version-2.3.0-functions-deploying",
       "version-2.3.0-functions-guarantees",
       "version-2.3.0-functions-state",
-      "version-2.3.0-functions-metrics"
+      "version-2.3.0-functions-metrics",
+      "version-2.3.0-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.3.0-io-overview",
