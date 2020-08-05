@@ -16,26 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.api.examples.window;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.api.WindowContext;
-import org.apache.pulsar.functions.api.WindowFunction;
-
+import java.util.Arrays;
 import java.util.Collection;
+import org.apache.pulsar.functions.api.*;
 
 /**
- * Example Function that acts on a window of tuples at a time rather than per tuple basis.
+ * The classic word count example done using pulsar functions
+ * Each input message is a sentence that split into words and each word counted.
+ * The built in counter state is used to keep track of the word count in a
+ * persistent and consistent manner.
  */
-@Slf4j
-public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
+public class WordCountWindowFunction implements WindowFunction<String, Void> {
     @Override
-    public Integer process(Collection<Record<Integer>> integers, WindowContext context) {
-        Integer retval = 0;
-        for (Record<Integer> record : integers) {
-            retval += record.getValue();
+    public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
+        for (Record<String> input : inputs) {
+            Arrays.asList(input.getValue().split("\\.")).forEach(word -> context.incrCounter(word, 1));
         }
-        return retval;
+        return null;
+
     }
 }
