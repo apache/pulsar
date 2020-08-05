@@ -42,6 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -1673,16 +1674,17 @@ public class PersistentTopicsBase extends AdminResource {
                         timestamp);
                 asyncResponse.resume(Response.noContent().build());
             }).exceptionally(ex -> {
+                Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
                 log.warn("[{}][{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), topicName,
-                        subName, timestamp, ex);
-                if (ex instanceof SubscriptionInvalidCursorPosition) {
+                        subName, timestamp, t);
+                if (t instanceof SubscriptionInvalidCursorPosition) {
                     asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                            "Unable to find position for timestamp specified: " + ex.getMessage()));
-                } else if (ex instanceof SubscriptionBusyException) {
+                            "Unable to find position for timestamp specified: " + t.getMessage()));
+                } else if (t instanceof SubscriptionBusyException) {
                     asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                            "Failed for Subscription Busy: " + ex.getMessage()));
+                            "Failed for Subscription Busy: " + t.getMessage()));
                 } else {
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, t);
                 }
                 return null;
             });
@@ -1811,16 +1813,17 @@ public class PersistentTopicsBase extends AdminResource {
                                 topicName, subscriptionName, targetMessageId);
                         asyncResponse.resume(Response.noContent().build());
                     }).exceptionally(ex -> {
+                        Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
                         log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
-                                subscriptionName, targetMessageId, ex);
-                        if (ex instanceof SubscriptionInvalidCursorPosition) {
+                                subscriptionName, targetMessageId, t);
+                        if (t instanceof SubscriptionInvalidCursorPosition) {
                             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                    "Unable to find position for position specified: " + ex.getMessage()));
-                        } else if (ex instanceof SubscriptionBusyException) {
+                                    "Unable to find position for position specified: " + t.getMessage()));
+                        } else if (t instanceof SubscriptionBusyException) {
                             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                    "Failed for Subscription Busy: " + ex.getMessage()));
+                                    "Failed for Subscription Busy: " + t.getMessage()));
                         } else {
-                            resumeAsyncResponseExceptionally(asyncResponse, ex);
+                            resumeAsyncResponseExceptionally(asyncResponse, t);
                         }
                         return null;
                     });
@@ -1869,16 +1872,17 @@ public class PersistentTopicsBase extends AdminResource {
                             topicName, subName, messageId);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
+                    Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
                     log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
-                            topicName, subName, messageId, ex);
-                    if (ex instanceof SubscriptionInvalidCursorPosition) {
+                            topicName, subName, messageId, t);
+                    if (t instanceof SubscriptionInvalidCursorPosition) {
                         asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                "Unable to find position for position specified: " + ex.getMessage()));
-                    } else if (ex instanceof SubscriptionBusyException) {
+                                "Unable to find position for position specified: " + t.getMessage()));
+                    } else if (t instanceof SubscriptionBusyException) {
                         asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                "Failed for Subscription Busy: " + ex.getMessage()));
+                                "Failed for Subscription Busy: " + t.getMessage()));
                     } else {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, t);
                     }
                     return null;
                 });
