@@ -107,7 +107,7 @@ public class PulsarMetricsSender implements MetricsSender {
     }
 
     private void generateAndSend() {
-        NamespaceStatsAggregator.generate(this.pulsar, true, true, this);
+        NamespaceStatsAggregator.generate(this.pulsar, this.conf.includeTopicMetrics, this.conf.includeConsumerMetrics, this);
     }
 
     @Override

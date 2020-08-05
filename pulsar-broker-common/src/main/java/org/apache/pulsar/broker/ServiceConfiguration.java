@@ -1848,6 +1848,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Define metrics sending interval in seconds"
     )
     private Integer metricsSenderIntervalInSeconds = 30;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Metrics Sender include topic metrics"
+    )
+    private Boolean metricsSenderIncludeTopicMetrics = false;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Metrics Sender include consumer metrics"
+    )
+    private Boolean metricsSenderIncludeConsumerMetrics = false;
 
     /**** --- Functions --- ****/
     @FieldContext(
