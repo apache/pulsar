@@ -74,6 +74,7 @@ public class TopicBacklogQuotaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
         Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "lookup-topic").create();
         producer.close();
+        Thread.sleep(3000);
     }
 
     @AfterMethod

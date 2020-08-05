@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -48,17 +49,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTopic = "persistent://" + myNamespace + "/test-topic-message-ttl";
 
-    public void disableTopicLevelPolicies() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(false);
-        super.internalSetup();
-
-        admin.clusters().createCluster("test", new ClusterData(pulsar.getWebServiceAddress()));
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant(this.testTenant, tenantInfo);
-        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-    }
-
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -71,6 +61,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
         admin.topics().createPartitionedTopic(testTopic, 2);
+        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/" + "dummy-topic").create();
+        producer.close();
+        Thread.sleep(3000);
     }
 
     @AfterMethod
@@ -86,16 +79,14 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
         Thread.sleep(3000);
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Backlog quota {} get on topic: {}", testTopic, messageTTL);
+        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 100);
 
         Thread.sleep(3000);
         admin.topics().removeMessageTTL(testTopic);
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Backlog quota {} get on topic: {}", testTopic, messageTTL);
+        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 0);
-
-        admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
     @Test
@@ -119,7 +110,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     public void testGetMessageTTL() throws Exception {
         // Check default topic level message TTL.
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Backlog quota {} get on topic: {}", testTopic, messageTTL);
+        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 0);
 
         admin.topics().setMessageTTL(testTopic, 200);
@@ -127,11 +118,8 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
         Thread.sleep(3000);
         messageTTL = admin.topics().getMessageTTL(testTopic);
-        log.info("Backlog quota {} get on topic: {}", testTopic, messageTTL);
+        log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 200);
-
-        admin.topics().deletePartitionedTopic(testTopic, true);
-        admin.namespaces().deleteNamespace(myNamespace);
     }
 
     @Test
