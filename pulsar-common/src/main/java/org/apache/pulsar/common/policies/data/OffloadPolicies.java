@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import static org.apache.pulsar.common.util.FieldParser.value;
 
 import com.google.common.base.MoreObjects;
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Objects;
@@ -32,7 +33,9 @@ import org.apache.commons.lang3.StringUtils;
  * Definition of the offload policies.
  */
 @Data
-public class OffloadPolicies {
+public class OffloadPolicies implements Serializable {
+
+    private final static long serialVersionUID = 0L;
 
     public final static int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
     public final static int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
