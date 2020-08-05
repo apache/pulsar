@@ -25,7 +25,7 @@ Java SDK provides access to a **window context object** that can be used by a wi
 
 - [Routing](#routing)
   
-  * Function to publish new messages to arbitrary topics.
+  * Routing is supported in Pulsar window functions. Pulsar window functions send messages to arbitrary topics as per the `publish` interface.
 
 - [Metrics](#metrics)
   
