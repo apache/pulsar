@@ -73,7 +73,7 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn clean install -DskipTests
 
-#      Flaky Test: https://github.com/apache/pulsar/issues/6179
+#      Flaky Test: https://github.com/apache/pulsar/issues/7750
 #      - name: build pulsar image
 #        if: steps.docs.outputs.changed_only == 'no'
 #        run: mvn -B -f docker/pulsar/pom.xml install -am -Pdocker -DskipTests -Ddocker.nocache=true

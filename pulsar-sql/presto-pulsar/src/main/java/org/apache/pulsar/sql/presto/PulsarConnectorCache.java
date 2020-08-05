@@ -26,7 +26,6 @@ import io.airlift.log.Logger;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
