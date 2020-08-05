@@ -161,7 +161,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             });
         } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
             // TODO handle abort operation
-            completableFuture.completeExceptionally(new Exception("Unsupported operation."));
+            completableFuture.complete(null);
         }
         return completableFuture;
     }

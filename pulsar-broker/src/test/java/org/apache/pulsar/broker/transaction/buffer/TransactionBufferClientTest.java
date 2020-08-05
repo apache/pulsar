@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.collect.Sets;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
@@ -69,19 +69,9 @@ public class TransactionBufferClientTest extends TransactionMetaStoreTestBase {
     public void afterPulsarStart() throws Exception {
         super.afterPulsarStart();
         for (int i = 0; i < pulsarServices.length; i++) {
-            TransactionBuffer tb = Mockito.mock(TransactionBuffer.class);
-            Mockito.when(tb.endTxnOnPartition(Mockito.any(), Mockito.anyInt()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tb.commitPartitionTopic(Mockito.any()))
-                    .thenReturn(CompletableFuture.completedFuture(PositionImpl.get(-1, -1)));
-            Mockito.when(tb.commitTxn(Mockito.any(), Mockito.anyLong(), Mockito.anyLong()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(tb.abortTxn(Mockito.any()))
-                    .thenReturn(CompletableFuture.completedFuture(null));
-
-            CompletableFuture<TransactionBuffer> tbFuture = CompletableFuture.completedFuture(tb);
             Topic mockTopic = Mockito.mock(Topic.class);
-            Mockito.when(mockTopic.getTransactionBuffer(false)).thenReturn(tbFuture);
+            Mockito.when(mockTopic.endTxn(Mockito.any(), Mockito.anyInt()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
 
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topicMap =
                     Mockito.mock(ConcurrentOpenHashMap.class);

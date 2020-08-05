@@ -107,12 +107,6 @@ public interface TransactionMeta {
     CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId);
 
     /**
-     * Mark the transaction status is aborting.
-     * @return
-     */
-    CompletableFuture<TransactionMeta> abortingTxn();
-
-    /**
      * Mark the transaction is aborted.
      *
      * @return

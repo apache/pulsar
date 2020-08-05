@@ -22,8 +22,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 
 import com.google.common.collect.Lists;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
@@ -35,6 +35,10 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.lang.reflect.Field;
+import java.util.concurrent.CompletableFuture;
+
+
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
     @BeforeClass
@@ -42,17 +46,21 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         super.setup();
 
         for (PulsarService pulsarService : pulsarServices) {
-            TransactionBufferClient transactionBufferClient = Mockito.mock(TransactionBufferClientImpl.class);
-            Mockito.when(transactionBufferClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
+            TransactionBufferClient tbClient = Mockito.mock(TransactionBufferClientImpl.class);
+            Mockito.when(tbClient.commitTxnOnTopic(anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(transactionBufferClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnTopic(anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(transactionBufferClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.commitTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
-            Mockito.when(transactionBufferClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
+            Mockito.when(tbClient.abortTxnOnSubscription(anyString(), anyString(), anyLong(), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(null));
 
-            Mockito.when(pulsarService.getTransactionBufferClient()).thenReturn(transactionBufferClient);
+            TransactionMetadataStoreService metadataStoreService = pulsarService.getTransactionMetadataStoreService();
+            Class<TransactionMetadataStoreService> clazz = TransactionMetadataStoreService.class;
+            Field field = clazz.getDeclaredField("tbClient");
+            field.setAccessible(true);
+            field.set(metadataStoreService, tbClient);
         }
     }
 

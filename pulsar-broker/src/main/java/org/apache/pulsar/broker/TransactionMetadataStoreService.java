@@ -194,7 +194,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endTransactionBuffer(txnID, newStatus));
+                .thenCompose(ignored -> endToTB(txnID, newStatus));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -205,7 +205,7 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endTransactionBuffer(TxnID txnID, TxnStatus newStatus) {
+    private CompletableFuture<Void> endToTB(TxnID txnID, TxnStatus newStatus) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {

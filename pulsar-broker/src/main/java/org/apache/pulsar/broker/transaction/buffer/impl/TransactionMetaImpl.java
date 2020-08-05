@@ -152,20 +152,9 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<TransactionMeta> abortingTxn() {
-        CompletableFuture<TransactionMeta> abortingFuture = new CompletableFuture<>();
-        if (!checkStatus(TxnStatus.OPEN, abortingFuture)) {
-            return abortingFuture;
-        }
-        this.txnStatus = TxnStatus.COMMITTING;
-        abortingFuture.complete(this);
-        return abortingFuture;
-    }
-
-    @Override
     public synchronized CompletableFuture<TransactionMeta> abortTxn() {
         CompletableFuture<TransactionMeta> abortFuture = new CompletableFuture<>();
-        if (!checkStatus(TxnStatus.ABORTING, abortFuture)) {
+        if (!checkStatus(TxnStatus.OPEN, abortFuture)) {
             return abortFuture;
         }
 

@@ -122,12 +122,6 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<TransactionMeta> abortingTxn() {
-            status = TxnStatus.ABORTING;
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
         public CompletableFuture<TransactionMeta> abortTxn() {
             try {
                 return CompletableFuture.completedFuture(abort());
