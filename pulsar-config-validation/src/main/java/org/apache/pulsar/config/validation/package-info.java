@@ -19,4 +19,4 @@
 /**
  * Implementation of Validator interfaces and annotations.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;

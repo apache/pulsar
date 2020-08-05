@@ -23,7 +23,6 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
-
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
@@ -1687,6 +1686,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-config-validation</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
@@ -1740,6 +1740,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-zookeeper</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-config-validation</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>

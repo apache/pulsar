@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.validator;
+package org.apache.pulsar.config.validation;
 
-import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
 import java.net.InetSocketAddress;
@@ -60,7 +59,6 @@ public class ValidatorImplsTest {
         ValidatorImpls.NotNullValidator validator = new ValidatorImpls.NotNullValidator();
         validator.validateField("fieldname", 2);
         validator.validateField("fieldname", "Something");
-        validator.validateField("fieldname", TopicName.get("default"));
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("field", null));
     }
 
@@ -138,15 +136,6 @@ public class ValidatorImplsTest {
         validator.validateField("fieldname", "bad");
         validator.validateField("fieldname", "ugly");
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", "beautiful"));
-    }
-
-    @Test
-    public void testTopicNameValidator() {
-        ValidatorImpls.TopicNameValidator validator = new ValidatorImpls.TopicNameValidator();
-        validator.validateField("fieldname", "topicname");
-        validator.validateField("fieldname", "public/default/topicname");
-        validator.validateField("fieldname", "persistent://public/default/topicname");
-        assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", "http://google.com"));
     }
 
     @Test
