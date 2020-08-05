@@ -336,7 +336,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages = asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages = topic.delayedDeliveryEnabled ?
+                        asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> messagesToRedeliver.remove(((PositionImpl) position).getLedgerId(),
@@ -372,6 +373,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return cursor.asyncReplayEntries(positions, this, ReadType.Replay);
     }
 
+    protected Set<? extends Position> asyncReplayEntriesInOrder(Set<? extends Position> positions) {
+        return cursor.asyncReplayEntries(positions, this, ReadType.Replay, true);
+    }
 
     @Override
     public boolean isConsumerConnected() {
