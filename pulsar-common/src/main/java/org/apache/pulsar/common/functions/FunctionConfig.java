@@ -75,8 +75,6 @@ public class FunctionConfig {
      */
     private Map<String, ConsumerConfig> inputSpecs;
 
-    private Map<String, String> outputSpecs;
-
     private String output;
 
     // Any configuration that need to be applied for producers

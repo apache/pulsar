@@ -49,6 +49,7 @@ import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -301,8 +302,8 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
-        @Parameter(names = "--output-specs", description = "The map of outputs to custom configuration (as a JSON string)")
-        protected String outputSpecs;
+        @Parameter(names = "--producer-config", description = "The map of producer config to custom configuration (as a ProducerConfig JSON string)")
+        protected String producerConfig;
 
         protected SourceConfig sourceConfig;
 
@@ -347,9 +348,9 @@ public class CmdSources extends CmdBase {
             if (null != schemaType) {
                 sourceConfig.setSchemaType(schemaType);
             }
-            if (null != outputSpecs) {
-                Type type = new TypeToken<Map<String, String>>() {}.getType();
-                sourceConfig.setOutputSpecs(new Gson().fromJson(outputSpecs, type));
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                sourceConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
             }
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);

@@ -49,7 +49,6 @@ public class SourceConfig {
     private String schemaType;
 
     private Map<String, Object> configs;
-    private Map<String, String> outputSpecs;
     // This is a map of secretName(aka how the secret is going to be
     // accessed in the function via context) to an object that
     // encapsulates how the secret is fetched by the underlying

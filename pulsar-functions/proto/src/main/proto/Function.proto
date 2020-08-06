@@ -104,6 +104,7 @@ message ConsumerSpec {
 message ProducerSpec {
     int32 maxPendingMessages = 1;
     int32 maxPendingMessagesAcrossPartitions = 2;
+    map<string, string> producerProperties = 3;
 }
 
 message SourceSpec {
@@ -161,8 +162,6 @@ message SinkSpec {
     map<string, string> schemaProperties = 9;
 
     map<string, string> consumerProperties = 10;
-
-    map<string, string> outputSpecs = 11;
 }
 
 message PackageLocationMetaData {

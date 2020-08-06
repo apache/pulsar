@@ -811,7 +811,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
-                pulsarSinkConfig.setProducerProperties(sinkSpec.getOutputSpecsMap());
 
                 if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
                     pulsarSinkConfig.setProducerSpec(this.instanceConfig.getFunctionDetails().getSink().getProducerSpec());

@@ -155,11 +155,10 @@ public class SourceConfigUtils {
             if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
+            if (sourceConfig.getProducerConfig().getProducerProperties() != null) {
+                pbldr.putAllProducerProperties(sourceConfig.getProducerConfig().getProducerProperties());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
-        }
-
-        if (sourceConfig.getOutputSpecs() != null) {
-            sinkSpecBuilder.putAllOutputSpecs(sourceConfig.getOutputSpecs());
         }
 
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -239,10 +238,10 @@ public class SourceConfigUtils {
             if (sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
                 producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
             }
+            if (sinkSpec.getProducerSpec().getProducerPropertiesMap() != null) {
+                producerConfig.setProducerProperties(sinkSpec.getProducerSpec().getProducerPropertiesMap());
+            }
             sourceConfig.setProducerConfig(producerConfig);
-        }
-        if (sinkSpec.getOutputSpecsMap() != null) {
-            sourceConfig.setOutputSpecs(sinkSpec.getOutputSpecsMap());
         }
         if (functionDetails.hasResources()) {
             Resources resources = new Resources();
@@ -458,8 +457,8 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getSchemaType())) {
             mergedConfig.setSchemaType(newConfig.getSchemaType());
         }
-        if (mergedConfig.getOutputSpecs() == null) {
-            mergedConfig.setOutputSpecs(new HashMap<>());
+        if (mergedConfig.getProducerConfig() == null) {
+            mergedConfig.setProducerConfig(new ProducerConfig());
         }
         if (newConfig.getConfigs() != null) {
             mergedConfig.setConfigs(newConfig.getConfigs());
@@ -492,10 +491,10 @@ public class SourceConfigUtils {
             validateBatchSourceConfigUpdate(existingConfig.getBatchSourceConfig(), newConfig.getBatchSourceConfig());
             mergedConfig.setBatchSourceConfig(newConfig.getBatchSourceConfig());
         }
-        if (newConfig.getOutputSpecs() != null) {
-            Map<String, String> tempOutputSpecs = new HashMap<>(mergedConfig.getOutputSpecs());
-            tempOutputSpecs.putAll(newConfig.getOutputSpecs());
-            mergedConfig.setOutputSpecs(tempOutputSpecs);
+        if (newConfig.getProducerConfig() != null && newConfig.getProducerConfig().getProducerProperties().size() > 0) {
+            Map<String, String> properties = new HashMap<>(mergedConfig.getProducerConfig().getProducerProperties());
+            properties.putAll(newConfig.getProducerConfig().getProducerProperties());
+            mergedConfig.getProducerConfig().setProducerProperties(properties);
         }
         return mergedConfig;
     }

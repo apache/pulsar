@@ -51,6 +51,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
@@ -238,8 +239,8 @@ public class CmdFunctions extends CmdBase {
         protected String customSchemaOutputString;
         @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
         protected String inputSpecs;
-        @Parameter(names = "--output-specs", description = "The map of outputs to custom configuration (as a JSON string)")
-        protected String outputSpecs;
+        @Parameter(names = "--producer-config", description = "The map of producer config to custom configuration (as a ProducerConfig JSON string)")
+        protected String producerConfig;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -386,9 +387,9 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
-            if (null != outputSpecs) {
-                Type type = new TypeToken<Map<String, String>>() {}.getType();
-                functionConfig.setOutputSpecs(new Gson().fromJson(outputSpecs, type));
+            if (null != producerConfig) {
+                Type type = new TypeToken<ProducerConfig>() {}.getType();
+                functionConfig.setProducerConfig(new Gson().fromJson(producerConfig, type));
             }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);

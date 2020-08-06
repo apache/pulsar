@@ -93,11 +93,11 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema
-                , Map<String, String> producerProperties)
+                , org.apache.pulsar.functions.proto.Function.ProducerSpec producerSpec)
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema);
-            if (producerProperties != null) {
-                builder = builder.loadConf(new HashMap<>(producerProperties));
+            if (producerSpec != null) {
+                builder = builder.loadConf(new HashMap<>(producerSpec.getProducerPropertiesMap()));
             }
             builder.blockIfQueueFull(true)
                     .compressionType(CompressionType.LZ4)
@@ -134,7 +134,7 @@ public class PulsarSink<T> implements Sink<T> {
                             client,
                             topicName,
                             producerName,
-                            schema != null ? schema : this.schema, pulsarSinkConfig.getProducerProperties());
+                            schema != null ? schema : this.schema, pulsarSinkConfig.getProducerSpec());
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -189,7 +189,7 @@ public class PulsarSink<T> implements Sink<T> {
             try {
                 publishProducers.put(pulsarSinkConfig.getTopic(),
                         createProducer(client, pulsarSinkConfig.getTopic(), null, schema
-                                , pulsarSinkConfig.getProducerProperties()));
+                                , pulsarSinkConfig.getProducerSpec()));
             } catch (PulsarClientException e) {
                 log.error("Failed to create Producer while doing user publish", e);
                 throw new RuntimeException(e);            }

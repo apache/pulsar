@@ -211,10 +211,8 @@ public class FunctionConfigUtils {
             if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
+            pbldr.putAllProducerProperties(functionConfig.getProducerConfig().getProducerProperties());
             sinkSpecBuilder.setProducerSpec(pbldr.build());
-        }
-        if (functionConfig.getOutputSpecs() != null) {
-            sinkSpecBuilder.putAllOutputSpecs(functionConfig.getOutputSpecs());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
@@ -341,7 +339,6 @@ public class FunctionConfigUtils {
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
-        functionConfig.setOutputSpecs(functionDetails.getSink().getOutputSpecsMap());
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
         }
@@ -373,6 +370,7 @@ public class FunctionConfigUtils {
             if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
                 producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
             }
+            producerConfig.setProducerProperties(functionDetails.getSink().getProducerSpec().getProducerPropertiesMap());
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
@@ -803,9 +801,8 @@ public class FunctionConfigUtils {
         if (mergedConfig.getInputSpecs() == null) {
             mergedConfig.setInputSpecs(new HashMap<>());
         }
-
-        if (mergedConfig.getOutputSpecs() == null) {
-            mergedConfig.setOutputSpecs(new HashMap<>());
+        if (mergedConfig.getProducerConfig() == null) {
+            mergedConfig.setProducerConfig(new ProducerConfig());
         }
 
         if (newConfig.getInputs() != null) {
@@ -912,10 +909,10 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
-        if (newConfig.getOutputSpecs() != null) {
-            Map<String, String> tempOutputSpecs = new HashMap<>(mergedConfig.getOutputSpecs());
-            tempOutputSpecs.putAll(newConfig.getOutputSpecs());
-            mergedConfig.setOutputSpecs(tempOutputSpecs);
+        if (newConfig.getProducerConfig() != null && newConfig.getProducerConfig().getProducerProperties().size() > 0) {
+            Map<String, String> properties = new HashMap<>(mergedConfig.getProducerConfig().getProducerProperties());
+            properties.putAll(newConfig.getProducerConfig().getProducerProperties());
+            mergedConfig.getProducerConfig().setProducerProperties(properties);
         }
 
         return mergedConfig;

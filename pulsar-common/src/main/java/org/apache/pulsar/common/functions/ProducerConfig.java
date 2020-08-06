@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.functions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +38,6 @@ import lombok.NoArgsConstructor;
 public class ProducerConfig {
     private Integer maxPendingMessages;
     private Integer maxPendingMessagesAcrossPartitions;
+    @Builder.Default
+    private Map<String, String> producerProperties = new HashMap<>();
 }

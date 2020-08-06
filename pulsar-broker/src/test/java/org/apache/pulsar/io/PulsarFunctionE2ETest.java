@@ -86,6 +86,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -555,7 +556,7 @@ public class PulsarFunctionE2ETest {
     }
 
     @Test(timeOut = 20000)
-    public void testOutputSpecs() throws Exception {
+    public void testProducerSpecs() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1" + UUID.randomUUID().toString();
@@ -579,11 +580,13 @@ public class PulsarFunctionE2ETest {
         functionConfig.setTopicsPattern(null);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setSubPosition(Function.SubscriptionPosition.EARLIEST.name());
-        Map<String, String> outSpecs = new HashMap<>();
-        outSpecs.put("batchingMaxMessages", "10");
-        outSpecs.put("batchingEnabled", "true");
-        outSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
-        functionConfig.setOutputSpecs(outSpecs);
+        Map<String, String> producerSpecs = new HashMap<>();
+        producerSpecs.put("batchingMaxMessages", "10");
+        producerSpecs.put("batchingEnabled", "true");
+        producerSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setProducerProperties(producerSpecs);
+        functionConfig.setProducerConfig(producerConfig);
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
@@ -593,6 +596,8 @@ public class PulsarFunctionE2ETest {
                 return false;
             }
         }, 50, 150);
+        FunctionConfig config = admin.functions().getFunction(tenant, namespacePortion, functionName);
+        assertEquals(config.getProducerConfig().getProducerProperties().get("batchingMaxMessages"), "10");
 
         //3 consumer should receive batch message,and batch size == 10
         Message<String> message = consumer.receive();
@@ -609,16 +614,16 @@ public class PulsarFunctionE2ETest {
         }
 
         //4 update batchingMaxMessages size to 5
-        functionConfig.getOutputSpecs().put("batchingMaxMessages", "5");
+        functionConfig.getProducerConfig().getProducerProperties().put("batchingMaxMessages", "5");
         admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
         retryStrategically((test) -> {
             try {
-                FunctionConfig config = admin.functions().getFunction(tenant, namespacePortion, functionName);
-                return config.getOutputSpecs().get("batchingMaxMessages").equals("5");
+                FunctionConfig cfg = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return cfg.getProducerConfig().getProducerProperties().get("batchingMaxMessages").equals("5");
             } catch (PulsarAdminException e) {
                 return false;
             }
-        }, 50, 150);
+        }, 50, 200);
 
         for (int j = 0; j < messageNum; j++) {
             producer.newMessage().value("my-message-" + j).send();
@@ -760,31 +765,33 @@ public class PulsarFunctionE2ETest {
 
         // 1 Setup source
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, functionName, sinkTopic);
-        Map<String, String> outSpecs = new HashMap<>();
-        outSpecs.put("batchingMaxMessages", "10");
-        outSpecs.put("batchingEnabled", "true");
-        outSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
-        sourceConfig.setOutputSpecs(outSpecs);
+        ProducerConfig producerConfig = new ProducerConfig();
+        Map<String, String> producerSpecs = new HashMap<>();
+        producerSpecs.put("batchingMaxMessages", "10");
+        producerSpecs.put("batchingEnabled", "true");
+        producerSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
+        producerConfig.setProducerProperties(producerSpecs);
+        sourceConfig.setProducerConfig(producerConfig);
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
         admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
         //2 batch size == 10
         retryStrategically((test) -> {
             try {
                 SourceConfig config = admin.source().getSource(tenant, namespacePortion, functionName);
-                return config.getOutputSpecs().get("batchingMaxMessages").equals("10");
+                return config.getProducerConfig().getProducerProperties().get("batchingMaxMessages").equals("10");
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 100);
 
         //3 change config
-        sourceConfig.getOutputSpecs().put("batchingMaxMessages", "5");
+        sourceConfig.getProducerConfig().getProducerProperties().put("batchingMaxMessages", "5");
         admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
         //4 batch size == 5
         retryStrategically((test) -> {
             try {
                 SourceConfig config = admin.source().getSource(tenant, namespacePortion, functionName);
-                return config.getOutputSpecs().get("batchingMaxMessages").equals("5");
+                return config.getProducerConfig().getProducerProperties().get("batchingMaxMessages").equals("5");
             } catch (PulsarAdminException e) {
                 return false;
             }
