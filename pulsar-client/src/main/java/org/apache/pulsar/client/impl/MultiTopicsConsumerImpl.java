@@ -566,15 +566,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         lock.readLock().lock();
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
-                while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
-                    if (receiveFuture != null) {
-                        receiveFuture.completeExceptionally(
-                                new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
-                    } else {
-                        break;
-                    }
-                }
+                failPendingReceives(pendingReceives);
+                failPendingBatchReceives(pendingBatchReceives);
             }
         } finally {
             lock.readLock().unlock();
@@ -728,10 +721,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private boolean topicNameValid(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
-        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
-
-        return true;
+        return TopicName.isValid(topicName) && !topics.containsKey(topicName);
     }
 
     // subscribe one more given topic
@@ -792,7 +782,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic, but already know the numberPartitions
-    private CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
+    @VisibleForTesting
+    CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         if (!topicNameValid(topicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));

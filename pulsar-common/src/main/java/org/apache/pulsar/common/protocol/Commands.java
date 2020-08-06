@@ -1431,6 +1431,16 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newEndTxnOnSubscription(long requestId, long txnIdLeastBits, long txnIdMostBits, String topic,
+                                                  String subscription, TxnAction txnAction) {
+        Subscription.Builder builder = Subscription.newBuilder();
+        builder.setTopic(topic);
+        builder.setSubscription(subscription);
+        Subscription sub = builder.build();
+        builder.recycle();
+        return newEndTxnOnSubscription(requestId, txnIdLeastBits, txnIdMostBits, sub, txnAction);
+    }
+
     public static ByteBuf newEndTxnOnSubscription(long requestId, long txnIdLeastBits, long txnIdMostBits,
                                                   Subscription subscription, TxnAction txnAction) {
         CommandEndTxnOnSubscription commandEndTxnOnSubscription =
@@ -1443,6 +1453,7 @@ public class Commands {
                                        .build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.END_TXN_ON_SUBSCRIPTION)
                                                    .setEndTxnOnSubscription(commandEndTxnOnSubscription));
+        subscription.recycle();
         commandEndTxnOnSubscription.recycle();
         return res;
     }

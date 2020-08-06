@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -98,6 +101,12 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("offload", new Offload());
         jcommander.addCommand("offload-status", new OffloadStatusCmd());
         jcommander.addCommand("last-message-id", new GetLastMessageId());
+        jcommander.addCommand("get-backlog-quotas", new GetBacklogQuotaMap());
+        jcommander.addCommand("set-backlog-quota", new SetBacklogQuota());
+        jcommander.addCommand("remove-backlog-quota", new RemoveBacklogQuota());
+        jcommander.addCommand("get-message-ttl", new GetMessageTTL());
+        jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -816,6 +825,106 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(topics.getLastMessageId(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the backlog quota policies for a topic")
+    private class GetBacklogQuotaMap extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getBacklogQuotaMap(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set a backlog quota policy for a topic")
+    private class SetBacklogQuota extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
+        private String limitStr;
+
+        @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
+                + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]", required = true)
+        private String policyStr;
+
+        @Override
+        void run() throws PulsarAdminException {
+            BacklogQuota.RetentionPolicy policy;
+            long limit;
+
+            try {
+                policy = BacklogQuota.RetentionPolicy.valueOf(policyStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(String.format("Invalid retention policy type '%s'. Valid options are: %s",
+                        policyStr, Arrays.toString(BacklogQuota.RetentionPolicy.values())));
+            }
+
+            limit = validateSizeString(limitStr);
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setBacklogQuota(persistentTopic, new BacklogQuota(limit, policy));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove a backlog quota policy from a topic")
+    private class RemoveBacklogQuota extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeBacklogQuota(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the message TTL for a topic")
+    private class GetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMessageTTL(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set message TTL for a topic")
+    private class SetMessageTTL extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private int messageTTLInSecond;
+
+        @Override
+        void run() throws PulsarAdminException {
+            if (messageTTLInSecond < 0) {
+                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            }
+
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMessageTTL(persistentTopic, messageTTLInSecond);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove message TTL for a topic")
+    private class RemoveMessageTTL extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMessageTTL(persistentTopic);
         }
     }
 }

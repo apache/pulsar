@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +39,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.google.common.collect.Maps;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -46,8 +48,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
 import io.swagger.annotations.Api;
@@ -874,6 +878,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public void resetCursorOnPosition(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -886,8 +891,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
             MessageIdImpl messageId) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @GET
@@ -975,6 +984,104 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         return internalGetBacklog(authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuotaMap")
+    @ApiOperation(value = "Get backlog quota map on a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic policy does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
+    public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(@PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return getTopicPolicies(topicName)
+                .map(TopicPolicies::getBackLogQuotaMap)
+                .map(map -> {
+                    HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> hashMap = Maps.newHashMap();
+                    map.forEach((key,value) -> {
+                        hashMap.put(BacklogQuota.BacklogQuotaType.valueOf(key),value);
+                    });
+                    return hashMap;
+                })
+                .orElse(Maps.newHashMap());
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
+    @ApiOperation(value = " Set a backlog quota for a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Specified backlog quota exceeds retention quota. Increase retention quota and retry request") })
+    public void setBacklogQuota(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("backlogQuotaType") BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetBacklogQuota(asyncResponse, backlogQuotaType, backlogQuota);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
+    @ApiOperation(value = "Remove a backlog quota policy from a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeBacklogQuota(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("backlogQuotaType") BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Get message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry")})
+    public int getMessageTTL(@PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return getTopicPolicies(topicName)
+                .map(TopicPolicies::getMessageTTLInSeconds)
+                .orElse(0);  //same as default ttl at namespace level
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+                            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void setMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+                              @QueryParam("messageTTL") int messageTTL) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, messageTTL);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Remove message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void removeMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, null);
     }
 
     @POST

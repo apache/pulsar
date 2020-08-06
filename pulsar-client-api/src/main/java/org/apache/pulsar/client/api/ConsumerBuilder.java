@@ -610,6 +610,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> enableRetry(boolean retryEnable);
 
     /**
+     * Enable or disable the batch index acknowledgment. To enable this feature must ensure batch index acknowledgment
+     * feature is enabled at the broker side.
+     */
+    ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled);
+
+    /**
      * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
      * consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed
      * with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different

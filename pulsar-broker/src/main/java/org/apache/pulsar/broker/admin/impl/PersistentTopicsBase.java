@@ -42,6 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -71,6 +72,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -104,12 +106,15 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -595,6 +600,13 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
         try {
             validateWriteOperationOnTopic(authoritative);
+        } catch (WebApplicationException wae) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to delete partitioned topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to delete partitioned topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -876,6 +888,13 @@ public class PersistentTopicsBase extends AdminResource {
             final List<String> subscriptions = Lists.newArrayList();
             topic.getSubscriptions().forEach((subName, sub) -> subscriptions.add(subName));
             asyncResponse.resume(subscriptions);
+        } catch (WebApplicationException wae) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to get subscriptions for non-partitioned topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -1204,11 +1223,15 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}][{}] Deleted subscription {}", clientAppId(), topicName, subName);
             asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
-            log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
             if (e.getCause() instanceof SubscriptionBusyException) {
+                log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName, topicName, e);
                 asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Subscription has active connected consumers"));
             } else if (e instanceof WebApplicationException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to delete subscription from topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
                 asyncResponse.resume(e);
             } else {
                 log.error("[{}] Failed to delete subscription {} {}", clientAppId(), topicName, subName, e);
@@ -1288,8 +1311,11 @@ public class PersistentTopicsBase extends AdminResource {
             log.info("[{}][{}] Deleted subscription forcefully {}", clientAppId(), topicName, subName);
             asyncResponse.resume(Response.noContent().build());
         } catch (Exception e) {
-            log.error("[{}] Failed to delete subscription forcefully {} from topic {}", clientAppId(), subName, topicName, e);
             if (e instanceof WebApplicationException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Failed to delete subscription forcefully from topic {}, redirecting to other brokers.",
+                            clientAppId(), topicName, e);
+                }
                 asyncResponse.resume(e);
             } else {
                 log.error("[{}] Failed to delete subscription forcefully {} {}", clientAppId(), topicName, subName, e);
@@ -1384,6 +1410,12 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 sub.clearBacklog().whenComplete(biConsumer);
             }
+        } catch (WebApplicationException wae) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to skip all messages for subscription on topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
         } catch (Exception e) {
             log.error("[{}] Failed to skip all messages for subscription {} on topic {}", clientAppId(), subName, topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -1485,6 +1517,13 @@ public class PersistentTopicsBase extends AdminResource {
             validateWriteOperationOnTopic(authoritative);
 
             topic = (PersistentTopic) getTopicReference(topicName);
+        } catch (WebApplicationException wae) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to expire messages for all subscription on topic {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, wae);
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -1528,7 +1567,8 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
-                log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName, e);
+                log.warn("[{}][{}] Failed to reset cursor on subscription {} to time {}: {}", clientAppId(), topicName,
+                        subName, timestamp, e.getMessage());
                 resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
@@ -1629,22 +1669,32 @@ public class PersistentTopicsBase extends AdminResource {
                 asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
                 return;
             }
-            sub.resetCursor(timestamp).get();
-            log.info("[{}] [{}] Reset cursor on subscription {} to time {}", clientAppId(), topicName, subName,
-                timestamp);
-            asyncResponse.resume(Response.noContent().build());
+            sub.resetCursor(timestamp).thenRun(() -> {
+                log.info("[{}][{}] Reset cursor on subscription {} to time {}", clientAppId(), topicName, subName,
+                        timestamp);
+                asyncResponse.resume(Response.noContent().build());
+            }).exceptionally(ex -> {
+                Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+                log.warn("[{}][{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), topicName,
+                        subName, timestamp, t);
+                if (t instanceof SubscriptionInvalidCursorPosition) {
+                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                            "Unable to find position for timestamp specified: " + t.getMessage()));
+                } else if (t instanceof SubscriptionBusyException) {
+                    asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                            "Failed for Subscription Busy: " + t.getMessage()));
+                } else {
+                    resumeAsyncResponseExceptionally(asyncResponse, t);
+                }
+                return null;
+            });
         } catch (Exception e) {
-            log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), topicName,
-                subName, timestamp, e);
+            log.warn("[{}][{}] Failed to reset cursor on subscription {} to time {}", clientAppId(), topicName, subName,
+                    timestamp, e);
             if (e instanceof NotAllowedException) {
                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, e.getMessage()));
-            } else if (e instanceof SubscriptionInvalidCursorPosition) {
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                    "Unable to find position for timestamp specified -" + e.getMessage()));
-            } else if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
             } else {
-                asyncResponse.resume(new RestException(e));
+                resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }
     }
@@ -1758,67 +1808,91 @@ public class PersistentTopicsBase extends AdminResource {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             subscription.deactivateCursor();
             subscription.resetCursor(PositionImpl.get(targetMessageId.getLedgerId(), targetMessageId.getEntryId()))
-                .get();
+                    .thenRun(() -> {
+                        log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
+                                topicName, subscriptionName, targetMessageId);
+                        asyncResponse.resume(Response.noContent().build());
+                    }).exceptionally(ex -> {
+                        Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+                        log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
+                                subscriptionName, targetMessageId, t);
+                        if (t instanceof SubscriptionInvalidCursorPosition) {
+                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                    "Unable to find position for position specified: " + t.getMessage()));
+                        } else if (t instanceof SubscriptionBusyException) {
+                            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed for Subscription Busy: " + t.getMessage()));
+                        } else {
+                            resumeAsyncResponseExceptionally(asyncResponse, t);
+                        }
+                        return null;
+                    });
         } catch (Throwable e) {
-            Throwable t = e.getCause();
-            log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
-                subscriptionName, targetMessageId, e);
-            if (t instanceof SubscriptionInvalidCursorPosition) {
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                    "Unable to find position for position specified: " + t.getMessage()));
-            } else if (e instanceof WebApplicationException) {
-                asyncResponse.resume(e);
-            } else if (t instanceof SubscriptionBusyException) {
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                        "Failed for Subscription Busy: " + t.getMessage()));
-            } else {
-                asyncResponse.resume(new RestException(e));
+            log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
+                    subscriptionName, targetMessageId, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
+    }
+
+    protected void internalResetCursorOnPosition(AsyncResponse asyncResponse, String subName, boolean authoritative,
+            MessageIdImpl messageId) {
+        if (topicName.isGlobal()) {
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}: {}", clientAppId(),
+                        topicName, subName, messageId, e.getMessage());
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
             }
         }
 
-        log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), topicName,
-            subscriptionName, targetMessageId);
-        asyncResponse.resume(Response.noContent().build());
-    }
-
-    protected void internalResetCursorOnPosition(String subName, boolean authoritative, MessageIdImpl messageId) {
-        if (topicName.isGlobal()) {
-            validateGlobalNamespaceOwnership(namespaceName);
-        }
         log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), topicName,
                 subName, messageId);
+
         // If the topic name is a partition name, no need to get partition topic metadata again
         if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName, authoritative, false).partitions > 0) {
             log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName,
                     subName);
-            throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Reset-cursor at position is not allowed for partitioned-topic");
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Reset-cursor at position is not allowed for partitioned-topic"));
+            return;
         } else {
             validateAdminAccessForSubscriber(subName, authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             if (topic == null) {
-                throw new RestException(Status.NOT_FOUND, "Topic not found");
+                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Topic not found"));
+                return;
             }
             try {
                 PersistentSubscription sub = topic.getSubscription(subName);
                 Preconditions.checkNotNull(sub);
-                sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
-                log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
-                        topicName, subName, messageId);
+                sub.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).thenRun(() -> {
+                    log.info("[{}][{}] successfully reset cursor on subscription {} to position {}", clientAppId(),
+                            topicName, subName, messageId);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+                    log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
+                            topicName, subName, messageId, t);
+                    if (t instanceof SubscriptionInvalidCursorPosition) {
+                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                "Unable to find position for position specified: " + t.getMessage()));
+                    } else if (t instanceof SubscriptionBusyException) {
+                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                "Failed for Subscription Busy: " + t.getMessage()));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, t);
+                    }
+                    return null;
+                });
             } catch (Exception e) {
-                Throwable t = e.getCause();
-                log.warn("[{}] [{}] Failed to reset cursor on subscription {} to position {}", clientAppId(),
-                        topicName, subName, messageId, e);
+                log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}", clientAppId(), topicName,
+                        subName, messageId, e);
                 if (e instanceof NullPointerException) {
-                    throw new RestException(Status.NOT_FOUND, "Subscription not found");
-                } else if (t instanceof SubscriptionInvalidCursorPosition) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Unable to find position for position specified: " + t.getMessage());
-                } else if (t instanceof SubscriptionBusyException) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Failed for SubscriptionBusy: " + t.getMessage());
+                    asyncResponse.resume(new RestException(Status.NOT_FOUND, "Subscription not found"));
                 } else {
-                    throw new RestException(e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                 }
             }
         }
@@ -1998,6 +2072,122 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(exception);
         }
         return offlineTopicStats;
+    }
+
+    protected void internalSetBacklogQuota(AsyncResponse asyncResponse, BacklogQuota.BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        if (backlogQuotaType == null) {
+            backlogQuotaType = BacklogQuota.BacklogQuotaType.destination_storage;
+        }
+        checkTopicLevelPolicyEnable();
+        TopicPolicies topicPolicies;
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        if (topicPolicies == null){
+            topicPolicies = new TopicPolicies();
+        }
+
+        RetentionPolicies retentionPolicies = getRetentionPolicies(topicName, topicPolicies);
+        if(!checkBacklogQuota(backlogQuota,retentionPolicies)){
+            log.warn(
+                    "[{}] Failed to update backlog configuration for topic {}: conflicts with retention quota",
+                    clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                    "Backlog Quota exceeds configured retention quota for topic. " +
+                            "Please increase retention quota and retry"));
+        }
+
+        if(backlogQuota != null){
+            topicPolicies.getBackLogQuotaMap().put(backlogQuotaType.name(), backlogQuota);
+        }else {
+            topicPolicies.getBackLogQuotaMap().remove(backlogQuotaType.name());
+        }
+        Map<String, BacklogQuota> backLogQuotaMap = topicPolicies.getBackLogQuotaMap();
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .whenComplete((r, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed updated backlog quota map",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        try {
+                            log.info("[{}] Successfully updated backlog quota map: namespace={}, topic={}, map={}",
+                                    clientAppId(),
+                                    namespaceName,
+                                    topicName.getLocalName(),
+                                    jsonMapper().writeValueAsString(backLogQuotaMap));
+                        } catch (JsonProcessingException ignore) { }
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+    }
+
+    protected void internalSetMessageTTL(AsyncResponse asyncResponse, Integer ttlInSecond) {
+        //Validate message ttl value.
+        if (ttlInSecond != null && ttlInSecond.intValue() < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
+        }
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        checkTopicLevelPolicyEnable();
+        TopicPolicies topicPolicies;
+        //Update existing topic policy or create a new one if not exist.
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        if (topicPolicies == null){
+            topicPolicies = new TopicPolicies();
+        }
+        topicPolicies.setMessageTTLInSeconds(ttlInSecond);
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed set message ttl for topic",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        log.info("[{}] Successfully set topic message ttl: namespace={}, topic={}, ttl={}",
+                                clientAppId(),
+                                namespaceName,
+                                topicName.getLocalName(),
+                                ttlInSecond);
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+    }
+
+
+    private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
+        RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
+        if (retentionPolicies == null){
+            try {
+                retentionPolicies = getNamespacePoliciesAsync(topicName.getNamespaceObject())
+                        .thenApply(policies -> policies.retention_policies)
+                        .get(1L, TimeUnit.SECONDS);
+            } catch (Exception e) {
+               throw new RestException(e);
+            }
+        }
+        return retentionPolicies;
+    }
+
+    protected void internalRemoveBacklogQuota(AsyncResponse asyncResponse,
+            BacklogQuota.BacklogQuotaType backlogQuotaType) {
+        internalSetBacklogQuota(asyncResponse, backlogQuotaType, null);
     }
 
     protected MessageId internalTerminate(boolean authoritative) {
@@ -2631,8 +2821,10 @@ public class PersistentTopicsBase extends AdminResource {
             validateReadOperationOnTopic(authoritative);
             topic = getTopicReference(topicName);
         } catch (WebApplicationException wae) {
-            log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
-                    clientAppId(), topicName, wae);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to get last messageId {}, redirecting to other brokers.",
+                        clientAppId(), topicName, wae);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, wae);
             return;
         } catch (Exception e) {

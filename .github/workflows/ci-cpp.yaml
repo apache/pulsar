@@ -41,7 +41,14 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Check if this pull request only changes documentation
+        id:   docs
+        uses: apache/pulsar-test-infra/diff-only@master
+        with:
+          args: site2 deployment .asf.yaml .ci ct.yaml
+
       - name: Cache local Maven repository
+        if: steps.docs.outputs.changed_only == 'no'
         uses: actions/cache@v2
         with:
           path: ~/.m2/repository
@@ -56,6 +63,7 @@ jobs:
           java-version: 1.8
 
       - name: clean disk
+        if: steps.docs.outputs.changed_only == 'no'
         run: |
           sudo swapoff -a
           sudo rm -f /swapfile
@@ -64,13 +72,16 @@ jobs:
           df -h
 
       - name: build package
+        if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
       - name: build cpp artifacts
+        if: steps.docs.outputs.changed_only == 'no'
         run: |
           echo "Build C++ client library"
           export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
-        run: pulsar-client-cpp/docker-tests.sh
+        if: steps.docs.outputs.changed_only == 'no'
+        run: ./build/retry.sh pulsar-client-cpp/docker-tests.sh

@@ -442,8 +442,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     protected void startInactivityMonitor() {
         if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
             int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
-            int maxInactiveDurationInSec = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds();
-            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(maxInactiveDurationInSec)), interval, interval,
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC()), interval, interval,
                     TimeUnit.SECONDS);
         }
 
@@ -1244,9 +1243,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return lookupRequestSemaphore.get();
     }
 
-    public void checkGC(int maxInactiveDurationInSec) {
-        forEachTopic(topic -> topic.checkGC(maxInactiveDurationInSec,
-            pulsar.getConfiguration().getBrokerDeleteInactiveTopicsMode()));
+    public void checkGC() {
+        forEachTopic(Topic::checkGC);
     }
 
     public void checkMessageExpiry() {

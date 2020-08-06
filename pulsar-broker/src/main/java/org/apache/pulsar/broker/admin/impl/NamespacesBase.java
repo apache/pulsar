@@ -26,6 +26,8 @@ import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_PO
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
+
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
@@ -90,6 +92,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
@@ -1832,37 +1835,62 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
+    protected InactiveTopicPolicies internalGetInactiveTopic() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        if (policies.inactive_topic_policies == null) {
+            return new InactiveTopicPolicies(config().getBrokerDeleteInactiveTopicsMode()
+                    , config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds()
+                    , config().isBrokerDeleteInactiveTopicsEnabled());
+        } else {
+            return policies.inactive_topic_policies;
+        }
+    }
+
+    protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies){
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
+    }
 
+    protected void internalSetPolicies(String fieldName, Object value){
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
 
-            policies.delayed_delivery_policies = delayedDeliveryPolicies;
+            Field field = Policies.class.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(policies, value);
+
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated delayed delivery messages configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(policies.retention_policies));
+            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
+                    namespaceName, jsonMapper().writeValueAsString(value));
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist", clientAppId(),
+                    fieldName, namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: concurrent modification",
-                    clientAppId(), namespaceName);
+            log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
+                    clientAppId(), fieldName, namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update delayed delivery messages configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update {} configuration for namespace {}", clientAppId(), fieldName
+                    , namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+        internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
 
     protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
@@ -2008,21 +2036,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
-        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = policies.backlog_quota_map;
-        if (backlog_quota_map.isEmpty() || retention.getRetentionSizeInMB() == 0 || retention.getRetentionSizeInMB() == -1) {
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
+        if (backlogQuotaMap.isEmpty()) {
             return true;
         }
-        BacklogQuota quota = backlog_quota_map.get(BacklogQuotaType.destination_storage);
-        if (quota == null) {
-            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
-        }
-        if (quota.getLimit() < 0 && (retention.getRetentionSizeInMB() > 0 || retention.getRetentionTimeInMinutes() > 0)) {
-            return false;
-        }
-        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
-            return false;
-        }
-        return true;
+        BacklogQuota quota = backlogQuotaMap.get(BacklogQuotaType.destination_storage);
+        return checkBacklogQuota(quota, retention);
     }
 
     private void clearBacklog(NamespaceName nsName, String bundleRange, String subscription) {

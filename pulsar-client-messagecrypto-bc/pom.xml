@@ -46,6 +46,24 @@
       <artifactId>bouncy-castle-bc-shaded</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bc-fips</artifactId>
+      <version>1.0.2</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-ext-jdk15on</artifactId>
+      <version>1.60</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-fips</artifactId>
+      <version>1.0.2</version>
+      <scope>compile</scope>
+    </dependency>
 
   </dependencies>
 </project>

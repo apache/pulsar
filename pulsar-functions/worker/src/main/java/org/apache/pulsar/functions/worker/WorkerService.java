@@ -284,6 +284,8 @@ public class WorkerService {
             log.info("/** Started worker id={} **/", workerConfig.getWorkerId());
 
             workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
+            workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
+            workerStatsManager.setLeaderService(leaderService);
             workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);

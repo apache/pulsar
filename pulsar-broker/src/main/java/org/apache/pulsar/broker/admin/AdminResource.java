@@ -28,6 +28,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -64,8 +65,10 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -508,6 +511,39 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getBrokerService().getBacklogQuotaManager().getBacklogQuota(namespace, namespacePath);
     }
 
+    protected Optional<TopicPolicies> getTopicPolicies(TopicName topicName) {
+        try {
+            checkTopicLevelPolicyEnable();
+            return Optional.ofNullable(pulsar().getTopicPoliciesService().getTopicPolicies(topicName));
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
+        if (retention == null || retention.getRetentionSizeInMB() == 0 ||
+                retention.getRetentionSizeInMB() == -1) {
+            return true;
+        }
+        if (quota == null) {
+            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
+        }
+        if (quota.getLimit() >= ( retention.getRetentionSizeInMB() * 1024 * 1024)) {
+            return false;
+        }
+        return true;
+    }
+
+    protected void checkTopicLevelPolicyEnable() {
+        if (!config().isTopicLevelPoliciesEnabled()) {
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Topic level policies is disabled, to enable the topic level policy and retry.");
+        }
+    }
+
     protected DispatchRate dispatchRate() {
         return new DispatchRate(
                 pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
@@ -837,7 +873,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
         if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume(throwable);
+            asyncResponse.resume((WebApplicationException) throwable);
         } else {
             asyncResponse.resume(new RestException(throwable));
         }

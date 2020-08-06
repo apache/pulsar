@@ -20,10 +20,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.functions.ConsumerConfig;
-import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.Resources;
-import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
@@ -66,6 +63,10 @@ public class FunctionConfigUtilsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
         functionConfig.setRuntimeFlags("-DKerberos");
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
@@ -101,6 +102,10 @@ public class FunctionConfigUtilsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setTimeoutMs(2000l);
         functionConfig.setWindowConfig(new WindowConfig().setWindowLengthCount(10));
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setMaxPendingMessages(100);
+        producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
+        functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
