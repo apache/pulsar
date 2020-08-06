@@ -5,8 +5,8 @@ sidebar_label: Docker
 ---
 
 To deploy a Pulsar cluster on Docker, complete the following steps:
-1. Deploy a ZooKeeper cluster (Optional)
-2. Initiate cluster metadata
+1. Deploy a ZooKeeper cluster (optional)
+2. Initialize cluster metadata
 3. Deploy a BookKeeper cluster
 4. Deploy one or more Pulsar brokers
 
@@ -25,9 +25,9 @@ docker run -it apachepulsar/pulsar-all:latest
 Create containers for ZooKeeper, BookKeeper and broker. In this example, they are named as `zookeeper`, `bookkeeper` and `broker` respectively. You can name them as you want with the `--name` flag. By default, the container names are created randomly.
 
 ```
-docker run -it --name bookkeeper streamnative/pulsar-all:latest /bin/bash
-docker run -it --name zookeeper streamnative/pulsar-all:latest /bin/bash
-docker run -it --name broker streamnative/pulsar-all:latest /bin/bash
+docker run -it --name bookkeeper apachepulsar/pulsar-all:latest /bin/bash
+docker run -it --name zookeeper apachepulsar/pulsar-all:latest /bin/bash
+docker run -it --name broker apachepulsar/pulsar-all:latest /bin/bash
 ```
 
 ### Create a network
@@ -48,4 +48,4 @@ docker network connect pulsar broker
 
 To check whether the containers are successfully connected to the network, enter the `docker network inspect pulsar` command.
 
-For detailed information about deployment, see [deploy a cluster on bare metal](https://pulsar.apache.org/docs/en/deploy-bare-metal/).
+For detailed information about deployment for each Pulsar component, see [deploy a cluster on bare metal](https://pulsar.apache.org/docs/en/deploy-bare-metal/).
