@@ -869,25 +869,79 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testCloseTopic() throws Exception {
+        // create topic
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+
+        Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        Field isClosingOrDeletingField = PersistentTopic.class.getDeclaredField("isClosingOrDeleting");
+        isClosingOrDeletingField.setAccessible(true);
+
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
+
+        // 1. close topic
+        topic.close().get();
+        assertFalse(brokerService.getTopicReference(successTopicName).isPresent());
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
+
+        // 2. publish message to closed topic
+        ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
+        final CountDownLatch latch = new CountDownLatch(1);
+        topic.publishMessage(payload, (exception, ledgerId, entryId) -> {
+            assertTrue(exception instanceof BrokerServiceException.TopicFencedException);
+            latch.countDown();
+        });
+        assertTrue(latch.await(1, TimeUnit.SECONDS));
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
+    }
+
+    @Test
     public void testDeleteTopic() throws Exception {
         // create topic
         PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+
+        Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        Field isClosingOrDeletingField = PersistentTopic.class.getDeclaredField("isClosingOrDeleting");
+        isClosingOrDeletingField.setAccessible(true);
+
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
 
         String role = "appid1";
         // 1. delete inactive topic
         topic.delete().get();
         assertFalse(brokerService.getTopicReference(successTopicName).isPresent());
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
 
-        // 2. delete topic with producer
+        // 2. publish message to deleted topic
+        ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
+        final CountDownLatch latch = new CountDownLatch(1);
+        topic.publishMessage(payload, (exception, ledgerId, entryId) -> {
+            assertTrue(exception instanceof BrokerServiceException.TopicFencedException);
+            latch.countDown();
+        });
+        assertTrue(latch.await(1, TimeUnit.SECONDS));
+        assertTrue((boolean) isFencedField.get(topic));
+        assertTrue((boolean) isClosingOrDeletingField.get(topic));
+
+        // 3. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name",
                 role, false, null, SchemaVersion.Latest, 0, false);
         topic.addProducer(producer);
 
         assertTrue(topic.delete().isCompletedExceptionally());
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.removeProducer(producer);
 
-        // 3. delete topic with subscriber
+        // 4. delete topic with subscriber
         CommandSubscribe cmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
@@ -897,6 +951,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
+        assertFalse((boolean) isFencedField.get(topic));
+        assertFalse((boolean) isClosingOrDeletingField.get(topic));
         topic.unsubscribe(successSubName);
     }
 
@@ -1145,6 +1201,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             }
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
+
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                ((CloseCallback) invocationOnMock.getArguments()[0]).closeComplete(null);
+                return null;
+            }
+        }).when(ledgerMock).asyncClose(any(CloseCallback.class), any());
 
         // call deleteLedgerComplete on ledger asyncDelete
         doAnswer(new Answer<Object>() {
