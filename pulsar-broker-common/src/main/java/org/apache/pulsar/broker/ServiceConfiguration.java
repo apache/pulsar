@@ -173,7 +173,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for orderedExecutor."
-            + " Default is 8"
+            + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"
+            + " get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"
     )
     private int numOrderedExecutorThreads = 8;
 
