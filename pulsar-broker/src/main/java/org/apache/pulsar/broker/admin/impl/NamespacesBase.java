@@ -309,8 +309,22 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected void internalDeleteNamespaceBundleAsync(AsyncResponse response, String bundleRange, boolean authoritative) {
+        internalDeleteNamespaceBundleAsync(bundleRange, authoritative)
+            .thenRun(() -> {
+                log.info("[{}] Successfully remoed namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
+                        bundleRange);
+                response.resume(null);
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
+                        bundleRange, ex);
+                response.resume(ex.getCause());
+               return null;
+            });
+    }
+
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative) {
+    public CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.DELETE_BUNDLE);
         validatePoliciesReadOnlyAccess();
 
@@ -358,27 +372,33 @@ public abstract class NamespacesBase extends AdminResource {
             throw new RestException(e);
         }
 
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-        try {
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName).join();
-            for (String topic : topics) {
-                NamespaceBundle topicBundle = pulsar().getNamespaceService()
-                        .getBundle(TopicName.get(topic));
-                if (bundle.equals(topicBundle)) {
-                    throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
-                }
-            }
 
-            // remove from owned namespace map and ephemeral node from ZK
-            pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
-                    bundleRange, e);
-            throw new RestException(e);
-        }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, authoritative, true)
+                .thenAccept(bundle -> {
+
+                    pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                            .thenAccept(topics -> {
+                                for (String topic : topics) {
+                                    if (bundle.includes(TopicName.get(topic))) {
+                                        throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
+                                    }
+                                }
+                            }).thenCompose(v -> {
+                                // remove from owned namespace map and ephemeral node from ZK
+                                return pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle);
+                            }).thenRun(() -> {
+                                future.complete(null);
+                            }).exceptionally(ex -> {
+                                future.completeExceptionally(ex);
+                                return null;
+                            });
+
+                }).exceptionally(ex -> {
+                    future.completeExceptionally(ex);
+                    return null;
+                });
+        return future;
     }
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
@@ -1061,19 +1081,20 @@ public abstract class NamespacesBase extends AdminResource {
 
         validatePoliciesReadOnlyAccess();
 
-        if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                    bundleRange);
-            asyncResponse.resume(Response.noContent().build());
-            return;
-        }
+        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                .thenCompose(isOwned -> {
+                    if (!isOwned) {
+                        return CompletableFuture.completedFuture(null);
+                    }
 
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-
-        pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                    return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                            authoritative, true).thenCompose(
+                                    nsBundle -> pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                                            .thenRun(() -> log.info(
+                                                    "[{}] Successfully unloaded namespace bundle {}",
+                                                    clientAppId(), nsBundle.toString())));
+                })
                 .thenRun(() -> {
-                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
@@ -1083,8 +1104,28 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
+    protected void internalSplitNamespaceBundleAsync(AsyncResponse response, String bundleRange, boolean authoritative,
+            boolean unload, String splitAlgorithmName) {
+        internalSplitNamespaceBundleAsync(bundleRange, authoritative, unload, splitAlgorithmName)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully split namespace bundle {}/{}", clientAppId(),
+                            namespaceName, bundleRange);
+                    response.resume(null);
+                }).exceptionally(ex -> {
+                    if (ex.getCause() instanceof IllegalArgumentException) {
+                        log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(),
+                                namespaceName, bundleRange, ex.getMessage());
+                    } else {
+                        log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName,
+                                bundleRange, ex);
+                    }
+                    response.resume(ex);
+                    return null;
+                });
+    }
+
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(String bundleRange, boolean authoritative, boolean unload, String splitAlgorithmName) {
+    public CompletableFuture<Void> internalSplitNamespaceBundleAsync(String bundleRange, boolean authoritative, boolean unload, String splitAlgorithmName) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -1100,31 +1141,21 @@ public abstract class NamespacesBase extends AdminResource {
         }
 
         validatePoliciesReadOnlyAccess();
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
 
-        List<String> supportedNamespaceBundleSplitAlgorithms = pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
-        if (StringUtils.isNotBlank(splitAlgorithmName) && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                "Unsupported namespace bundle split algorithm, supported algorithms are " + supportedNamespaceBundleSplitAlgorithms);
-        }
+        return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, authoritative, true)
+                .thenCompose(nsBundle -> {
+                    List<String> supportedNamespaceBundleSplitAlgorithms = pulsar().getConfig()
+                            .getSupportedNamespaceBundleSplitAlgorithms();
+                    if (StringUtils.isNotBlank(splitAlgorithmName)
+                            && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Unsupported namespace bundle split algorithm, supported algorithms are "
+                                        + supportedNamespaceBundleSplitAlgorithms);
+                    }
 
-        try {
-            pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload, getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName)).get();
-            log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof IllegalArgumentException) {
-                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
-                    bundleRange, e.getMessage());
-                throw new RestException(Status.PRECONDITION_FAILED, "Split bundle failed due to invalid request");
-            } else {
-                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-                throw new RestException(e.getCause());
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+                    return pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                            getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName));
+                });
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
@@ -1597,7 +1628,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalClearNamespaceBundleBacklog(String bundleRange, boolean authoritative) {
+    protected void internalClearNamespaceBundleBacklog(AsyncResponse response, String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(bundleRange, "BundleRange should not be null");
 
@@ -1611,11 +1642,16 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
-        validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, authoritative, true);
-
-        clearBacklog(namespaceName, bundleRange, null);
-        log.info("[{}] Successfully cleared backlog on namespace bundle {}/{}", clientAppId(), namespaceName,
-                bundleRange);
+        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, authoritative, true)
+                .thenCompose(x -> clearBacklogAsync(namespaceName, bundleRange, null))
+                .thenAccept(x -> {
+                    log.info("[{}] Successfully cleared backlog on namespace bundle {}/{}",
+                            clientAppId(), namespaceName, bundleRange);
+                    response.resume(null);
+                }).exceptionally(ex -> {
+                    response.resume(ex);
+                    return null;
+                });
     }
 
     protected void internalClearNamespaceBacklogForSubscription(AsyncResponse asyncResponse, String subscription,
@@ -1662,7 +1698,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalClearNamespaceBundleBacklogForSubscription(String subscription, String bundleRange,
+    protected void internalClearNamespaceBundleBacklogForSubscription(AsyncResponse response, String subscription, String bundleRange,
             boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.CLEAR_BACKLOG);
         checkNotNull(subscription, "Subscription should not be null");
@@ -1678,11 +1714,17 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
-        validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, authoritative, true);
-
-        clearBacklog(namespaceName, bundleRange, subscription);
-        log.info("[{}] Successfully cleared backlog for subscription {} on namespace bundle {}/{}", clientAppId(),
-                subscription, namespaceName, bundleRange);
+        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, authoritative, true)
+                .thenCompose(x -> clearBacklogAsync(namespaceName, bundleRange, subscription))
+                .thenAccept(x -> {
+                    log.info("[{}] Successfully cleared backlog for subscription {} on namespace bundle {}/{}",
+                            clientAppId(),
+                            subscription, namespaceName, bundleRange);
+                    response.resume(null);
+                }).exceptionally(ex -> {
+                    response.resume(ex);
+                    return null;
+                });
     }
 
     protected void internalUnsubscribeNamespace(AsyncResponse asyncResponse, String subscription,
@@ -1729,7 +1771,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalUnsubscribeNamespaceBundle(String subscription, String bundleRange, boolean authoritative) {
+    protected void internalUnsubscribeNamespaceBundle(AsyncResponse response, String subscription, String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
         checkNotNull(subscription, "Subscription should not be null");
         checkNotNull(bundleRange, "BundleRange should not be null");
@@ -1744,11 +1786,24 @@ public abstract class NamespacesBase extends AdminResource {
             validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
         }
 
-        validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, authoritative, true);
+        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, authoritative, true)
+                .thenCompose(x -> unsubscribeAsync(namespaceName, bundleRange, subscription))
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unsubscribed {} on namespace bundle {}/{}", clientAppId(), subscription,
+                            namespaceName, bundleRange);
+                    response.resume(null);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unsubscribe {} for namespace bundle {}/{}", clientAppId(), subscription,
+                            namespaceName, bundleRange, ex);
+                    if (ex.getCause() instanceof SubscriptionBusyException) {
+                        response.resume(new RestException(Status.PRECONDITION_FAILED,
+                                "Subscription has active connected consumers"));
+                    } else {
+                        response.resume(ex);
+                    }
+                    return null;
+                });
 
-        unsubscribe(namespaceName, bundleRange, subscription);
-        log.info("[{}] Successfully unsubscribed {} on namespace bundle {}/{}", clientAppId(), subscription,
-                namespaceName, bundleRange);
     }
 
     protected void internalSetSubscriptionAuthMode(SubscriptionAuthMode subscriptionAuthMode) {
@@ -2044,64 +2099,49 @@ public abstract class NamespacesBase extends AdminResource {
         return checkBacklogQuota(quota, retention);
     }
 
-    private void clearBacklog(NamespaceName nsName, String bundleRange, String subscription) {
-        try {
-            List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
-                    nsName.toString() + "/" + bundleRange);
+    private CompletableFuture<Void> clearBacklogAsync(NamespaceName nsName, String bundleRange, String subscription) {
+        List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
+                nsName.toString() + "/" + bundleRange);
 
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            if (subscription != null) {
-                if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
-                    subscription = PersistentReplicator.getRemoteCluster(subscription);
-                }
-                for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
-                        futures.add(((PersistentTopic) topic).clearBacklog(subscription));
-                    }
-                }
-            } else {
-                for (Topic topic : topicList) {
-                    if (topic instanceof PersistentTopic && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
-                        futures.add(((PersistentTopic) topic).clearBacklog());
-                    }
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        if (subscription != null) {
+            if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
+                subscription = PersistentReplicator.getRemoteCluster(subscription);
+            }
+            for (Topic topic : topicList) {
+                if (topic instanceof PersistentTopic
+                        && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                    futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                 }
             }
-
-            FutureUtil.waitForAll(futures).get();
-        } catch (Exception e) {
-            log.error("[{}] Failed to clear backlog for namespace {}/{}, subscription: {}", clientAppId(),
-                    nsName.toString(), bundleRange, subscription, e);
-            throw new RestException(e);
+        } else {
+            for (Topic topic : topicList) {
+                if (topic instanceof PersistentTopic
+                        && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                    futures.add(((PersistentTopic) topic).clearBacklog());
+                }
+            }
         }
+
+        return FutureUtil.waitForAll(futures);
     }
 
-    private void unsubscribe(NamespaceName nsName, String bundleRange, String subscription) {
-        try {
-            List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
-                    nsName.toString() + "/" + bundleRange);
-            List<CompletableFuture<Void>> futures = Lists.newArrayList();
-            if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
-                throw new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor");
-            } else {
-                for (Topic topic : topicList) {
-                    Subscription sub = topic.getSubscription(subscription);
-                    if (sub != null) {
-                        futures.add(sub.delete());
-                    }
+    private CompletableFuture<Void> unsubscribeAsync(NamespaceName nsName, String bundleRange, String subscription) {
+        List<Topic> topicList = pulsar().getBrokerService().getAllTopicsFromNamespaceBundle(nsName.toString(),
+                nsName.toString() + "/" + bundleRange);
+        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor");
+        } else {
+            for (Topic topic : topicList) {
+                Subscription sub = topic.getSubscription(subscription);
+                if (sub != null) {
+                    futures.add(sub.delete());
                 }
             }
-
-            FutureUtil.waitForAll(futures).get();
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to unsubscribe {} for namespace {}/{}", clientAppId(), subscription,
-                    nsName.toString(), bundleRange, e);
-            if (e.getCause() instanceof SubscriptionBusyException) {
-                throw new RestException(Status.PRECONDITION_FAILED, "Subscription has active connected consumers");
-            }
-            throw new RestException(e.getCause());
         }
+
+        return FutureUtil.waitForAll(futures);
     }
 
     /**

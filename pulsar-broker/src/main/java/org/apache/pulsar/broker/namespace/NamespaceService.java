@@ -18,9 +18,40 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.lang.String.format;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.admin.AdminResource.PARTITIONED_TOPIC_PATH_ZNODE;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
+import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
+import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
+import static org.apache.pulsar.common.util.Codec.decode;
+
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
+
 import io.netty.channel.EventLoopGroup;
+
+import java.net.URI;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
@@ -66,42 +97,11 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.net.URI;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.lang.String.format;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.AdminResource.PARTITIONED_TOPIC_PATH_ZNODE;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
-import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
-import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
-import static org.apache.pulsar.common.util.Codec.decode;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -183,7 +183,7 @@ public class NamespaceService {
                 .thenApply(bundles -> bundles.findBundle(topic));
     }
 
-    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) throws Exception {
+    public Optional<NamespaceBundle> getBundleIfPresent(TopicName topicName) {
         Optional<NamespaceBundles> bundles = bundleFactory.getBundlesIfPresent(topicName.getNamespaceObject());
         return bundles.map(b -> b.findBundle(topicName));
     }
@@ -196,7 +196,7 @@ public class NamespaceService {
         return bundleFactory.getBundles(namespace).size();
     }
 
-    private NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
+    private CompletableFuture<NamespaceBundle> getFullBundle(NamespaceName fqnn) {
         return bundleFactory.getFullBundle(fqnn);
     }
 
@@ -205,27 +205,22 @@ public class NamespaceService {
      *
      * If the service unit is not owned, return an empty optional
      */
-    public Optional<URL> getWebServiceUrl(ServiceUnitId suName, LookupOptions options) throws Exception {
+    public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) {
         if (suName instanceof TopicName) {
             TopicName name = (TopicName) suName;
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Getting web service URL of topic: {} - options: {}", name, options);
             }
-            return this.internalGetWebServiceUrl(getBundle(name), options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        }
 
-        if (suName instanceof NamespaceName) {
-            return this.internalGetWebServiceUrl(getFullBundle((NamespaceName) suName), options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            return getBundleAsync(name)
+                    .thenCompose(bundle -> internalGetWebServiceUrl(bundle, options));
         }
 
         if (suName instanceof NamespaceBundle) {
-            return this.internalGetWebServiceUrl((NamespaceBundle) suName, options)
-                    .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            return this.internalGetWebServiceUrl((NamespaceBundle) suName, options);
         }
 
-        throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
+        throw new IllegalArgumentException("Unrecognized class of ServiceUnitId: " + suName.getClass().getName());
     }
 
     private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {
@@ -287,7 +282,7 @@ public class NamespaceService {
             NamespaceBundle nsFullBundle = null;
 
             // all pre-registered namespace is assumed to have bundles disabled
-            nsFullBundle = bundleFactory.getFullBundle(nsname);
+            nsFullBundle = bundleFactory.getFullBundle(nsname).join();
             // v2 namespace will always use full bundle object
             otherUrl = ownershipCache.tryAcquiringOwnership(nsFullBundle).get().getNativeUrl();
 
@@ -693,10 +688,8 @@ public class NamespaceService {
      *
      * @param bundle
      * @return
-     * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload, NamespaceBundleSplitAlgorithm splitAlgorithm)
-        throws Exception {
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload, NamespaceBundleSplitAlgorithm splitAlgorithm) {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
@@ -870,13 +863,9 @@ public class NamespaceService {
                 .collect(Collectors.toSet());
     }
 
-    public boolean isServiceUnitOwned(ServiceUnitId suName) throws Exception {
+    public boolean isServiceUnitOwned(ServiceUnitId suName) {
         if (suName instanceof TopicName) {
             return isTopicOwned((TopicName) suName);
-        }
-
-        if (suName instanceof NamespaceName) {
-            return isNamespaceOwned((NamespaceName) suName);
         }
 
         if (suName instanceof NamespaceBundle) {
@@ -887,41 +876,24 @@ public class NamespaceService {
     }
 
     public boolean isServiceUnitActive(TopicName topicName) {
-        try {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)).isActive();
-        } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName);
-            return false;
-        }
+        return getBundleIfPresent(topicName)
+                .map(bundle -> ownershipCache.getOwnedBundle(bundle).isActive())
+                .orElse(false);
     }
 
-    private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
-        return ownershipCache.getOwnedBundle(getFullBundle(fqnn)) != null;
+    private boolean isTopicOwned(TopicName topic) {
+        return getBundleIfPresent(topic).isPresent();
     }
 
-    private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
-        return getBundleAsync(topic).thenApply(bundle -> ownershipCache.isNamespaceBundleOwned(bundle));
+    public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceName nsName) {
+        return getFullBundle(nsName)
+                .thenCompose(bundle -> ownershipCache.removeOwnership(bundle))
+                .thenRun(() -> bundleFactory.invalidateBundleCache(nsName));
     }
 
-    private boolean isTopicOwned(TopicName topicName) throws Exception {
-        Optional<NamespaceBundle> bundle = getBundleIfPresent(topicName);
-        if (bundle.isPresent()) {
-            return ownershipCache.getOwnedBundle(bundle.get()) != null;
-        } else {
-            return ownershipCache.getOwnedBundle(getBundle(topicName)) != null;
-        }
-    }
-
-    public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
-        ownershipCache.removeOwnership(getFullBundle(nsName))
-                .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);
-        bundleFactory.invalidateBundleCache(nsName);
-    }
-
-    public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
-        ownershipCache.removeOwnership(nsBundle).get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(),
-                SECONDS);
-        bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject());
+    public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
+        return ownershipCache.removeOwnership(nsBundle)
+                .thenRun(() -> bundleFactory.invalidateBundleCache(nsBundle.getNamespaceObject()));
     }
 
     public void removeOwnedServiceUnits(NamespaceName nsName, BundlesData bundleData) throws Exception {
@@ -1194,7 +1166,7 @@ public class NamespaceService {
 
         LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
-        NamespaceBundle nsFullBundle = getFullBundle(NamespaceName.get(namespaceName));
+        NamespaceBundle nsFullBundle = getFullBundle(NamespaceName.get(namespaceName)).join();
         if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
             // Next lookup will assign the bundle to this broker.

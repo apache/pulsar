@@ -25,6 +25,7 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -232,8 +233,12 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getListFromBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                          @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
+    public void getListFromBundle(
+            @Suspended AsyncResponse response,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange) {
         log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
                 bundleRange);
         validateAdminAccessForTenant(property);
@@ -246,25 +251,35 @@ public class NonPersistentTopics extends PersistentTopics {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
         }
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
-        if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
-                    namespace, bundleRange);
+
+
+        isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
+        .thenAccept(isOwned -> {
+            if (!isOwned) {
+                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
+                        bundleRange);
+                response.resume(Collections.emptyList());
+                return;
+            }
+
+            validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true,
+                    true)
+                            .thenAccept(nsBundle -> {
+                                List<String> topicList = Lists.newArrayList();
+                                pulsar().getBrokerService().forEachTopic(topic -> {
+                                    TopicName topicName = TopicName.get(topic.getName());
+                                    if (nsBundle.includes(topicName)) {
+                                        topicList.add(topic.getName());
+                                    }
+                                });
+                                response.resume(topicList);
+                            });
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                    ex);
+            response.resume(ex);
             return null;
-        }
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, true, true);
-        try {
-            final List<String> topicList = Lists.newArrayList();
-            pulsar().getBrokerService().forEachTopic(topic -> {
-                TopicName topicName = TopicName.get(topic.getName());
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(topic.getName());
-                }
-            });
-            return topicList;
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
-            throw new RestException(e);
-        }
+        });
     }
 
     protected void validateAdminOperationOnTopic(TopicName topicName, boolean authoritative) {

@@ -100,7 +100,7 @@ public class ResourceQuotaCacheTest {
     @Test
     public void testGetSetBundleQuota() throws Exception {
         ResourceQuotaCache cache = new ResourceQuotaCache(zkCache);
-        NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2"));
+        NamespaceBundle testBundle = bundleFactory.getFullBundle(NamespaceName.get("pulsar/test/ns-2")).join();
         ResourceQuota quota1 = ResourceQuotaCache.getInitialQuotaValue();
         ResourceQuota quota2 = new ResourceQuota();
         quota2.setMsgRateIn(10);

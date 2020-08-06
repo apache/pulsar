@@ -662,7 +662,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().unloadNamespaceBundle("prop-xyz/use/ns1", "0x00000000_0xffffffff");
         NamespaceName ns = NamespaceName.get("prop-xyz/use/ns1");
         // Now, w/ bundle policies, we will use default bundle
-        NamespaceBundle defaultBundle = bundleFactory.getFullBundle(ns);
+        NamespaceBundle defaultBundle = bundleFactory.getFullBundle(ns).join();
         int i = 0;
         for (; i < 10; i++) {
             Optional<NamespaceEphemeralData> data1 = pulsar.getNamespaceService().getOwnershipCache()

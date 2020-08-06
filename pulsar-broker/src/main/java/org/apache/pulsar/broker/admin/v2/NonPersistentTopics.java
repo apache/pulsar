@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -49,15 +50,12 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -302,13 +300,11 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration"),
     })
-    public List<String> getListFromBundle(
-            @ApiParam(value = "Specify the tenant", required = true)
-            @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace,
-            @ApiParam(value = "Bundle range of a topic", required = true)
-            @PathParam("bundle") String bundleRange) {
+    public void getListFromBundle(
+            @Suspended AsyncResponse response,
+            @ApiParam(value = "Specify the tenant", required = true) @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true) @PathParam("namespace") String namespace,
+            @ApiParam(value = "Bundle range of a topic", required = true) @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
         if (log.isDebugEnabled()) {
             log.debug("[{}] list of topics on namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -320,26 +316,33 @@ public class NonPersistentTopics extends PersistentTopics {
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
         validateGlobalNamespaceOwnership(namespaceName);
 
-        if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                    bundleRange);
-            return null;
-        }
+        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                .thenAccept(isOwned -> {
+                    if (!isOwned) {
+                        log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
+                                bundleRange);
+                        response.resume(Collections.emptyList());
+                        return;
+                    }
 
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, true, true);
-        try {
-            final List<String> topicList = Lists.newArrayList();
-            pulsar().getBrokerService().forEachTopic(topic -> {
-                TopicName topicName = TopicName.get(topic.getName());
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(topic.getName());
-                }
-            });
-            return topicList;
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true,
+                            true)
+                                    .thenAccept(nsBundle -> {
+                                        List<String> topicList = Lists.newArrayList();
+                                        pulsar().getBrokerService().forEachTopic(topic -> {
+                                            TopicName topicName = TopicName.get(topic.getName());
+                                            if (nsBundle.includes(topicName)) {
+                                                topicList.add(topic.getName());
+                                            }
+                                        });
+                                        response.resume(topicList);
+                                    });
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                            ex);
+                    response.resume(ex);
+                    return null;
+                });
     }
 
 

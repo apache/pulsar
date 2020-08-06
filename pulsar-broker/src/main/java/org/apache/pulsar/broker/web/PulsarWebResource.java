@@ -23,6 +23,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -30,8 +35,8 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -42,10 +47,6 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -417,50 +418,6 @@ public abstract class PulsarWebResource {
         return false;
     }
 
-    /**
-     * Checks whether the broker is the owner of all the namespace bundles. Otherwise, if authoritative is false, it
-     * will throw an exception to redirect to assigned owner or leader; if authoritative is true then it will try to
-     * acquire all the namespace bundles.
-     *
-     * @param fqnn
-     * @param authoritative
-     * @param readOnly
-     * @param bundleData
-     */
-    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
-                    bundleData);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateBundleOwnership(bundle, authoritative, readOnly);
-            }
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
-    }
-
-    protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
-            boolean readOnly, NamespaceBundle bundle) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            validateBundleOwnership(bundle, authoritative, readOnly);
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
-    }
-
     protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         try {
@@ -485,7 +442,7 @@ public abstract class PulsarWebResource {
     /**
      * Checks whether a given bundle is currently loaded by any broker
      */
-    protected boolean isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
+    protected CompletableFuture<Boolean> isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         NamespaceService nsService = pulsar().getNamespaceService();
@@ -495,33 +452,29 @@ public abstract class PulsarWebResource {
                 .requestHttps(isRequestHttps())
                 .readOnly(true)
                 .loadTopicsInBundle(false).build();
-        try {
-            return nsService.getWebServiceUrl(nsBundle, options).isPresent();
-        } catch (Exception e) {
-            log.error("[{}] Failed to check whether namespace bundle is owned {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
-            throw new RestException(e);
-        }
+
+        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
     }
 
-    protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(NamespaceName fqnn, BundlesData bundles,
             String bundleRange, boolean authoritative, boolean readOnly) {
+
+        NamespaceBundle nsBundle;
         try {
-            NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-            validateBundleOwnership(nsBundle, authoritative, readOnly);
-            return nsBundle;
+             nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception e) {
             log.error("[{}] Failed to validate namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
             throw new RestException(e);
         }
+
+        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly).thenApply(v -> nsBundle);
     }
 
-    public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
-            throws Exception {
+    public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative, boolean readOnly) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        try {
             // Call getWebServiceUrl() to acquire or redirect the request
             // Get web service URL of owning broker.
             // 1: If namespace is assigned to this broker, continue
@@ -537,44 +490,34 @@ public abstract class PulsarWebResource {
                     .requestHttps(isRequestHttps())
                     .readOnly(readOnly)
                     .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
-            // Ensure we get a url
-            if (webUrl == null || !webUrl.isPresent()) {
-                log.warn("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Failed to find ownership for ServiceUnit:" + bundle.toString());
-            }
+            return nsService.getWebServiceUrlAsync(bundle, options)
+                    .thenApply(webUrl -> {
+                        // Ensure we get a url
+                        if (webUrl == null || !webUrl.isPresent()) {
+                            log.warn("Unable to get web service url for {}", bundle);
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for ServiceUnit:" + bundle.toString());
+                        }
+                        return webUrl;
+                    }).thenAccept(webUrl -> {
+                        boolean isOwned = nsService.isServiceUnitOwned(bundle);
+                        if (isOwned) {
+                            return;
+                        }
 
-            if (!nsService.isServiceUnitOwned(bundle)) {
-                boolean newAuthoritative = this.isLeaderBroker();
-                // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
+                        boolean newAuthoritative = this.isLeaderBroker();
+                        // Replace the host and port of the current request and redirect
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                                .port(webUrl.get().getPort())
+                                .replaceQueryParam("authoritative", newAuthoritative)
+                                .build();
 
-                log.debug("{} is not a service unit owned", bundle);
+                        log.debug("{} is not a service unit owned", bundle);
 
-                // Redirect
-                log.debug("Redirecting the rest call to {}", redirect);
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for ServiceUnit %s timed out", bundle);
-            log.error(msg, te);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug("Failed to find owner for ServiceUnit {}", bundle, iae);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "ServiceUnit format is not expected. ServiceUnit " + bundle);
-        } catch (IllegalStateException ise) {
-            log.debug("Failed to find owner for ServiceUnit {}", bundle, ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
-        } catch (NullPointerException e) {
-            log.warn("Unable to get web service url");
-            throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + bundle);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        }
+                        // Redirect
+                        log.debug("Redirecting the rest call to {}", redirect);
+                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                    });
     }
 
     /**
@@ -598,7 +541,7 @@ public abstract class PulsarWebResource {
                     .requestHttps(isRequestHttps())
                     .readOnly(false)
                     .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, options);
+            Optional<URL> webUrl = nsService.getWebServiceUrlAsync(topicName, options).join();
             // Ensure we get a url
             if (webUrl == null || !webUrl.isPresent()) {
                 log.info("Unable to get web service url");
@@ -614,22 +557,12 @@ public abstract class PulsarWebResource {
                 log.debug("Redirecting the rest call to {}", redirect);
                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for topic %s timed out", topicName);
-            log.error(msg, te);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug("Failed to find owner for topic: {}", topicName, iae);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (IllegalStateException ise) {
-            log.debug("Failed to find owner for topic: {}", topicName, ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for topic: {}", topicName, oe);
-            throw new RestException(oe);
+        } catch (CompletionException ce) {
+            if (ce.getCause() instanceof WebApplicationException) {
+                throw (WebApplicationException) ce.getCause();
+            } else {
+                throw new RestException(ce);
+            }
         }
     }
 
