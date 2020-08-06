@@ -69,6 +69,7 @@
       "deploy-bare-metal",
       "deploy-bare-metal-multi-cluster",
       "deploy-dcos",
+      "deploy-docker",
       "deploy-monitoring"
     ],
     "Administration": [
