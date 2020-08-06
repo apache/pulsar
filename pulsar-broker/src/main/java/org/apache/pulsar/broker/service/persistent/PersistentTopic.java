@@ -184,6 +184,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
     public volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile boolean isClosingOrDeleting = false;
 
     private static class TopicStatsHelper {
         public double averageMsgSize;
@@ -346,9 +347,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void decrementPendingWriteOpsAndCheck() {
         long pending = pendingWriteOps.decrementAndGet();
-        if (pending == 0 && isFenced) {
+        if (pending == 0 && isFenced && !isClosingOrDeleting) {
             synchronized (this) {
-                if (isFenced) {
+                if (isFenced && !isClosingOrDeleting) {
                     messageDeduplication.resetHighestSequenceIdPushed();
                     log.info("[{}] Un-fencing topic...", topic);
                     // signal to managed ledger that we are ready to resume by creating a new ledger
@@ -844,7 +845,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
-            if (isFenced) {
+            if (isClosingOrDeleting) {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
             } else if (failIfHasSubscriptions && !subscriptions.isEmpty()) {
@@ -853,7 +854,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return FutureUtil.failedFuture(new TopicBusyException("Topic has subscriptions did not catch up"));
             }
 
-            isFenced = true; // Avoid clients reconnections while deleting
+            fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
             CompletableFuture<Void> closeClientFuture = new CompletableFuture<>();
             if (closeIfClientsConnected) {
                 List<CompletableFuture<Void>> futures = Lists.newArrayList();
@@ -864,7 +865,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     closeClientFuture.complete(null);
                 }).exceptionally(ex -> {
                     log.error("[{}] Error closing clients", topic, ex);
-                    isFenced = false;
+                    unfenceTopicToResume();
                     closeClientFuture.completeExceptionally(ex);
                     return null;
                 });
@@ -885,7 +886,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     deleteSchemaFuture.whenComplete((v, ex) -> {
                         if (ex != null) {
                             log.error("[{}] Error deleting topic", topic, ex);
-                            isFenced = false;
+                            unfenceTopicToResume();
                             deleteFuture.completeExceptionally(ex);
                         } else {
                             ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
@@ -907,7 +908,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                         log.info("[{}] Topic is already deleted {}", topic, exception.getMessage());
                                         deleteLedgerComplete(ctx);
                                     } else {
-                                        isFenced = false;
+                                        unfenceTopicToResume();
                                         log.error("[{}] Error deleting topic", topic, exception);
                                         deleteFuture.completeExceptionally(new PersistenceException(exception));
                                     }
@@ -916,12 +917,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                     });
                 } else {
-                    isFenced = false;
+                    unfenceTopicToResume();
                     deleteFuture.completeExceptionally(new TopicBusyException(
                             "Topic has " + USAGE_COUNT_UPDATER.get(this) + " connected producers/consumers"));
                 }
             }).exceptionally(ex->{
-                isFenced = false;
+                unfenceTopicToResume();
                 deleteFuture.completeExceptionally(
                         new TopicBusyException("Failed to close clients before deleting topic."));
                 return null;
@@ -951,8 +952,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             // closing managed-ledger waits until all producers/consumers/replicators get closed. Sometimes, broker
             // forcefully wants to close managed-ledger without waiting all resources to be closed.
-            if (!isFenced || closeWithoutWaitingClientDisconnect) {
-                isFenced = true;
+            if (!isClosingOrDeleting || closeWithoutWaitingClientDisconnect) {
+                fenceTopicToCloseOrDelete();
             } else {
                 log.warn("[{}] Topic is already being closed or deleted", topic);
                 closeFuture.completeExceptionally(new TopicFencedException("Topic is already fenced"));
@@ -998,7 +999,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }, null);
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
-            isFenced = false;
+            unfenceTopicToResume();
             closeFuture.completeExceptionally(exception);
             return null;
         });
@@ -2209,5 +2210,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public boolean isSystemTopic() {
         return false;
+    }
+
+    private void fenceTopicToCloseOrDelete() {
+        isClosingOrDeleting = true;
+        isFenced = true;
+    }
+
+    private void unfenceTopicToResume() {
+        isFenced = false;
+        isClosingOrDeleting = false;
     }
 }
