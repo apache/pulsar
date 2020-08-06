@@ -1429,5 +1429,39 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
+    @Override
+    public void setMessageTTL(String topic, int messageTTLInSecond) throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "messageTTL");
+            request(path.queryParam("messageTTL", messageTTLInSecond)).
+                    post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public int getMessageTTL(String topic) throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "messageTTL");
+            return request(path).get(new GenericType<Integer>() {});
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void removeMessageTTL(String topic) throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "messageTTL");
+            request(path.queryParam("messageTTL", 0)).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }
