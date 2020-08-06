@@ -1760,9 +1760,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         TopicName name = TopicName.get(topic);
         RetentionPolicies retentionPolicies = null;
         try {
-            retentionPolicies = getTopicPolicies(name)
+            retentionPolicies = Optional.ofNullable(getTopicPolicies(name))
                     .map(TopicPolicies::getRetentionPolicies)
-                    .orElse( null);
+                    .orElse(null);
             if (retentionPolicies == null){
                 retentionPolicies = brokerService.pulsar().getConfigurationCache().policiesCache()
                         .get(AdminResource.path(POLICIES, name.getNamespace()))
@@ -1787,19 +1787,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Negative retention time means the topic should be retained indefinitely,
         // because its own data has to be retained
         return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
-    }
-
-    private Optional<TopicPolicies> getTopicPolicies(TopicName topicName){
-        if (!brokerService.pulsar().getConfiguration().isTopicLevelPoliciesEnabled()) {
-            return Optional.empty();
-        }
-        try {
-            TopicPoliciesService topicPoliciesService = brokerService.pulsar().getTopicPoliciesService();
-            return Optional.ofNullable(topicPoliciesService.getTopicPolicies(topicName));
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName);
-            return Optional.empty();
-        }
     }
 
     @Override

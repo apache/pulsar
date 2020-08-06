@@ -1479,7 +1479,7 @@ public interface Topics {
     void removeMessageTTL(String topic) throws PulsarAdminException;
 
     /**
-     * Set the retention configuration for all the topics on a topic.
+     * Set the retention configuration on a topic.
      * <p/>
      * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
      * <p/>

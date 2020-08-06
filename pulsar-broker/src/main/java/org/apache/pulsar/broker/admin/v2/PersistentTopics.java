@@ -1006,7 +1006,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
-    @ApiOperation(value = " Set a backlog quota for a topic.")
+    @ApiOperation(value = "Set a backlog quota for a topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -1082,7 +1082,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @ApiOperation(value = "Get retention config on a topic.")
+    @ApiOperation(value = "Get retention configuration for specified topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -1103,7 +1103,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @ApiOperation(value = "Set retention configuration on a topic.")
+    @ApiOperation(value = "Set retention configuration for specified topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
@@ -1126,7 +1126,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/retention")
-    @ApiOperation(value = "Remove retention configuration on a topic.")
+    @ApiOperation(value = "Remove retention configuration for specified topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),

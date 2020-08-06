@@ -124,7 +124,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testCheckBlcklogQuota() throws Exception {
+    public void testCheckBacklogQuota() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(testTopic).getNamespace();
         admin.namespaces().setRetention(namespace, retentionPolicies);
@@ -166,9 +166,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testCheckRetention() throws Exception {
         BacklogQuota backlogQuota =
                 new BacklogQuota(10 * 1024 * 1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        RetentionPolicies retentionPolicies = new RetentionPolicies(10, 11);
-        String namespace = TopicName.get(testTopic).getNamespace();
-        admin.namespaces().setRetention(namespace, retentionPolicies);
         admin.topics().setBacklogQuota(testTopic, backlogQuota);
         Thread.sleep(3000);
 
