@@ -873,7 +873,7 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable throwable) {
         if (throwable instanceof WebApplicationException) {
-            asyncResponse.resume(throwable);
+            asyncResponse.resume((WebApplicationException) throwable);
         } else {
             asyncResponse.resume(new RestException(throwable));
         }
