@@ -2096,6 +2096,47 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected void internalSetMessageTTL(AsyncResponse asyncResponse, Integer ttlInSecond) {
+        //Validate message ttl value.
+        if (ttlInSecond != null && ttlInSecond.intValue() < 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
+        }
+        validateAdminAccessForTenant(namespaceName.getTenant());
+        validatePoliciesReadOnlyAccess();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        checkTopicLevelPolicyEnable();
+        TopicPolicies topicPolicies;
+        //Update existing topic policy or create a new one if not exist.
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+        if (topicPolicies == null){
+            topicPolicies = new TopicPolicies();
+        }
+        topicPolicies.setMessageTTLInSeconds(ttlInSecond);
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed set message ttl for topic",ex);
+                        asyncResponse.resume(new RestException(ex));
+                    } else {
+                        log.info("[{}] Successfully set topic message ttl: namespace={}, topic={}, ttl={}",
+                                clientAppId(),
+                                namespaceName,
+                                topicName.getLocalName(),
+                                ttlInSecond);
+                        asyncResponse.resume(Response.noContent().build());
+                    }
+                });
+    }
+
+
     private RetentionPolicies getRetentionPolicies(TopicName topicName, TopicPolicies topicPolicies) {
         RetentionPolicies retentionPolicies = topicPolicies.getRetentionPolicies();
         if (retentionPolicies == null){
