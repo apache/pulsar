@@ -34,6 +34,7 @@ public class PulsarSinkConfig {
     private String serdeClassName;
     private String schemaType;
     private Map<String, String> schemaProperties;
+    private Map<String, String> producerProperties;
     private String typeClassName;
     private boolean forwardSourceMessageProperty;
 }

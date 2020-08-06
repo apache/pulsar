@@ -75,6 +75,8 @@ public class FunctionConfig {
      */
     private Map<String, ConsumerConfig> inputSpecs;
 
+    private Map<String, String> outputSpecs;
+
     private String output;
 
     /**

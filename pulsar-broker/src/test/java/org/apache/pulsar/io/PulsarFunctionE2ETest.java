@@ -82,6 +82,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -551,6 +552,82 @@ public class PulsarFunctionE2ETest {
         assertNull(consumer.receive(1, TimeUnit.SECONDS));
         consumer.close();
         producer.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testOutputSpecs() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1" + UUID.randomUUID().toString();
+        final String sinkTopic = "persistent://" + replNamespace + "/output" + UUID.randomUUID().toString();
+        final String functionName = "PulsarFunction-test" + UUID.randomUUID().toString();
+        final String subscriptionName = "test-sub" + UUID.randomUUID().toString();
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        final int messageNum = 20;
+        // 1 Setup producer and send message
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        for (int j = 0; j < messageNum; j++) {
+            producer.newMessage().value("my-message-" + j).send();
+        }
+
+        //2 Setup function
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+                sourceTopic, sinkTopic, subscriptionName);
+        functionConfig.setTopicsPattern(null);
+        functionConfig.setInputs(Collections.singleton(sourceTopic));
+        functionConfig.setSubPosition(Function.SubscriptionPosition.EARLIEST.name());
+        Map<String, String> outSpecs = new HashMap<>();
+        outSpecs.put("batchingMaxMessages", "10");
+        outSpecs.put("batchingEnabled", "true");
+        outSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
+        functionConfig.setOutputSpecs(outSpecs);
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
+        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getStats(sourceTopic).subscriptions.size() == 1;
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        //3 consumer should receive batch message,and batch size == 10
+        Message<String> message = consumer.receive();
+        assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+        BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) message.getMessageId();
+        assertEquals(batchMessageId.getBatchSize(), 10);
+        consumer.acknowledge(message);
+        while (true) {
+            message = consumer.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            consumer.acknowledge(message);
+        }
+
+        //4 update batchingMaxMessages size to 5
+        functionConfig.getOutputSpecs().put("batchingMaxMessages", "5");
+        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        retryStrategically((test) -> {
+            try {
+                FunctionConfig config = admin.functions().getFunction(tenant, namespacePortion, functionName);
+                return config.getOutputSpecs().get("batchingMaxMessages").equals("5");
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 150);
+
+        for (int j = 0; j < messageNum; j++) {
+            producer.newMessage().value("my-message-" + j).send();
+        }
+        //5 consumer should receive batch message,and batch size == 5
+        message = consumer.receive();
+        assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+        batchMessageId = (BatchMessageIdImpl) message.getMessageId();
+        assertEquals(batchMessageId.getBatchSize(), 5);
     }
 
     @Test(timeOut = 20000)

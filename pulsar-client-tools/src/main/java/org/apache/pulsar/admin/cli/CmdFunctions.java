@@ -238,6 +238,8 @@ public class CmdFunctions extends CmdBase {
         protected String customSchemaOutputString;
         @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
         protected String inputSpecs;
+        @Parameter(names = "--output-specs", description = "The map of outputs to custom configuration (as a JSON string)")
+        protected String outputSpecs;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -383,6 +385,10 @@ public class CmdFunctions extends CmdBase {
             if (null != inputSpecs) {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
+            }
+            if (null != outputSpecs) {
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                functionConfig.setOutputSpecs(new Gson().fromJson(outputSpecs, type));
             }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);

@@ -47,6 +47,7 @@ import org.apache.pulsar.io.core.SinkContext;
 
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -88,12 +89,19 @@ public class PulsarSink<T> implements Sink<T> {
 
         public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema)
                 throws PulsarClientException {
-            ProducerBuilder<T> builder = client.newProducer(schema)
-                    .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
+            return createProducer(client, topic, producerName, schema, null);
+        }
+
+        public Producer<T> createProducer(PulsarClient client, String topic, String producerName, Schema<T> schema
+                , Map<String, String> producerProperties)
+                throws PulsarClientException {
+            ProducerBuilder<T> builder = client.newProducer(schema);
+            if (producerProperties != null) {
+                builder = builder.loadConf(new HashMap<>(producerProperties));
+            }
+            builder.blockIfQueueFull(true)
                     .compressionType(CompressionType.LZ4)
-                    .hashingScheme(HashingScheme.Murmur3_32Hash) //
+                    .hashingScheme(HashingScheme.Murmur3_32Hash)
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
                     .messageRouter(FunctionResultRouter.of())
                     // set send timeout to be infinity to prevent potential deadlock with consumer
@@ -118,7 +126,7 @@ public class PulsarSink<T> implements Sink<T> {
                             client,
                             topicName,
                             producerName,
-                            schema != null ? schema : this.schema);
+                            schema != null ? schema : this.schema, pulsarSinkConfig.getProducerProperties());
                 } catch (PulsarClientException e) {
                     log.error("Failed to create Producer while doing user publish", e);
                     throw new RuntimeException(e);
@@ -172,7 +180,8 @@ public class PulsarSink<T> implements Sink<T> {
             // initialize default topic
             try {
                 publishProducers.put(pulsarSinkConfig.getTopic(),
-                        createProducer(client, pulsarSinkConfig.getTopic(), null, schema));
+                        createProducer(client, pulsarSinkConfig.getTopic(), null, schema
+                                , pulsarSinkConfig.getProducerProperties()));
             } catch (PulsarClientException e) {
                 log.error("Failed to create Producer while doing user publish", e);
                 throw new RuntimeException(e);            }

@@ -206,6 +206,9 @@ public class FunctionConfigUtils {
         if (typeArgs != null) {
             sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
+        if (functionConfig.getOutputSpecs() != null) {
+            sinkSpecBuilder.putAllOutputSpecs(functionConfig.getOutputSpecs());
+        }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         if (functionConfig.getTenant() != null) {
@@ -331,6 +334,7 @@ public class FunctionConfigUtils {
             consumerConfigMap.put(input.getKey(), consumerConfig);
         }
         functionConfig.setInputSpecs(consumerConfigMap);
+        functionConfig.setOutputSpecs(functionDetails.getSink().getOutputSpecsMap());
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
         }
@@ -783,6 +787,10 @@ public class FunctionConfigUtils {
             mergedConfig.setInputSpecs(new HashMap<>());
         }
 
+        if (mergedConfig.getOutputSpecs() == null) {
+            mergedConfig.setOutputSpecs(new HashMap<>());
+        }
+
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
                 newConfig.getInputSpecs().put(topicName,
@@ -887,6 +895,12 @@ public class FunctionConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
+        if (newConfig.getOutputSpecs() != null) {
+            Map<String, String> tempOutputSpecs = new HashMap<>(mergedConfig.getOutputSpecs());
+            tempOutputSpecs.putAll(newConfig.getOutputSpecs());
+            mergedConfig.setOutputSpecs(tempOutputSpecs);
+        }
+
         return mergedConfig;
     }
 }
