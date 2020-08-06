@@ -417,7 +417,9 @@ public class PulsarService implements AutoCloseable {
                 throw new IllegalArgumentException("brokerServicePort/brokerServicePortTls must be present");
             }
 
-            orderedExecutor = OrderedExecutor.newBuilder().numThreads(8).name("pulsar-ordered")
+            orderedExecutor = OrderedExecutor.newBuilder()
+                    .numThreads(config.getNumOrderedExecutorThreads())
+                    .name("pulsar-ordered")
                     .build();
 
             // Initialize the message protocol handlers
