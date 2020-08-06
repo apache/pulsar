@@ -749,6 +749,49 @@ public class PulsarFunctionE2ETest {
     }
 
     @Test(timeOut = 30000)
+    public void testSinkProducerSetting() throws Exception {
+        final String namespacePortion = "io";
+        final String replNamespace = tenant + "/" + namespacePortion;
+        final String sinkTopic = "persistent://" + replNamespace + "/output" + UUID.randomUUID().toString();
+        final String functionName = "PulsarFunction-test" + UUID.randomUUID().toString();
+        admin.namespaces().createNamespace(replNamespace);
+        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+
+        // 1 Setup source
+        SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, functionName, sinkTopic);
+        Map<String, String> outSpecs = new HashMap<>();
+        outSpecs.put("batchingMaxMessages", "10");
+        outSpecs.put("batchingEnabled", "true");
+        outSpecs.put("batchingMaxPublishDelayMicros", String.valueOf(TimeUnit.MILLISECONDS.toMicros(10)));
+        sourceConfig.setOutputSpecs(outSpecs);
+        String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-io-data-generator.nar").getFile();
+        admin.source().createSourceWithUrl(sourceConfig, jarFilePathUrl);
+        //2 batch size == 10
+        retryStrategically((test) -> {
+            try {
+                SourceConfig config = admin.source().getSource(tenant, namespacePortion, functionName);
+                return config.getOutputSpecs().get("batchingMaxMessages").equals("10");
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 100);
+
+        //3 change config
+        sourceConfig.getOutputSpecs().put("batchingMaxMessages", "5");
+        admin.source().updateSourceWithUrl(sourceConfig, jarFilePathUrl);
+        //4 batch size == 5
+        retryStrategically((test) -> {
+            try {
+                SourceConfig config = admin.source().getSource(tenant, namespacePortion, functionName);
+                return config.getOutputSpecs().get("batchingMaxMessages").equals("5");
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 50, 100);
+    }
+
+    @Test(timeOut = 30000)
     public void testReadCompactedSink() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;

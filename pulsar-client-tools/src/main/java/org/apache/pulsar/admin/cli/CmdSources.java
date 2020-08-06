@@ -301,6 +301,8 @@ public class CmdSources extends CmdBase {
         protected String sourceConfigString;
         @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
+        @Parameter(names = "--output-specs", description = "The map of outputs to custom configuration (as a JSON string)")
+        protected String outputSpecs;
 
         protected SourceConfig sourceConfig;
 
@@ -345,7 +347,10 @@ public class CmdSources extends CmdBase {
             if (null != schemaType) {
                 sourceConfig.setSchemaType(schemaType);
             }
-
+            if (null != outputSpecs) {
+                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                sourceConfig.setOutputSpecs(new Gson().fromJson(outputSpecs, type));
+            }
             if (null != processingGuarantees) {
                 sourceConfig.setProcessingGuarantees(processingGuarantees);
             }
