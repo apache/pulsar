@@ -73,6 +73,14 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
      */
     private int maxPendingRecords = Integer.MAX_VALUE;
 
+    /**
+     * A subdirectory associated with the created time of the sink.
+     * The pattern is the formatted pattern of {@link AbstractHdfsConfig#getDirectory()}'s subdirectory.
+     *
+     * @see java.time.format.DateTimeFormatter for pattern's syntax
+     */
+    private String subdirectoryPattern;
+
     public static HdfsSinkConfig load(String yamlFile) throws IOException {
        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
        return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);

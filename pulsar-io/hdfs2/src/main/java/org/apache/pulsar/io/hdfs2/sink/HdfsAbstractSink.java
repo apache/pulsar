@@ -19,10 +19,13 @@
 package org.apache.pulsar.io.hdfs2.sink;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -39,6 +42,7 @@ import org.apache.pulsar.io.hdfs2.HdfsResources;
  * A Simple abstract class for HDFS sink.
  * Users need to implement extractKeyValue function to use this sink.
  */
+@Slf4j
 public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector implements Sink<V> {
 
     protected HdfsSinkConfig hdfsSinkConfig;
@@ -99,8 +103,22 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
                 ext = getCompressionCodec().getDefaultExtension();
             }
 
-            path = new Path(FilenameUtils.concat(hdfsSinkConfig.getDirectory(),
+            String directory = hdfsSinkConfig.getDirectory();
+            String pattern = hdfsSinkConfig.getSubdirectoryPattern();
+            if (pattern != null && !pattern.isEmpty()) {
+                String subdirectory = null;
+                try {
+                    subdirectory = LocalDateTime.now().format(DateTimeFormatter.ofPattern(pattern));
+                } catch (Exception e) {
+                    log.warn("Invalid pattern {}", pattern, e);
+                }
+                if (subdirectory != null) {
+                    directory = FilenameUtils.concat(directory, subdirectory);
+                }
+            }
+            path = new Path(FilenameUtils.concat(directory,
                     hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
+            log.info("Create path: {}", path);
         }
         return path;
     }
