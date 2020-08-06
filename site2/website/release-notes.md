@@ -49,10 +49,19 @@
 - [Broker] Add missing AuthenticationDataSource to canConsumeAsync method call https://github.com/apache/pulsar/pull/7694
 - [Broker] Close the previous reader of the health check topic https://github.com/apache/pulsar/pull/7724
 - [Broker] Change some WebApplicationException log level to debug https://github.com/apache/pulsar/pull/7725
+- [Broker] Replay delayed messages in order https://github.com/apache/pulsar/pull/7731
+- [Broker] Fix broker lookup return wrong url when specify advertised listener https://github.com/apache/pulsar/pull/7737
 
 ##### Zookeeper
 
 - [Zookeeper] Use hostname for bookie rackawareness mapping https://github.com/apache/pulsar/pull/7361
+
+##### Pulsar SQL
+
+- [Pulsar SQL] Make Pulsar SQL get correct offload configurations https://github.com/apache/pulsar/pull/7701
+
+##### Pulsar Schema
+- [Schema] Fix get schemaName by partitioned topic name https://github.com/apache/pulsar/pull/7708
 
 ##### Java Client
 
