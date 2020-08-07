@@ -170,8 +170,8 @@ public class PulsarService implements AutoCloseable {
     private LocalZooKeeperConnectionService localZooKeeperConnectionProvider;
     private Compactor compactor;
 
-    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
-            new DefaultThreadFactory("pulsar"));
+    private final ScheduledExecutorService executor;
+
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
     private OrderedExecutor orderedExecutor;
@@ -249,6 +249,8 @@ public class PulsarService implements AutoCloseable {
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
         this.functionWorkerService = functionWorkerService;
+        this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
+                new DefaultThreadFactory("pulsar"));
     }
 
     /**
