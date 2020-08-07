@@ -45,8 +45,8 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 
 > #### Note
 >
-> If there already exists a non partitioned topic with suffix '-partition-' followed by numeric value like
-> 'xyz-topic-partition-10', then you can not create partitioned topic with name 'xyz-topic' as the partitions
+> If there already exists a non-partitioned topic with the suffix '-partition-' followed by numeric value like
+> 'xyz-topic-partition-10', then you can not create a partitioned topic with name 'xyz-topic' as the partitions
 > of the partitioned topic could override the existing non partitioned topic. You have to delete that non
 > partitioned topic first then create the partitioned topic.
 
@@ -64,7 +64,7 @@ admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 
 ### Create missed partitions
 
-Try to create partitions for partitioned topic. The partitions of partition topic has to be created, 
+Try to create partitions for partitioned topic. The partitions of partition topic have to be created, 
 can be used by repair partitions when topic auto creation is disabled
 
 #### pulsar-admin
@@ -201,7 +201,7 @@ admin.persistentTopics().getList(namespace);
 
 ### Stats
 
-It shows current statistics of a given partitioned topic. Here's an example payload:
+It shows the current statistics of a given partitioned topic. Here's an example payload:
 
 ```json
 {
@@ -311,7 +311,7 @@ It shows detailed statistics of a topic.
 |readPosition|The latest position of subscriber for reading message|
 |waitingReadOp|This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.|
 |pendingReadOps|The counter for how many outstanding read requests to the BookKeepers we have in progress|
-|messagesConsumedCounter|Number of messages this cursor has acked since this broker loaded this topic|
+|messagesConsumedCounter|Number of messages this cursor has asked since this broker loaded this topic|
 |cursorLedger|The ledger being used to persistently store the current markDeletePosition|
 |cursorLedgerLastEntry|The last entryid used to persistently store the current markDeletePosition|
 |individuallyDeletedMessages|If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position|
