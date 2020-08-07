@@ -1283,6 +1283,9 @@
                 "output": {
                     "type": "string"
                 },
+                "producerConfig": {
+                    "$ref": "#/definitions/ProducerConfig"
+                },
                 "outputSchemaType": {
                     "type": "string"
                 },
@@ -1619,16 +1622,14 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
+                "replicatedFrom": {
+                    "type": "string"
                 },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "producerName": {
+                    "type": "string"
+                },
+                "topicName": {
+                    "type": "string"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
@@ -1647,24 +1648,26 @@
                         "format": "byte"
                     }
                 },
+                "replicated": {
+                    "type": "boolean"
+                },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "topicName": {
-                    "type": "string"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1689,6 +1692,19 @@
         },
         "MessageId": {
             "type": "object"
+        },
+        "ProducerConfig": {
+            "type": "object",
+            "properties": {
+                "maxPendingMessages": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "maxPendingMessagesAcrossPartitions": {
+                    "type": "integer",
+                    "format": "int32"
+                }
+            }
         },
         "Resources": {
             "type": "object",

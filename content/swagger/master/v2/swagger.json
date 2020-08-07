@@ -6704,6 +6704,155 @@
                 }
             }
         },
+        "/non-persistent/{tenant}/{namespace}/{topic}/messageTTL": {
+            "get": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Get message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "getMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Set message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "setMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "messageTTL",
+                        "in": "query",
+                        "description": "TTL in seconds for the specified namespace",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Not authenticate to perform the request or policy is read only"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    },
+                    "412": {
+                        "description": "Invalid message TTL value"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Remove message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "removeMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Not authenticate to perform the request or policy is read only"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    },
+                    "412": {
+                        "description": "Invalid message TTL value"
+                    }
+                }
+            }
+        },
         "/non-persistent/{tenant}/{namespace}/{topic}/offload": {
             "get": {
                 "tags": [
@@ -9531,6 +9680,155 @@
                     },
                     "503": {
                         "description": "Failed to validate global cluster configuration"
+                    }
+                }
+            }
+        },
+        "/persistent/{tenant}/{namespace}/{topic}/messageTTL": {
+            "get": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Get message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "getMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "successful operation",
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    },
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Set message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "setMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "messageTTL",
+                        "in": "query",
+                        "description": "TTL in seconds for the specified namespace",
+                        "required": true,
+                        "type": "integer",
+                        "format": "int32"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Not authenticate to perform the request or policy is read only"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    },
+                    "412": {
+                        "description": "Invalid message TTL value"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Remove message TTL in seconds for a topic",
+                "description": "",
+                "operationId": "removeMessageTTL",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Not authenticate to perform the request or policy is read only"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, enable the topic level policy and retry"
+                    },
+                    "412": {
+                        "description": "Invalid message TTL value"
                     }
                 }
             }
@@ -13028,9 +13326,6 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "underLoaded": {
                     "type": "boolean"
                 },
@@ -13039,6 +13334,9 @@
                 },
                 "loadReportType": {
                     "type": "string"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -14233,11 +14531,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },

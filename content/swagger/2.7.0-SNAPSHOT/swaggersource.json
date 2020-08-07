@@ -835,6 +835,19 @@
         }
       }
     },
+    "ProducerConfig" : {
+      "type" : "object",
+      "properties" : {
+        "maxPendingMessages" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "maxPendingMessagesAcrossPartitions" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    },
     "Resources" : {
       "type" : "object",
       "properties" : {
@@ -869,6 +882,9 @@
         },
         "topicName" : {
           "type" : "string"
+        },
+        "producerConfig" : {
+          "$ref" : "#/definitions/ProducerConfig"
         },
         "serdeClassName" : {
           "type" : "string"
