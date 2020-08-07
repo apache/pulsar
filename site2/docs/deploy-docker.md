@@ -48,4 +48,4 @@ docker network connect pulsar broker
 
 To check whether the containers are successfully connected to the network, enter the `docker network inspect pulsar` command.
 
-For detailed information about deployment for each Pulsar component, see [deploy a cluster on bare metal](https://pulsar.apache.org/docs/en/deploy-bare-metal/).
+For detailed information about how to deploy ZooKeeper cluster, BookKeeper cluster, brokers, see [deploy a cluster on bare metal](deploy-bare-metal.md).
