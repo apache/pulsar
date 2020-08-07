@@ -613,7 +613,7 @@ public class PersistentTopicsBase extends AdminResource {
             return;
         }
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenAccept(partitionMeta -> {
+        pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).thenAccept(partitionMeta -> {
             final int numPartitions = partitionMeta.partitions;
             if (numPartitions > 0) {
                 final AtomicInteger count = new AtomicInteger(numPartitions);
