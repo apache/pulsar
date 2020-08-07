@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.lang.reflect.Field;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -46,12 +52,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-
+/**
+ * Test for consuming transaction messages.
+ */
 @Slf4j
 public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
 
@@ -71,7 +74,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
     }
 
     @Test
-    public void test() throws Exception {
+    public void noSortedTest() throws Exception {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
         int messageCntAfterTxn = 10;
