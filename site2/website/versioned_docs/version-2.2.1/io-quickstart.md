@@ -1,5 +1,5 @@
 ---
-id: version-2.3.0-io-quickstart
+id: version-2.2.1-io-quickstart
 title: "Tutorial: Connecting Pulsar with Apache Cassandra"
 sidebar_label: Getting started
 original_id: io-quickstart
@@ -43,20 +43,31 @@ $ cd apache-pulsar-{{pulsar:version}}
 
 ## Installing Builtin Connectors
 
-Since release `2.3.0`, Pulsar releases all the `builtin` connectors as individual archives.
-If you would like to enable those `builtin` connectors, you can download the connectors "NAR"
-archives and from the Pulsar [downloads page](pulsar:download_page_url).
+Since release `2.1.0-incubating`, Pulsar releases a separate binary distribution, containing all the `builtin` connectors.
+If you would like to enable those `builtin` connectors, you can download the connectors tarball release in one of the following ways:
 
-After downloading the desired builtin connectors, these archives should be places under
-the `connectors` directory where you have unpacked the Pulsar distribution.
+* by clicking the link below and downloading the release from an Apache mirror:
 
+  * <a href="pulsar:connector_release_url" download>Pulsar IO Connectors {{pulsar:version}} release</a>
+
+* from the Pulsar [downloads page](pulsar:download_page_url)
+* from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
+* using [wget](https://www.gnu.org/software/wget):
+
+  ```shell
+  $ wget pulsar:connector_release_url
+  ```
+
+Once the tarball is downloaded, in the pulsar directory, untar the io-connectors package and copy the connectors as `connectors`
+in the pulsar directory:
 
 ```bash
-# Unpack regular Pulsar tarball and copy connectors NAR archives
-$ tar xvfz /path/to/apache-pulsar-{{pulsar:version}}-bin.tar.gz
-$ cd apache-pulsar-{{pulsar:version}}
-$ mkdir connectors
-$ cp -r /path/to/downloaded/connectors/*.nar ./connectors
+$ tar xvfz /path/to/apache-pulsar-io-connectors-{{pulsar:version}}-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-io-connectors-{{pulsar:version}}` in the pulsar directory
+// then copy the connectors
+
+$ cp -r apache-pulsar-io-connectors-{{pulsar:version}}/connectors connectors
 
 $ ls connectors
 pulsar-io-aerospike-{{pulsar:version}}.nar
@@ -68,10 +79,6 @@ pulsar-io-twitter-{{pulsar:version}}.nar
 ...
 ```
 
-> #### Tip
->
-> You can also use the Docker image `apachepulsar/pulsar-all:{{pulsar:version}}` which already
-> comes with all the available builtin connectors.
 
 ## Start Pulsar Service
 
@@ -226,6 +233,7 @@ We can run following command to sink a sink connector with type `cassandra` and 
 
 > The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 
+
 ```shell
 bin/pulsar-admin sink create \
     --tenant public \
@@ -241,13 +249,13 @@ as a Pulsar Function and write the messages produced in topic `test_cassandra` t
 
 ### Inspect the Cassandra Sink
 
-You can use [sink CLI](reference-pulsar-admin.md#sink) and [source CLI](reference-pulsar-admin.md#source)
+Since an IO connector is running as [Pulsar Functions](functions-overview.md), you can use [functions CLI](reference-pulsar-admin.md#functions)
 for inspecting and managing the IO connectors.
 
 #### Retrieve Sink Info
 
 ```bash
-bin/pulsar-admin sink get \
+bin/pulsar-admin functions get \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -260,31 +268,26 @@ Example output:
   "tenant": "public",
   "namespace": "default",
   "name": "cassandra-test-sink",
-  "className": "org.apache.pulsar.io.cassandra.CassandraStringSink",
-  "inputSpecs": {
-    "test_cassandra": {
-      "isRegexPattern": false
+  "className": "org.apache.pulsar.functions.api.utils.IdentityFunction",
+  "autoAck": true,
+  "parallelism": 1,
+  "source": {
+    "topicsToSerDeClassName": {
+      "test_cassandra": ""
     }
   },
-  "configs": {
-    "roots": "localhost:9042",
-    "keyspace": "pulsar_test_keyspace",
-    "columnFamily": "pulsar_test_table",
-    "keyname": "key",
-    "columnName": "col"
+  "sink": {
+    "configs": "{\"roots\":\"cassandra\",\"keyspace\":\"pulsar_test_keyspace\",\"columnFamily\":\"pulsar_test_table\",\"keyname\":\"key\",\"columnName\":\"col\"}",
+    "builtin": "cassandra"
   },
-  "parallelism": 1,
-  "processingGuarantees": "ATLEAST_ONCE",
-  "retainOrdering": false,
-  "autoAck": true,
-  "archive": "builtin://cassandra"
+  "resources": {}
 }
 ```
 
 #### Check Sink Running Status
 
 ```bash
-bin/pulsar-admin sink status \
+bin/pulsar-admin functions getstatus \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -294,24 +297,23 @@ Example output:
 
 ```shell
 {
-  "numInstances" : 1,
-  "numRunning" : 1,
-  "instances" : [ {
-    "instanceId" : 0,
-    "status" : {
-      "running" : true,
-      "error" : "",
-      "numRestarts" : 0,
-      "numReadFromPulsar" : 0,
-      "numSystemExceptions" : 0,
-      "latestSystemExceptions" : [ ],
-      "numSinkExceptions" : 0,
-      "latestSinkExceptions" : [ ],
-      "numWrittenToSink" : 0,
-      "lastReceivedTime" : 0,
-      "workerId" : "c-standalone-fw-localhost-8080"
+  "functionStatusList": [
+    {
+      "running": true,
+      "instanceId": "0",
+      "metrics": {
+        "metrics": {
+          "__total_processed__": {},
+          "__total_successfully_processed__": {},
+          "__total_system_exceptions__": {},
+          "__total_user_exceptions__": {},
+          "__total_serialization_exceptions__": {},
+          "__avg_latency_ms__": {}
+        }
+      },
+      "workerId": "c-standalone-fw-localhost-6750"
     }
-  } ]
+  ]
 }
 ```
 
@@ -326,7 +328,7 @@ for i in {0..9}; do bin/pulsar-client produce -m "key-$i" -n 1 test_cassandra; d
 Inspect the sink running status again. You should be able to see 10 messages are processed by the Cassandra sink.
 
 ```bash
-bin/pulsar-admin sink status \
+bin/pulsar-admin functions getstatus \
     --tenant public \
     --namespace default \
     --name cassandra-test-sink
@@ -336,24 +338,34 @@ Example output:
 
 ```shell
 {
-  "numInstances" : 1,
-  "numRunning" : 1,
-  "instances" : [ {
-    "instanceId" : 0,
-    "status" : {
-      "running" : true,
-      "error" : "",
-      "numRestarts" : 0,
-      "numReadFromPulsar" : 10,
-      "numSystemExceptions" : 0,
-      "latestSystemExceptions" : [ ],
-      "numSinkExceptions" : 0,
-      "latestSinkExceptions" : [ ],
-      "numWrittenToSink" : 10,
-      "lastReceivedTime" : 1551685489136,
-      "workerId" : "c-standalone-fw-localhost-8080"
+  "functionStatusList": [
+    {
+      "running": true,
+      "numProcessed": "11",
+      "numSuccessfullyProcessed": "11",
+      "lastInvocationTime": "1532031040117",
+      "instanceId": "0",
+      "metrics": {
+        "metrics": {
+          "__total_processed__": {
+            "count": 5.0,
+            "sum": 5.0,
+            "max": 5.0
+          },
+          "__total_successfully_processed__": {
+            "count": 5.0,
+            "sum": 5.0,
+            "max": 5.0
+          },
+          "__total_system_exceptions__": {},
+          "__total_user_exceptions__": {},
+          "__total_serialization_exceptions__": {},
+          "__avg_latency_ms__": {}
+        }
+      },
+      "workerId": "c-standalone-fw-localhost-6750"
     }
-  } ]
+  ]
 }
 ```
 
