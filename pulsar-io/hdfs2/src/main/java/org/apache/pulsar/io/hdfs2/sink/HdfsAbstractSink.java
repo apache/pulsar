@@ -50,6 +50,7 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
     protected HdfsSyncThread<V> syncThread;
     private Path path;
     private FSDataOutputStream hdfsStream;
+    private DateTimeFormatter subdirectoryFormatter;
 
     public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
     protected abstract void createWriter() throws IOException;
@@ -60,6 +61,9 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
        hdfsSinkConfig.validate();
        connectorConfig = hdfsSinkConfig;
        unackedRecords = new LinkedBlockingQueue<Record<V>> (hdfsSinkConfig.getMaxPendingRecords());
+       if (hdfsSinkConfig.getSubdirectoryPattern() != null) {
+           subdirectoryFormatter = DateTimeFormatter.ofPattern(hdfsSinkConfig.getSubdirectoryPattern());
+       }
        connectToHdfs();
        createWriter();
        launchSyncThread();
@@ -104,17 +108,8 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
             }
 
             String directory = hdfsSinkConfig.getDirectory();
-            String pattern = hdfsSinkConfig.getSubdirectoryPattern();
-            if (pattern != null && !pattern.isEmpty()) {
-                String subdirectory = null;
-                try {
-                    subdirectory = LocalDateTime.now().format(DateTimeFormatter.ofPattern(pattern));
-                } catch (Exception e) {
-                    log.warn("Invalid pattern {}", pattern, e);
-                }
-                if (subdirectory != null) {
-                    directory = FilenameUtils.concat(directory, subdirectory);
-                }
+            if (subdirectoryFormatter != null) {
+                directory = FilenameUtils.concat(directory, LocalDateTime.now().format(subdirectoryFormatter));
             }
             path = new Path(FilenameUtils.concat(directory,
                     hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
