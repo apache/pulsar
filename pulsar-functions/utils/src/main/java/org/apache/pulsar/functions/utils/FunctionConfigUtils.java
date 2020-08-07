@@ -205,10 +205,10 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getProducerConfig() != null) {
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
+            if (functionConfig.getProducerConfig().getMaxPendingMessages() != 0) {
                 pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
             }
-            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
+            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != 0) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
             pbldr.putAllProducerProperties(functionConfig.getProducerConfig().getProducerProperties());
@@ -801,9 +801,6 @@ public class FunctionConfigUtils {
         if (mergedConfig.getInputSpecs() == null) {
             mergedConfig.setInputSpecs(new HashMap<>());
         }
-        if (mergedConfig.getProducerConfig() == null) {
-            mergedConfig.setProducerConfig(new ProducerConfig());
-        }
 
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
@@ -910,6 +907,9 @@ public class FunctionConfigUtils {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
         }
         if (newConfig.getProducerConfig() != null && newConfig.getProducerConfig().getProducerProperties().size() > 0) {
+            if (mergedConfig.getProducerConfig() == null) {
+                mergedConfig.setProducerConfig(new ProducerConfig());
+            }
             Map<String, String> properties = new HashMap<>(mergedConfig.getProducerConfig().getProducerProperties());
             properties.putAll(newConfig.getProducerConfig().getProducerProperties());
             mergedConfig.getProducerConfig().setProducerProperties(properties);

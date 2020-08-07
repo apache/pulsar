@@ -149,10 +149,10 @@ public class SourceConfigUtils {
 
         if (sourceConfig.getProducerConfig() != null) {
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
+            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != 0) {
                 pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
             }
-            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
+            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != 0) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
             if (sourceConfig.getProducerConfig().getProducerProperties() != null) {
@@ -457,9 +457,6 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(newConfig.getSchemaType())) {
             mergedConfig.setSchemaType(newConfig.getSchemaType());
         }
-        if (mergedConfig.getProducerConfig() == null) {
-            mergedConfig.setProducerConfig(new ProducerConfig());
-        }
         if (newConfig.getConfigs() != null) {
             mergedConfig.setConfigs(newConfig.getConfigs());
         }
@@ -492,6 +489,9 @@ public class SourceConfigUtils {
             mergedConfig.setBatchSourceConfig(newConfig.getBatchSourceConfig());
         }
         if (newConfig.getProducerConfig() != null && newConfig.getProducerConfig().getProducerProperties().size() > 0) {
+            if (mergedConfig.getProducerConfig() == null) {
+                mergedConfig.setProducerConfig(new ProducerConfig());
+            }
             Map<String, String> properties = new HashMap<>(mergedConfig.getProducerConfig().getProducerProperties());
             properties.putAll(newConfig.getProducerConfig().getProducerProperties());
             mergedConfig.getProducerConfig().setProducerProperties(properties);

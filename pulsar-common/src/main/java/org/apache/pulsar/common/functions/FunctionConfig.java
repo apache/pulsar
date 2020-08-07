@@ -107,7 +107,7 @@ public class FunctionConfig {
     private Integer maxMessageRetries;
     private String deadLetterTopic;
     private String subName;
-    private String subPosition;
+    private String subPosition = "LATEST";
     private Integer parallelism;
     private Resources resources;
     private String fqfn;
