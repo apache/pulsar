@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -63,6 +64,8 @@ public interface TransactionEntry extends AutoCloseable {
      * @return the entry buffer.
      */
     ByteBuf getEntryBuffer();
+
+    Entry getEntry();
 
     /**
      * Close the entry to release the resource that it holds.

@@ -73,6 +73,8 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
 
     private final RedeliveryTracker redeliveryTracker;
 
+    private TransactionReader transactionReader = new TransactionReader();
+
     public PersistentDispatcherSingleActiveConsumer(ManagedCursor cursor, SubType subscriptionType, int partitionIndex,
             PersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName(), subscription);
@@ -453,7 +455,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
             havePendingRead = true;
 
-            if (consumer.readCompacted()) {
+            if (havePendingTxnToRead()) {
+                transactionReader.read(subscription.getTopic(), pendingTxnQueue, messagesToRead, consumer, this);
+            } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
                 cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);

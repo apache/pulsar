@@ -24,6 +24,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
@@ -68,6 +70,7 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
                 txnId,
                 entry.getKey(),
                 entry.getValue(),
+                EntryImpl.create(-1L, -1L, entry.getValue()),
                 committedAtLedgerId,
                 committedAtEntryId
             );
