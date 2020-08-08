@@ -135,19 +135,6 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         }
     }
 
-    /**
-     * checks if the local broker is the owner of the namespace bundle
-     *
-     * @param nsBundle
-     * @return
-     */
-    private boolean isOwner(NamespaceBundle nsBundle) {
-        if (pulsar != null) {
-            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundle(nsBundle) != null;
-        }
-        return false;
-    }
-
     public void invalidateBundleCache(NamespaceName namespace) {
         bundlesCache.synchronous().invalidate(namespace);
     }

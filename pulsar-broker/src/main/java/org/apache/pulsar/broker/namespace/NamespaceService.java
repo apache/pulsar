@@ -595,11 +595,11 @@ public class NamespaceService {
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
         // unload namespace bundle
-        OwnedBundle ob = ownershipCache.getOwnedBundle(bundle);
-        if (ob == null) {
+        Optional<OwnedBundle> ob = ownershipCache.getOwnedBundle(bundle);
+        if (!ob.isPresent()) {
             return FutureUtil.failedFuture(new IllegalStateException("Bundle " + bundle + " is not currently owned"));
         } else {
-            return ob.handleUnloadRequest(pulsar, timeout, timeoutUnit);
+            return ob.get().handleUnloadRequest(pulsar, timeout, timeoutUnit);
         }
     }
 
@@ -877,7 +877,8 @@ public class NamespaceService {
 
     public boolean isServiceUnitActive(TopicName topicName) {
         return getBundleIfPresent(topicName)
-                .map(bundle -> ownershipCache.getOwnedBundle(bundle).isActive())
+                .map(bundle -> ownershipCache.getOwnedBundle(bundle)
+                        .map(OwnedBundle::isActive).orElse(false))
                 .orElse(false);
     }
 

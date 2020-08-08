@@ -314,7 +314,7 @@ public abstract class NamespacesBase extends AdminResource {
             .thenRun(() -> {
                 log.info("[{}] Successfully remoed namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
                         bundleRange);
-                response.resume(null);
+                response.resume(Response.noContent().build());
             }).exceptionally(ex -> {
                 log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
                         bundleRange, ex);
@@ -1110,7 +1110,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenRun(() -> {
                     log.info("[{}] Successfully split namespace bundle {}/{}", clientAppId(),
                             namespaceName, bundleRange);
-                    response.resume(null);
+                    response.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof IllegalArgumentException) {
                         log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(),
@@ -1647,7 +1647,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(x -> {
                     log.info("[{}] Successfully cleared backlog on namespace bundle {}/{}",
                             clientAppId(), namespaceName, bundleRange);
-                    response.resume(null);
+                    response.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     response.resume(ex);
                     return null;
@@ -1720,7 +1720,7 @@ public abstract class NamespacesBase extends AdminResource {
                     log.info("[{}] Successfully cleared backlog for subscription {} on namespace bundle {}/{}",
                             clientAppId(),
                             subscription, namespaceName, bundleRange);
-                    response.resume(null);
+                    response.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     response.resume(ex);
                     return null;
@@ -1791,7 +1791,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenRun(() -> {
                     log.info("[{}] Successfully unsubscribed {} on namespace bundle {}/{}", clientAppId(), subscription,
                             namespaceName, bundleRange);
-                    response.resume(null);
+                    response.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to unsubscribe {} for namespace bundle {}/{}", clientAppId(), subscription,
                             namespaceName, bundleRange, ex);

@@ -299,7 +299,7 @@ public class OwnershipCache {
     public CompletableFuture<Void> removeOwnership(NamespaceBundles bundles) {
         List<CompletableFuture<Void>> allFutures = Lists.newArrayList();
         for (NamespaceBundle bundle : bundles.getBundles()) {
-            if (getOwnedBundle(bundle) == null) {
+            if (!getOwnedBundle(bundle).isPresent()) {
                 // continue
                 continue;
             }
@@ -325,8 +325,7 @@ public class OwnershipCache {
      * @return
      */
     public boolean isNamespaceBundleOwned(NamespaceBundle bundle) {
-        OwnedBundle ownedBundle = getOwnedBundle(bundle);
-        return ownedBundle != null && ownedBundle.isActive();
+        return getOwnedBundle(bundle).map(OwnedBundle::isActive).orElse(false);
     }
 
     /**
@@ -335,12 +334,12 @@ public class OwnershipCache {
      * @param bundle
      * @return
      */
-    public OwnedBundle getOwnedBundle(NamespaceBundle bundle) {
+    public Optional<OwnedBundle> getOwnedBundle(NamespaceBundle bundle) {
         CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(ServiceUnitZkUtils.path(bundle));
         if (future != null && future.isDone() && !future.isCompletedExceptionally()) {
-            return future.join();
+            return Optional.ofNullable(future.join());
         } else {
-            return null;
+            return Optional.empty();
         }
     }
 

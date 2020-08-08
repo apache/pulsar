@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -38,6 +38,7 @@ import static org.testng.Assert.fail;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -48,7 +49,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -56,6 +59,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
+
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -785,8 +789,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             namespaces.namespaceName = testNs;
             namespaces.internalDeleteNamespaceBundleAsync("0x00000000_0x80000000", false).join();
             fail("Should have failed");
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        } catch (CompletionException ce) {
+            assertTrue(ce.getCause() instanceof RestException);
+            assertEquals(((RestException) (ce.getCause())).getResponse().getStatus(),
+                    Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         AsyncResponse response = mock(AsyncResponse.class);
@@ -808,8 +814,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             namespaces.namespaceName = testNs;
             namespaces.internalDeleteNamespaceBundleAsync("0x80000000_0xffffffff", false).join();
             fail("Should have failed");
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        } catch (CompletionException ce) {
+            assertTrue(ce.getCause() instanceof RestException);
+            assertEquals(((RestException) (ce.getCause())).getResponse().getStatus(),
+                    Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         response = mock(AsyncResponse.class);
@@ -896,8 +904,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             namespaces.namespaceName = testNs;
             namespaces.internalSplitNamespaceBundleAsync("0x08375b1a_0x08375b1b", false, false, null).join();
-        } catch (RestException re) {
-            assertEquals(re.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        } catch (CompletionException ce) {
+            assertTrue(ce.getCause() instanceof RestException);
+            assertEquals(((RestException) (ce.getCause())).getResponse().getStatus(),
+                    Status.PRECONDITION_FAILED.getStatusCode());
         }
     }
 

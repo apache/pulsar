@@ -141,7 +141,7 @@ public class OwnershipCacheTest {
         assertEquals(data1.getNativeUrl(), selfBrokerUrl);
         assertFalse(data1.isDisabled());
         // case 2: the local broker owned the namespace and disabled, getOrSetOwner() should not change it
-        OwnedBundle nsObj = cache.getOwnedBundle(testFullBundle);
+        OwnedBundle nsObj = cache.getOwnedBundle(testFullBundle).get();
         // this would disable the ownership
         doReturn(cache).when(nsService).getOwnershipCache();
         nsObj.handleUnloadRequest(pulsar, 5, TimeUnit.SECONDS).join();
@@ -201,22 +201,12 @@ public class OwnershipCacheTest {
         // case 1: no one owns the namespace
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
-        try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
-            fail("Should have failed");
-        } catch (NullPointerException npe) {
-            // OK for not owned namespace
-        }
+        assertFalse(cache.getOwnedBundle(testBundle).isPresent());
         // case 2: someone else owns the namespace
         ServiceUnitZkUtils.acquireNameSpace(zkCache.getZooKeeper(), ServiceUnitZkUtils.path(testBundle),
                 new NamespaceEphemeralData("pulsar://otherhost:8881", "pulsar://otherhost:8884",
                         "http://otherhost:8080", "https://otherhost:4443", false));
-        try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
-            fail("Should have failed");
-        } catch (NullPointerException npe) {
-            // OK for not owned namespace
-        }
+        assertFalse(cache.getOwnedBundle(testBundle).isPresent());
 
         Thread.sleep(500);
 
@@ -225,12 +215,7 @@ public class OwnershipCacheTest {
         assertEquals(data1.getNativeUrl(), "pulsar://otherhost:8881");
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
         assertFalse(data1.isDisabled());
-        try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
-            fail("Should have failed");
-        } catch (NullPointerException npe) {
-            // OK for not owned namespace
-        }
+        assertFalse(cache.getOwnedBundle(testBundle).isPresent());
         // case 3: this broker owns the namespace
         // delete the ephemeral node by others
         zkCache.getZooKeeper().delete(ServiceUnitZkUtils.path(testBundle), -1);
