@@ -471,12 +471,36 @@ public class AuthorizationService {
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, TopicOperation operation,
                                                                String originalRole, String role,
                                                                AuthenticationDataSource authData) {
+        if (log.isDebugEnabled()) {
+            log.debug("Check if topic operation {} on topic {} is allowed: role = {}, original role = {}",
+                operation, topicName, role, originalRole);
+        }
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
 
         if (provider != null) {
-            return provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            CompletableFuture<Boolean> allowFuture =
+                provider.allowTopicOperationAsync(topicName, originalRole, role, operation, authData);
+            if (log.isDebugEnabled()) {
+                return allowFuture.whenComplete((allowed, exception) -> {
+                    if (exception == null) {
+                        if (allowed) {
+                            log.debug("Topic operation {} on topic {} is allowed: role = {}, original role = {}",
+                                operation, topicName, role, originalRole);
+                        } else{
+                            log.debug("Topic operation {} on topic {} is NOT allowed: role = {}, original role = {}",
+                                operation, topicName, role, originalRole);
+                        }
+                    } else {
+                        log.debug("Failed to check if topic operation {} on topic {} is allowed:"
+                                + " role = {}, original role = {}",
+                            operation, topicName, role, originalRole, exception);
+                    }
+                });
+            } else {
+                return allowFuture;
+            }
         }
 
         return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured for " +

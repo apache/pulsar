@@ -536,23 +536,38 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, String originalRole, String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
+        try {
+            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        } catch (RestException re) {
+            return FutureUtil.failedFuture(re);
+        }
+
+        String roleToTest = StringUtils.isBlank(originalRole) ? role : originalRole;
+
         CompletableFuture<Boolean> isAuthorizedFuture;
 
         switch (operation) {
-            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, StringUtils.isBlank(originalRole) ? role : originalRole, authData);
+            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, roleToTest, authData);
                 break;
-            case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, StringUtils.isBlank(originalRole) ? role : originalRole, authData);
+            case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, roleToTest, authData);
                 break;
-            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, StringUtils.isBlank(originalRole) ? role : originalRole, authData, authData.getSubscription());
+            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, roleToTest, authData, authData.getSubscription());
                 break;
             default: isAuthorizedFuture = FutureUtil.failedFuture(
                     new IllegalStateException("TopicOperation is not supported."));
         }
 
-        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
+        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(roleToTest, authData, conf);
 
         return isSuperUserFuture
-                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> isSuperUser || isAuthorized);
+                .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Verify if (role={}, originalRole={}) is allowed to {} to topic {}:"
+                                + " isSuperUser={}, isAuthorized={}",
+                            role, originalRole, operation, topicName, isSuperUser, isAuthorized);
+                    }
+                    return isSuperUser || isAuthorized;
+                });
     }
 
     private static String path(String... parts) {
