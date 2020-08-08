@@ -156,9 +156,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
-    public volatile long delayedDeliveryTickTimeMillis = 1000;
+    private volatile long delayedDeliveryTickTimeMillis = 1000;
     private final long backloggedCursorThresholdEntries;
-    public volatile boolean delayedDeliveryEnabled = false;
+    private volatile boolean delayedDeliveryEnabled = false;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     protected final MessageDeduplication messageDeduplication;
@@ -2119,8 +2119,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return TopicPolicies is exist else return null.
      */
     private TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
         try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
@@ -2220,5 +2224,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void unfenceTopicToResume() {
         isFenced = false;
         isClosingOrDeleting = false;
+    }
+
+    public long getDelayedDeliveryTickTimeMillis() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+            return topicPolicies.getDelayedDeliveryTickTimeMillis();
+        }
+        return delayedDeliveryTickTimeMillis;
+    }
+
+    public boolean isDelayedDeliveryEnabled() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryEnabledSet()) {
+            return topicPolicies.getDelayedDeliveryEnabled();
+        }
+        return delayedDeliveryEnabled;
     }
 }

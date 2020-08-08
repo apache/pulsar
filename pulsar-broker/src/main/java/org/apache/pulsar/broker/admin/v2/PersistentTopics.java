@@ -49,6 +49,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -244,6 +245,61 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validateTopicName(tenant, namespace, encodedTopic);
         internalCreateNonPartitionedTopic(authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Get delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),})
+    public DelayedDeliveryPolicies getDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
+                                                              @PathParam("namespace") String namespace,
+                                                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return getTopicPolicies(topicName)
+                .map(topicPolicies -> {
+                    if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+                        return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
+                                , topicPolicies.getDelayedDeliveryEnabled());
+                    }
+                    return null;
+                }).orElse(null);
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Set delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic,
+                                           @ApiParam(value = "Delayed delivery policies for the specified topic") DelayedDeliveryPolicies deliveryPolicies) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetDelayedDeliveryPolicies(asyncResponse, deliveryPolicies);
+    }
+
+
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Set delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace,
+                                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setDelayedDeliveryPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }
 
     /**
