@@ -40,11 +40,11 @@ public class TransactionEntryImplTest {
             new TxnID(1234L, 3456L),
             0L,
             buffer,
-            EntryImpl.create(33L, 44L, buffer),
+            EntryImpl.create(12L, 23L, buffer),
             33L,
             44L
         );
-        assertEquals(buffer.refCnt(), 1);
+        assertEquals(buffer.refCnt(), 2);
         entry.close();
         assertEquals(buffer.refCnt(), 0);
     }

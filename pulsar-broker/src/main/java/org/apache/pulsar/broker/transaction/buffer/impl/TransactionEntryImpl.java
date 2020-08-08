@@ -84,5 +84,8 @@ public class TransactionEntryImpl implements TransactionEntry {
         if (null != entryBuf) {
             entryBuf.release();
         }
+        if (null != entry) {
+            entry.release();
+        }
     }
 }
