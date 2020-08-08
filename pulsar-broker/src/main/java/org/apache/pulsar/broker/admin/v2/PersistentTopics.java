@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -252,19 +253,17 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Get delayed delivery messages config on a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification"),})
+            @ApiResponse(code = 500, message = "Internal server error"),})
     public DelayedDeliveryPolicies getDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
                                                               @PathParam("namespace") String namespace,
                                                               @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return getTopicPolicies(topicName)
-                .map(topicPolicies -> {
-                    if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
-                        return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
-                                , topicPolicies.getDelayedDeliveryEnabled());
-                    }
-                    return null;
-                }).orElse(null);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+            return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
+                    , topicPolicies.getDelayedDeliveryEnabled());
+        }
+        return new DelayedDeliveryPolicies(config().getDelayedDeliveryTickTimeMillis(), config().isDelayedDeliveryEnabled());
     }
 
     @POST
