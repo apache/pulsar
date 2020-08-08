@@ -507,6 +507,9 @@ public class ServerCnx extends PulsarHandler {
         String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         AuthData brokerData = authState.authenticate(clientData);
 
+        if (log.isDebugEnabled()) {
+            log.debug("Authenticate using original auth state : {}, role = {}", useOriginalAuthState, authRole);
+        }
 
         if (authState.isComplete()) {
             // Authentication has completed. It was either:
@@ -522,7 +525,7 @@ public class ServerCnx extends PulsarHandler {
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                        remoteAddress, authMethod, authRole, originalPrincipal);
+                        remoteAddress, authMethod, this.authRole, originalPrincipal);
             }
 
             if (state != State.Connected) {
@@ -609,8 +612,12 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Start);
 
         if (log.isDebugEnabled()) {
-            log.debug("Received CONNECT from {}, auth enabled: {}",
-                remoteAddress, service.isAuthenticationEnabled());
+            log.debug("Received CONNECT from {}, auth enabled: {}:"
+                    + " has original principal = {}, original principal = {}",
+                remoteAddress,
+                service.isAuthenticationEnabled(),
+                connect.hasOriginalPrincipal(),
+                connect.getOriginalPrincipal());
         }
 
         String clientVersion = connect.getClientVersion();
@@ -658,6 +665,12 @@ public class ServerCnx extends PulsarHandler {
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
             authenticationData = authState.getAuthDataSource();
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Authenticate role : {}", remoteAddress,
+                    authState != null ? authState.getAuthRole() : null);
+            }
+
             state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
 
             // This will fail the check if:
@@ -687,8 +700,16 @@ public class ServerCnx extends PulsarHandler {
                         remoteAddress,
                         sslSession);
                 originalPrincipal = originalAuthState.getAuthRole();
+
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Authenticate original role : {}", remoteAddress, originalPrincipal);
+                }
             } else {
                 originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Authenticate original role (forwarded from proxy): {}",
+                        remoteAddress, originalPrincipal);
+                }
             }
         } catch (Exception e) {
             String msg = "Unable to authenticate";
@@ -737,6 +758,11 @@ public class ServerCnx extends PulsarHandler {
         TopicName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
         if (topicName == null) {
             return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Handle subscribe command: auth role = {}, original auth role = {}",
+                remoteAddress, authRole, originalPrincipal);
         }
 
         if (invalidOriginalPrincipal(originalPrincipal)) {
