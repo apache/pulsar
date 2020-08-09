@@ -307,7 +307,7 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                        TopicOperation.LOOKUP, originalPrincipal, authRole, getAuthenticationData());
+                        TopicOperation.LOOKUP, originalPrincipal, getAuthenticationData());
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -377,7 +377,7 @@ public class ServerCnx extends PulsarHandler {
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                        TopicOperation.LOOKUP, originalPrincipal, authRole, getAuthenticationData());
+                        TopicOperation.LOOKUP, originalPrincipal, getAuthenticationData());
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
@@ -798,7 +798,7 @@ public class ServerCnx extends PulsarHandler {
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             getAuthenticationData().setSubscription(subscriptionName);
             isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                    TopicOperation.CONSUME, originalPrincipal, authRole, getAuthenticationData());
+                    TopicOperation.CONSUME, originalPrincipal, getAuthenticationData());
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -812,7 +812,7 @@ public class ServerCnx extends PulsarHandler {
                         authenticationData.setSubscription(subscriptionName);
                     }
                     authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                            TopicOperation.CONSUME, originalPrincipal, authRole, getAuthenticationData());
+                            TopicOperation.CONSUME, authRole, getAuthenticationData());
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -1020,7 +1020,7 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                    TopicOperation.PRODUCE, originalPrincipal, authRole, getAuthenticationData());
+                    TopicOperation.PRODUCE, originalPrincipal, getAuthenticationData());
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -1029,7 +1029,7 @@ public class ServerCnx extends PulsarHandler {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled() && originalPrincipal == null) {
                     authorizationFuture = service.getAuthorizationService().allowTopicOperationAsync(topicName,
-                            TopicOperation.PRODUCE, originalPrincipal, authRole, getAuthenticationData());
+                            TopicOperation.PRODUCE, authRole, getAuthenticationData());
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }

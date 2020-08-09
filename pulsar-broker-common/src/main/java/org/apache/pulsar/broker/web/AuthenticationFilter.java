@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.io.IOException;
 
 import javax.servlet.Filter;

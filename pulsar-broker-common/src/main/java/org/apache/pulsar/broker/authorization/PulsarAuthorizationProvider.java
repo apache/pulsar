@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authorization;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -29,7 +30,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.common.base.Joiner;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -39,8 +39,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.Policies;
-import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
-
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -512,59 +510,56 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
-                                                           TenantOperation operation,
-                                                           AuthenticationDataSource authData) {
-        return validateTenantAdminAccess(tenantName, originalRole, role, authData);
+    public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName,
+                                                                String role,
+                                                                TenantOperation operation,
+                                                                AuthenticationDataSource authData) {
+        return validateTenantAdminAccess(tenantName, role, authData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole,
-                                                              String role, NamespaceOperation operation,
-                                                              AuthenticationDataSource authData) {
-        return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   String role,
+                                                                   NamespaceOperation operation,
+                                                                   AuthenticationDataSource authData) {
+        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName, PolicyName policy,
-                                                                         PolicyOperation operation, String originalRole,
-                                                                         String role, AuthenticationDataSource authData) {
-        return validateTenantAdminAccess(namespaceName.getTenant(), originalRole, role, authData);
+    public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
+                                                                         PolicyName policy,
+                                                                         PolicyOperation operation,
+                                                                         String role,
+                                                                         AuthenticationDataSource authData) {
+        return validateTenantAdminAccess(namespaceName.getTenant(), role, authData);
     }
 
     @Override
-    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName, String originalRole, String role,
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
-        try {
-            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
-        } catch (RestException re) {
-            return FutureUtil.failedFuture(re);
-        }
-
-        String roleToTest = StringUtils.isBlank(originalRole) ? role : originalRole;
-
         CompletableFuture<Boolean> isAuthorizedFuture;
 
         switch (operation) {
-            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, roleToTest, authData);
+            case LOOKUP: isAuthorizedFuture = canLookupAsync(topicName, role, authData);
                 break;
-            case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, roleToTest, authData);
+            case PRODUCE: isAuthorizedFuture = canProduceAsync(topicName, role, authData);
                 break;
-            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, roleToTest, authData, authData.getSubscription());
+            case CONSUME: isAuthorizedFuture = canConsumeAsync(topicName, role, authData, authData.getSubscription());
                 break;
             default: isAuthorizedFuture = FutureUtil.failedFuture(
                     new IllegalStateException("TopicOperation is not supported."));
         }
 
-        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(roleToTest, authData, conf);
+        CompletableFuture<Boolean> isSuperUserFuture = isSuperUser(role, authData, conf);
 
         return isSuperUserFuture
                 .thenCombine(isAuthorizedFuture, (isSuperUser, isAuthorized) -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("Verify if (role={}, originalRole={}) is allowed to {} to topic {}:"
+                        log.debug("Verify if role {} is allowed to {} to topic {}:"
                                 + " isSuperUser={}, isAuthorized={}",
-                            role, originalRole, operation, topicName, isSuperUser, isAuthorized);
+                            role, operation, topicName, isSuperUser, isAuthorized);
                     }
                     return isSuperUser || isAuthorized;
                 });
@@ -577,43 +572,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return sb.toString();
     }
 
-    private CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName, String originalRole, String role,
+    private CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName,
+                                                                 String role,
                                                                 AuthenticationDataSource authData) {
         try {
             TenantInfo tenantInfo = configCache.propertiesCache()
                     .get(path(POLICIES, tenantName))
                     .orElseThrow(() -> new RestException(Response.Status.NOT_FOUND, "Tenant does not exist"));
 
-            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
-
-            if (role != null && conf.getProxyRoles().contains(role)) {
-                // role check
-                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
-                CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
-                CompletableFuture<Boolean> isRoleAuthorizedFuture = isRoleSuperUserFuture
-                        .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->
-                                isRoleSuperUser || isRoleTenantAdmin);
-
-                // originalRole check
-                CompletableFuture<Boolean> isOriginalRoleSuperUserFuture = isSuperUser(originalRole, authData, conf);
-                CompletableFuture<Boolean> isOriginalRoleTenantAdminFuture = isTenantAdmin(tenantName, originalRole,
-                        tenantInfo, authData);
-                CompletableFuture<Boolean> isOriginalRoleAuthorizedFuture = isOriginalRoleSuperUserFuture
-                        .thenCombine(isOriginalRoleTenantAdminFuture, (isOriginalRoleSuperUser, isOriginalRoleTenantAdmin) ->
-                                isOriginalRoleSuperUser || isOriginalRoleTenantAdmin);
-
-                // merging
-                return isRoleAuthorizedFuture
-                        .thenCombine(isOriginalRoleAuthorizedFuture, (isRoleAuthorized, isOriginalRoleAuthorized) ->
-                                isRoleAuthorized && isOriginalRoleAuthorized);
-            } else {
-                // role check
-                CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
-                CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
-                return isRoleSuperUserFuture
-                        .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->
-                                isRoleSuperUser || isRoleTenantAdmin);
-            }
+            // role check
+            CompletableFuture<Boolean> isRoleSuperUserFuture = isSuperUser(role, authData, conf);
+            CompletableFuture<Boolean> isRoleTenantAdminFuture = isTenantAdmin(tenantName, role, tenantInfo, authData);
+            return isRoleSuperUserFuture
+                    .thenCombine(isRoleTenantAdminFuture, (isRoleSuperUser, isRoleTenantAdmin) ->
+                            isRoleSuperUser || isRoleTenantAdmin);
         } catch (KeeperException.NoNodeException e) {
             log.warn("Failed to get tenant info data for non existing tenant {}", tenantName);
             throw new RestException(Response.Status.NOT_FOUND, "Tenant does not exist");
@@ -623,18 +595,4 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         }
     }
 
-    private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
-                                                  String originalPrincipal) {
-        if (proxyRoles.contains(authenticatedPrincipal)) {
-            // Request has come from a proxy
-            if (StringUtils.isBlank(originalPrincipal)) {
-                log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be empty if the request is via proxy.");
-            }
-            if (proxyRoles.contains(originalPrincipal)) {
-                log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
-            }
-        }
-    }
 }
