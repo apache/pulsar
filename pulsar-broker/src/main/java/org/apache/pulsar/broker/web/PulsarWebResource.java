@@ -774,14 +774,6 @@ public abstract class PulsarWebResource {
     // Non-Usual HTTP error codes
     protected static final int NOT_IMPLEMENTED = 501;
 
-    private String getRoleToAuthorize() {
-        String role = originalPrincipal();
-        if (role == null) {
-            role = clientAppId();
-        }
-        return role;
-    }
-
     public void validateTenantOperation(String tenant, TenantOperation operation) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {

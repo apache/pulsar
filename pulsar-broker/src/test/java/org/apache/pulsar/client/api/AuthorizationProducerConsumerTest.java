@@ -429,7 +429,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
+        public CompletableFuture<Boolean> isSuperUser(String role,
+                                                      ServiceConfiguration serviceConfiguration) {
             Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
             return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role) ? true : false);
         }
@@ -493,32 +494,38 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role, TenantOperation operation, AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTenantOperationAsync(
+            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation, AuthenticationDataSource authData) {
+        public Boolean allowTenantOperation(
+            String tenantName, String role, TenantOperation operation, AuthenticationDataSource authData) {
             return true;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName, String originalRole, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowNamespaceOperationAsync(
+            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public Boolean allowNamespaceOperation(NamespaceName namespaceName, String originalRole, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
+        public Boolean allowNamespaceOperation(
+            NamespaceName namespaceName, String role, NamespaceOperation operation, AuthenticationDataSource authData) {
             return null;
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
+        public CompletableFuture<Boolean> allowTopicOperationAsync(
+            TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
             return CompletableFuture.completedFuture(true);
         }
 
         @Override
-        public Boolean allowTopicOperation(TopicName topicName, String originalRole, String role, TopicOperation operation, AuthenticationDataSource authData) {
+        public Boolean allowTopicOperation(
+            TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
             return true;
         }
     }
