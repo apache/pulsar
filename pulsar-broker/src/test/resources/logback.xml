@@ -19,16 +19,18 @@
 
 -->
 <configuration scan="true">
-	<appenders>
-		<console name="console" class="ch.qos.logback.core.ConsoleAppender">
-			<PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} - %p - %t - %l - %m%n"/>
-		</console>
-	</appenders>
-	<loggers>
-		<root level="INFO">
-			<appender-ref ref="console" />
-		</root>
-		<logger name="org.apache.pulsar.broker.lookup" level="DEBUG"/>
-		<logger name="org.apache.pulsar.broker.admin" level="DEBUG"/>
-	</loggers>
+<!-- 
+	<logger name="org.apache" level="IN" />
+	<logger name="org.apache.bookkeeper.mledger" level="ERROR" />
+ -->
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
+			</pattern>
+		</encoder>
+	</appender>
+
+	<root level="INFO">
+		<appender-ref ref="STDOUT" />
+	</root>
 </configuration>
