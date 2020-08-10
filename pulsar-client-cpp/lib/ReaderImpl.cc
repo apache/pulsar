@@ -98,7 +98,10 @@ void ReaderImpl::acknowledgeIfNecessary(Result result, const Message& msg) {
     }
 }
 
-void ReaderImpl::closeAsync(ResultCallback callback) { consumer_->closeAsync(callback); }
+void ReaderImpl::closeAsync(ResultCallback callback) {
+    consumer_->closeAsync(callback);
+    consumer_.reset();
+}
 
 void ReaderImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
     consumer_->hasMessageAvailableAsync(callback);
