@@ -79,7 +79,13 @@ public class TransactionReader {
      * @param readEntriesCallback ReadEntriesCallback
      */
     private void internalRead(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        final TxnID txnID = dispatcher.getPendingTxnQueue().peek();
+        final TxnID txnID = getValidTxn();
+        if (txnID == null) {
+            log.error("No valid txn to read.");
+            readEntriesCallback.readEntriesFailed(
+                    ManagedLedgerException.getManagedLedgerException(new Exception("No valid txn to read.")), ctx);
+            return;
+        }
         if (transactionBufferReader == null) {
             transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, startSequenceId);
         }
@@ -112,6 +118,23 @@ public class TransactionReader {
                     ManagedLedgerException.getManagedLedgerException(throwable), ctx);
             return null;
         });
+    }
+
+    private TxnID getValidTxn() {
+        TxnID txnID;
+        do {
+            txnID = dispatcher.getPendingTxnQueue().peek();
+            if (txnID == null) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Peek null txnID from dispatcher pendingTxnQueue.");
+                }
+                dispatcher.getPendingTxnQueue().poll();
+                if (dispatcher.getPendingTxnQueue().size() <= 0) {
+                    break;
+                }
+            }
+        } while (txnID == null);
+        return txnID;
     }
 
 }
