@@ -2197,9 +2197,10 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn(
                     "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
                     clientAppId(), topicName);
-            throw new RestException(Status.PRECONDITION_FAILED,
+            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                     "Retention Quota must exceed configured backlog quota for topic. " +
-                            "Please increase retention quota and retry");
+                            "Please increase retention quota and retry"));
+            return;
         }
         topicPolicies.setRetentionPolicies(retention);
         pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
