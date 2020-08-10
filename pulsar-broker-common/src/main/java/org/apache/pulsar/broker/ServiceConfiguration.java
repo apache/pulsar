@@ -180,6 +180,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // waiting for another HTTP call to complete in same thread.
     private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of threads to use for pulsar broker service."
+            + " The executor in thread pool will do basic broker operation like load/unload bundle,"
+            + " update managedLedgerConfig, update topic/subscription/replicator message dispatch rate,"
+            + " do leader election etc. Default is set to 20 "
+    )
+    private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 

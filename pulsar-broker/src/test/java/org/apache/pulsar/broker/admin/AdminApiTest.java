@@ -161,6 +161,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setMessageExpiryCheckIntervalInMinutes(1);
         conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.internalSetup();
 

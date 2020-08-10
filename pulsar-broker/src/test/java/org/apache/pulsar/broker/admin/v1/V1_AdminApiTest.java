@@ -145,6 +145,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.internalSetup();
 

@@ -471,6 +471,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         // Case 1: Access without TLS
@@ -554,6 +555,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
@@ -616,6 +618,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
@@ -678,6 +681,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
         conf.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+        conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
