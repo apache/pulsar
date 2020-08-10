@@ -45,6 +45,11 @@ public class TopicPolicies {
     private Integer maxProducerPerTopic = null;
     private Integer maxConsumerPerTopic = null;
     private Integer maxConsumersPerSubscription = null;
+    private Integer maxUnackedMessagesOnSubscription = null;
+
+    public boolean isMaxUnackedMessagesOnSubscriptionSet() {
+        return maxUnackedMessagesOnSubscription != null;
+    }
 
     public boolean isBacklogQuotaSet() {
         return !backLogQuotaMap.isEmpty();

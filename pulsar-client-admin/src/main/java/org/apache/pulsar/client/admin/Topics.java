@@ -1476,4 +1476,49 @@ public interface Topics {
      *             Unexpected error
      */
     void removeMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscriptionPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic);
+
+    /**
+     * set max unacked messages on subscription of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnSubscriptionPolicy(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on subscription of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnSubscriptionPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic);
 }

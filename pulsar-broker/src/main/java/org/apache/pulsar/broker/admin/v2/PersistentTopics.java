@@ -246,6 +246,61 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalCreateNonPartitionedTopic(authoritative);
     }
 
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Get max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getMaxUnackedMessagesOnSubscriptionPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                            @PathParam("tenant") String tenant,
+                                                            @PathParam("namespace") String namespace,
+                                                            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Set max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setMaxUnackedMessagesOnSubscriptionPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic,
+                                           @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
+                                                                        Integer maxUnackedNum) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetMaxUnackedMessagesOnSubscription(asyncResponse, maxUnackedNum);
+    }
+
+
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Delete max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace,
+                                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setMaxUnackedMessagesOnSubscriptionPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
     /**
      * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing

@@ -183,7 +183,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    public volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile int maxUnackedMessagesOnSubscription = -1;
     private volatile boolean isClosingOrDeleting = false;
 
     private static class TopicStatsHelper {
@@ -2220,5 +2220,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void unfenceTopicToResume() {
         isFenced = false;
         isClosingOrDeleting = false;
+    }
+
+    public int getMaxUnackedMessagesOnSubscription() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            return topicPolicies.getMaxUnackedMessagesOnSubscription();
+        }
+        return maxUnackedMessagesOnSubscription;
     }
 }
