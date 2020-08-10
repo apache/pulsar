@@ -1,6 +1,114 @@
 module.exports = {
   articles: [
     {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Pulsar vs Kafka - Part 2 - Adoption, Use Cases, Differentiators, and Community",
+      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-2'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Pulsar vs. Kafka — Part 1 — A More Accurate Perspective on Performance, Architecture, and Features",
+      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-1'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Taking messaging and data ingestion systems to the next level",
+      link: 'https://streamnative.io/blog/tech/2020-07-08-podcast'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Apache Pulsar 2.6.0",
+      link: 'https://streamnative.io/blog/tech/2020-06-18-pulsar-260'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Announcing AMQP-on-Pulsar: bring native AMQP protocol support to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-06-15-announcing-aop-on-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to trace Pulsar messages with OpenTracing and Jaeger",
+      link: 'https://streamnative.io/blog/tech/2020-06-11-opentracing-instrumentation-for-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Introducing StreamNative Hub — Extend Pulsar Capabilities with Rich Integrations",
+      link: 'https://streamnative.io/blog/tech/2020-05-26-intro-to-hub'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Apache Pulsar 2.5.2",
+      link: 'https://streamnative.io/blog/tech/2020-05-19-apache-pulsar-252'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 3",
+      link: 'https://streamnative.io/blog/tech/2020-05-12-distributed-database-bk3'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How Apache Pulsar Helps Streamline Message System and Reduces O&M Costs at Tuya Smart",
+      link: 'https://streamnative.io/blog/tech/2020-05-08-tuya-tech-blog'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Why Zhaopin Chooses Pulsar SQL for Search Log Analysis",
+      link: 'https://streamnative.io/blog/tech/2020-05-07-zhaopin-tech-blog'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Apache Pulsar 2.5.1",
+      link: 'https://streamnative.io/blog/tech/2020-04-23-apache-pulsar-251'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Why we moved from Apache Kafka to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-04-21-from-apache-kafka-to-apache-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 2",
+      link: 'https://streamnative.io/blog/tech/2020-04-14-distributed-database-bk2'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Announcing Kafka-on-Pulsar: bring native Kafka protocol support to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-03-24-bring-native-kafka-protocol-support-to-apache-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Announcing: The Apache Pulsar 2020 User Survey Report",
+      link: 'https://streamnative.io/blog/tech/2020-03-17-announcing-the-apache-pulsar-2020-user-survey-report'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Apache Pulsar® Helps Tencent Process Tens of Billions of Financial Transactions Efficiently with Virtually No Data Loss",
+      link: 'https://streamnative.io/blog/tech/2020-02-18-pulsar-help-tencent'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 1",
+      link: 'https://streamnative.io/blog/tech/2020-02-04-how-to-build-database'
+    },
+    {
       forum: 'Yahoo Engineering blog',
       forum_link: 'https://yahooeng.tumblr.com/',
       title: 'Open sourcing Pulsar, pub-sub messaging at scale',
@@ -47,6 +155,12 @@ module.exports = {
         forum_link: 'https://jack-vanlightly.com',
         title: 'How to (not) lose messages on an Apache Pulsar Cluster',
         link: 'https://jack-vanlightly.com/blog/2018/10/21/how-to-not-lose-messages-on-an-apache-pulsar-cluster'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How Orange Financial combats financial fraud in over 50M transactions a day using Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2019-11-11-how-orange-finaacial-combats-financial-fraud-over-50m-transactions-a-day-useing-apache-pulsar'
     },
     {
         forum: 'StreamNative blog',
