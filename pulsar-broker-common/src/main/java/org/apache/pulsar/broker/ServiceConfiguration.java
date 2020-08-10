@@ -1704,6 +1704,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String transactionMetadataStoreProviderClassName =
             "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider";
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Class name for transaction buffer provider"
+    )
+    private String transactionBufferProviderClassName =
+            "org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBufferProvider";
+
     /**** --- KeyStore TLS config variables --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

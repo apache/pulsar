@@ -91,9 +91,11 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -156,9 +158,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
-    private volatile long delayedDeliveryTickTimeMillis = 1000;
+    public volatile long delayedDeliveryTickTimeMillis = 1000;
     private final long backloggedCursorThresholdEntries;
-    private volatile boolean delayedDeliveryEnabled = false;
+    public volatile boolean delayedDeliveryEnabled = false;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     protected final MessageDeduplication messageDeduplication;
@@ -2224,6 +2226,78 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void unfenceTopicToResume() {
         isFenced = false;
         isClosingOrDeleting = false;
+    }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
+        if (transactionBuffer == null && createIfMissing) {
+            transactionBufferLock.lock();
+            try {
+                if (transactionBuffer == null) {
+                    transactionBuffer = brokerService.getPulsar().getTransactionBufferProvider()
+                            .newTransactionBuffer(this);
+                }
+            } finally {
+                transactionBufferLock.unlock();
+            }
+        }
+        return transactionBuffer;
+    }
+
+    @Override
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+        pendingWriteOps.incrementAndGet();
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status) {
+            case NotDup:
+                getTransactionBuffer(true)
+                        .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
+                                txnID, publishContext.getSequenceId(), headersAndPayload))
+                        .thenAccept(position -> {
+                            decrementPendingWriteOpsAndCheck();
+                            publishContext.completed(null,
+                                    ((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId());
+                        })
+                        .exceptionally(throwable -> {
+                            decrementPendingWriteOpsAndCheck();
+                            publishContext.completed(new Exception(throwable), -1, -1);
+                            return null;
+                        });
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        getTransactionBuffer(false).thenAccept(tb -> {
+            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
+                if (throwable != null) {
+                    completableFuture.completeExceptionally(throwable);
+                    return;
+                }
+                completableFuture.complete(null);
+            });
+        }).exceptionally(tbThrowable -> {
+            completableFuture.completeExceptionally(tbThrowable);
+            return null;
+        });
+        return completableFuture;
     }
 
     public long getDelayedDeliveryTickTimeMillis() {
