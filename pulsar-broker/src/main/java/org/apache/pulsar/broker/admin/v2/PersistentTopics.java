@@ -263,7 +263,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
                     , topicPolicies.getDelayedDeliveryEnabled());
         }
-        return new DelayedDeliveryPolicies(config().getDelayedDeliveryTickTimeMillis(), config().isDelayedDeliveryEnabled());
+        return null;
     }
 
     @POST

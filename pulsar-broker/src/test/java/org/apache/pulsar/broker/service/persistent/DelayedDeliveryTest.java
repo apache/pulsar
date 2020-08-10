@@ -341,14 +341,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
 
         admin.topics().createPartitionedTopic(topicName, 3);
-        assertEquals(admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime(), 1024);
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
 
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime() == 2000) {
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
                 break;
             }
         }
@@ -360,11 +360,11 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime() == 1024) {
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
                 break;
             }
         }
-        assertEquals(admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime(), 1024);
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
     }
 
     @Test(timeOut = 20000)
@@ -379,14 +379,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
 
         admin.topics().createPartitionedTopic(topicName, 3);
-        assertEquals(admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime(), 1024);
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime() == 2000) {
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
                 break;
             }
         }
@@ -457,7 +457,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime() == 1024) {
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
                 break;
             }
         }

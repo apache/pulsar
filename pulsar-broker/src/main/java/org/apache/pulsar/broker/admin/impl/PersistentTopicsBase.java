@@ -585,6 +585,7 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.error("Topic {} policies cache have not init.", topicName);
             asyncResponse.resume(new RestException(e));
+            return;
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
