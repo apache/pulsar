@@ -92,6 +92,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
 

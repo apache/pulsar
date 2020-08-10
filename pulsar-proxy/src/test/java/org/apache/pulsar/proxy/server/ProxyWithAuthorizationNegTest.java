@@ -100,6 +100,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("proxy-authorization-neg");
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
 
