@@ -18,31 +18,45 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
+/**
+ * Used to read transaction messages for dispatcher.
+ */
 @Slf4j
 public class TransactionReader {
 
-    private TransactionBuffer transactionBuffer;
+    private final AbstractBaseDispatcher dispatcher;
+    private volatile TransactionBuffer transactionBuffer;
     private volatile long startSequenceId = 0;
+    private volatile CompletableFuture<TransactionBufferReader> transactionBufferReader;
 
-    public void read(Topic topic, ConcurrentLinkedQueue<TxnID> transactionQueue,
-                     int readMessageNum, Object ctx,
-                     AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+    public TransactionReader(AbstractBaseDispatcher abstractBaseDispatcher) {
+        this.dispatcher = abstractBaseDispatcher;
+    }
+
+    /**
+     * Get ${@link TransactionBuffer} lazily and read transaction messages.
+     *
+     * @param readMessageNum messages num to read
+     * @param ctx context object
+     * @param readEntriesCallback ReadEntriesCallback
+     */
+    public void read(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
         if (transactionBuffer == null) {
-            topic.getTransactionBuffer(false).whenComplete((tb, throwable) -> {
+            dispatcher.getSubscription().getTopic()
+                    .getTransactionBuffer(false).whenComplete((tb, throwable) -> {
                 if (throwable != null) {
                     log.error("Get transactionBuffer failed.", throwable);
                     readEntriesCallback.readEntriesFailed(
@@ -50,18 +64,26 @@ public class TransactionReader {
                     return;
                 }
                 transactionBuffer = tb;
-                read(transactionQueue, readMessageNum, ctx, readEntriesCallback);
+                internalRead(readMessageNum, ctx, readEntriesCallback);
             });
         } else {
-            read(transactionQueue, readMessageNum, ctx, readEntriesCallback);
+            internalRead(readMessageNum, ctx, readEntriesCallback);
         }
     }
 
-    private void read(ConcurrentLinkedQueue<TxnID> transactionQueue,
-                     int readMessageNum, Object ctx,
-                     AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        final TxnID txnID = transactionQueue.peek();
-        transactionBuffer.openTransactionBufferReader(txnID, startSequenceId).thenAccept(reader -> {
+    /**
+     * Read specify number transaction messages by ${@link TransactionBufferReader}.
+     *
+     * @param readMessageNum messages num to read
+     * @param ctx context object
+     * @param readEntriesCallback ReadEntriesCallback
+     */
+    private void internalRead(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+        final TxnID txnID = dispatcher.getPendingTxnQueue().peek();
+        if (transactionBufferReader == null) {
+            transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, startSequenceId);
+        }
+        transactionBufferReader.thenAccept(reader -> {
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
                 if (throwable != null) {
                     log.error("Read transaction messages failed.", throwable);
@@ -71,7 +93,8 @@ public class TransactionReader {
                 }
                 if (transactionEntries == null || transactionEntries.size() < readMessageNum) {
                     startSequenceId = 0;
-                    transactionQueue.remove(txnID);
+                    dispatcher.getPendingTxnQueue().remove(txnID);
+                    transactionBufferReader = null;
                     reader.close();
                 }
                 List<Entry> entryList = new ArrayList<>(transactionEntries.size());

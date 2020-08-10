@@ -175,4 +175,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     public boolean havePendingTxnToRead() {
         return pendingTxnQueue.size() > 0;
     }
+
+    public Subscription getSubscription() {
+        return this.subscription;
+    }
+
+    public ConcurrentLinkedQueue<TxnID> getPendingTxnQueue() {
+        return this.pendingTxnQueue;
+    }
 }
