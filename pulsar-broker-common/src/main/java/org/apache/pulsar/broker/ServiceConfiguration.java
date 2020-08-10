@@ -187,7 +187,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " update managedLedgerConfig, update topic/subscription/replicator message dispatch rate,"
             + " do leader election etc. Default is set to 20 "
     )
-    private int numExecutorThreadPoolSize = 20;
+    private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
