@@ -83,6 +83,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("admin.cert"), getTLSFile("admin.key-pk8")));
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setBrokerClientTlsEnabled(true);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.internalSetup();
 

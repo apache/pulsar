@@ -122,6 +122,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationParameters(mapToString(authParams));
         conf.setBrokerClientTlsTrustStore(BROKER_TRUSTSTORE_FILE_PATH);
         conf.setBrokerClientTlsTrustStorePassword(BROKER_TRUSTSTORE_PW);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
     }
