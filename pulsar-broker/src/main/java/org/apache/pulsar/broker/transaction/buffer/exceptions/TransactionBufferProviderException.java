@@ -16,25 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
-
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
 /**
- * A provider that provides in-memory implementations of {@link TransactionBuffer}.
+ * Transaction buffer provider exception.
  */
-public class InMemTransactionBufferProvider implements TransactionBufferProvider {
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        return CompletableFuture.completedFuture(new InMemTransactionBuffer());
+public class TransactionBufferProviderException extends TransactionBufferException {
+
+    public TransactionBufferProviderException(String message) {
+        super(message);
     }
 
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
-        return null;
-    }
 }
