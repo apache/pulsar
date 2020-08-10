@@ -869,6 +869,7 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleEndTxnOnPartitionResponse(PulsarApi.CommandEndTxnOnPartitionResponse command) {
+        log.info("handleEndTxnOnPartitionResponse");
         TransactionBufferHandler handler = checkAndGetTransactionBufferHandler();
         if (handler != null) {
             handler.handleEndTxnOnTopicResponse(command.getRequestId(), command);

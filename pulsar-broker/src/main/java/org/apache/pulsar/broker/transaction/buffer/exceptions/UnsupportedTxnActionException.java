@@ -16,25 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.impl;
+package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
-import java.util.concurrent.CompletableFuture;
-
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
- * A provider that provides in-memory implementations of {@link TransactionBuffer}.
+ * Exceptions are thrown when txnAction is unsupported.
  */
-public class InMemTransactionBufferProvider implements TransactionBufferProvider {
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer() {
-        return CompletableFuture.completedFuture(new InMemTransactionBuffer());
-    }
+public class UnsupportedTxnActionException extends TransactionBufferException {
 
-    @Override
-    public CompletableFuture<TransactionBuffer> newTransactionBuffer(Topic originTopic) {
-        return null;
+    private static final long serialVersionUID = 0L;
+
+    public UnsupportedTxnActionException(TxnID txnId, int txnAction) {
+        super("Transaction `" + txnId + "` receive unsupported txnAction " + PulsarApi.TxnAction.valueOf(txnAction));
     }
 }
