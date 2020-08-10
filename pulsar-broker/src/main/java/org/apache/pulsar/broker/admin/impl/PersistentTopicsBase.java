@@ -2174,8 +2174,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalSetRetention(AsyncResponse asyncResponse,
-            RetentionPolicies retention) {
+    protected CompletableFuture<Void> internalSetRetention(RetentionPolicies retention) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
@@ -2183,7 +2182,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
         checkTopicLevelPolicyEnable();
         if (retention == null) {
-            asyncResponse.resume(Response.noContent().build());
+            return CompletableFuture.completedFuture(null);
         }
         TopicPolicies topicPolicies = getTopicPolicies(topicName)
                 .orElseGet(TopicPolicies::new);
@@ -2197,31 +2196,15 @@ public class PersistentTopicsBase extends AdminResource {
             log.warn(
                     "[{}] Failed to update retention quota configuration for topic {}: conflicts with retention quota",
                     clientAppId(), topicName);
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+            throw new RestException(Status.PRECONDITION_FAILED,
                     "Retention Quota must exceed configured backlog quota for topic. " +
-                            "Please increase retention quota and retry"));
-            return;
+                            "Please increase retention quota and retry");
         }
         topicPolicies.setRetentionPolicies(retention);
-        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                .whenComplete((r, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed updated retention",ex);
-                        asyncResponse.resume(new RestException(ex));
-                    } else {
-                        try {
-                            log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
-                                    clientAppId(),
-                                    namespaceName,
-                                    topicName.getLocalName(),
-                                    jsonMapper().writeValueAsString(retention));
-                        } catch (JsonProcessingException ignore) { }
-                        asyncResponse.resume(Response.noContent().build());
-                    }
-                });
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
-    protected void internalRemoveRetention(AsyncResponse asyncResponse) {
+    protected CompletableFuture<Void> internalRemoveRetention() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
@@ -2230,23 +2213,10 @@ public class PersistentTopicsBase extends AdminResource {
         checkTopicLevelPolicyEnable();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         topicPolicies.get().setRetentionPolicies(null);
-        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get())
-                .whenComplete((r, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed updated retention",ex);
-                        asyncResponse.resume(new RestException(ex));
-                    } else {
-                        log.info("[{}] Successfully remove retention: namespace={}, topic={}",
-                                clientAppId(),
-                                namespaceName,
-                                topicName.getLocalName());
-                        asyncResponse.resume(Response.noContent().build());
-                    }
-                });
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
     protected MessageId internalTerminate(boolean authoritative) {

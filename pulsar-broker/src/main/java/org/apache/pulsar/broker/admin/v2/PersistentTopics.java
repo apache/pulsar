@@ -39,6 +39,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Maps;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
@@ -1115,13 +1116,24 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
-        try {
-            internalSetRetention(asyncResponse, retention);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalSetRetention(retention).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(ex);
+            }else if (ex != null) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                try {
+                    log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
+                            clientAppId(),
+                            namespaceName,
+                            topicName.getLocalName(),
+                            jsonMapper().writeValueAsString(retention));
+                } catch (JsonProcessingException ignore) { }
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
     }
 
     @DELETE
@@ -1137,13 +1149,18 @@ public class PersistentTopics extends PersistentTopicsBase {
                              @PathParam("namespace") String namespace,
                              @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
-        try {
-            internalRemoveRetention(asyncResponse);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        internalRemoveRetention().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove retention: namespace={}, topic={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
     }
 
     @POST
