@@ -203,6 +203,9 @@ public class FunctionConfigUtils {
             if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
+            if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(functionConfig.getProducerConfig().getUseThreadLocalProducers());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
         functionDetailsBuilder.setSink(sinkSpecBuilder);
@@ -358,6 +361,7 @@ public class FunctionConfigUtils {
             if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
                 producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
             }
+            producerConfig.setUseThreadLocalProducers(functionDetails.getSink().getProducerSpec().getUseThreadLocalProducers());
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
