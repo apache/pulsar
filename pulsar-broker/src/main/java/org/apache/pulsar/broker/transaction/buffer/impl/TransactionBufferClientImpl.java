@@ -44,7 +44,6 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         TransactionBufferHandler handler = new TransactionBufferHandlerImpl(connectionPool, namespaceService);
         return new TransactionBufferClientImpl(handler);
     }
-
     @Override
     public CompletableFuture<TxnID> commitTxnOnTopic(String topic, long txnIdMostBits, long txnIdLeastBits) {
         return tbHandler.endTxnOnTopic(topic, txnIdMostBits, txnIdLeastBits, PulsarApi.TxnAction.COMMIT);

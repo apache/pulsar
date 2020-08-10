@@ -143,6 +143,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler, T
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             }
+            log.info("[{}] Got end txn on topic response for for request {}", op.topic, response.getRequestId());
             op.cb.complete(new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits()));
         } else {
             log.error("[{}] Got end txn on topic response for request {} error {}", op.topic, response.getRequestId(), response.getError());
