@@ -205,16 +205,16 @@ public class CmdConsume {
                 builder.topic(topic);
             }
 
-            ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer().topic(topic);
             if (this.maxPendingChuckedMessage > 0) {
-                consumerBuilder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
             }
             if (this.receiverQueueSize > 0) {
-                consumerBuilder.maxPendingChuckedMessage(this.receiverQueueSize);
+                builder.receiverQueueSize(this.receiverQueueSize);
             }
-            Consumer<byte[]> consumer = consumerBuilder.subscriptionName(this.subscriptionName)
-                    .autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull)
-                    .subscriptionType(subscriptionType).subscribe();
+
+            builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
+
+            Consumer<byte[]> consumer = builder.subscribe();
 
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
