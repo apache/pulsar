@@ -172,6 +172,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("proxy-authorization");
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.init();
 

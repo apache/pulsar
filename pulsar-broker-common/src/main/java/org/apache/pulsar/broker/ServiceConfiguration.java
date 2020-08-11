@@ -171,6 +171,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of threads to use for orderedExecutor."
+            + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"
+            + " get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"
+    )
+    private int numOrderedExecutorThreads = 8;
+
+    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
@@ -179,6 +187,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // having the possibility of getting into a deadlock where a Jetty thread is
     // waiting for another HTTP call to complete in same thread.
     private int numHttpServerThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of threads to use for pulsar broker service."
+            + " The executor in thread pool will do basic broker operation like load/unload bundle,"
+            + " update managedLedgerConfig, update topic/subscription/replicator message dispatch rate,"
+            + " do leader election etc. Default is set to 20 "
+    )
+    private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;

@@ -39,8 +39,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TopicBacklogQuotaTest.class);
-
     private final String testTenant = "my-tenant";
 
     private final String testNamespace = "my-namespace";
