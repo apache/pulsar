@@ -311,7 +311,7 @@ It shows detailed statistics of a topic.
 |readPosition|The latest position of subscriber for reading message|
 |waitingReadOp|This is true when the subscription has read the latest message published to the topic and is waiting on new messages to be published.|
 |pendingReadOps|The counter for how many outstanding read requests to the BookKeepers we have in progress|
-|messagesConsumedCounter|Number of messages this cursor has asked since this broker loaded this topic|
+|messagesConsumedCounter|Number of messages this cursor has acked since this broker loaded this topic|
 |cursorLedger|The ledger being used to persistently store the current markDeletePosition|
 |cursorLedgerLastEntry|The last entryid used to persistently store the current markDeletePosition|
 |individuallyDeletedMessages|If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position|
