@@ -252,7 +252,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Get delayed delivery messages config on a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or policies doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"),})
     public DelayedDeliveryPolicies getDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
                                                               @PathParam("namespace") String namespace,
@@ -263,7 +263,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
                     , topicPolicies.getDelayedDeliveryEnabled());
         }
-        return null;
+        throw new RestException(Response.Status.NOT_FOUND, "DelayedDeliveryPolicies does not exist");
     }
 
     @POST

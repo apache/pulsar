@@ -23,6 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -36,6 +37,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -45,6 +47,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -341,16 +344,25 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
 
         admin.topics().createPartitionedTopic(topicName, 3);
-        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+        try {
+            admin.topics().getDelayedDeliveryPolicy(topicName);
+            fail("should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 404);
+        }
 
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
-                break;
+            try {
+                admin.topics().getDelayedDeliveryPolicy(topicName);
+            } catch (PulsarAdminException e) {
+                Assert.assertEquals(e.getStatusCode(), 404);
+                continue;
             }
+            break;
         }
 
         assertFalse(admin.topics().getDelayedDeliveryPolicy(topicName).isActive());
@@ -360,11 +372,19 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
+            try {
+                admin.topics().getDelayedDeliveryPolicy(topicName);
+            } catch (PulsarAdminException e) {
+                Assert.assertEquals(e.getStatusCode(), 404);
                 break;
             }
         }
-        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+        try {
+            admin.topics().getDelayedDeliveryPolicy(topicName);
+            fail("should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 404);
+        }
     }
 
     @Test(timeOut = 20000)
@@ -379,16 +399,24 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
 
         admin.topics().createPartitionedTopic(topicName, 3);
-        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+        try {
+            admin.topics().getDelayedDeliveryPolicy(topicName);
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
         //1 Set topic policy
         DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);
         admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
-                break;
+            try {
+                admin.topics().getDelayedDeliveryPolicy(topicName);
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 404);
+                continue;
             }
+            break;
         }
         //2 Setup consumer and producer
         @Cleanup
@@ -457,7 +485,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         //wait for update
         for (int i = 0; i < 50; i++) {
             Thread.sleep(100);
-            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
+            try {
+                admin.topics().getDelayedDeliveryPolicy(topicName);
+            } catch (PulsarAdminException e) {
                 break;
             }
         }
