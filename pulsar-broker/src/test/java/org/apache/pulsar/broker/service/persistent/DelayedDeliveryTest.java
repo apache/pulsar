@@ -59,10 +59,6 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         conf.setDelayedDeliveryTickTimeMillis(1024);
         super.internalSetup();
         super.producerBaseSetup();
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
-        admin.tenants().createTenant("delayed-delivery-messages", tenantInfo);
-        //It takes time to wait for the completion of the asynchronous initialization, otherwise there will be internal errors
-        Thread.sleep(3000);
     }
 
     @Override
@@ -333,14 +329,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
-        String topicName = "persistent://delayed-delivery-messages/default-ns/topic-" + UUID.randomUUID().toString();
-        String namespace = "delayed-delivery-messages/default-ns";
-        try {
-            admin.namespaces().createNamespace(namespace);
-        } catch (Exception e) {
-            //no-oop
-        }
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
@@ -370,14 +359,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testEnableTopicDelayedDelivery() throws Exception {
-        final String topicName = "persistent://delayed-delivery-messages/default-ns/test" + UUID.randomUUID().toString();
-        final String namespace = "delayed-delivery-messages/default-ns";
-        try {
-            admin.namespaces().createNamespace(namespace);
-        } catch (Exception e) {
-            //no-oop
-        }
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newLinkedHashSet(Lists.newArrayList("test")));
+        final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
         admin.topics().createPartitionedTopic(topicName, 3);
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
