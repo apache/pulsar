@@ -39,7 +39,6 @@ public class TransactionEntryImplTest {
         TransactionEntryImpl entry = new TransactionEntryImpl(
             new TxnID(1234L, 3456L),
             0L,
-            buffer,
             EntryImpl.create(12L, 23L, buffer),
             33L,
             44L

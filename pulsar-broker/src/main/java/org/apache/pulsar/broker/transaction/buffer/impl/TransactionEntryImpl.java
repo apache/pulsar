@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
@@ -32,18 +33,15 @@ public class TransactionEntryImpl implements TransactionEntry {
     private final long sequenceId;
     private final long committedAtLedgerId;
     private final long committedAtEntryId;
-    private final ByteBuf entryBuf;
     private final Entry entry;
 
     public TransactionEntryImpl(TxnID txnId,
                          long sequenceId,
-                         ByteBuf entryBuf,
                          Entry entry,
                          long committedAtLedgerId,
                          long committedAtEntryId) {
         this.txnId = txnId;
         this.sequenceId = sequenceId;
-        this.entryBuf = entryBuf;
         this.entry = entry;
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
@@ -70,20 +68,12 @@ public class TransactionEntryImpl implements TransactionEntry {
     }
 
     @Override
-    public ByteBuf getEntryBuffer() {
-        return entryBuf;
-    }
-
-    @Override
     public Entry getEntry() {
         return entry;
     }
 
     @Override
     public void close() {
-        if (null != entryBuf) {
-            entryBuf.release();
-        }
         if (null != entry) {
             entry.release();
         }

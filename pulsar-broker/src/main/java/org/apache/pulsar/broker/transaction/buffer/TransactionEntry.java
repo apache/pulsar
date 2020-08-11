@@ -59,12 +59,10 @@ public interface TransactionEntry extends AutoCloseable {
     long committedAtEntryId();
 
     /**
-     * Returns the entry buffer.
+     * Returns the entry saved in {@link TransactionBuffer}.
      *
-     * @return the entry buffer.
+     * @return the {@link Entry}
      */
-    ByteBuf getEntryBuffer();
-
     Entry getEntry();
 
     /**
