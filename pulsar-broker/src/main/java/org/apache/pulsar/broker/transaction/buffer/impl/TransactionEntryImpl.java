@@ -75,6 +75,7 @@ public class TransactionEntryImpl implements TransactionEntry {
     @Override
     public void close() {
         if (null != entry) {
+            entry.getDataBuffer().release();
             entry.release();
         }
     }
