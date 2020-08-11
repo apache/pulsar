@@ -254,18 +254,20 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
     @ApiOperation(value = "Get delayed delivery messages config on a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic or policies doesn't exist"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
             @ApiResponse(code = 500, message = "Internal server error"),})
-    public DelayedDeliveryPolicies getDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
-                                                              @PathParam("namespace") String namespace,
-                                                              @PathParam("topic") @Encoded String encodedTopic) {
+    public void getDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
         if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
-            return new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
-                    , topicPolicies.getDelayedDeliveryEnabled());
+            asyncResponse.resume(new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
+                    , topicPolicies.getDelayedDeliveryEnabled()));
+        } else {
+            asyncResponse.resume(Response.noContent().build());
         }
-        throw new RestException(Response.Status.NOT_FOUND, "DelayedDeliveryPolicies does not exist");
     }
 
     @POST
