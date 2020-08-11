@@ -63,7 +63,9 @@ void ReaderImpl::start(const MessageId& startMessageId) {
 const std::string& ReaderImpl::getTopic() const { return consumer_->getTopic(); }
 
 void ReaderImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumer) {
-    readerCreatedCallback_(result, Reader(shared_from_this()));
+    auto self = shared_from_this();
+    readerCreatedCallback_(result, Reader(self));
+    readerImplWeakPtr_ = self;
 }
 
 ConsumerImplPtr ReaderImpl::getConsumer() { return consumer_; }
@@ -98,10 +100,7 @@ void ReaderImpl::acknowledgeIfNecessary(Result result, const Message& msg) {
     }
 }
 
-void ReaderImpl::closeAsync(ResultCallback callback) {
-    consumer_->closeAsync(callback);
-    consumer_.reset();
-}
+void ReaderImpl::closeAsync(ResultCallback callback) { consumer_->closeAsync(callback); }
 
 void ReaderImpl::hasMessageAvailableAsync(HasMessageAvailableCallback callback) {
     consumer_->hasMessageAvailableAsync(callback);
@@ -113,5 +112,7 @@ void ReaderImpl::seekAsync(const MessageId& msgId, ResultCallback callback) {
 void ReaderImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     consumer_->seekAsync(timestamp, callback);
 }
+
+ReaderImplWeakPtr ReaderImpl::getReaderImplWeakPtr() { return readerImplWeakPtr_; }
 
 }  // namespace pulsar

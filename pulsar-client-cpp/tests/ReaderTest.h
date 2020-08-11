@@ -25,5 +25,8 @@ namespace pulsar {
 class ReaderTest {
    public:
     static ConsumerImplPtr getConsumer(const Reader& reader) { return reader.impl_->getConsumer(); }
+    static ReaderImplWeakPtr getReaderImplWeakPtr(const Reader& reader) {
+        return reader.impl_->getReaderImplWeakPtr();
+    }
 };
 }  // namespace pulsar
