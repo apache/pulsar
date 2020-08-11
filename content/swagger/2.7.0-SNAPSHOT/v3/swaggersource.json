@@ -1006,6 +1006,9 @@
                 "maxPendingMessagesAcrossPartitions": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "useThreadLocalProducers": {
+                    "type": "boolean"
                 }
             }
         },

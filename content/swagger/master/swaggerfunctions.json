@@ -1405,22 +1405,14 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "replicatedFrom" : {
-          "type" : "string"
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
         "topicName" : {
           "type" : "string"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "producerName" : {
+          "type" : "string"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
+        "replicatedFrom" : {
+          "type" : "string"
         },
         "schemaVersion" : {
           "type" : "array",
@@ -1428,6 +1420,13 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
         },
         "encryptionCtx" : {
           "$ref" : "#/definitions/EncryptionContext"
@@ -1439,11 +1438,12 @@
             "format" : "byte"
           }
         },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
         "replicated" : {
           "type" : "boolean"
-        },
-        "producerName" : {
-          "type" : "string"
         },
         "keyBytes" : {
           "type" : "array",
@@ -1486,6 +1486,9 @@
         "maxPendingMessagesAcrossPartitions" : {
           "type" : "integer",
           "format" : "int32"
+        },
+        "useThreadLocalProducers" : {
+          "type" : "boolean"
         }
       }
     },
