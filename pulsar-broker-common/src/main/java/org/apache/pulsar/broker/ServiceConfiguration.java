@@ -189,6 +189,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
+            + "The cache executor thread pool is used for restarting global zookeeper session. "
+            + "Default is 10"
+    )
+    private int numCacheExecutorThreadPoolSize = 10;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
