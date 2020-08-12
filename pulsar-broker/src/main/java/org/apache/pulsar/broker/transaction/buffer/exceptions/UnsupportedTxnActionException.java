@@ -16,24 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 
 /**
- * Configuration of the producer inside the function.
+ * Exceptions are thrown when txnAction is unsupported.
  */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ProducerConfig {
-    private Integer maxPendingMessages;
-    private Integer maxPendingMessagesAcrossPartitions;
-    private Boolean useThreadLocalProducers;
+public class UnsupportedTxnActionException extends TransactionBufferException {
+
+    private static final long serialVersionUID = 0L;
+
+    public UnsupportedTxnActionException(TxnID txnId, int txnAction) {
+        super("Transaction `" + txnId + "` receive unsupported txnAction " + PulsarApi.TxnAction.valueOf(txnAction));
+    }
 }

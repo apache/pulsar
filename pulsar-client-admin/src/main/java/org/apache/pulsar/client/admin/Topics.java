@@ -35,9 +35,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
@@ -1435,6 +1437,53 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+     * Get the delayed delivery policy for a specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Set the delayed delivery policy for a specified topic.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @throws PulsarAdminException
+     */
+    void setDelayedDeliveryPolicy(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @return
+     */
+    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
      * Set message TTL for a topic.
      *
      * @param topic
@@ -1476,6 +1525,144 @@ public interface Topics {
      *             Unexpected error
      */
     void removeMessageTTL(String topic) throws PulsarAdminException;
+
+    /**
+     * Set the retention configuration on a topic.
+     * <p/>
+     * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setRetention(String topic, RetentionPolicies retention) throws PulsarAdminException;
+
+    /**
+     * Set the retention configuration for all the topics on a topic asynchronously.
+     * <p/>
+     * Set the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> setRetentionAsync(String topic, RetentionPolicies retention);
+
+    /**
+     * Get the retention configuration for a topic.
+     * <p/>
+     * Get the retention configuration for a topic.
+     * <p/>
+     * Response example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    RetentionPolicies getRetention(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the retention configuration for a topic asynchronously.
+     * <p/>
+     * Get the retention configuration for a topic.
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<RetentionPolicies> getRetentionAsync(String topic);
+
+    /**
+     * Remove the retention configuration for all the topics on a topic.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic does not exist
+     * @throws ConflictException
+     *             Concurrent modification
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeRetention(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the retention configuration for all the topics on a topic asynchronously.
+     * <p/>
+     * Remove the retention configuration on a topic. This operation requires Pulsar super-user access.
+     * <p/>
+     * Request parameter example:
+     * <p/>
+     *
+     * <pre>
+     * <code>
+     * {
+     *     "retentionTimeInMinutes" : 60,            // how long to retain messages
+     *     "retentionSizeInMB" : 1024,              // retention backlog limit
+     * }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeRetentionAsync(String topic);
 
     /**
      * get max unacked messages on subscription of a topic.

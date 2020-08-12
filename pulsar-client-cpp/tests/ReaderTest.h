@@ -16,24 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.functions;
+#include "lib/ReaderImpl.h"
+#include <string>
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.NoArgsConstructor;
+using std::string;
 
-/**
- * Configuration of the producer inside the function.
- */
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-@EqualsAndHashCode
-public class ProducerConfig {
-    private Integer maxPendingMessages;
-    private Integer maxPendingMessagesAcrossPartitions;
-    private Boolean useThreadLocalProducers;
-}
+namespace pulsar {
+class ReaderTest {
+   public:
+    static ConsumerImplPtr getConsumer(const Reader& reader) { return reader.impl_->getConsumer(); }
+    static ReaderImplWeakPtr getReaderImplWeakPtr(const Reader& reader) {
+        return reader.impl_->getReaderImplWeakPtr();
+    }
+};
+}  // namespace pulsar

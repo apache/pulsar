@@ -104,6 +104,7 @@ message ConsumerSpec {
 message ProducerSpec {
     int32 maxPendingMessages = 1;
     int32 maxPendingMessagesAcrossPartitions = 2;
+    bool useThreadLocalProducers = 3;
 }
 
 message SourceSpec {
