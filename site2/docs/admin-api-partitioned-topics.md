@@ -201,7 +201,7 @@ admin.persistentTopics().getList(namespace);
 
 ### Stats
 
-It shows the current statistics of a given partitioned topic. Here's an example payload:
+It shows the current statistics of a given partitioned topic. Here is an example payload:
 
 ```json
 {
