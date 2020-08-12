@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -1434,6 +1435,53 @@ public interface Topics {
      *             Unexpected error
      */
     void removeBacklogQuota(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy for a specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Set the delayed delivery policy for a specified topic.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @throws PulsarAdminException
+     */
+    void setDelayedDeliveryPolicy(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @return
+     */
+    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
 
     /**
      * Set message TTL for a topic.
