@@ -76,8 +76,11 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                              final @PathParam("namespace") String namespace,
                              @ApiParam(value = "The name of a Pulsar Sink")
                              final @PathParam("sinkName") String sinkName,
+                             @ApiParam(value = "The path of uploaded Input Stream")
                              final @FormDataParam("data") InputStream uploadedInputStream,
+                             @ApiParam(value = "")
                              final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                             @ApiParam(value = "The URL of sink package")
                              final @FormDataParam("url") String sinkPkgUrl,
                              @ApiParam(
                                  value =
@@ -160,8 +163,11 @@ public class SinksBase extends AdminResource implements Supplier<WorkerService> 
                            final @PathParam("namespace") String namespace,
                            @ApiParam(value = "The name of a Pulsar Sink")
                            final @PathParam("sinkName") String sinkName,
+                           @ApiParam(value = "The path of uploaded Input Stream")
                            final @FormDataParam("data") InputStream uploadedInputStream,
+                           @ApiParam(value = "")
                            final @FormDataParam("data") FormDataContentDisposition fileDetail,
+                           @ApiParam(value = "The URL of sink package")
                            final @FormDataParam("url") String sinkPkgUrl,
                            @ApiParam(
                                value =
