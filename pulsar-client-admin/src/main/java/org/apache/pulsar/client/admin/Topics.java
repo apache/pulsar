@@ -1483,14 +1483,14 @@ public interface Topics {
      * @return
      * @throws PulsarAdminException
      */
-    Integer getMaxUnackedMessagesOnSubscriptionPolicy(String topic) throws PulsarAdminException;
+    Integer getMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
 
     /**
      * get max unacked messages on subscription of a topic asynchronously.
      * @param topic
      * @return
      */
-    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic);
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
 
     /**
      * set max unacked messages on subscription of a topic.
@@ -1498,7 +1498,7 @@ public interface Topics {
      * @param maxNum
      * @throws PulsarAdminException
      */
-    void setMaxUnackedMessagesOnSubscriptionPolicy(String topic, int maxNum) throws PulsarAdminException;
+    void setMaxUnackedMessagesOnSubscription(String topic, int maxNum) throws PulsarAdminException;
 
     /**
      * set max unacked messages on subscription of a topic asynchronously.
@@ -1506,19 +1506,19 @@ public interface Topics {
      * @param maxNum
      * @return
      */
-    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic, int maxNum);
+    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionAsync(String topic, int maxNum);
 
     /**
      * remove max unacked messages on subscription of a topic.
      * @param topic
      * @throws PulsarAdminException
      */
-    void removeMaxUnackedMessagesOnSubscriptionPolicy(String topic) throws PulsarAdminException;
+    void removeMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
 
     /**
      * remove max unacked messages on subscription of a topic asynchronously.
      * @param topic
      * @return
      */
-    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionPolicyAsync(String topic);
+    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
 }

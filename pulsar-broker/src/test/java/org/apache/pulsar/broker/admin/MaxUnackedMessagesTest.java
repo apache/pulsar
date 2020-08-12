@@ -70,25 +70,25 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     public void testMaxUnackedMessagesOnSubscriptionApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
-        Integer max = admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName);
+        Integer max = admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
         assertNull(max);
 
-        admin.topics().setMaxUnackedMessagesOnSubscriptionPolicy(topicName, 2048);
+        admin.topics().setMaxUnackedMessagesOnSubscription(topicName, 2048);
         for (int i = 0; i < 50; i++) {
-            if (admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName) != null) {
+            if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) != null) {
                 break;
             }
             Thread.sleep(100);
         }
-        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName).intValue(), 2048);
-        admin.topics().removeMaxUnackedMessagesOnSubscriptionPolicy(topicName);
+        assertEquals(admin.topics().getMaxUnackedMessagesOnSubscription(topicName).intValue(), 2048);
+        admin.topics().removeMaxUnackedMessagesOnSubscription(topicName);
         for (int i = 0; i < 50; i++) {
-            if (admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName) == null) {
+            if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) == null) {
                 break;
             }
             Thread.sleep(100);
         }
-        assertNull(admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName));
+        assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
     }
 
     // See https://github.com/apache/pulsar/issues/5438
@@ -108,9 +108,9 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
         List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
-        admin.topics().setMaxUnackedMessagesOnSubscriptionPolicy(topicName, unackMsgAllowed);
+        admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
         for (int i = 0; i < 50; i++) {
-            if (admin.topics().getMaxUnackedMessagesOnSubscriptionPolicy(topicName) != null) {
+            if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) != null) {
                 break;
             }
             Thread.sleep(100);
