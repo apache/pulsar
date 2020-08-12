@@ -1614,6 +1614,10 @@
         "Message": {
             "type": "object",
             "properties": {
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1622,31 +1626,27 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "topicName": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "schemaVersion": {
+                "topicName": {
+                    "type": "string"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1655,14 +1655,14 @@
                         "format": "byte"
                     }
                 },
-                "sequenceId": {
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
+                    "format": "int32"
                 },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "keyBytes": {
+                "schemaVersion": {
                     "type": "array",
                     "items": {
                         "type": "string",
