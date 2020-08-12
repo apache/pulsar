@@ -800,28 +800,19 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalSetMaxUnackedMessagesOnSubscription(AsyncResponse asyncResponse, Integer maxUnackedNum) {
+    protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {
         TopicPolicies topicPolicies = null;
         try {
             topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.error("Topic {} policies cache have not init.", topicName);
-            asyncResponse.resume(new RestException(e));
-            return;
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
         }
         if (topicPolicies == null) {
             topicPolicies = new TopicPolicies();
         }
         topicPolicies.setMaxUnackedMessagesOnSubscription(maxUnackedNum);
-        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
-                .whenComplete((result, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed set max unacked messages on subscription policy for topic", ex);
-                        asyncResponse.resume(new RestException(ex));
-                    } else {
-                        asyncResponse.resume(Response.noContent().build());
-                    }
-                });
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
     private void internalUnloadNonPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {

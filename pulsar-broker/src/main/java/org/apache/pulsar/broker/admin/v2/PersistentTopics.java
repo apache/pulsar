@@ -279,7 +279,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                     @PathParam("namespace") String namespace,
                                                     @PathParam("topic") @Encoded String encodedTopic,
                                                     @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
-                                                                        Integer maxUnackedNum) {
+                                                            Integer maxUnackedNum) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateAdminAccessForTenant(tenant);
         validatePoliciesReadOnlyAccess();
@@ -287,7 +287,17 @@ public class PersistentTopics extends PersistentTopicsBase {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        internalSetMaxUnackedMessagesOnSubscription(asyncResponse, maxUnackedNum);
+        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
     }
 
 

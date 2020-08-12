@@ -66,10 +66,11 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeOut = 10000)
     public void testMaxUnackedMessagesOnSubscriptionApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
         Integer max = admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
         assertNull(max);
 
@@ -108,6 +109,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
         List<Consumer<?>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+        waitCacheInit(topicName);
         admin.topics().setMaxUnackedMessagesOnSubscription(topicName, unackMsgAllowed);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) != null) {
@@ -184,5 +186,20 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
             } catch (PulsarClientException e) {
             }
         });
+    }
+
+    private void waitCacheInit(String topicName) throws Exception {
+        for (int i = 0; i < 50; i++) {
+            try {
+                admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
+                break;
+            } catch (Exception e) {
+                //ignore
+                Thread.sleep(100);
+            }
+            if (i == 49) {
+                throw new RuntimeException("Waiting for cache initialization has timed out");
+            }
+        }
     }
 }
