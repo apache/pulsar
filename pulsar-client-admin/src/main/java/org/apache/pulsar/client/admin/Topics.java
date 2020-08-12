@@ -1663,4 +1663,49 @@ public interface Topics {
      *            Topic name
      */
     CompletableFuture<Void> removeRetentionAsync(String topic);
+
+    /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * set max unacked messages on subscription of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnSubscription(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on subscription of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
 }

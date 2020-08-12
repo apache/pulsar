@@ -54,6 +54,11 @@ public class TopicPolicies {
     public boolean isDelayedDeliveryEnabledSet(){
         return delayedDeliveryEnabled != null;
     }
+    private Integer maxUnackedMessagesOnSubscription = null;
+
+    public boolean isMaxUnackedMessagesOnSubscriptionSet() {
+        return maxUnackedMessagesOnSubscription != null;
+    }
 
     public boolean isBacklogQuotaSet() {
         return !backLogQuotaMap.isEmpty();
