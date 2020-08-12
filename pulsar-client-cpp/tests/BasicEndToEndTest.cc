@@ -1822,6 +1822,19 @@ TEST(BasicEndToEndTest, testMultiTopicsConsumerTopicNameInvalid) {
     client.shutdown();
 }
 
+TEST(BasicEndToEndTest, testMultiTopicsConsumerConnectError) {
+    Client client("pulsar://invalid-hostname:6650");
+    std::vector<std::string> topicNames;
+    topicNames.push_back("topic-1");
+    topicNames.push_back("topic-2");
+
+    Consumer consumer;
+    Result res = client.subscribe(topicNames, "sub", consumer);
+    ASSERT_EQ(ResultConnectError, res);
+
+    client.shutdown();
+}
+
 TEST(BasicEndToEndTest, testMultiTopicsConsumerDifferentNamespace) {
     Client client(lookupUrl);
     std::vector<std::string> topicNames;

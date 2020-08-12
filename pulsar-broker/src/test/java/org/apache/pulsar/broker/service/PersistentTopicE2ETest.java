@@ -906,6 +906,101 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     @Test
+    public void testMessageExpiryWithTopicMessageTTL() throws Exception {
+        int namespaceMessageTTLSecs = 10;
+        int topicMessageTTLSecs = 2;
+        String namespaceName = "prop/expiry-check-2";
+
+        this.conf.setSystemTopicEnabled(true);
+        this.conf.setTopicLevelPoliciesEnabled(true);
+        setup();
+
+        admin.namespaces().createNamespace(namespaceName);
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceMessageTTL(namespaceName, namespaceMessageTTLSecs);
+
+        final String topicName = "persistent://prop/expiry-check-2/topic2";
+        final String subName = "sub1";
+        final int numMsgs = 10;
+
+        admin.topics().createNonPartitionedTopic(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+
+        // Set topic level message ttl.
+        Thread.sleep(3000);
+        admin.topics().setMessageTTL(topicName, topicMessageTTLSecs);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription subRef = topicRef.getSubscription(subName);
+
+        consumer.close();
+        assertFalse(subRef.getDispatcher().isConsumerConnected());
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        for (int i = 0; i < numMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        rolloverPerIntervalStats();
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(topicMessageTTLSecs));
+        runMessageExpiryCheck();
+
+        // 1. check all messages expired for this unconnected subscription
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
+        producer.close();
+
+        // Set topic level message ttl.
+        Thread.sleep(3000);
+        admin.topics().removeMessageTTL(topicName);
+
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+
+        topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        subRef = topicRef.getSubscription(subName);
+
+        consumer.close();
+        assertFalse(subRef.getDispatcher().isConsumerConnected());
+
+        producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        for (int i = 0; i < numMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(topicMessageTTLSecs));
+        rolloverPerIntervalStats();
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), numMsgs);
+
+        Thread.sleep(TimeUnit.SECONDS.toMillis(namespaceMessageTTLSecs - topicMessageTTLSecs));
+        runMessageExpiryCheck();
+
+        // 1. check all messages expired for this unconnected subscription
+        assertEquals(subRef.getNumberOfEntriesInBacklog(false), 0);
+
+        // clean-up
+        try {
+            producer.close();
+            consumer.close();
+            admin.topics().deleteSubscription(topicName, subName);
+            admin.topics().delete(topicName);
+            admin.namespaces().deleteNamespace(namespaceName);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 500);
+        }
+    }
+
+    @Test
     public void testMessageExpiryWithFewExpiredBacklog() throws Exception {
         int messageTTLSecs = 10;
         String namespaceName = "prop/expiry-check-1";

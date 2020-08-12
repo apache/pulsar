@@ -52,7 +52,7 @@ jobs:
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
+          args: site2 deployment .asf.yaml .ci ct.yaml
 
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
@@ -87,12 +87,12 @@ jobs:
 
       - name: run integration function
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
+        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=function
 
       - name: run integration source
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
+        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=source
 
       - name: run integraion sink
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink
+        run: ./build/retry.sh mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -DredirectTestOutputToFile=false -Dgroups=sink

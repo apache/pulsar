@@ -39,7 +39,6 @@
       </activation>
       <modules>
         <module>core</module>
-        <module>batch</module>
         <module>batch-discovery-triggerers</module>
         <module>batch-data-generator</module>
         <module>common</module>
@@ -75,7 +74,6 @@
       <id>core-modules</id>
       <modules>
         <module>core</module>
-        <module>batch</module>
         <module>batch-discovery-triggerers</module>
         <module>common</module>
         <module>twitter</module>

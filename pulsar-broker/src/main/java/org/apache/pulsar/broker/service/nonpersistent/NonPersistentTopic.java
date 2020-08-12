@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -61,14 +62,15 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -145,6 +147,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
             isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
+            if (policies.inactive_topic_policies != null) {
+                inactiveTopicPolicies = policies.inactive_topic_policies;
+            }
             setSchemaCompatibilityStrategy(policies);
 
             schemaValidationEnforced = policies.schema_validation_enforced;
@@ -420,7 +425,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
 
     /**
      * Close this topic - close all producers and subscriptions associated with this topic
-     * 
+     *
      * @param closeWithoutWaitingClientDisconnect
      *            don't wait for client disconnect and forcefully close managed-ledger
      * @return Completable future indicating completion of close operation
@@ -626,6 +631,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return replicators.get(remoteCluster);
     }
 
+    @Override
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics replStats, String namespace,
             boolean hydratePublishers) {
@@ -755,6 +761,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         topicStatsStream.endObject();
     }
 
+    @Override
     public NonPersistentTopicStats getStats(boolean getPreciseBacklog) {
 
         NonPersistentTopicStats stats = new NonPersistentTopicStats();
@@ -808,6 +815,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         return stats;
     }
 
+    @Override
     public PersistentTopicInternalStats getInternalStats() {
 
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
@@ -829,11 +837,12 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
     }
 
     @Override
-    public void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode) {
-        if (!deleteWhileInactive) {
+    public void checkGC() {
+        if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
             return;
         }
+        int maxInactiveDurationInSec = inactiveTopicPolicies.getMaxInactiveDurationSeconds();
         if (isActive()) {
             lastActive = System.nanoTime();
         } else {
@@ -895,6 +904,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             producer.checkEncryption();
         });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
+
+        if (data.inactive_topic_policies != null) {
+            this.inactiveTopicPolicies = data.inactive_topic_policies;
+        } else {
+            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
+        }
         return checkReplicationAndRetryOnFailure();
     }
 
@@ -950,5 +967,22 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 return addSchema(schema).thenCompose(schemaVersion -> CompletableFuture.completedFuture(null));
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation getTransactionBuffer in non-persistent topic."));
+    }
+
+    @Override
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+        throw new UnsupportedOperationException("PublishTxnMessage is not supported by non-persistent topic");
+    }
+
+    @Override
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+        return FutureUtil.failedFuture(
+                new Exception("Unsupported operation endTxn in non-persistent topic."));
     }
 }

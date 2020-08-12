@@ -340,7 +340,7 @@ public class MLTransactionMetadataStore
         });
     }
 
-    private static List<PulsarApi.Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
+    public static List<PulsarApi.Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
         List<PulsarApi.Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
         for (TxnSubscription tnxSubscription : tnxSubscriptions) {
             PulsarApi.Subscription subscription = PulsarApi.Subscription.newBuilder()
@@ -351,7 +351,7 @@ public class MLTransactionMetadataStore
         return subscriptions;
     }
 
-    private static List<TxnSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
+    public static List<TxnSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
         List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
         for (PulsarApi.Subscription subscription : subscriptions) {
             txnSubscriptions

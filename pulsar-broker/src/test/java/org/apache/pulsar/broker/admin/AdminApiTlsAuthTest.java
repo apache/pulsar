@@ -20,9 +20,10 @@ package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.ImmutableSet;
 
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Optional;
-import java.security.cert.X509Certificate;
+
 import javax.net.ssl.SSLContext;
 import javax.ws.rs.NotAuthorizedException;
 import javax.ws.rs.client.Client;
@@ -32,7 +33,7 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
+
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -81,6 +83,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("admin.cert"), getTLSFile("admin.key-pk8")));
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setBrokerClientTlsEnabled(true);
+        conf.setNumExecutorThreadPoolSize(5);
 
         super.internalSetup();
 

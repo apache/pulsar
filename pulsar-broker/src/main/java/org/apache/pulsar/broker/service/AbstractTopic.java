@@ -29,13 +29,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -63,8 +67,8 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
-    // When set to false, this inactive topic can not be deleted
-    protected boolean deleteWhileInactive;
+    // Inactive topic policies
+    protected InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies();
 
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
@@ -92,14 +96,18 @@ public abstract class AbstractTopic implements Topic {
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
 
+    protected CompletableFuture<TransactionBuffer> transactionBuffer;
+    protected ReentrantLock transactionBufferLock = new ReentrantLock();
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
-        this.deleteWhileInactive =
-                brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled();
+        this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled());
+        this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
+        this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
         Policies policies = null;
         try {
@@ -132,12 +140,14 @@ public abstract class AbstractTopic implements Topic {
         return false;
     }
 
+    @Override
     public void disableCnxAutoRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
         }
     }
 
+    @Override
     public void enableCnxAutoRead() {
         if (producers != null) {
             producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
@@ -466,12 +476,23 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public boolean isDeleteWhileInactive() {
-        return deleteWhileInactive;
+        return this.inactiveTopicPolicies.isDeleteWhileInactive();
     }
 
     public void setDeleteWhileInactive(boolean deleteWhileInactive) {
-        this.deleteWhileInactive = deleteWhileInactive;
+        this.inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
+
+    public InactiveTopicPolicies getInactiveTopicPolicies() {
+        return inactiveTopicPolicies;
+    }
+
+    public void resetInactiveTopicPolicies(InactiveTopicDeleteMode inactiveTopicDeleteMode
+            , int maxInactiveDurationSeconds, boolean deleteWhileInactive) {
+        inactiveTopicPolicies.setInactiveTopicDeleteMode(inactiveTopicDeleteMode);
+        inactiveTopicPolicies.setMaxInactiveDurationSeconds(maxInactiveDurationSeconds);
+        inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
+    }
 }

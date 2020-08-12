@@ -76,6 +76,8 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -406,6 +408,16 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
 
+        namespaces.run(split("set-inactive-topic-policies myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
+        verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1"
+                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,true));
+
+        namespaces.run(split("get-inactive-topic-policies myprop/clust/ns1"));
+        verify(mockNamespaces).getInactiveTopicPolicies("myprop/clust/ns1");
+
+        namespaces.run(split("remove-inactive-topic-policies myprop/clust/ns1"));
+        verify(mockNamespaces).removeInactiveTopicPolicies("myprop/clust/ns1");
+
         namespaces.run(split("clear-backlog myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBacklog("myprop/clust/ns1");
 
@@ -484,7 +496,7 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getDispatchRate("myprop/clust/ns1");
-        
+
         namespaces.run(split("set-publish-rate myprop/clust/ns1 -m 10 -b 20"));
         verify(mockNamespaces).setPublishRate("myprop/clust/ns1", new PublishRate(10, 20));
 
@@ -860,6 +872,34 @@ public class PulsarAdminToolTest {
 
         bookies.run(split("set-bookie-rack --group my-group --bookie my-bookie:3181 --rack rack-1 --hostname host-1"));
         verify(mockBookies).updateBookieRackInfo("my-bookie:3181", "my-group", new BookieInfo("rack-1", "host-1"));
+    }
+
+    @Test
+    public void requestTimeout() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        try {
+            tool.run("--request-timeout 1".split(" "));
+        } catch (Exception e) {
+            //Ok
+        }
+
+        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
+        adminBuilderField.setAccessible(true);
+        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        Field requestTimeoutField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeout");
+        requestTimeoutField.setAccessible(true);
+        int requestTimeout = (int) requestTimeoutField.get(builder);
+
+        Field requestTimeoutUnitField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeoutUnit");
+        requestTimeoutUnitField.setAccessible(true);
+        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(builder);
+        assertEquals(1, requestTimeout);
+        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
     }
 
     @Test

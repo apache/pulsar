@@ -131,8 +131,8 @@ message MessageMetadata {
     optional int32 marker_type = 20;
 
     // transaction related message info
-    optional uint64 txnid_least_bits = 22 [default = 0];
-    optional uint64 txnid_most_bits = 23 [default = 0];
+    optional uint64 txnid_least_bits = 22;
+    optional uint64 txnid_most_bits = 23;
 
     /// Add highest sequence id to support batch message with external sequence id
     optional uint64 highest_sequence_id = 24 [default = 0];

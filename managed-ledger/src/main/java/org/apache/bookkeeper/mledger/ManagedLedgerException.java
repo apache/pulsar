@@ -149,6 +149,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class CursorNotFoundException extends ManagedLedgerException {
+        public CursorNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
     @Override
     public synchronized Throwable fillInStackTrace() {
         // Disable stack traces to be filled in

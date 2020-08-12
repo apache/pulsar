@@ -138,7 +138,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 1. Enter the `toolset` container.
 
     ```bash
-    kubectl exec -it -n pulsar pulsar-mini-toolset-0 /bin/bash
+    kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
     ```
 
 2. In the `toolset` container, create a tenant named `apache`.
