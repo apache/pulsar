@@ -1,5 +1,5 @@
 ---
-id: version-2.3.1-pulsar-admin
+id: version-2.2.1-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 original_id: pulsar-admin
@@ -36,10 +36,10 @@ $ pulsar-admin broker-stats subcommand
 
 Subcommands
 * `allocator-stats`
-* `topics(destinations)`
+* `destinations`
 * `mbeans`
 * `monitoring-metrics`
-* `load-report`
+* `topics`
 
 
 ### `allocator-stats`
@@ -51,13 +51,13 @@ Usage
 $ pulsar-admin broker-stats allocator-stats allocator-name
 ```
 
-### `topics(destinations)`
+### `desinations`
 
 Dump topic stats
 
 Usage
 ```bash
-$ pulsar-admin broker-stats topics options
+$ pulsar-admin broker-stats destinations options
 ```
 
 Options
@@ -95,14 +95,19 @@ Options
 |`-i`, `--indent`|Indent JSON output|false|
 
 
-### `load-report`
+### `topics`
 
-Dump broker load-report
+Dump topic stats
 
 Usage
 ```bash
-$ pulsar-admin broker-stats load-report
+$ pulsar-admin broker-stats topics options
 ```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`-i`, `--indent`|Indent JSON output|false|
 
 
 ## `brokers`
@@ -120,8 +125,6 @@ Subcommands
 * `list-dynamic-config`
 * `get-all-dynamic-config`
 * `get-internal-config`
-* `get-runtime-config`
-* `healthcheck`
 
 ### `list`
 List active brokers of the cluster
@@ -184,22 +187,6 @@ Usage
 $ pulsar-admin brokers get-internal-config
 ```
 
-### `get-runtime-config`
-Get runtime configuration values
-
-Usage
-```bash
-$ pulsar-admin brokers get-runtime-config
-```
-
-### `healthcheck`
-Run a health check against the broker
-
-Usage
-```bash
-$ pulsar-admin brokers healthcheck
-```
-
 
 ## `clusters`
 Operations about clusters
@@ -216,12 +203,6 @@ Subcommands
 * `delete`
 * `list`
 * `update-peer-clusters`
-* `get-peer-clusters`
-* `get-failure-domain`
-* `create-failure-domain`
-* `update-failure-domain`
-* `delete-failure-domain`
-* `list-failure-domains`
 
 
 ### `get`
@@ -287,84 +268,8 @@ Update peer cluster names
 
 Usage
 ```bash
-$ pulsar-admin clusters update-peer-clusters cluster-name options
+$ pulsar-admin clusters update-peer-clusters peer-cluster-names
 ```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--peer-clusters`|Comma separated peer cluster names (Pass empty string "" to delete list)||
-
-### `get-peer-clusters`
-Get list of peer clusters
-
-Usage
-```bash
-$ pulsar-admin clusters get-peer-clusters
-```
-
-### `get-failure-domain`
-Get the configuration brokers of a failure domain
-
-Usage
-```bash
-$ pulsar-admin clusters get-failure-domain cluster-name options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
-
-### `create-failure-domain`
-Create a new failure domain for a cluster (updates it if already created)
-
-Usage
-```bash
-$ pulsar-admin clusters create-failure-domain cluster-name options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--broker-list`|Comma separated broker list||
-|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
-
-### `update-failure-domain`
-Update failure domain for a cluster (creates a new one if not exist)
-
-Usage
-```bash
-$ pulsar-admin clusters update-failure-domain cluster-name options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--broker-list`|Comma separated broker list||
-|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
-
-### `delete-failure-domain`
-Delete an existing failure domain
-
-Usage
-```bash
-$ pulsar-admin clusters delete-failure-domain cluster-name options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--domain-name`|The failure domain name, which is a logical domain under a Pulsar cluster||
-
-### `list-failure-domains`
-List the existing failure domains for a cluster
-
-Usage
-```bash
-$ pulsar-admin clusters list-failure-domains cluster-name
-```
-
 
 ## `functions`
 
@@ -425,7 +330,7 @@ Options
 |`--schema-type`|Schema Type to be used for storing output messages||
 |`--sliding-interval-count`|Number of messages after which the window ends||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar). This service URL must be added manually when the Pulsar Function runs locally.||
+|`--state-storage-service-url`|The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)||
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern||
 |`--user-config`|A user-supplied config value, set as a key/value pair. You can set multiple user config values.||
@@ -659,7 +564,8 @@ $ pulsar-admin namespaces subcommand
 
 Subcommands
 * `list`
-* `topics`
+* `list-cluster`
+* `destinations`
 * `policies`
 * `create`
 * `delete`
@@ -667,8 +573,6 @@ Subcommands
 * `permissions`
 * `grant-permission`
 * `revoke-permission`
-* `grant-subscription-permission`
-* `revoke-subscription-permission`
 * `set-clusters`
 * `get-clusters`
 * `get-backlog-quotas`
@@ -678,39 +582,15 @@ Subcommands
 * `set-persistence`
 * `get-message-ttl`
 * `set-message-ttl`
-* `get-anti-affinity-group`
-* `set-anti-affinity-group`
-* `get-anti-affinity-namespaces`
-* `delete-anti-affinity-group`
 * `get-retention`
 * `set-retention`
 * `unload`
-* `split-bundle`
-* `set-dispatch-rate`
-* `get-dispatch-rate`
-* `set-subscribe-rate`
-* `get-subscribe-rate`
-* `set-subscription-dispatch-rate`
-* `get-subscription-dispatch-rate`
 * `clear-backlog`
 * `unsubscribe`
-* `set-encryption-required`
-* `set-subscription-auth-mode`
-* `get-max-producers-per-topic`
-* `set-max-producers-per-topic`
-* `get-max-consumers-per-topic`
-* `set-max-consumers-per-topic`
-* `get-max-consumers-per-subscription`
-* `set-max-consumers-per-subscription`
 * `get-compaction-threshold`
 * `set-compaction-threshold`
 * `get-offload-threshold`
 * `set-offload-threshold`
-* `get-offload-deletion-lag`
-* `set-offload-deletion-lag`
-* `clear-offload-deletion-lag`
-* `get-schema-autoupdate-strategy`
-* `set-schema-autoupdate-strategy`
 
 
 ### `list`
@@ -721,20 +601,28 @@ Usage
 $ pulsar-admin namespaces list tenant-name
 ```
 
-### `topics`
-Get the list of topics for a namespace
+### `list-cluster`
+Get the namespaces for a tenant in the cluster
 
 Usage
 ```bash
-$ pulsar-admin namespaces topics tenant/namespace
+$ pulsar-admin namespaces list-cluster tenant/cluster
+```
+
+### `destinations`
+Get the destinations for a namespace
+
+Usage
+```bash
+$ pulsar-admin namespaces destinations tenant/cluster/namespace
 ```
 
 ### `policies`
-Get the configuration policies of a namespace
+Get the policies of a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces policies tenant/namespace
+$ pulsar-admin namespaces policies tenant/cluster/namespace
 ```
 
 ### `create`
@@ -742,22 +630,21 @@ Create a new namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces create tenant/namespace options
+$ pulsar-admin namespaces create tenant/cluster/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`-b`, `--bundles`|The number of bundles to activate|0|
-|`-c`, `--clusters`|List of clusters this namespace will be assigned||
+|`-b` , `--bundles`|The number of bundles to activate|0|
 
 
 ### `delete`
-Deletes a namespace. The namespace needs to be empty
+Deletes a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces delete tenant/namespace
+$ pulsar-admin namespaces delete tenant/cluster/namespace
 ```
 
 ### `set-deduplication`
@@ -765,7 +652,7 @@ Enable or disable message deduplication on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-deduplication tenant/namespace options
+$ pulsar-admin namespaces set-deduplication tenant/cluster/namespace options
 ```
 
 Options
@@ -780,7 +667,7 @@ Get the permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces permissions tenant/namespace
+$ pulsar-admin namespaces permissions tenant/cluster/namespace
 ```
 
 ### `grant-permission`
@@ -788,7 +675,7 @@ Grant permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces grant-permission tenant/namespace options
+$ pulsar-admin namespaces grant-permission tenant/cluster/namespace options
 ```
 
 Options
@@ -803,48 +690,21 @@ Revoke permissions on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces revoke-permission tenant/namespace options
+$ pulsar-admin namespaces revoke-permission tenant/cluster/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |---|---|---|
-|`--role`|The client role to which to revoke the permissions||
+|`--role`|The client role to which to grant the permissions||
 
-### `grant-subscription-permission`
-Grant permissions to access subscription admin-api
-
-Usage
-```bash
-$ pulsar-admin namespaces grant-subscription-permission tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--roles`|The client roles to which to grant the permissions (comma separated roles)||
-|`--subscription`|The subscription name for which permission will be granted to roles||
-
-### `revoke-subscription-permission`
-Revoke permissions to access subscription admin-api
-
-Usage
-```bash
-$ pulsar-admin namespaces revoke-subscription-permission tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|---|---|---|
-|`--role`|The client role to which to revoke the permissions||
-|`--subscription`|The subscription name for which permission will be revoked to roles||
 
 ### `set-clusters`
 Set replication clusters for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-clusters tenant/namespace options
+$ pulsar-admin namespaces set-clusters tenant/cluster/namespace options
 ```
 
 Options
@@ -858,7 +718,7 @@ Get replication clusters for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-clusters tenant/namespace
+$ pulsar-admin namespaces get-clusters tenant/cluster/namespace
 ```
 
 ### `get-backlog-quotas`
@@ -866,15 +726,15 @@ Get the backlog quota policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-backlog-quotas tenant/namespace
+$ pulsar-admin namespaces get-backlog-quotas tenant/cluster/namespace
 ```
 
 ### `set-backlog-quota`
-Set a backlog quota policy for a namespace
+Set a backlog quota for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-backlog-quota tenant/namespace options
+$ pulsar-admin namespaces set-backlog-quota tenant/cluster/namespace options
 ```
 
 Options
@@ -885,7 +745,7 @@ Options
 
 Example
 ```bash
-$ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
+$ pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
 --limit 2G \
 --policy producer_request_hold
 ```
@@ -895,7 +755,7 @@ Remove a backlog quota policy from a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces remove-backlog-quota tenant/namespace
+$ pulsar-admin namespaces remove-backlog-quota tenant/cluster/namespace
 ```
 
 ### `get-persistence`
@@ -903,7 +763,7 @@ Get the persistence policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-persistence tenant/namespace
+$ pulsar-admin namespaces get-persistence tenant/cluster/namespace
 ```
 
 ### `set-persistence`
@@ -911,7 +771,7 @@ Set the persistence policies for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-persistence tenant/namespace options
+$ pulsar-admin namespaces set-persistence tenant/cluster/namespace options
 ```
 
 Options
@@ -928,7 +788,7 @@ Get the message TTL for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-message-ttl tenant/namespace
+$ pulsar-admin namespaces get-message-ttl tenant/cluster/namespace
 ```
 
 ### `set-message-ttl`
@@ -936,7 +796,7 @@ Set the message TTL for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-message-ttl tenant/namespace options
+$ pulsar-admin namespaces set-message-ttl options
 ```
 
 Options
@@ -944,56 +804,13 @@ Options
 |----|---|---|
 |`-ttl`, `--messageTTL`|Message TTL in seconds|0|
 
-### `get-anti-affinity-group`
-Get Anti-affinity group name for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-anti-affinity-group tenant/namespace
-```
-
-### `set-anti-affinity-group`
-Set Anti-affinity group name for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-anti-affinity-group tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-g`, `--group`|Anti-affinity group name||
-
-### `get-anti-affinity-namespaces`
-Get Anti-affinity namespaces grouped with the given anti-affinity group name
-
-Usage
-```bash
-$ pulsar-admin namespaces get-anti-affinity-namespaces options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-c`, `--cluster`|Cluster name||
-|`-g`, `--group`|Anti-affinity group name||
-|`-p`, `--tenant`|Tenant is only used for authorization. Client has to be admin of any of the tenant to access this api||
-
-### `delete-anti-affinity-group`
-Remove Anti-affinity group name for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces delete-anti-affinity-group tenant/namespace
-```
 
 ### `get-retention`
 Get the retention policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces get-retention tenant/namespace
+$ pulsar-admin namespaces get-retention tenant/cluster/namespace
 ```
 
 ### `set-retention`
@@ -1001,7 +818,7 @@ Set the retention policy for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces set-retention tenant/namespace
+$ pulsar-admin namespaces set-retention tenant/cluster/namespace options
 ```
 
 Options
@@ -1016,109 +833,28 @@ Unload a namespace or namespace bundle from the current serving broker.
 
 Usage
 ```bash
-$ pulsar-admin namespaces unload tenant/namespace options
+$ pulsar-admin namespaces unload tenant/cluster/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
+|`-b`, `--bundle`|||
 
-### `split-bundle`
-Split a namespace-bundle from the current serving broker
-
-Usage
-```bash
-$ pulsar-admin namespaces split-bundle tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
-|`-u`, `--unload`|Unload newly split bundles after splitting old bundle|false|
-
-### `set-dispatch-rate`
-Set message-dispatch-rate for all topics of the namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-dispatch-rate tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
-|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
-|`-md`, `--msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
-
-### `get-dispatch-rate`
-Get configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
-
-Usage
-```bash
-$ pulsar-admin namespaces get-dispatch-rate tenant/namespace
-```
-
-### `set-subscribe-rate`
-Set subscribe-rate per consumer for all topics of the namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-subscribe-rate tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-sr`, `--subscribe-rate`|The subscribe rate (default -1 will be overwrite if not passed)|-1|
-|`-st`, `--subscribe-rate-period`|The subscribe rate period in second type (default 30 second will be overwrite if not passed)|30|
-
-### `get-subscribe-rate`
-Get configured subscribe-rate per consumer for all topics of the namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-subscribe-rate tenant/namespace
-```
-
-### `set-subscription-dispatch-rate`
-Set subscription message-dispatch-rate for all subscription of the namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-subscription-dispatch-rate tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-bd`, `--byte-dispatch-rate`|The byte dispatch rate (default -1 will be overwrite if not passed)|-1|
-|`-dt`, `--dispatch-rate-period`|The dispatch rate period in second type (default 1 second will be overwrite if not passed)|1|
-|`-md`, `--sub-msg-dispatch-rate`|The message dispatch rate (default -1 will be overwrite if not passed)|-1|
-
-### `get-subscription-dispatch-rate`
-Get subscription configured message-dispatch-rate for all topics of the namespace (Disabled if value < 0)
-
-Usage
-```bash
-$ pulsar-admin namespaces get-subscription-dispatch-rate tenant/namespace
-```
 
 ### `clear-backlog`
 Clear the backlog for a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces clear-backlog tenant/namespace options
+$ pulsar-admin namespaces clear-backlog tenant/cluster/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
-|`-force`, `--force`|Whether to force a clear backlog without prompt|false|
+|`-b`, `--bundle`|||   
+|`-f`, `--force`|Whether to force a clear backlog without prompt|false|
 |`-s`, `--sub`|The subscription name||
 
 
@@ -1127,104 +863,14 @@ Unsubscribe the given subscription on all destinations on a namespace
 
 Usage
 ```bash
-$ pulsar-admin namespaces unsubscribe tenant/namespace options
+$ pulsar-admin namespaces unsubscribe tenant/cluster/namespace options
 ```
 
 Options
 |Flag|Description|Default|
 |----|---|---|
-|`-b`, `--bundle`|{start-boundary}_{end-boundary} (e.g. 0x00000000_0xffffffff)||
+|`-b`, `--bundle`|||   
 |`-s`, `--sub`|The subscription name||
-
-### `set-encryption-required`
-Enable or disable message encryption required for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-encryption-required tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-d`, `--disable`|Disable message encryption required|false|
-|`-e`, `--enable`|Enable message encryption required|false|
-
-### `set-subscription-auth-mode`
-Set subscription auth mode on a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-subscription-auth-mode tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-m`, `--subscription-auth-mode`|Subscription authorization mode for Pulsar policies. Valid options are: [None, Prefix]||
-
-### `get-max-producers-per-topic`
-Get maxProducersPerTopic for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-max-producers-per-topic tenant/namespace
-```
-
-### `set-max-producers-per-topic`
-Set maxProducersPerTopic for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-max-producers-per-topic tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-p`, `--max-producers-per-topic`|maxProducersPerTopic for a namespace|0|
-
-### `get-max-consumers-per-topic`
-Get maxConsumersPerTopic for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-max-consumers-per-topic tenant/namespace
-```
-
-### `set-max-consumers-per-topic`
-Set maxConsumersPerTopic for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-max-consumers-per-topic tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-c`, `--max-consumers-per-topic`|maxConsumersPerTopic for a namespace|0|
-
-### `get-max-consumers-per-subscription`
-Get maxConsumersPerSubscription for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-max-consumers-per-subscription tenant/namespace
-```
-
-### `set-max-consumers-per-subscription`
-Set maxConsumersPerSubscription for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-max-consumers-per-subscription tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-c`, `--max-consumers-per-subscription`|maxConsumersPerSubscription for a namespace|0|
 
 
 ### `get-compaction-threshold`
@@ -1257,69 +903,11 @@ Usage
 $ pulsar-admin namespaces get-offload-threshold tenant/namespace
 ```
 
-### `set-offload-threshold`
-Set offloadThreshold for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-offload-threshold tenant/namespace options
-```
-
 Options
 |Flag|Description|Default|
 |----|---|---|
 |`-s`, `--size`|Maximum number of bytes stored in the pulsar cluster for a topic before data will start being automatically offloaded to longterm storage (eg: 10M, 16G, 3T, 100). Negative values disable automatic offload. 0 triggers offloading as soon as possible.|-1|
 
-### `get-offload-deletion-lag`
-Get offloadDeletionLag, in minutes, for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-offload-deletion-lag tenant/namespace
-```
-
-### `set-offload-deletion-lag`
-Set offloadDeletionLag for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-offload-deletion-lag tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-l`, `--lag`|Duration to wait after offloading a ledger segment, before deleting the copy of that segment from cluster local storage. (eg: 10m, 5h, 3d, 2w).|-1|
-
-### `clear-offload-deletion-lag`
-Clear offloadDeletionLag for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces clear-offload-deletion-lag tenant/namespace
-```
-
-### `get-schema-autoupdate-strategy`
-Get the schema auto-update strategy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces get-schema-autoupdate-strategy tenant/namespace
-```
-
-### `set-schema-autoupdate-strategy`
-Set the schema auto-update strategy for a namespace
-
-Usage
-```bash
-$ pulsar-admin namespaces set-schema-autoupdate-strategy tenant/namespace options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-c`, `--compatibility`|Compatibility level required for new schemas created via a Producer. Possible values (Full, Backward, Forward, None).|Full|
-|`-d`, `--disabled`|Disable automatic schema updates.|false|
 
 
 ## `ns-isolation-policy`
@@ -1335,8 +923,6 @@ Subcommands
 * `get`
 * `list`
 * `delete`
-* `brokers`
-* `broker`
 
 ### `set`
 Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.
@@ -1379,27 +965,6 @@ Usage
 ```bash
 $ pulsar-admin ns-isolation-policy delete
 ```
-
-### `brokers`
-List all brokers with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.
-
-Usage
-```bash
-$ pulsar-admin ns-isolation-policy brokers cluster-name
-```
-
-### `broker`
-Get broker with namespace-isolation policies attached to it. This operation requires Pulsar super-user privileges.
-
-Usage
-```bash
-$ pulsar-admin ns-isolation-policy broker cluster-name options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`--broker`|Broker name to get namespace-isolation policies attached to it||
 
 
 ## `sink`
@@ -1578,7 +1143,7 @@ Options
 |`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider. The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
+|`--source-type`|One of the built-in source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file. ||
 |`--source-config`|Source config key/values||
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
@@ -1607,7 +1172,7 @@ Options
 |`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider. The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
+|`--source-type`|One of the built-in source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
 |`--source-config`|Source config key/values||
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
@@ -1652,7 +1217,7 @@ Options
 |`--processing-guarantees`|“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”||
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)||
 |`--schema-type`|The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source||
-|`--source-type`|One of the built-in source's connector provider. The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
+|`--source-type`|One of the built-in source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.||
 |`--source-config`|Source config key/values||
 |`--source-config-file`|The path to a YAML config file specifying the source’s configuration||
 |`--tenant`|The source’s tenant||
@@ -1682,7 +1247,6 @@ Subcommands
 * `offload-status`
 * `create-partitioned-topic`
 * `delete-partitioned-topic`
-* `create`
 * `get-partitioned-topic-metadata`
 * `update-partitioned-topic`
 * `list`
@@ -1772,20 +1336,13 @@ Options
 |---|---|---|
 |`-p`, `--partitions`|The number of partitions for the topic|0|
 
+
 ### `delete-partitioned-topic`
 Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
 
 Usage
 ```bash
 $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
-```
-
-### `create`
-Creates a non-partitioned topic. A non-partitioned topic must explicitly be created by the user if allowAutoTopicCreation or createIfMissing is disabled.
-
-Usage
-```bash
-$ pulsar-admin topics create {persistent|non-persistent}://tenant/namespace/topic
 ```
 
 ### `get-partitioned-topic-metadata`
@@ -2198,7 +1755,6 @@ Subcommands
 * `upload`
 * `delete`
 * `get`
-* `extract`
 
 
 ### `upload`
@@ -2236,20 +1792,5 @@ Options
 |Flag|Description|Default|
 |----|---|---|
 |`--version`|The version of the schema definition to retrive for a topic.||
-
-### `extract`
-Provide the schema definition for a topic via Java class name contained in a JAR file
-
-Usage
-```bash
-$ pulsar-admin schemas extract persistent://tenant/namespace/topic options
-```
-
-Options
-|Flag|Description|Default|
-|----|---|---|
-|`-c`, `--classname`|The Java class name||
-|`-j`, `--jar`|A path to the JAR file which contains the above Java class||
-|`-t`, `--type`|The type of the schema (avro or json)||
 
 
