@@ -181,7 +181,7 @@ In order to safely distribute secrets, Pulasr Functions can reference Kubernetes
 
 You can create a secret in the namespace where your functions are deployed. As an example, suppose you are deploying functions to the `pulsar-func` Kubernetes namespace, and you have a secret named `database-creds` with a field name `password`, which you want to mount in the pod as an environment variable called `DATABASE_PASSWORD`.
 
-The following functions configuration would then allow you to reference that secret and have the value be mounted as an environment variable in the pod.
+The following functions configuration enables you to reference that secret and have the value be mounted as an environment variable in the pod.
 
 ```Yaml
 tenant: "mytenant"
@@ -209,7 +209,6 @@ Pulsar includes an implementation of this interface that is suitable for token a
 ```Yaml
 functionAuthProviderClassName: org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider
 ```
-`KubernetesSecretsTokenAuthProvider` .
 
 For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. 
 
