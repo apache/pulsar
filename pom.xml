@@ -98,7 +98,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.19</commons-compress.version>
 
-    <bookkeeper.version>4.10.0</bookkeeper.version>
+    <bookkeeper.version>4.11.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
     <netty.version>4.1.48.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
