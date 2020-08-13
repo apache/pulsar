@@ -22,7 +22,9 @@ on:
   pull_request:
     branches:
       - master
-
+  push:
+    branches:
+      - '*'
 jobs:
 
   unit-test-flaky:

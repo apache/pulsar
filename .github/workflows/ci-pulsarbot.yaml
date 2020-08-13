@@ -21,7 +21,9 @@ name: Pulsar Bot
 on:
   issue_comment:
     types: [created]
-
+  push:
+    branches:
+      - '*'
 jobs:
 
   action-runner:

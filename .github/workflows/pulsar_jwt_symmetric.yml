@@ -24,6 +24,9 @@ on:
       - '*'
     paths:
       - 'deployment/kubernetes/helm/**'
+  push:
+    branches:
+      - '*'
 jobs:
   lint-test:
     runs-on: ubuntu-latest
