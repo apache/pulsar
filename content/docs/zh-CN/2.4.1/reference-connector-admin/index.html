@@ -122,7 +122,7 @@
 <tr><td>Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--tenant</code></td><td>The source's tenant.</td></tr>
 </tbody>
 </table>
@@ -154,7 +154,7 @@
 <tr><td>Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--source-type</code></td><td>The source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--tenant</code></td><td>The source's tenant.</td></tr>
 <tr><td><code>--update-auth-data</code></td><td>Whether or not to update the auth data.</td></tr>
 <tr><td><strong>Default value: false.</strong></td></tr>
@@ -312,7 +312,7 @@
 <tr><td>Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.</td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values.</td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration.</td></tr>
-<tr><td><code>--source-type</code></td><td>The source's connector provider.</td></tr>
+<tr><td><code>--source-type</code></td><td>The source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant.</td></tr>
 <tr><td><code>--tls-allow-insecure</code></td><td>Allow insecure tls connection.</td></tr>
 <tr><td><strong>Default value: false</strong>.</td></tr>
@@ -379,7 +379,7 @@
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink's tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
@@ -417,7 +417,7 @@ Add SerDe class name for a pattern in <code>--customSerdeInputs</code> (supporte
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink's configuration.</td></tr>
-<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider.</td></tr>
+<tr><td><code>-t</code>, <code>--sink-type</code></td><td>The sink's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink's tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>
@@ -581,7 +581,7 @@ Add SerDe class name for a pattern in <code>--customSerdeInputs</code> (supporte
 <tr><td><code>--retain-ordering</code></td><td>Sink consumes and sinks messages in order.</td></tr>
 <tr><td><code>--sink-config</code></td><td>sink config key/values.</td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration.</td></tr>
-<tr><td><code>--sink-type</code></td><td>The sink's connector provider.</td></tr>
+<tr><td><code>--sink-type</code></td><td>The sink's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td></tr>
 <tr><td><code>--subs-name</code></td><td>Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.</td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant.</td></tr>
 <tr><td><code>--timeout-ms</code></td><td>消息超时（以毫秒为单位）。</td></tr>

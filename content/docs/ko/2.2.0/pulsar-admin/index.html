@@ -876,7 +876,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 <tr><td><code>--auto-ack</code></td><td>Let the functions framework manage acking</td><td></td></tr>
@@ -908,7 +908,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 </tbody>
@@ -955,7 +955,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 <tr><td><code>--auto-ack</code></td><td>Let the functions framework manage acking</td><td></td></tr>
@@ -996,7 +996,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>
@@ -1025,7 +1025,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>
@@ -1070,7 +1070,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>

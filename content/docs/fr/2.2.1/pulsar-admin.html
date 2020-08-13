@@ -78,12 +78,33 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">command</span>
 </code></pre>
-<p>Commands * <code>broker-stats</code> * <code>brokers</code> * <code>clusters</code> * <code>functions</code> * <code>namespaces</code> * <code>ns-isolation-policy</code> * <code>sink</code> * <code>source</code> * <code>topics</code> * <code>tenants</code> * <code>resource-quotas</code> * <code>schemas</code></p>
+<p>Commands</p>
+<ul>
+<li><code>broker-stats</code></li>
+<li><code>brokers</code></li>
+<li><code>clusters</code></li>
+<li><code>functions</code></li>
+<li><code>namespaces</code></li>
+<li><code>ns-isolation-policy</code></li>
+<li><code>sink</code></li>
+<li><code>source</code></li>
+<li><code>topics</code></li>
+<li><code>tenants</code></li>
+<li><code>resource-quotas</code></li>
+<li><code>schemas</code></li>
+</ul>
 <h2><a class="anchor" aria-hidden="true" id="broker-stats"></a><a href="#broker-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>broker-stats</code></h2>
 <p>Operations to collect broker statistics</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin broker-stats subcommand
 </code></pre>
-<p>Subcommands * <code>allocator-stats</code> * <code>destinations</code> * <code>mbeans</code> * <code>monitoring-metrics</code> * <code>topics</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>allocator-stats</code></li>
+<li><code>destinations</code></li>
+<li><code>mbeans</code></li>
+<li><code>monitoring-metrics</code></li>
+<li><code>topics</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="allocator-stats"></a><a href="#allocator-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>allocator-stats</code></h3>
 <p>Dump allocator stats</p>
 <p>Usage</p>
@@ -149,7 +170,15 @@
 <p>Operations about brokers</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin brokers subcommand
 </code></pre>
-<p>Subcommands * <code>list</code> * <code>namespaces</code> * <code>update-dynamic-config</code> * <code>list-dynamic-config</code> * <code>get-all-dynamic-config</code> * <code>get-internal-config</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>list</code></li>
+<li><code>namespaces</code></li>
+<li><code>update-dynamic-config</code></li>
+<li><code>list-dynamic-config</code></li>
+<li><code>get-all-dynamic-config</code></li>
+<li><code>get-internal-config</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="list"></a><a href="#list" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List active brokers of the cluster</p>
 <p>Usage</p>
@@ -204,7 +233,15 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin clusters subcommand
 </code></pre>
-<p>Subcommands * <code>get</code> * <code>create</code> * <code>update</code> * <code>delete</code> * <code>list</code> * <code>update-peer-clusters</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>get</code></li>
+<li><code>create</code></li>
+<li><code>update</code></li>
+<li><code>delete</code></li>
+<li><code>list</code></li>
+<li><code>update-peer-clusters</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="get"></a><a href="#get" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get the configuration data for the specified cluster</p>
 <p>Usage</p>
@@ -264,7 +301,18 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span> subcommand
 </code></pre>
-<p>Subcommands * <code>localrun</code> * <code>create</code> * <code>delete</code> * <code>update</code> * <code>get</code> * <code>getstatus</code> * <code>list</code> * <code>querystate</code> * <code>trigger</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>localrun</code></li>
+<li><code>create</code></li>
+<li><code>delete</code></li>
+<li><code>update</code></li>
+<li><code>get</code></li>
+<li><code>getstatus</code></li>
+<li><code>list</code></li>
+<li><code>querystate</code></li>
+<li><code>trigger</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="localrun"></a><a href="#localrun" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>localrun</code></h3>
 <p>Run a Pulsar Function locally</p>
 <p>Usage</p>
@@ -313,7 +361,7 @@
 <h3><a class="anchor" aria-hidden="true" id="create-1"></a><a href="#create-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Creates a new Pulsar Function on the target infrastructure</p>
 <p>Usage</p>
-<pre><code class="hljs">$ pulsar-admin functions create options
+<pre><code class="hljs">$ pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">functions</span> <span class="hljs-keyword">create</span> <span class="hljs-keyword">options</span>
 </code></pre>
 <p>Options</p>
 <table>
@@ -529,7 +577,37 @@
 <p>Operations for managing namespaces</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces subcommand
 </code></pre>
-<p>Subcommands * <code>list</code> * <code>list-cluster</code> * <code>destinations</code> * <code>policies</code> * <code>create</code> * <code>delete</code> * <code>set-deduplication</code> * <code>permissions</code> * <code>grant-permission</code> * <code>revoke-permission</code> * <code>set-clusters</code> * <code>get-clusters</code> * <code>get-backlog-quotas</code> * <code>set-backlog-quota</code> * <code>remove-backlog-quota</code> * <code>get-persistence</code> * <code>set-persistence</code> * <code>get-message-ttl</code> * <code>set-message-ttl</code> * <code>get-retention</code> * <code>set-retention</code> * <code>unload</code> * <code>clear-backlog</code> * <code>unsubscribe</code> * <code>get-compaction-threshold</code> * <code>set-compaction-threshold</code> * <code>get-offload-threshold</code> * <code>set-offload-threshold</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>list</code></li>
+<li><code>list-cluster</code></li>
+<li><code>destinations</code></li>
+<li><code>policies</code></li>
+<li><code>create</code></li>
+<li><code>delete</code></li>
+<li><code>set-deduplication</code></li>
+<li><code>permissions</code></li>
+<li><code>grant-permission</code></li>
+<li><code>revoke-permission</code></li>
+<li><code>set-clusters</code></li>
+<li><code>get-clusters</code></li>
+<li><code>get-backlog-quotas</code></li>
+<li><code>set-backlog-quota</code></li>
+<li><code>remove-backlog-quota</code></li>
+<li><code>get-persistence</code></li>
+<li><code>set-persistence</code></li>
+<li><code>get-message-ttl</code></li>
+<li><code>set-message-ttl</code></li>
+<li><code>get-retention</code></li>
+<li><code>set-retention</code></li>
+<li><code>unload</code></li>
+<li><code>clear-backlog</code></li>
+<li><code>unsubscribe</code></li>
+<li><code>get-compaction-threshold</code></li>
+<li><code>set-compaction-threshold</code></li>
+<li><code>get-offload-threshold</code></li>
+<li><code>set-offload-threshold</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="list-3"></a><a href="#list-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>Get the namespaces for a tenant</p>
 <p>Usage</p>
@@ -811,7 +889,13 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin ns-isolation-policy subcommand
 </code></pre>
-<p>Subcommands * <code>set</code> * <code>get</code> * <code>list</code> * <code>delete</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>set</code></li>
+<li><code>get</code></li>
+<li><code>list</code></li>
+<li><code>delete</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="set"></a><a href="#set" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set</code></h3>
 <p>Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.</p>
 <p>Usage</p>
@@ -850,7 +934,14 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin sink subcommand
 </code></pre>
-<p>Subcommands * <code>create</code> * <code>update</code> * <code>delete</code> * <code>localrun</code> * <code>available-sinks</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>create</code></li>
+<li><code>update</code></li>
+<li><code>delete</code></li>
+<li><code>localrun</code></li>
+<li><code>available-sinks</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="create-3"></a><a href="#create-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Submit a Pulsar IO sink connector to run in a Pulsar cluster</p>
 <p>Usage</p>
@@ -876,7 +967,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 <tr><td><code>--auto-ack</code></td><td>Let the functions framework manage acking</td><td></td></tr>
@@ -908,7 +999,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 </tbody>
@@ -955,7 +1046,7 @@
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--sink-config</code></td><td>Sink config key/values</td><td></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the sink’s configuration</td><td></td></tr>
-<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider</td><td></td></tr>
+<tr><td><code>--sink-type</code></td><td>The built-in sinks's connector provider. The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--topics-pattern</code></td><td>TopicsPattern to consume from list of topics under a namespace that match the pattern.</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The sink’s tenant</td><td></td></tr>
 <tr><td><code>--auto-ack</code></td><td>Let the functions framework manage acking</td><td></td></tr>
@@ -972,7 +1063,14 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">source</span> subcommand
 </code></pre>
-<p>Subcommands * <code>create</code> * <code>update</code> * <code>delete</code> * <code>localrun</code> * <code>available-sources</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>create</code></li>
+<li><code>update</code></li>
+<li><code>delete</code></li>
+<li><code>localrun</code></li>
+<li><code>available-sources</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="create-4"></a><a href="#create-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>create</code></h3>
 <p>Submit a Pulsar IO source connector to run in a Pulsar cluster</p>
 <p>Usage</p>
@@ -996,7 +1094,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>
@@ -1025,7 +1123,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>
@@ -1070,7 +1168,7 @@
 <tr><td><code>--processing-guarantees</code></td><td>“The processing guarantees (aka delivery semantics) applied to the source. Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.”</td><td></td></tr>
 <tr><td><code>--ram</code></td><td>The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime)</td><td></td></tr>
 <tr><td><code>--schema-type</code></td><td>The schema type (either a builtin schema like 'avro', 'json', etc, or custom Schema class name to be used to encode messages emitted from the source</td><td></td></tr>
-<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider</td><td></td></tr>
+<tr><td><code>--source-type</code></td><td>One of the built-in source's connector provider. The <code>source-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</td><td></td></tr>
 <tr><td><code>--source-config</code></td><td>Source config key/values</td><td></td></tr>
 <tr><td><code>--source-config-file</code></td><td>The path to a YAML config file specifying the source’s configuration</td><td></td></tr>
 <tr><td><code>--tenant</code></td><td>The source’s tenant</td><td></td></tr>
@@ -1086,11 +1184,43 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics subcommand
 </code></pre>
-<p>Subcommands * <code>compact</code> * <code>compaction-status</code> * <code>offload</code> * <code>offload-status</code> * <code>create-partitioned-topic</code> * <code>delete-partitioned-topic</code> * <code>get-partitioned-topic-metadata</code> * <code>update-partitioned-topic</code> * <code>list</code> * <code>list-in-bundle</code> * <code>terminate</code> * <code>permissions</code> * <code>grant-permission</code> * <code>revoke-permission</code> * <code>lookup</code> * <code>bundle-range</code> * <code>delete</code> * <code>unload</code> * <code>subscriptions</code> * <code>unsubscribe</code> * <code>stats</code> * <code>stats-internal</code> * <code>info-internal</code> * <code>partitioned-stats</code> * <code>skip</code> * <code>skip-all</code> * <code>expire-messages</code> * <code>expire-messages-all-subscriptions</code> * <code>peek-messages</code> * <code>reset-cursor</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>compact</code></li>
+<li><code>compaction-status</code></li>
+<li><code>offload</code></li>
+<li><code>offload-status</code></li>
+<li><code>create-partitioned-topic</code></li>
+<li><code>delete-partitioned-topic</code></li>
+<li><code>get-partitioned-topic-metadata</code></li>
+<li><code>update-partitioned-topic</code></li>
+<li><code>list</code></li>
+<li><code>list-in-bundle</code></li>
+<li><code>terminate</code></li>
+<li><code>permissions</code></li>
+<li><code>grant-permission</code></li>
+<li><code>revoke-permission</code></li>
+<li><code>lookup</code></li>
+<li><code>bundle-range</code></li>
+<li><code>delete</code></li>
+<li><code>unload</code></li>
+<li><code>subscriptions</code></li>
+<li><code>unsubscribe</code></li>
+<li><code>stats</code></li>
+<li><code>stats-internal</code></li>
+<li><code>info-internal</code></li>
+<li><code>partitioned-stats</code></li>
+<li><code>skip</code></li>
+<li><code>skip-all</code></li>
+<li><code>expire-messages</code></li>
+<li><code>expire-messages-all-subscriptions</code></li>
+<li><code>peek-messages</code></li>
+<li><code>reset-cursor</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="compact"></a><a href="#compact" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compact</code></h3>
 <p>Run compaction on the specified topic (persistent topics only)</p>
 <p>Usage</p>
-<pre><code class="hljs">$ pulsar-admin topics compact persistent://tenant/namespace/topic
+<pre><code class="hljs">$ pulsar-admin topics compact persistent:<span class="hljs-regexp">//</span>tenant<span class="hljs-regexp">/namespace/</span>topic
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="compaction-status"></a><a href="#compaction-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>compaction-status</code></h3>
 <p>Check the status of a topic compaction (persistent topics only)</p>
@@ -1175,13 +1305,13 @@
 <h3><a class="anchor" aria-hidden="true" id="list-5"></a><a href="#list-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>Get the list of topics under a namespace</p>
 <p>Usage</p>
-<pre><code class="hljs">$ pulsar-admin topics list tenant/cluster/namespace
+<pre><code class="hljs">$ pulsar-admin topics <span class="hljs-built_in">list</span> tenant/cluster/<span class="hljs-keyword">namespace</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="list-in-bundle"></a><a href="#list-in-bundle" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list-in-bundle</code></h3>
 <p>Get a list of non-persistent topics present under a namespace bundle</p>
 <p>Usage</p>
-<pre><code class="hljs">$ pulsar-admin topics list-in-bundle tenant/namespace options
-</code></pre>
+<pre><code class="hljs">$ <span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">list-in-bundle</span> <span class="hljs-string">tenant/</span><span class="hljs-string">namespace </span><span class="hljs-string">options
+</span></code></pre>
 <p>Options</p>
 <table>
 <thead>
@@ -1382,7 +1512,14 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin tenants subcommand
 </code></pre>
-<p>Subcommands * <code>list</code> * <code>get</code> * <code>create</code> * <code>update</code> * <code>delete</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>list</code></li>
+<li><code>get</code></li>
+<li><code>create</code></li>
+<li><code>update</code></li>
+<li><code>delete</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="list-6"></a><a href="#list-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>list</code></h3>
 <p>List the existing tenants</p>
 <p>Usage</p>
@@ -1433,7 +1570,12 @@
 <p>Usage</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin resource-quotas subcommand
 </code></pre>
-<p>Subcommands * <code>get</code> * <code>set</code> * <code>reset-namespace-bundle-quota</code></p>
+<p>Subcommands</p>
+<ul>
+<li><code>get</code></li>
+<li><code>set</code></li>
+<li><code>reset-namespace-bundle-quota</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="get-4"></a><a href="#get-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get</code></h3>
 <p>Get the resource quota for a specified namespace bundle, or default quota if no namespace/bundle is specified.</p>
 <p>Usage</p>
@@ -1488,9 +1630,14 @@
 <h2><a class="anchor" aria-hidden="true" id="schemas"></a><a href="#schemas" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>schemas</code></h2>
 <p>Operations related to Schemas associated with Pulsar topics.</p>
 <p>Usage</p>
-<pre><code class="hljs">$ pulsar-admin schemas subcommand
-</code></pre>
-<p>Subcommands * <code>upload</code> * <code>delete</code> * <code>get</code></p>
+<pre><code class="hljs">$ pulsar-admin <span class="hljs-keyword">schemas </span><span class="hljs-keyword">subcommand
+</span></code></pre>
+<p>Subcommands</p>
+<ul>
+<li><code>upload</code></li>
+<li><code>delete</code></li>
+<li><code>get</code></li>
+</ul>
 <h3><a class="anchor" aria-hidden="true" id="upload"></a><a href="#upload" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>upload</code></h3>
 <p>Upload the schema definition for a topic</p>
 <p>Usage</p>

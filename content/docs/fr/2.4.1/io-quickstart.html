@@ -97,43 +97,29 @@
 <pre><code class="hljs css language-bash">bin/pulsar standalone
 </code></pre>
 <p>All the components of a Pulsar service will start in order. You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.</p></li>
-</ol>
-<ol start="2">
 <li><p>Check Pulsar binary protocol port.</p>
 <pre><code class="hljs css language-bash">telnet localhost 6650
 </code></pre></li>
 <li><p>Check Pulsar Function cluster.</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/worker/cluster
 </code></pre>
-<p>Example output:</p></li>
-</ol>
-<pre><code class="hljs">```shell
-[{&quot;workerId&quot;:&quot;c-standalone-fw-localhost-6750&quot;,&quot;workerHostname&quot;:&quot;localhost&quot;,&quot;port&quot;:6750}]
-```
-</code></pre>
-<ol start="4">
+<p>Example output:</p>
+<pre><code class="hljs css language-shell">[{"workerId":"c-standalone-fw-localhost-6750","workerHostname":"localhost","port":6750}]
+</code></pre></li>
 <li><p>Make sure public tenant and default namespace exist.</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/namespaces/public
 </code></pre>
-<p>Example outoupt:</p></li>
-</ol>
-<pre><code class="hljs">```shell
-[&quot;public/default&quot;,&quot;public/functions&quot;]
-```
-</code></pre>
-<ol start="5">
+<p>Example outoupt:</p>
+<pre><code class="hljs css language-shell">["public/default","public/functions"]
+</code></pre></li>
 <li><p>All builtin connectors should be listed as available.</p>
 <pre><code class="hljs css language-bash">curl -s http://localhost:8080/admin/v2/<span class="hljs-built_in">functions</span>/connectors
 </code></pre>
-<p>Example output:</p></li>
-</ol>
-<pre><code class="hljs">```json
-[{&quot;name&quot;:&quot;aerospike&quot;,&quot;description&quot;:&quot;Aerospike database sink&quot;,&quot;sinkClass&quot;:&quot;org.apache.pulsar.io.aerospike.AerospikeStringSink&quot;},{&quot;name&quot;:&quot;cassandra&quot;,&quot;description&quot;:&quot;Writes data into Cassandra&quot;,&quot;sinkClass&quot;:&quot;org.apache.pulsar.io.cassandra.CassandraStringSink&quot;},{&quot;name&quot;:&quot;kafka&quot;,&quot;description&quot;:&quot;Kafka source and sink connector&quot;,&quot;sourceClass&quot;:&quot;org.apache.pulsar.io.kafka.KafkaStringSource&quot;,&quot;sinkClass&quot;:&quot;org.apache.pulsar.io.kafka.KafkaBytesSink&quot;},{&quot;name&quot;:&quot;kinesis&quot;,&quot;description&quot;:&quot;Kinesis sink connector&quot;,&quot;sinkClass&quot;:&quot;org.apache.pulsar.io.kinesis.KinesisSink&quot;},{&quot;name&quot;:&quot;rabbitmq&quot;,&quot;description&quot;:&quot;RabbitMQ source connector&quot;,&quot;sourceClass&quot;:&quot;org.apache.pulsar.io.rabbitmq.RabbitMQSource&quot;},{&quot;name&quot;:&quot;twitter&quot;,&quot;description&quot;:&quot;Ingest data from Twitter firehose&quot;,&quot;sourceClass&quot;:&quot;org.apache.pulsar.io.twitter.TwitterFireHose&quot;}]
-```
-
- If an error occurred while starting Pulsar service, you may be able to seen exception at the terminal you are running `pulsar/standalone`,
- or you can navigate the `logs` directory under the Pulsar directory to view the logs.
+<p>Example output:</p>
+<pre><code class="hljs css language-json">[{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"aerospike"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Aerospike database sink"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.aerospike.AerospikeStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"cassandra"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Writes data into Cassandra"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.cassandra.CassandraStringSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kafka"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kafka source and sink connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaStringSource"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kafka.KafkaBytesSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"kinesis"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Kinesis sink connector"</span>,<span class="hljs-attr">"sinkClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.kinesis.KinesisSink"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"rabbitmq"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"RabbitMQ source connector"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.rabbitmq.RabbitMQSource"</span>},{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"twitter"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"Ingest data from Twitter firehose"</span>,<span class="hljs-attr">"sourceClass"</span>:<span class="hljs-string">"org.apache.pulsar.io.twitter.TwitterFireHose"</span>}]
 </code></pre>
+<p>If an error occurred while starting Pulsar service, you may be able to seen exception at the terminal you are running <code>pulsar/standalone</code>, or you can navigate the <code>logs</code> directory under the Pulsar directory to view the logs.</p></li>
+</ol>
 <h2><a class="anchor" aria-hidden="true" id="connect-pulsar-to-apache-cassandra"></a><a href="#connect-pulsar-to-apache-cassandra" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connect Pulsar to Apache Cassandra</h2>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-1"></a><a href="#tip-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
@@ -163,9 +149,9 @@
 <p>Example output:</p>
 <pre><code class="hljs">Datacenter: datacenter1
 =======================
-Status=Up/Down
-|/ State=Normal/Leaving/Joining/Moving
---  Address     Load       Tokens       Owns (effective)  Host ID                               Rack
+<span class="hljs-attribute">Status</span>=Up/Down
+|/ <span class="hljs-attribute">State</span>=Normal/Leaving/Joining/Moving
+-- <span class="hljs-built_in"> Address </span>    Load       Tokens       Owns (effective)  Host ID                               Rack
 UN  172.17.0.2  103.67 KiB  256          100.0%            af0e4b2f-84e0-4f0b-bb14-bd5f9070ff26  rack1
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="create-keyspace-and-table"></a><a href="#create-keyspace-and-table" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Create keyspace and table</h4>
@@ -188,17 +174,21 @@ cqlsh:pulsar_test_keyspace&gt; CREATE TABLE pulsar_test_table (key text PRIMARY 
 <p>Now that we have a Cassandra cluster running locally. In this section, we will configure a Cassandra sink connector. The Cassandra sink connector will read messages from a Pulsar topic and write the messages into a Cassandra table.</p>
 <p>In order to run a Cassandra sink connector, you need to prepare a yaml config file including information that Pulsar IO runtime needs to know. For example, how Pulsar IO can find the cassandra cluster, what is the keyspace and table that Pulsar IO will be using for writing Pulsar messages to.</p>
 <p>Create a file <code>examples/cassandra-sink.yml</code> and edit it to fill in following content:</p>
-<pre><code class="hljs">configs:
-    roots: &quot;localhost:9042&quot;
-    keyspace: &quot;pulsar_test_keyspace&quot;
-    columnFamily: &quot;pulsar_test_table&quot;
-    keyname: &quot;key&quot;
-    columnName: &quot;col&quot;
+<pre><code class="hljs"><span class="hljs-symbol">configs:</span>
+<span class="hljs-symbol">    roots:</span> <span class="hljs-string">"localhost:9042"</span>
+<span class="hljs-symbol">    keyspace:</span> <span class="hljs-string">"pulsar_test_keyspace"</span>
+<span class="hljs-symbol">    columnFamily:</span> <span class="hljs-string">"pulsar_test_table"</span>
+<span class="hljs-symbol">    keyname:</span> <span class="hljs-string">"key"</span>
+<span class="hljs-symbol">    columnName:</span> <span class="hljs-string">"col"</span>
 </code></pre>
 <p>To learn more about Cassandra Connector, see <a href="/docs/fr/2.4.1/io-cassandra">Cassandra Connector</a>.</p>
 <h3><a class="anchor" aria-hidden="true" id="submit-a-cassandra-sink"></a><a href="#submit-a-cassandra-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Submit a Cassandra sink</h3>
 <p>Pulsar provides the <a href="/docs/fr/2.4.1/reference-cli-tools">CLI</a> for running and managing Pulsar I/O connectors.</p>
 <p>We can run following command to sink a sink connector with type <code>cassandra</code> and config file <code>examples/cassandra-sink.yml</code>.</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</p>
+</blockquote>
 <pre><code class="hljs css language-shell">bin/pulsar-admin sinks create \
     --tenant public \
     --namespace default \
@@ -349,30 +339,16 @@ mysql:5.7
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-3"></a><a href="#tip-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>This example</th></tr>
-</thead>
-<tbody>
-<tr><td><code>-d</code></td><td>To start a container in detached mode.</td><td>/</td></tr>
-<tr><td><code>-it</code></td><td>Keep STDIN open even if not attached and allocate a terminal.</td><td>/</td></tr>
-<tr><td><code>--rm</code></td><td>Remove the container automatically when it exits.</td><td>/</td></tr>
-<tr><td><code>-name</code></td><td>Assign a name to the container.</td><td>This example specifies <em>pulsar-mysql</em> for the container.</td></tr>
-<tr><td><code>-p</code></td><td>Publish the port of the container to the host.</td><td>This example publishes the port <em>3306</em> of the container to the host.</td></tr>
-<tr><td><code>-e</code></td><td>Set environment variables.</td><td>This example sets the following variables:<br>- The password for the root user is <em>jdbc</em>. <br>- The name for the normal user is <em>mysqluser</em>. <br>- The password for the normal user is <em>mysqlpw</em>.</td></tr>
-</tbody>
-</table>
-<p>For more information about Docker command, see <a href="https://docs.docker.com/engine/reference/commandline/run/">here</a>.</p>
+<p>Flag | Description | This example</p>
+<ul>
+<li>| - | - <code>-d</code> | To start a container in detached mode. | / <code>-it</code> | Keep STDIN open even if not attached and allocate a terminal. | / <code>--rm</code> | Remove the container automatically when it exits. | / <code>-name</code> | Assign a name to the container. | This example specifies <em>pulsar-mysql</em> for the container. <code>-p</code> | Publish the port of the container to the host. | This example publishes the port <em>3306</em> of the container to the host. <code>-e</code> | Set environment variables. | This example sets the following variables:<br>- The password for the root user is <em>jdbc</em>. <br>- The name for the normal user is <em>mysqluser</em>. <br>- The password for the normal user is <em>mysqlpw</em>. For more information about Docker command, see <a href="https://docs.docker.com/engine/reference/commandline/run/">here</a>.</li>
+</ul>
 </blockquote></li>
-</ol>
-<ol start="3">
 <li><p>Check if MySQL has been started successfully.</p>
 <pre><code class="hljs css language-text">$ docker logs -f pulsar-mysql
 </code></pre>
-<p>MySQL has been started successfully if the following message appears.</p></li>
-</ol>
-<pre><code class="hljs">```text
-2019-05-11T10:40:58.709964Z 0 [Note] Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
+<p>MySQL has been started successfully if the following message appears.</p>
+<pre><code class="hljs css language-text">2019-05-11T10:40:58.709964Z 0 [Note] Found ca.pem, server-cert.pem and server-key.pem in data directory. Trying to enable SSL support using them.
 2019-05-11T10:40:58.710155Z 0 [Warning] CA certificate ca.pem is self signed.
 2019-05-11T10:40:58.711921Z 0 [Note] Server hostname (bind-address): '*'; port: 3306
 2019-05-11T10:40:58.711985Z 0 [Note] IPv6 is available.
@@ -382,9 +358,7 @@ mysql:5.7
 2019-05-11T10:40:58.723802Z 0 [Note] Event Scheduler: Loaded 0 events
 2019-05-11T10:40:58.724200Z 0 [Note] mysqld: ready for connections.
 Version: '5.7.26'  socket: '/var/run/mysqld/mysqld.sock'  port: 3306  MySQL Community Server (GPL)
-```
-</code></pre>
-<ol start="4">
+</code></pre></li>
 <li><p>Access to MySQL.</p>
 <pre><code class="hljs css language-text">$ docker exec -it pulsar-mysql /bin/bash
 mysql -h localhost -uroot -pjdbc 
@@ -436,12 +410,10 @@ engine=innodb;
 <li><p>Check if the schema has been uploaded successfully.</p>
 <pre><code class="hljs css language-text">$ bin/pulsar-admin schemas get pulsar-mysql-jdbc-sink-topic
 </code></pre>
-<p>The schema has been uploaded successfully if the following message appears.</p></li>
+<p>The schema has been uploaded successfully if the following message appears.</p>
+<pre><code class="hljs css language-text">{"name":"pulsar-mysql-jdbc-sink-topic","schema":"{\"type\":\"record\",\"name\":\"Test\",\"fields\":[{\"name\":\"id\",\"type\":[\"null\",\"int\"]},{\"name\":\"name\",\"type\":[\"null\",\"string\"]}]}","type":"AVRO","properties":{}}
+</code></pre></li>
 </ol>
-<pre><code class="hljs">```text
-{&quot;name&quot;:&quot;pulsar-mysql-jdbc-sink-topic&quot;,&quot;schema&quot;:&quot;{\&quot;type\&quot;:\&quot;record\&quot;,\&quot;name\&quot;:\&quot;Test\&quot;,\&quot;fields\&quot;:[{\&quot;name\&quot;:\&quot;id\&quot;,\&quot;type\&quot;:[\&quot;null\&quot;,\&quot;int\&quot;]},{\&quot;name\&quot;:\&quot;name\&quot;,\&quot;type\&quot;:[\&quot;null\&quot;,\&quot;string\&quot;]}]}&quot;,&quot;type&quot;:&quot;AVRO&quot;,&quot;properties&quot;:{}}
-```
-</code></pre>
 <h3><a class="anchor" aria-hidden="true" id="submit-a-jdbc-sink"></a><a href="#submit-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Submit a JDBC sink</h3>
 <p>Pulsar provides the <a href="/docs/fr/2.4.1/admin-api-overview">CLI</a> for running and managing Pulsar I/O connectors.</p>
 <p>This example creates a sink connector and specifies the desired information.</p>
@@ -452,29 +424,12 @@ engine=innodb;
 --sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
 --parallelism 1
 </code></pre>
-<p>Once the command is executed, Pulsar will create a sink connector named <em>pulsar-mysql-jdbc-sink</em>, and the sink connector will be running as a Pulsar Function and write the messages produced in the <em>pulsar-mysql-jdbc-sink-topic</em> topic to the MySQL <em>pulsar_mysql_jdbc_sink</em> table.</p>
+<p>Once the command is executed, Pulsar will create a sink connector named <em>pulsar-mysql-jdbc-sink</em>, and the sink connector will be running as a Pulsar Function and write the messages produced in the  <em>pulsar-mysql-jdbc-sink-topic</em> topic to the MySQL <em>pulsar_mysql_jdbc_sink</em> table.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="tip-5"></a><a href="#tip-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Tip</h4>
-<table>
-<thead>
-<tr><th>Flag</th><th>Description</th><th>This example</th></tr>
-</thead>
-<tbody>
-<tr><td><code>--archive</code></td><td>Path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.6.0.nar</em></td></tr>
-<tr><td><code>--inputs</code></td><td>The input topic or topics of the sink.</td></tr>
-<tr><td>(Multiple topics can be specified as a comma-separated list.)</td><td></td></tr>
-<tr><td><code>--name</code></td><td>The name of the sink.</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>
-<tr><td><code>--sink-config-file</code></td><td>The path to a YAML config file specifying the configuration of the sink.</td><td><em>pulsar-mysql-jdbc-sink.yaml</em></td></tr>
-<tr><td><code>--parallelism</code></td><td>The parallelism factor of the sink.</td></tr>
-<tr><td>For example, the number of sink instances to run.</td><td><em>1</em></td></tr>
-</tbody>
-</table>
+<p>Flag | Description | This example - | - | - | <code>--archive</code> | Path to the archive file for the sink. | <em>pulsar-io-jdbc-2.6.0.nar</em> <code>--inputs</code> | The input topic or topics of the sink. <br> (Multiple topics can be specified as a comma-separated list.) <code>--name</code> | The name of the sink. | <em>pulsar-mysql-jdbc-sink</em> <code>--sink-config-file</code> | The path to a YAML config file specifying the configuration of the sink. | <em>pulsar-mysql-jdbc-sink.yaml</em> <code>--parallelism</code> | The parallelism factor of the sink. <br> For example, the number of sink instances to run. |  <em>1</em> For more information about <code>pulsar-admin sinks create options</code>, see <a href="/docs/fr/2.4.1/pulsar-admin#create-3">here</a>.</p>
 </blockquote>
-<p>For more information about</p>
-<blockquote>
-<p><code>pulsar-admin sinks create options</code>, see <a href="/docs/fr/2.4.1/pulsar-admin#create-3">here</a>.
-The sink has been created successfully if the following message appears.</p>
-</blockquote>
+<p>The sink has been created successfully if the following message appears.</p>
 <pre><code class="hljs css language-text">"Created successfully"
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="inspect-a-jdbc-sink"></a><a href="#inspect-a-jdbc-sink" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Inspect a JDBC sink</h3>

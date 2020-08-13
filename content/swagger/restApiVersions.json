@@ -9,9 +9,9 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggersink",
                 "swaggerfunctions",
-                "swaggersource"
+                "swaggersource",
+                "swaggersink"
             ]
         }
     ],
@@ -32,22 +32,6 @@
         }
     ],
     "2.3.2": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggerfunctions",
-                "swaggersink",
-                "swaggersource"
-            ]
-        }
-    ],
-    "2.4.1": [
         {
             "version": "v2",
             "fileName": [
@@ -95,23 +79,7 @@
             ]
         }
     ],
-    "2.5.0": [
-        {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
-            "version": "v3",
-            "fileName": [
-                "swaggersink",
-                "swaggersource",
-                "swaggerfunctions"
-            ]
-        }
-    ],
-    "2.5.1": [
+    "2.4.1": [
         {
             "version": "v3",
             "fileName": [
@@ -124,6 +92,38 @@
             "version": "v2",
             "fileName": [
                 "swagger"
+            ]
+        }
+    ],
+    "2.5.0": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggersink",
+                "swaggerfunctions",
+                "swaggersource"
+            ]
+        }
+    ],
+    "2.5.1": [
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
+            ]
+        },
+        {
+            "version": "v3",
+            "fileName": [
+                "swaggerfunctions",
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
@@ -159,7 +159,7 @@
             ]
         }
     ],
-    "master": [
+    "2.7.0-SNAPSHOT": [
         {
             "version": "v2",
             "fileName": [
@@ -175,7 +175,7 @@
             ]
         }
     ],
-    "2.7.0-SNAPSHOT": [
+    "master": [
         {
             "version": "v2",
             "fileName": [

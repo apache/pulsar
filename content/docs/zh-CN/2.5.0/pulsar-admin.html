@@ -774,27 +774,27 @@
 <li><code>monitoring-metrics</code></li>
 </ul>
 <h3><a class="anchor" aria-hidden="true" id="function-stats"></a><a href="#function-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>function-stats</code></h3>
-<p>Dump all functions stats running on this broker</p>
+<p>转储在此 broker 上运行的所有 function 的统计数据</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span>-worker <span class="hljs-keyword">function</span>-stats
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-cluster"></a><a href="#get-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-cluster</code></h3>
-<p>Get all workers belonging to this cluster</p>
+<p>获取属于此集群的所有 worker</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span>-worker get-cluster
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-cluster-leader"></a><a href="#get-cluster-leader" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-cluster-leader</code></h3>
-<p>Get the leader of the worker cluster</p>
+<p>获取 worker 集群的 leader</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span>-worker get-cluster-leader
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="get-function-assignments"></a><a href="#get-function-assignments" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-function-assignments</code></h3>
-<p>Get the assignments of the functions across the worker cluster</p>
+<p>获取 function 在 worker 集群中的分配情况</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span>-worker get-function-assignments
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="monitoring-metrics-1"></a><a href="#monitoring-metrics-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>monitoring-metrics</code></h3>
-<p>Dump metrics for Monitoring</p>
+<p>转储用于监控的度量值</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin <span class="hljs-built_in">functions</span>-worker monitoring-metrics
 </code></pre>
@@ -1436,12 +1436,12 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="get-publish-rate"></a><a href="#get-publish-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>get-publish-rate</code></h3>
-<p>Get the message publish rate for each topic in a namespace, in bytes as well as messages per second</p>
+<p>获取命名空间中每个主题的消息发布频率，单位是字节以及消息每秒。</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces get-publish-rate tenant/namespace
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="set-publish-rate"></a><a href="#set-publish-rate" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>set-publish-rate</code></h3>
-<p>Set the message publish rate for each topic in a namespace</p>
+<p>设置命名空间中每个主题的消息发布频率</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin namespaces <span class="hljs-built_in">set</span>-publish-rate tenant/namespace options
 </code></pre>
@@ -1451,8 +1451,8 @@
 <tr><th>标记</th><th>Description</th><th>默认值</th></tr>
 </thead>
 <tbody>
-<tr><td><code>-m</code>, <code>--msg-publish-rate</code></td><td>Threshold for number of messages per second per topic in the namespace (-1 implies not set, 0 for no limit).</td><td>-1</td></tr>
-<tr><td><code>-b</code>, <code>--byte-publish-rate</code></td><td>Threshold for number of bytes per second per topic in the namespace (-1 implies not set, 0 for no limit).</td><td>-1</td></tr>
+<tr><td><code>-m</code>, <code>--msg-publish-rate</code></td><td>命名空间中每个主题每秒的消息数量阈值(-1 表示未设置，0 表示无限制)。</td><td>-1</td></tr>
+<tr><td><code>-b</code>, <code>--byte-publish-rate</code></td><td>命名空间中每个主题每秒的字节数量阈值(-1 表示未设置，0 表示无限制)。</td><td>-1</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="ns-isolation-policy"></a><a href="#ns-isolation-policy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>ns-isolation-policy</code></h2>
@@ -1806,7 +1806,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="clear-backlog-1"></a><a href="#clear-backlog-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>clear-backlog</code></h3>
-<p>Clear backlog (skip all the messages) for the subscription</p>
+<p>清除订阅的积压（跳过所有消息）</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics clear-backlog topic options
 </code></pre>
@@ -1864,7 +1864,7 @@
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reset-cursor"></a><a href="#reset-cursor" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a><code>reset-cursor</code></h3>
-<p>Reset position for subscription to a position that is closest to timestamp or messageId.</p>
+<p>重置订阅的位置到离时间戳或 messageID 最近的位置。</p>
 <p>用法</p>
 <pre><code class="hljs css language-bash">$ pulsar-admin topics reset-cursor topic options
 </code></pre>

@@ -139,6 +139,10 @@ configs:
 <pre><code class="hljs css language-bash">./bin/pulsar-admin sinks localrun --classname  org.apache.pulsar.io.cassandra --archive ~/application.jar --tenant <span class="hljs-built_in">test</span> --namespace ns1 --name cassandra-sink --inputs test_topic
 </code></pre>
 <p>If you are submitting a built-in sink, you don't need to specify <code>--classname</code> and <code>--archive</code>. You can simply specify the sink type <code>--sink-type</code>. The command to submit a built-in sink is in following form:</p>
+<h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
+<blockquote>
+<p>The <code>sink-type</code> parameter of the currently built-in connectors is determined by the setting of the <code>name</code> parameter specified in the pulsar-io.yaml file.</p>
+</blockquote>
 <pre><code class="hljs css language-bash">./bin/pulsar-admin sinks create \
     --tenant &lt;tenant&gt; \
     --namespace &lt;namespace&gt; \
@@ -157,16 +161,17 @@ configs:
 <h2><a class="anchor" aria-hidden="true" id="monitoring-connectors"></a><a href="#monitoring-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Monitoring Connectors</h2>
 <p>Since Pulsar IO connectors are running as <a href="/docs/ja/2.4.1/functions-overview">Pulsar Functions</a>, so you can use <a href="/docs/ja/2.4.1/pulsar-admin#source"><code>functions</code></a> commands available in the <a href="/docs/ja/2.4.1/pulsar-admin"><code>pulsar-admin</code></a> CLI tool.</p>
 <h3><a class="anchor" aria-hidden="true" id="retrieve-connector-metadata"></a><a href="#retrieve-connector-metadata" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrieve Connector Metadata</h3>
-<pre><code class="hljs">bin/pulsar-admin functions get \
-    --tenant &lt;tenant&gt; \
-    --namespace &lt;namespace&gt; \
-    --name &lt;connector-name&gt;
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">functions</span> <span class="hljs-keyword">get</span> \
+    <span class="hljs-comment">--tenant &lt;tenant&gt; \</span>
+    <span class="hljs-comment">--namespace &lt;namespace&gt; \</span>
+    <span class="hljs-comment">--name &lt;connector-name&gt;</span>
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="retrieve-connector-running-status"></a><a href="#retrieve-connector-running-status" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Retrieve Connector Running Status</h3>
-<pre><code class="hljs">bin/pulsar-admin functions getstatus \
-    --tenant &lt;tenant&gt; \
-    --namespace &lt;namespace&gt; \
-    --name &lt;connector-name&gt;</code></pre>
+<pre><code class="hljs">bin/pulsar-<span class="hljs-keyword">admin</span> <span class="hljs-keyword">functions</span> getstatus \
+    <span class="hljs-comment">--tenant &lt;tenant&gt; \</span>
+    <span class="hljs-comment">--namespace &lt;namespace&gt; \</span>
+    <span class="hljs-comment">--name &lt;connector-name&gt;</span>
+</code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/ja/2.4.1/io-use"><span class="arrow-prev">← </span><span>Use</span></a><a class="docs-next button" href="/docs/ja/2.4.1/io-debug"><span>Debug</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#using-builtin-connectors">Using Builtin Connectors</a></li><li><a href="#configuring-connectors">Configuring Connectors</a></li><li><a href="#running-connectors">Running Connectors</a><ul class="toc-headings"><li><a href="#running-sources">Running sources</a></li><li><a href="#running-sinks">Running Sinks</a></li></ul></li><li><a href="#monitoring-connectors">Monitoring Connectors</a><ul class="toc-headings"><li><a href="#retrieve-connector-metadata">Retrieve Connector Metadata</a></li><li><a href="#retrieve-connector-running-status">Retrieve Connector Running Status</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
