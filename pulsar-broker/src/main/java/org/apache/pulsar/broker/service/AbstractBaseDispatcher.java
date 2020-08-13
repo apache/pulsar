@@ -95,6 +95,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 if (Markers.isTxnCommitMarker(msgMetadata)) {
                     entries.set(i, null);
                     pendingTxnQueue.add(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()));
+                    continue;
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
                     // Message metadata was corrupted or the messages was a server-only marker
