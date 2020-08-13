@@ -92,7 +92,7 @@ class Contact extends React.Component {
             <h2><translate>WeChat</translate></h2>
             <p><translate>There are several WeChat groups that are used for informal discussions for devs and users.</translate></p>
 
-            <p><translate>You can add Bot by the WeChat ID: StreamNative_BJ</translate></p>
+            <p><translate>To join those WeChat tech groups, you can add Bot with the WeChat ID: StreamNative_BJ</translate></p>
           </div>
         </Container>
       </div>
