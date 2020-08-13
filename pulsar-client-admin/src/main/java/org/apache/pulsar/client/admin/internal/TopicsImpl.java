@@ -1432,6 +1432,83 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Integer getMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException {
+        try {
+            return getMaxUnackedMessagesOnConsumerAsync(topic).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> getMaxUnackedMessagesOnConsumerAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "maxUnackedMessagesOnConsumer");
+        final CompletableFuture<Integer> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<Integer>() {
+            @Override
+            public void completed(Integer maxNum) {
+                future.complete(maxNum);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> setMaxUnackedMessagesOnConsumerAsync(String topic, int maxNum) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "maxUnackedMessagesOnConsumer");
+        return asyncPostRequest(path, Entity.entity(maxNum, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setMaxUnackedMessagesOnConsumer(String topic, int maxNum) throws PulsarAdminException {
+        try {
+            setMaxUnackedMessagesOnConsumerAsync(topic, maxNum)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "maxUnackedMessagesOnConsumer");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void removeMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException {
+        try {
+            removeMaxUnackedMessagesOnConsumerAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic) throws PulsarAdminException {
         try {
             return getDelayedDeliveryPolicyAsync(topic).
