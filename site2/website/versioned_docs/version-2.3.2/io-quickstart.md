@@ -1,5 +1,5 @@
 ---
-id: version-2.3.0-io-quickstart
+id: version-2.3.2-io-quickstart
 title: "Tutorial: Connecting Pulsar with Apache Cassandra"
 sidebar_label: Getting started
 original_id: io-quickstart

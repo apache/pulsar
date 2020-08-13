@@ -1,5 +1,5 @@
 ---
-id: version-2.1.0-incubating-io-managing
+id: version-2.2.1-io-managing
 title: Managing Connectors
 sidebar_label: Managing Connectors
 original_id: io-managing
@@ -55,22 +55,22 @@ Pulsar connectors can be managed using the [`source`](reference-pulsar-admin.md#
 You can submit a source to be run in an existing Pulsar cluster using a command of this form:
 
 ```bash
-$ ./bin/pulsar-admin source create --className  <classname> --jar <jar-location> --tenant <tenant> --namespace <namespace> --name <source-name> --destinationTopicName <output-topic>
+$ ./bin/pulsar-admin source create --classname  <classname> --archive <jar-location> --tenant <tenant> --namespace <namespace> --name <source-name> --destination-topic-name <output-topic>
 ```
 
 Here’s an example command:
 
 ```bash
-bin/pulsar-admin source create --className org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+bin/pulsar-admin source create --classname org.apache.pulsar.io.twitter.TwitterFireHose --archive ~/application.jar --tenant test --namespace ns1 --name twitter-source --destination-topic-name twitter_data
 ```
 
 Instead of submitting a source to run on an existing Pulsar cluster, you alternatively can run a source as a process on your local machine:
 
 ```bash
-bin/pulsar-admin source localrun --className  org.apache.pulsar.io.twitter.TwitterFireHose --jar ~/application.jar --tenant test --namespace ns1 --name twitter-source --destinationTopicName twitter_data
+bin/pulsar-admin source localrun --classname  org.apache.pulsar.io.twitter.TwitterFireHose --archive ~/application.jar --tenant test --namespace ns1 --name twitter-source --destination-topic-name twitter_data
 ```
 
-If you are submitting a built-in source, you don't need to specify `--className` and `--jar`.
+If you are submitting a built-in source, you don't need to specify `--classname` and `--archive`.
 You can simply specify the source type `--source-type`. The command to submit a built-in source is
 in following form:
 
@@ -79,7 +79,7 @@ in following form:
     --tenant <tenant> \
     --namespace <namespace> \
     --name <source-name> \
-    --destinationTopicName <input-topics> \
+    --destination-topic-name <input-topics> \
     --source-type <source-type>
 ```
 
@@ -90,7 +90,7 @@ Here's an example to submit a Kafka source:
     --tenant test-tenant \
     --namespace test-namespace \
     --name test-kafka-source \
-    --destinationTopicName pulsar_sink_topic \
+    --destination-topic-name pulsar_sink_topic \
     --source-type kafka
 ```
 
@@ -99,22 +99,22 @@ Here's an example to submit a Kafka source:
 You can submit a sink to be run in an existing Pulsar cluster using a command of this form:
 
 ```bash
-./bin/pulsar-admin sink create --className  <classname> --jar <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
+./bin/pulsar-admin sink create --classname  <classname> --archive <jar-location> --tenant test --namespace <namespace> --name <sink-name> --inputs <input-topics>
 ```
 
 Here’s an example command:
 
 ```bash
-./bin/pulsar-admin sink create --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
+./bin/pulsar-admin sink create --classname  org.apache.pulsar.io.cassandra --archive ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
 ```
 
 Instead of submitting a sink to run on an existing Pulsar cluster, you alternatively can run a sink as a process on your local machine:
 
 ```bash
-./bin/pulsar-admin sink localrun --className  org.apache.pulsar.io.cassandra --jar ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
+./bin/pulsar-admin sink localrun --classname  org.apache.pulsar.io.cassandra --archive ~/application.jar --tenant test --namespace ns1 --name cassandra-sink --inputs test_topic
 ```
 
-If you are submitting a built-in sink, you don't need to specify `--className` and `--jar`.
+If you are submitting a built-in sink, you don't need to specify `--classname` and `--archive`.
 You can simply specify the sink type `--sink-type`. The command to submit a built-in sink is
 in following form:
 

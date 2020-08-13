@@ -1,5 +1,5 @@
 ---
-id: version-2.4.0-io-quickstart
+id: version-2.4.2-io-quickstart
 title: "Tutorial: Connect Pulsar with Database"
 sidebar_label: Get started
 original_id: io-quickstart

@@ -1,5 +1,5 @@
 ---
-id: version-2.6.0-io-cli
+id: version-2.5.1-io-cli
 title: Connector Admin CLI
 sidebar_label: CLI
 original_id: io-cli
@@ -68,7 +68,7 @@ $ pulsar-admin sources create options
 | `--processing-guarantees` | The processing guarantees (aka delivery semantics) applied to the source.<br>Possible Values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
-| `--source-config` | Source config key/values. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
+| `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
 | `-t`, `--source-type` | The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--tenant` | The source's tenant.
