@@ -143,7 +143,7 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.2.4</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
-    <org.eclipse.jetty-hdfs-offload>9.4.31.v20200723</org.eclipse.jetty-hdfs-offload>
+    <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
     <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
