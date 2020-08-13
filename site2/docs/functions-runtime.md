@@ -10,7 +10,7 @@ Pulsar Functions support the following methods to run functions.
 - *Process*: Invoke functions in processes forked by functions worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by functions worker.
 
-#### Note
+> Note
 > Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.
 
 The differences of the thread and process modes are:
@@ -45,7 +45,6 @@ processContainerFactory:
 *Process* runtime is supported in Java, Python, and Go functions.
 
 ## Configure Kubernetes runtime
-
 
 ### How it works
 
@@ -97,7 +96,7 @@ kubernetesContainerFactory:
   percentMemoryPadding: 10
 ```
 
-As stated earlier, if you already run your functions worker embedded in a broker on Kubernetes, you can keep many of these settings as default.
+If you run your functions worker embedded in a broker on Kubernetes, you can keep many of these settings as default.
 
 ### Standalone functions worker on K8S
 
@@ -162,7 +161,7 @@ subjectsKubernetesSec:
   name: functions-worker
 ```
 
-If the service-account is not properly configured, you may see an error message similar to this:
+If the service-account is not properly configured, an error message similar to this is displayed:
 ```bash
 22:04:27.696 [Timer-0] ERROR org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory - Error while trying to fetch configmap example-pulsar-4qvmb5gur3c6fc9dih0x1xn8b-function-worker-config at namespace pulsar
 io.kubernetes.client.ApiException: Forbidden
@@ -180,9 +179,9 @@ io.kubernetes.client.ApiException: Forbidden
 
 In order to safely distribute secrets, Pulasr Functions can reference Kubernetes secrets. To enable this, set the `secretsProviderConfiguratorClassName` to `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`.
 
-Then, you can create a secret in the namespace where your functions are deployed. As an example, suppose we are deploying functions to the `pulsar-func` Kubernetes namespace, and we have a secret named `database-creds` with a field name `password`, which we want to mount in the pod as an environment variable called `DATABASE_PASSWORD`.
+You can create a secret in the namespace where your functions are deployed. As an example, suppose you are deploying functions to the `pulsar-func` Kubernetes namespace, and you have a secret named `database-creds` with a field name `password`, which you want to mount in the pod as an environment variable called `DATABASE_PASSWORD`.
 
-The following functions configuration would then allow us to reference that secret and have the value be mounted as an environment variable in the pod.
+The following functions configuration would then allow you to reference that secret and have the value be mounted as an environment variable in the pod.
 
 ```Yaml
 tenant: "mytenant"
@@ -201,22 +200,25 @@ secrets:
 
 ### Kubernetes Functions authentication
 
-
 When your Pulsar cluster uses authentication, the pod running your function needs a mechanism to authenticate with the broker.
 
-An interface, `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider`, can be extended to provide support for any authentication mechanism. The `functionAuthProviderClassName` in `function-worker.yml` is used to specify your path to this implementation.
+An interface, `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider`, is extended to provide support for any authentication mechanism. The `functionAuthProviderClassName` in `function-worker.yml` is used to specify your path to this implementation. 
 
-Pulsar includes an implementation of this interface that is suitable for token auth, which should be configured like the following in the configuration:
+Pulsar includes an implementation of this interface that is suitable for token auth, and distributes the certificate authority via the same implementation. The configuration is similar as follows:
+
 ```Yaml
 functionAuthProviderClassName: org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider
 ```
+`KubernetesSecretsTokenAuthProvider` .
 
-For custom authentication or TLS, you need to implement this interface (or use an alternative mechanism to provide authentication)
+For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. 
 
-For token authentication, the way this works is that the functions worker captures the token that was used to deploy (or update) the function. This token is then saved as a secret and mounted into the pod.
+For token authentication, the functions worker captures the token that is used to deploy (or update) the function. This token is saved as a secret and mounted into the pod.
 
-One thing to keep in mind is that if you use tokens that expire when deploying functions, these tokens will expire.
+> Note
+> If you use tokens that expire when deploying functions, these tokens will expire.
 
+If you use token authentication and TLS encryption to secure the communication with the cluster, Pulsar passes your certificate authority (CA) to the client, so the client obtains what it needs to authenticate the cluster, and trusts the cluster with your signed certificate.
 
 ### Kubernetes CustomRuntimeOptions
 
