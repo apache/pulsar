@@ -504,12 +504,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
             @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
-    public void resetCursorOnPosition(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void resetCursorOnPosition(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @PathParam("subName") String encodedSubName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @PUT

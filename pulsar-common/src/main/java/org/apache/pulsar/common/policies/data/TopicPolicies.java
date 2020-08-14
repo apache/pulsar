@@ -37,7 +37,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TopicPolicies {
 
-    private Map<String, BacklogQuota> backLogQuotaMap =  Maps.newHashMap();
+    private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
     private PersistencePolicies persistence = null;
     private RetentionPolicies retentionPolicies = null;
     private Boolean deduplicationEnabled = null;
@@ -45,6 +45,20 @@ public class TopicPolicies {
     private Integer maxProducerPerTopic = null;
     private Integer maxConsumerPerTopic = null;
     private Integer maxConsumersPerSubscription = null;
+    private Long delayedDeliveryTickTimeMillis = null;
+    private Boolean delayedDeliveryEnabled = null;
+
+    public boolean isDelayedDeliveryTickTimeMillisSet(){
+        return delayedDeliveryTickTimeMillis != null;
+    }
+    public boolean isDelayedDeliveryEnabledSet(){
+        return delayedDeliveryEnabled != null;
+    }
+    private Integer maxUnackedMessagesOnSubscription = null;
+
+    public boolean isMaxUnackedMessagesOnSubscriptionSet() {
+        return maxUnackedMessagesOnSubscription != null;
+    }
 
     public boolean isBacklogQuotaSet() {
         return !backLogQuotaMap.isEmpty();

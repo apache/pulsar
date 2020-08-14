@@ -35,12 +35,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
@@ -99,7 +101,7 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
-        this.authenticationData = cnx.authenticationData;
+        this.authenticationData = cnx.getAuthenticationData();
         this.msgIn = new Rate();
         this.chuckedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
@@ -610,6 +612,14 @@ public class Producer {
                     producerId, producerName, topic.getName());
             disconnect();
         }
+    }
+
+    public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
+                                  ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
+        beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
+        topic.publishTxnMessage(txnID, headersAndPayload,
+                MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
+                        headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime()));
     }
 
     public SchemaVersion getSchemaVersion() {

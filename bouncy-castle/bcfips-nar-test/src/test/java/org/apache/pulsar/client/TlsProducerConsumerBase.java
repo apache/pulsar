@@ -76,6 +76,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
+        conf.setNumExecutorThreadPoolSize(5);
 
         // load bcfips in
         URL bouncyCastleUrl = this.getClass().getClassLoader().getResource("bouncy-castle-bcfips.nar");

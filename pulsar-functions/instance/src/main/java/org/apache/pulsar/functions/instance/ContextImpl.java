@@ -68,6 +68,7 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
     private PulsarClient client;
     private Map<String, Producer<?>> publishProducers;
+    private ThreadLocal<Map<String, Producer<?>>> tlPublishProducers;
     private ProducerBuilderImpl<?> producerBuilder;
 
     private final TopicSchema topicSchema;
@@ -102,12 +103,26 @@ class ContextImpl implements Context, SinkContext, SourceContext {
         this.config = config;
         this.logger = logger;
         this.client = client;
-        this.publishProducers = new HashMap<>();
         this.topicSchema = new TopicSchema(client);
         this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
                 .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+        boolean useThreadLocalProducers = false;
+        if (config.getFunctionDetails().getSink().getProducerSpec() != null) {
+            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages() != 0) {
+                this.producerBuilder.maxPendingMessages(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessages());
+            }
+            if (config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
+                this.producerBuilder.maxPendingMessagesAcrossPartitions(config.getFunctionDetails().getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+            }
+            useThreadLocalProducers = config.getFunctionDetails().getSink().getProducerSpec().getUseThreadLocalProducers();
+        }
+        if (useThreadLocalProducers) {
+            tlPublishProducers = new ThreadLocal<>();
+        } else {
+            publishProducers = new HashMap<>();
+        }
 
         if (config.getFunctionDetails().getUserConfig().isEmpty()) {
             userConfigs = new HashMap<>();
@@ -405,7 +420,17 @@ class ContextImpl implements Context, SinkContext, SourceContext {
     }
 
     private <O> Producer<O> getProducer(String topicName, Schema<O> schema) throws PulsarClientException {
-        Producer<O> producer = (Producer<O>) publishProducers.get(topicName);
+        Producer<O> producer;
+        if (tlPublishProducers != null) {
+            Map<String, Producer<?>> producerMap = tlPublishProducers.get();
+            if (producerMap == null) {
+                producerMap = new HashMap<>();
+                tlPublishProducers.set(producerMap);
+            }
+            producer = (Producer<O>) producerMap.get(topicName);
+        } else {
+            producer = (Producer<O>) publishProducers.get(topicName);
+        }
 
         if (producer == null) {
 
@@ -430,16 +455,19 @@ class ContextImpl implements Context, SinkContext, SourceContext {
                             this.config.getInstanceId()))
                     .create();
 
-            Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
-
-            if (existingProducer != null) {
-                // The value in the map was not updated after the concurrent put
-                newProducer.close();
-                producer = existingProducer;
+            if (tlPublishProducers != null) {
+                tlPublishProducers.get().put(topicName, newProducer);
             } else {
-                producer = newProducer;
-            }
+                Producer<O> existingProducer = (Producer<O>) publishProducers.putIfAbsent(topicName, newProducer);
 
+                if (existingProducer != null) {
+                    // The value in the map was not updated after the concurrent put
+                    newProducer.close();
+                    producer = existingProducer;
+                } else {
+                    producer = newProducer;
+                }
+            }
         }
         return producer;
     }

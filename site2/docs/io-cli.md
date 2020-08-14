@@ -64,7 +64,7 @@ $ pulsar-admin sources create options
 |`--name` | The source's name.
 | `--namespace` | The source's namespace.
 | ` --parallelism` | The source's parallelism factor, that is, the number of source instances to run.
-| `--processing-guarantees` | The processing guarantees (aka delivery semantics) applied to the source.<br>Possible Values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+| `--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
@@ -95,12 +95,12 @@ $ pulsar-admin sources update options
 |`--name` | The source's name.
 | `--namespace` | The source's namespace.
 | ` --parallelism` | The source's parallelism factor, that is, the number of source instances to run.
-| `--processing-guarantees` | The processing guarantees (aka delivery semantics) applied to the source.<br>Possible Values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+| `--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per source instance (applicable only to the process and Docker runtimes).
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 | `--source-config` | Source config key/values.
 | `--source-config-file` | The path to a YAML config file specifying the source's configuration.
-| `-t`, `--source-type` | The source's connector provider.
+| `-t`, `--source-type` | The source's connector provider. The `source-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--tenant` | The source's tenant.
 | `--update-auth-data` | Whether or not to update the auth data.<br>**Default value: false.**
 
@@ -263,7 +263,7 @@ $ pulsar-admin sources localrun options
 |`--name`|The source’s name.|
 |`--namespace`|The source’s namespace.|
 |`--parallelism`|The source’s parallelism factor, that is, the number of source instances to run).|
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the source. <br>Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+|`--processing-guarantees` | The processing guarantees (also named as delivery semantics) applied to the source. A source connector receives messages from external system and writes messages to a Pulsar topic. The `--processing-guarantees` is used to ensure the processing guarantees for writing messages to the Pulsar topic. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 |`--ram`|The RAM (in bytes) that needs to be allocated per source instance (applicable only to the Docker runtime).|
 | `-st`, `--schema-type` | The schema type.<br> Either a builtin schema (for example, AVRO and JSON) or custom schema class name to be used to encode messages emitted from source.
 |`--source-config`|Source config key/values.
@@ -354,12 +354,12 @@ $ pulsar-admin sinks create options
 |`--name` | The sink's name.
 | `--namespace` | The sink's namespace.
 | ` --parallelism` | The sink's parallelism factor, that is, the number of sink instances to run.
-| `--processing-guarantees` | The processing guarantees (aka delivery semantics) applied to the sink.<br>Possible Values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+| `--processing-guarantees` | The processing guarantees (also known as delivery semantics) applied to the sink. The `--processing-guarantees` implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the process and Docker runtimes).
 | `--retain-ordering` | Sink consumes and sinks messages in order.
 | `--sink-config` | sink config key/values.
 | `--sink-config-file` | The path to a YAML config file specifying the sink's configuration.
-| `-t`, `--sink-type` | The sink's connector provider.
+| `-t`, `--sink-type` | The sink's connector provider. The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 | `--subs-name` | Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer.
 | `--tenant` | The sink's tenant.
 | `--timeout-ms` | The message timeout in milliseconds.
@@ -390,7 +390,7 @@ $ pulsar-admin sinks update options
 |`--name` | The sink's name.
 | `--namespace` | The sink's namespace.
 | ` --parallelism` | The sink's parallelism factor, that is, the number of sink instances to run.
-| `--processing-guarantees` | The processing guarantees (aka delivery semantics) applied to the sink.<br>Possible Values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+| `--processing-guarantees` | The processing guarantees (also known as delivery semantics) applied to the sink. The `--processing-guarantees` implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 | `--ram` | The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the process and Docker runtimes).
 | `--retain-ordering` | Sink consumes and sinks messages in order.
 | `--sink-config` | sink config key/values.
@@ -566,7 +566,7 @@ $ pulsar-admin sinks localrun options
 |`--name`|The sink’s name.|
 |`--namespace`|The sink’s namespace.|
 |`--parallelism`|The sink’s parallelism factor, that is, the number of sink instances to run).|
-|`--processing-guarantees`|The processing guarantees (aka delivery semantics) applied to the sink. <br>Available values: ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
+|`--processing-guarantees`|The processing guarantees (also known as delivery semantics) applied to the sink. The `--processing-guarantees` implementation in Pulsar also relies on sink implementation. <br>The available values are ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE.
 |`--ram`|The RAM (in bytes) that needs to be allocated per sink instance (applicable only to the Docker runtime).|
 |`--retain-ordering` | Sink consumes and sinks messages in order.
 |`--sink-config`|sink config key/values.

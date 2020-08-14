@@ -439,4 +439,5 @@ public class TopicMessagingBase extends MessagingBase {
         closeConsumers(consumerList);
         log.info("-- Exiting {} test --", methodName);
     }
+
 }
