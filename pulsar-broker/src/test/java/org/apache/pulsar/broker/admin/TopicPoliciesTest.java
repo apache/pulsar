@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -234,6 +235,83 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Retention {} get on topic: {} after remove", getRetention, testTopic);
         getRetention = admin.topics().getRetention(testTopic);
         Assert.assertNull(getRetention);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckPersistence() throws Exception {
+        PersistencePolicies persistencePolicies = new PersistencePolicies(6, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(2, 6, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(2, 2, 6, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(1, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetPersistence() throws Exception {
+        PersistencePolicies persistencePolicies = new PersistencePolicies(2, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        admin.topics().setPersistence(testTopic, persistencePolicies);
+        Thread.sleep(3000);
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(testTopic);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemovePersistence() throws Exception {
+
+        PersistencePolicies persistencePolicies = new PersistencePolicies(2, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        admin.topics().setPersistence(testTopic, persistencePolicies);
+        Thread.sleep(3000);
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(testTopic);
+
+        log.info("PersistencePolicies {} get on topic: {}", getPersistencePolicies, testTopic);
+        Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+
+        admin.topics().removePersistence(testTopic);
+        Thread.sleep(3000);
+        log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
+        getPersistencePolicies = admin.topics().getPersistence(testTopic);
+        Assert.assertNull(getPersistencePolicies);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
