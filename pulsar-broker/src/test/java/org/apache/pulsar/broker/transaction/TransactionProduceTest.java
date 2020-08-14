@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
-public class PulsarClientTransactionTest extends TransactionTestBase {
+public class TransactionProduceTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
 
@@ -105,7 +105,7 @@ public class PulsarClientTransactionTest extends TransactionTestBase {
     }
 
     @Test
-    public void produceCommitTest() throws Exception {
+    public void produceAndCommitTest() throws Exception {
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         Transaction tnx = pulsarClientImpl.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)

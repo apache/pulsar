@@ -223,37 +223,34 @@ The Apache Software License, Version 2.0
  * Guava
     - guava-25.1-jre.jar
  * Google Guice
-    - guice-4.2.0.jar
     - guice-4.2.3.jar
     - guice-multibindings-4.2.0.jar
  * Apache Commons
     - commons-math3-3.6.1.jar
-    - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.19.jar
     - commons-lang3-3.6.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.48.Final.jar
-    - netty-codec-4.1.48.Final.jar
-    - netty-codec-dns-4.1.48.Final.jar
-    - netty-codec-http-4.1.48.Final.jar
-    - netty-codec-socks-4.1.48.Final.jar
-    - netty-common-4.1.48.Final.jar
-    - netty-handler-4.1.48.Final.jar
-    - netty-handler-proxy-4.1.48.Final.jar
+    - netty-buffer-4.1.51.Final.jar
+    - netty-codec-4.1.51.Final.jar
+    - netty-codec-dns-4.1.51.Final.jar
+    - netty-codec-http-4.1.51.Final.jar
+    - netty-codec-socks-4.1.51.Final.jar
+    - netty-common-4.1.51.Final.jar
+    - netty-handler-4.1.51.Final.jar
+    - netty-handler-proxy-4.1.51.Final.jar
     - netty-reactive-streams-2.0.4.jar
-    - netty-resolver-4.1.48.Final.jar
-    - netty-resolver-dns-4.1.48.Final.jar
+    - netty-resolver-4.1.51.Final.jar
+    - netty-resolver-dns-4.1.51.Final.jar
     - netty-tcnative-boringssl-static-2.0.30.Final.jar
-    - netty-transport-4.1.48.Final.jar
-    - netty-transport-native-epoll-4.1.48.Final.jar
-    - netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
-    - netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
-    - netty-transport-native-unix-common-4.1.48.Final.jar
-    - netty-transport-native-unix-common-4.1.48.Final-linux-x86_64.jar
+    - netty-transport-4.1.51.Final.jar
+    - netty-transport-native-epoll-4.1.51.Final.jar
+    - netty-transport-native-epoll-4.1.51.Final-linux-x86_64.jar
+    - netty-transport-native-kqueue-4.1.51.Final-osx-x86_64.jar
+    - netty-transport-native-unix-common-4.1.51.Final.jar
+    - netty-transport-native-unix-common-4.1.51.Final-linux-x86_64.jar
  * Joda Time
     - joda-time-2.10.5.jar
-    - joda-time-2.10.1.jar
  * Jetty
     - http2-client-9.4.27.v20200227.jar
     - http2-common-9.4.27.v20200227.jar
@@ -272,21 +269,18 @@ The Apache Software License, Version 2.0
   * Asynchronous Http Client
     - async-http-client-1.9.40.jar
   * Apache BVal
-    - bval-core-1.1.1.jar
-    - bval-jsr-1.1.1.jar
     - bval-jsr-2.0.0.jar
   * Bytecode
     - bytecode-1.2.jar
   * CGLIB Nodep
-    - cglib-nodep-3.2.5.jar
     - cglib-nodep-3.3.0.jar
   * Airlift
     - aircompressor-0.16.jar
     - airline-0.8.jar
-    - bootstrap-0.170.jar
+    - bootstrap-0.199.jar
     - bootstrap-0.195.jar
     - concurrent-0.195.jar
-    - configuration-0.170.jar
+    - configuration-0.199.jar
     - configuration-0.195.jar
     - discovery-0.195.jar
     - discovery-server-1.29.jar
@@ -297,11 +291,11 @@ The Apache Software License, Version 2.0
     - jmx-http-0.195.jar
     - jmx-http-rpc-0.159.jar
     - joni-2.1.5.3.jar
-    - json-0.170.jar
+    - json-0.199.jar
     - json-0.195.jar
-    - log-0.170.jar
+    - log-0.199.jar
     - log-0.195.jar
-    - log-manager-0.170.jar
+    - log-manager-0.199.jar
     - log-manager-0.195.jar
     - node-0.195.jar
     - parameternames-1.4.jar
@@ -329,8 +323,8 @@ The Apache Software License, Version 2.0
     - leveldb-0.10.jar
     - leveldb-api-0.10.jar
   * Log4j implemented over SLF4J
-    - log4j-over-slf4j-1.7.25.jar
     - log4j-over-slf4j-1.7.29.jar
+    - log4j-over-slf4j-1.7.30.jar
   * Lucene Common Analyzers
     - lucene-analyzers-common-8.4.1.jar
     - lucene-core-8.4.1.jar
@@ -438,6 +432,7 @@ The Apache Software License, Version 2.0
     - gson-2.8.2.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
+    - jackson-module-parameter-names-2.11.1.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
@@ -492,9 +487,9 @@ MIT License
  * PCollections
    - pcollections-2.1.2.jar
  * SLF4J
-   - slf4j-jdk14-1.7.25.jar
    - slf4j-jdk14-1.7.29.jar
    - slf4j-api-1.7.25.jar
+   - slf4j-jdk14-1.7.30.jar
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.25.jar
    - jcl-over-slf4j-1.7.29.jar
@@ -529,7 +524,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-common-2.26.jar
  * JAXB
     - jaxb-api-2.3.1.jar
-    - jaxb-impl-2.2.6.jar
 
  Eclipse Public License 1.0 -- licenses/LICENSE-AspectJ.txt
   * Aether
