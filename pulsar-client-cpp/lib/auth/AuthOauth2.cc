@@ -183,6 +183,7 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "POST");
 
     // set URL: issuerUrl
+    issuerUrl_.append("/oauth/token");
     curl_easy_setopt(handle, CURLOPT_URL, issuerUrl_.c_str());
 
     // Write callback

@@ -69,7 +69,6 @@ import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
-import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -418,6 +417,52 @@ public abstract class PulsarWebResource {
         return false;
     }
 
+    /**
+     * Checks whether the broker is the owner of all the namespace bundles. Otherwise, if authoritative is false, it
+     * will throw an exception to redirect to assigned owner or leader; if authoritative is true then it will try to
+     * acquire all the namespace bundles.
+     *
+     * @param tenant tenant name
+     * @param cluster cluster name
+     * @param namespace namespace name
+     * @param authoritative if it is an authoritative request
+     * @param readOnly if the request is read-only
+     * @param bundleData bundle data
+     */
+    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
+            boolean authoritative, boolean readOnly, BundlesData bundleData) {
+        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
+
+        try {
+            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
+                    bundleData);
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                validateBundleOwnership(bundle, authoritative, readOnly);
+            }
+        } catch (WebApplicationException wae) {
+            // propagate already wrapped-up WebApplicationExceptions
+            throw wae;
+        } catch (Exception oe) {
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
+            throw new RestException(oe);
+        }
+    }
+
+    protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
+            boolean readOnly, NamespaceBundle bundle) {
+        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
+
+        try {
+            validateBundleOwnership(bundle, authoritative, readOnly);
+        } catch (WebApplicationException wae) {
+            // propagate already wrapped-up WebApplicationExceptions
+            throw wae;
+        } catch (Exception oe) {
+            log.debug("Failed to find owner for namespace {}", fqnn, oe);
+            throw new RestException(oe);
+        }
+    }
+
     protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         try {
@@ -525,11 +570,8 @@ public abstract class PulsarWebResource {
      * client to the appropriate broker. If no broker owns the namespace yet, this function will try to acquire the
      * ownership by default.
      *
+     * @param topicName topic name
      * @param authoritative
-     *
-     * @param tenant
-     * @param cluster
-     * @param namespace
      */
     protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
@@ -727,31 +769,33 @@ public abstract class PulsarWebResource {
     protected static final int NOT_IMPLEMENTED = 501;
 
     public void validateTenantOperation(String tenant, TenantOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+            && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
 
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTenantOperation(
-                            tenant, operation, originalPrincipal(), clientAppId(), clientAuthData());
-
+            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                .allowTenantOperation(tenant, operation, originalPrincipal(), clientAppId(), clientAuthData());
             if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTenantOperation for" +
-                                " originalPrincipal [%s] and clientAppId [%s] about operation [%s] on tenant [%s]",
+                throw new RestException(Status.UNAUTHORIZED,
+                    String.format("Unauthorized to validateTenantOperation for"
+                            + " originalPrincipal [%s] and clientAppId [%s] about operation [%s] on tenant [%s]",
                         originalPrincipal(), clientAppId(), operation.toString(), tenant));
             }
         }
     }
 
     public void validateNamespaceOperation(NamespaceName namespaceName, NamespaceOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+            && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespaceOperation(namespaceName, operation, originalPrincipal(), clientAppId(), clientAuthData());
+            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespaceOperation(namespaceName, operation, originalPrincipal(),
+                        clientAppId(), clientAuthData());
 
             if (!isAuthorized) {
                 throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespaceOperation for" +
@@ -760,34 +804,22 @@ public abstract class PulsarWebResource {
         }
     }
 
-    public void validateNamespacePolicyOperation(NamespaceName namespaceName, PolicyName policy, PolicyOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
+    public void validateNamespacePolicyOperation(NamespaceName namespaceName,
+                                                 PolicyName policy,
+                                                 PolicyOperation operation) {
+        if (pulsar().getConfiguration().isAuthenticationEnabled()
+            && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
             }
 
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespacePolicyOperation(namespaceName, policy, operation, originalPrincipal(), clientAppId(), clientAuthData());
+            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                    .allowNamespacePolicyOperation(namespaceName, policy, operation,
+                        originalPrincipal(), clientAppId(), clientAuthData());
 
             if (!isAuthorized) {
                 throw new RestException(Status.FORBIDDEN, String.format("Unauthorized to validateNamespacePolicyOperation for" +
                         " operation [%s] on namespace [%s] on policy [%s]", operation.toString(), namespaceName, policy.toString()));
-            }
-        }
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        if (pulsar().getConfiguration().isAuthenticationEnabled() && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
-            }
-
-            Boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperation(topicName, operation, originalPrincipal(), clientAppId(), clientAuthData());
-
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to validateTopicOperation for" +
-                        " operation [%s] on topic [%s]", operation.toString(), topicName));
             }
         }
     }

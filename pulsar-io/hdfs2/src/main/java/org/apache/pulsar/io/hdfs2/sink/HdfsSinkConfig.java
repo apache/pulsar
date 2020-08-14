@@ -24,6 +24,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import lombok.Data;
@@ -73,6 +75,14 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
      */
     private int maxPendingRecords = Integer.MAX_VALUE;
 
+    /**
+     * A subdirectory associated with the created time of the sink.
+     * The pattern is the formatted pattern of {@link AbstractHdfsConfig#getDirectory()}'s subdirectory.
+     *
+     * @see java.time.format.DateTimeFormatter for pattern's syntax
+     */
+    private String subdirectoryPattern;
+
     public static HdfsSinkConfig load(String yamlFile) throws IOException {
        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
        return mapper.readValue(new File(yamlFile), HdfsSinkConfig.class);
@@ -87,16 +97,24 @@ public class HdfsSinkConfig extends AbstractHdfsConfig implements Serializable {
     public void validate() {
         super.validate();
         if ((StringUtils.isEmpty(fileExtension) && getCompression() == null)
-            || StringUtils.isEmpty(filenamePrefix)) {
-           throw new IllegalArgumentException("Required property not set.");
+                || StringUtils.isEmpty(filenamePrefix)) {
+            throw new IllegalArgumentException("Required property not set.");
         }
 
         if (syncInterval < 0) {
-          throw new IllegalArgumentException("Sync Interval cannot be negative");
+            throw new IllegalArgumentException("Sync Interval cannot be negative");
         }
 
         if (maxPendingRecords < 1) {
-          throw new IllegalArgumentException("Max Pending Records must be a positive integer");
+            throw new IllegalArgumentException("Max Pending Records must be a positive integer");
+        }
+
+        if (subdirectoryPattern != null) {
+            try {
+                LocalDateTime.of(2020, 1, 1, 12, 0).format(DateTimeFormatter.ofPattern(subdirectoryPattern));
+            } catch (Exception e) {
+                throw new IllegalArgumentException(subdirectoryPattern + " is not a valid pattern: " + e.getMessage());
+            }
         }
     }
 }

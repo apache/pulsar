@@ -74,6 +74,7 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -1287,5 +1288,62 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                         Mockito.any());
         doReturn(true).when(nsSvc)
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)));
+    }
+
+    @Test
+    public void testDeleteNonPartitionedTopicMultipleTimes() throws Exception {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String topic = namespace + "/topic";
+
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+
+        admin.topics().createNonPartitionedTopic(topic);
+
+        admin.topics().delete(topic);
+
+        try {
+            admin.topics().delete(topic);
+            fail("should have failed");
+        } catch (NotFoundException e) {
+            // Expected
+        }
+
+        admin.namespaces().deleteNamespace(namespace);
+
+        try {
+            admin.topics().delete(topic);
+            fail("should have failed");
+        } catch (NotFoundException e) {
+            // Expected
+        }
+    }
+
+    @Test
+    public void testDeletePartitionedTopicMultipleTimes() throws Exception {
+        String namespace = this.testTenant + "/namespace-" + System.nanoTime();
+        String topic = namespace + "/topic";
+
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
+
+        admin.topics().createPartitionedTopic(topic, 3);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topic).partitions, 3);
+
+        admin.topics().deletePartitionedTopic(topic);
+
+        try {
+            admin.topics().deletePartitionedTopic(topic);
+            fail("should have failed");
+        } catch (NotFoundException e) {
+            // Expected
+        }
+
+        admin.namespaces().deleteNamespace(namespace);
+
+        try {
+            admin.topics().deletePartitionedTopic(topic);
+            fail("should have failed");
+        } catch (NotFoundException e) {
+            // Expected
+        }
     }
 }

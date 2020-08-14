@@ -47,6 +47,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -503,6 +504,9 @@ public abstract class AdminResource extends PulsarWebResource {
             return Optional.ofNullable(pulsar().getTopicPoliciesService().getTopicPolicies(topicName));
         } catch (RestException re) {
             throw re;
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e){
+            log.error("Topic {} policies cache have not init.", topicName);
+            throw new RestException(e);
         } catch (Exception e) {
             log.error("[{}] Failed to get topic policies {}", clientAppId(), topicName, e);
             throw new RestException(e);
