@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1435,6 +1436,53 @@ public interface Topics {
     void removeBacklogQuota(String topic) throws PulsarAdminException;
 
     /**
+     * Get the delayed delivery policy for a specified topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    DelayedDeliveryPolicies getDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Set the delayed delivery policy for a specified topic.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @throws PulsarAdminException
+     */
+    void setDelayedDeliveryPolicy(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies) throws PulsarAdminException;
+
+    /**
+     * Set the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @param delayedDeliveryPolicies
+     * @return
+     */
+    CompletableFuture<Void> setDelayedDeliveryPolicyAsync(String topic
+            , DelayedDeliveryPolicies delayedDeliveryPolicies);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDelayedDeliveryPolicyAsync(String topic);
+
+    /**
+     * Remove the delayed delivery policy for a specified topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
+
+    /**
      * Set message TTL for a topic.
      *
      * @param topic
@@ -1614,6 +1662,51 @@ public interface Topics {
      *            Topic name
      */
     CompletableFuture<Void> removeRetentionAsync(String topic);
+
+    /**
+     * get max unacked messages on subscription of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * set max unacked messages on subscription of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnSubscription(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnSubscriptionAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on subscription of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on subscription of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
 
     /**
      * Set the configuration of persistence policies for specified topic.

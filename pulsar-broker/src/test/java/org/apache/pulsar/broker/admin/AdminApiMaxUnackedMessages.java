@@ -44,8 +44,6 @@ import static org.testng.Assert.*;
 @Slf4j
 public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiMaxUnackedMessages.class);
-
     @BeforeMethod
     @Override
     public void setup() throws Exception {
