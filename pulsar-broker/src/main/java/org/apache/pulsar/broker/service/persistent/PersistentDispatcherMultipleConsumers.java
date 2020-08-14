@@ -104,6 +104,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ServiceConfiguration serviceConfig;
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
+    private TransactionReader transactionReader;
+
     enum ReadType {
         Normal, Replay
     }
@@ -120,6 +122,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+        this.transactionReader = new TransactionReader(this);
     }
 
     @Override
@@ -351,6 +354,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
+            } else if (havePendingTxnToRead()) {
+                transactionReader.read(messagesToRead, ReadType.Normal, this);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
