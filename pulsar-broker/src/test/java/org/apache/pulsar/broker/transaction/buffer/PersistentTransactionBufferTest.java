@@ -105,6 +105,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -412,9 +413,9 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
             verifyAndReleaseEntries(entries, txnID, 0L, numEntries);
 
             reader.readNext(1).get();
-
+            Assert.fail("Should cause the exception `EndOfTransactionException`.");
         } catch (ExecutionException ee) {
-            assertTrue(ee.getCause() instanceof EndOfTransactionException);
+             assertTrue(ee.getCause() instanceof EndOfTransactionException);
         }
 
     }
@@ -754,7 +755,7 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
                 assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntryBuffer()),
+                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
                     UTF_8
                 ), "message-" + i);
             }
