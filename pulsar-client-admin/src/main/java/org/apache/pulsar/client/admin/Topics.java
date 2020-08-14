@@ -1708,4 +1708,49 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * get deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * get deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic);
+
+    /**
+     * set deduplication enabled of a topic.
+     * @param topic
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void setDeduplicationEnabled(String topic, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * set deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> setDeduplicationEnabledAsync(String topic, boolean enabled);
+
+    /**
+     * remove deduplication enabled of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeDeduplicationEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * remove deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeDeduplicationEnabledAsync(String topic);
 }

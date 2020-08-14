@@ -1209,6 +1209,65 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Get deduplication configuration of a topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
+    public void getDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isDeduplicationSet()) {
+            asyncResponse.resume(topicPolicies.getDeduplicationEnabled());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Set deduplication enabled on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry")})
+    public void setDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic,
+                             @ApiParam(value = "DeduplicationEnabled policies for the specified topic") Boolean enabled) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetDeduplicationEnabled(enabled).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated deduplication", ex);
+                asyncResponse.resume(ex);
+            }else if (ex != null) {
+                log.error("Failed updated deduplication", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/deduplicationEnabled")
+    @ApiOperation(value = "Remove deduplication configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void removeDeduplicationEnabled(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setDeduplicationEnabled(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/retention")
     @ApiOperation(value = "Get retention configuration for specified topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
