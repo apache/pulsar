@@ -63,8 +63,8 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
     }
 
     @Override
-    public CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
-        return meta.readEntries(numEntries, currentSequenceId)
+    public CompletableFuture<List<TransactionEntry>> readNext(String subName, int numEntries) {
+        return meta.readEntries(subName, numEntries, currentSequenceId)
                    .thenCompose(this::readEntry)
                    .thenApply(entries -> entries.stream()
                                                 .sorted(Comparator.comparingLong(entry -> entry.sequenceId()))

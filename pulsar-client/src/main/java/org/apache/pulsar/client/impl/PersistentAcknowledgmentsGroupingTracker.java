@@ -204,7 +204,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             bitSet.clear(batchIndex);
         }
 
-        final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType, null, properties);
+        final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId,
+                msgId.getMessageTxnidMostBits(), msgId.getMessageTxnidLeastBits(), bitSet, ackType, null, properties);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -333,6 +334,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             } else {
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     ByteBuf cmd = Commands.newAck(consumerId, cMsgId.getLedgerId(), cMsgId.getEntryId(),
+                            cMsgId.getMessageTxnidMostBits(), cMsgId.getMessageTxnidLeastBits(),
                             lastCumulativeAckSet, ackType, validationError, map);
                     if (flush) {
                         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
@@ -343,7 +345,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             }
             this.consumer.unAckedChunckedMessageIdSequenceMap.remove(msgId);
         } else {
-            ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), lastCumulativeAckSet,
+            ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
+                    msgId.getMessageTxnidMostBits(), msgId.getMessageTxnidLeastBits(), lastCumulativeAckSet,
                     ackType, validationError, map);
             if (flush) {
                 cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());

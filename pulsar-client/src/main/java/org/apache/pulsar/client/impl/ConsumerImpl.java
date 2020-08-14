@@ -1032,6 +1032,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         MessageMetadata msgMetadata;
         try {
             msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                messageId = MessageIdData.newBuilder()
+                        .mergeFrom(messageId)
+                        .setTxnidMostBits(msgMetadata.getTxnidMostBits())
+                        .setTxnidLeastBits(msgMetadata.getTxnidLeastBits())
+                        .build();
+            }
         } catch (Throwable t) {
             discardCorruptedMessage(messageId, cnx, ValidationError.ChecksumMismatch);
             return;
@@ -1040,7 +1047,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final int numMessages = msgMetadata.getNumMessagesInBatch();
         final boolean isChunkedMessage = msgMetadata.getNumChunksFromMsg() > 1 && conf.getSubscriptionType() != SubscriptionType.Shared;
 
-        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
+        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(),
+                msgMetadata.hasTxnidMostBits() ? msgMetadata.getTxnidMostBits() : -1L,
+                msgMetadata.hasTxnidLeastBits() ? msgMetadata.getTxnidLeastBits() : -1L);
         if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
@@ -1350,7 +1359,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                        messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
+                        messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker,
+                        msgMetadata.hasTxnidMostBits() ? msgMetadata.getTxnidMostBits() : -1L,
+                        msgMetadata.hasTxnidLeastBits() ? msgMetadata.getTxnidLeastBits() : -1L);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
@@ -1589,8 +1600,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
-        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), null, AckType.Individual,
-                                      validationError, Collections.emptyMap());
+        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(),
+                messageId.getTxnidMostBits(), messageId.getTxnidLeastBits(), null, AckType.Individual,
+                validationError, Collections.emptyMap());
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
         increaseAvailablePermits(currentCnx);
         stats.incrementNumReceiveFailed();

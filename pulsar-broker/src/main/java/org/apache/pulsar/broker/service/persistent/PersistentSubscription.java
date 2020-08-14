@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Lists;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -521,6 +522,25 @@ public class PersistentSubscription implements Subscription {
             log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
         }
     };
+
+    @Override
+    public void acknowledgeTxnMessage(Map<TxnID, List<Position>> txnPositionsMap, AckType ackType, Map<String, Long> properties) {
+        getTopic().getTransactionBuffer(false).thenAccept(tb -> {
+            for (Map.Entry<TxnID, List<Position>> entry : txnPositionsMap.entrySet()) {
+                tb.getTransactionMeta(entry.getKey())
+                    .thenAccept(meta -> {
+                        meta.acknowledge(subName, entry.getValue()).thenAccept(isFinish -> {
+                            if (isFinish) {
+                                Position position = PositionImpl.get(
+                                        meta.committedAtLedgerId(),
+                                        meta.committedAtEntryId());
+                                acknowledgeMessage(Lists.newArrayList(position), ackType, properties);
+                            }
+                        });
+                    });
+            }
+        });
+    }
 
     @Override
     public String toString() {

@@ -19,16 +19,25 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import com.google.common.annotations.VisibleForTesting;
+
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
 public class TransactionMetaImpl implements TransactionMeta {
@@ -38,11 +47,13 @@ public class TransactionMetaImpl implements TransactionMeta {
     private TxnStatus txnStatus;
     private long committedAtLedgerId = -1L;
     private long committedAtEntryId = -1L;
+    private Map<String, Set<Position>> pendingAck;
 
     TransactionMetaImpl(TxnID txnID) {
         this.txnID = txnID;
         this.entries = new TreeMap<>();
         this.txnStatus = TxnStatus.OPEN;
+        this.pendingAck = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -83,7 +94,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
+    public CompletableFuture<SortedMap<Long, Position>> readEntries(String subName, int num, long startSequenceId) {
         CompletableFuture<SortedMap<Long, Position>> readFuture = new CompletableFuture<>();
 
         SortedMap<Long, Position> result = new TreeMap<>();
@@ -99,8 +110,15 @@ public class TransactionMetaImpl implements TransactionMeta {
             return readFuture;
         }
 
+        Set<Position> pendingPositionSet = null;
+        if (subName != null) {
+            pendingPositionSet = pendingAck.computeIfAbsent(subName, key -> new HashSet<>(entries.size()));
+        }
         for (Map.Entry<Long, Position> longPositionEntry : readEntries.entrySet()) {
             result.put(longPositionEntry.getKey(), longPositionEntry.getValue());
+            if (pendingPositionSet != null) {
+                pendingPositionSet.add(longPositionEntry.getValue());
+            }
         }
 
         readFuture.complete(result);
@@ -172,4 +190,18 @@ public class TransactionMetaImpl implements TransactionMeta {
         return true;
     }
 
+    @Override
+    public CompletableFuture<Boolean> acknowledge(String subName, List<Position> positionsAcked) {
+        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+        if (!pendingAck.containsKey(subName)) {
+            completableFuture.completeExceptionally(new Exception("The subscription [" + subName + "] is not exist."));
+            return completableFuture;
+        }
+        Set<Position> pendingPositionSet = pendingAck.get(subName);
+        for (Position position : positionsAcked) {
+            pendingPositionSet.remove(position);
+        }
+        completableFuture.complete(pendingPositionSet.size() == 0);
+        return completableFuture;
+    }
 }

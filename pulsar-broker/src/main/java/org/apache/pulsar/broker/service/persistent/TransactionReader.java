@@ -90,28 +90,29 @@ public class TransactionReader {
             transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, startSequenceId);
         }
         transactionBufferReader.thenAccept(reader -> {
-            reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
-                if (throwable != null) {
-                    log.error("Read transaction messages failed.", throwable);
-                    readEntriesCallback.readEntriesFailed(
-                            ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-                    return;
-                }
-                if (transactionEntries == null || transactionEntries.size() < readMessageNum) {
-                    startSequenceId = 0;
-                    dispatcher.getPendingTxnQueue().remove(txnID);
-                    transactionBufferReader = null;
-                    reader.close();
-                }
-                List<Entry> entryList = new ArrayList<>(transactionEntries.size());
-                for (int i = 0; i < transactionEntries.size(); i++) {
-                    if (i == (transactionEntries.size() -1)) {
-                        startSequenceId = transactionEntries.get(i).sequenceId();
+            reader.readNext(dispatcher.getSubscription().getName(), readMessageNum)
+                .whenComplete((transactionEntries, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Read transaction messages failed.", throwable);
+                        readEntriesCallback.readEntriesFailed(
+                                ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+                        return;
                     }
-                    entryList.add(transactionEntries.get(i).getEntry());
-                }
-                readEntriesCallback.readEntriesComplete(entryList, ctx);
-            });
+                    if (transactionEntries == null || transactionEntries.size() < readMessageNum) {
+                        startSequenceId = 0;
+                        dispatcher.getPendingTxnQueue().remove(txnID);
+                        transactionBufferReader = null;
+                        reader.close();
+                    }
+                    List<Entry> entryList = new ArrayList<>(transactionEntries.size());
+                    for (int i = 0; i < transactionEntries.size(); i++) {
+                        if (i == (transactionEntries.size() -1)) {
+                            startSequenceId = transactionEntries.get(i).sequenceId();
+                        }
+                        entryList.add(transactionEntries.get(i).getEntry());
+                    }
+                    readEntriesCallback.readEntriesComplete(entryList, ctx);
+                });
         }).exceptionally(throwable -> {
             log.error("Open transactionBufferReader failed.", throwable);
             readEntriesCallback.readEntriesFailed(

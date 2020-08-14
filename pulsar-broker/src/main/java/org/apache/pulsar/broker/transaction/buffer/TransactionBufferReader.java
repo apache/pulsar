@@ -41,7 +41,7 @@ public interface TransactionBufferReader extends AutoCloseable {
      * @throws EndOfTransactionException if reaching end of the transaction and no
      *         more entries to return.
      */
-    CompletableFuture<List<TransactionEntry>> readNext(int numEntries);
+    CompletableFuture<List<TransactionEntry>> readNext(String subName, int numEntries);
 
     /**
      * {@inheritDoc}

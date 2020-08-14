@@ -409,10 +409,10 @@ public class PersistentTransactionBufferTest extends MockedBookKeeperTestCase {
         assertEquals(TxnStatus.COMMITTED, meta.status());
 
         try (TransactionBufferReader reader = buffer.openTransactionBufferReader(txnID, 0L).get()) {
-            List<TransactionEntry> entries = reader.readNext(numEntries).get();
+            List<TransactionEntry> entries = reader.readNext(null, numEntries).get();
             verifyAndReleaseEntries(entries, txnID, 0L, numEntries);
 
-            reader.readNext(1).get();
+            reader.readNext(null, 1).get();
             Assert.fail("Should cause the exception `EndOfTransactionException`.");
         } catch (ExecutionException ee) {
              assertTrue(ee.getCause() instanceof EndOfTransactionException);

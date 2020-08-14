@@ -97,7 +97,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId) {
+        public CompletableFuture<SortedMap<Long, Position>> readEntries(String subName, int num, long startSequenceId) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
@@ -197,6 +197,10 @@ class InMemTransactionBuffer implements TransactionBuffer {
             );
         }
 
+        @Override
+        public CompletableFuture<Boolean> acknowledge(String subName, List<Position> positionsAcked) {
+            return CompletableFuture.completedFuture(true);
+        }
     }
 
     final ConcurrentMap<TxnID, TxnBuffer> buffers;

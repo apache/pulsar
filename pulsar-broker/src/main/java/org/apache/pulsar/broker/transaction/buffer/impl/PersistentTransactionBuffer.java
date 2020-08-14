@@ -343,7 +343,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             log.debug("Start to delete txn {} entries", txnID);
         }
         return txnCursor.getTxnMeta(txnID, false)
-                 .thenCompose(meta -> meta.readEntries(meta.numEntries(), -1L))
+                 .thenCompose(meta -> meta.readEntries(null, meta.numEntries(), -1L))
                  .thenCompose(longPositionSortedMap -> deleteEntries(longPositionSortedMap, txnID));
     }
 

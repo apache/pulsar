@@ -27,6 +27,7 @@ import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
 
+import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -40,6 +41,11 @@ public class MessageIdImpl implements MessageId {
     protected final long entryId;
     protected final int partitionIndex;
 
+    @Getter
+    protected long messageTxnidMostBits = -1L;
+    @Getter
+    protected long messageTxnidLeastBits = -1L;
+
     // Private constructor used only for json deserialization
     @SuppressWarnings("unused")
     private MessageIdImpl() {
@@ -50,6 +56,13 @@ public class MessageIdImpl implements MessageId {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
         this.partitionIndex = partitionIndex;
+    }
+
+    public MessageIdImpl(long ledgerId, long entryId, int partitionIndex,
+                         long messageTxnidMostBits, long messageTxnidLeastBits) {
+        this(ledgerId, entryId, partitionIndex);
+        this.messageTxnidMostBits = messageTxnidMostBits;
+        this.messageTxnidLeastBits = messageTxnidLeastBits;
     }
 
     public long getLedgerId() {

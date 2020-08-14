@@ -52,7 +52,7 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
     }
 
     @Override
-    public synchronized CompletableFuture<List<TransactionEntry>> readNext(int numEntries) {
+    public synchronized CompletableFuture<List<TransactionEntry>> readNext(String subName, int numEntries) {
         CompletableFuture<List<TransactionEntry>> readFuture = new CompletableFuture<>();
 
         if (numEntries <= 0) {

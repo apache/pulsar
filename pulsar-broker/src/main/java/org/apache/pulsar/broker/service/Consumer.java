@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -32,6 +33,7 @@ import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +48,7 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -152,7 +155,7 @@ public class Consumer {
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
         this.appId = appId;
-        this.authenticationData = cnx.getAuthenticationData();
+        this.authenticationData = cnx.authenticationData;
         this.preciseDispatcherFlowControl = cnx.isPreciseDispatcherFlowControl();
 
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
@@ -415,6 +418,7 @@ public class Consumer {
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
+            Map<TxnID, List<Position>> txnPositionAcked = Maps.newHashMap();
             for (int i = 0; i < ack.getMessageIdCount(); i++) {
                 MessageIdData msgId = ack.getMessageId(i);
                 PositionImpl position;
@@ -423,7 +427,18 @@ public class Consumer {
                 } else {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
-                positionsAcked.add(position);
+                if (msgId.hasTxnidMostBits() && msgId.hasTxnidLeastBits()) {
+                    txnPositionAcked.compute(new TxnID(msgId.getTxnidMostBits(), msgId.getTxnidLeastBits()),
+                            (txnId, list) -> {
+                        if (list == null) {
+                            list = new ArrayList<>();
+                        }
+                        list.add(position);
+                        return list;
+                    });
+                } else {
+                    positionsAcked.add(position);
+                }
 
                 if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
                     removePendingAcks(position);
@@ -435,6 +450,7 @@ public class Consumer {
                 }
             }
             subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+            subscription.acknowledgeTxnMessage(txnPositionAcked, AckType.Individual, properties);
         }
     }
 

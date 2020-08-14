@@ -55,6 +55,10 @@ message MessageIdData {
     optional int32 partition = 3 [default = -1];
     optional int32 batch_index = 4 [default = -1];
     repeated int64 ack_set = 5;
+
+    // transaction related message info
+    optional uint64 txnid_least_bits = 6;
+    optional uint64 txnid_most_bits = 7;
 }
 
 message KeyValue {

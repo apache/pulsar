@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import com.google.common.annotations.Beta;
+
+import java.util.List;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
@@ -76,11 +78,12 @@ public interface TransactionMeta {
     /**
      * Read the entries from start sequence id.
      *
+     * @param subName subscription name
      * @param num the entries number need to read
      * @param startSequenceId the start position of the entries
      * @return
      */
-    CompletableFuture<SortedMap<Long, Position>> readEntries(int num, long startSequenceId);
+    CompletableFuture<SortedMap<Long, Position>> readEntries(String subName, int num, long startSequenceId);
 
     /**
      * Add transaction entry into the transaction.
@@ -112,5 +115,7 @@ public interface TransactionMeta {
      * @return
      */
     CompletableFuture<TransactionMeta> abortTxn();
+
+    CompletableFuture<Boolean> acknowledge(String subName, List<Position> positionsAcked);
 
 }

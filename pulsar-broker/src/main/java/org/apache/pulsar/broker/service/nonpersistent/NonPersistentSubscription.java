@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.HashRangeExclusiveStickyKeyConsumerSelec
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -193,6 +194,11 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
+        // No-op
+    }
+
+    @Override
+    public void acknowledgeTxnMessage(Map<TxnID, List<Position>> txnPositionsMap, AckType ackType, Map<String, Long> properties) {
         // No-op
     }
 

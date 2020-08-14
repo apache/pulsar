@@ -1,21 +1,3 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
 package org.apache.pulsar.client.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -124,6 +106,70 @@ public class EndToEndTest extends TransactionTestBase {
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt, receiveCnt);
+        log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
+    @Test
+    public void ackTest() throws Exception {
+        Transaction txn = ((PulsarClientImpl) pulsarClient)
+                .newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(TOPIC_OUTPUT)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        int messageCnt = 10;
+        for (int i = 0; i < messageCnt; i++) {
+            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+        }
+
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(TOPIC_OUTPUT)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test")
+                .subscribe();
+
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        // Can't receive transaction messages before commit.
+        Assert.assertNull(message);
+
+        txn.commit().get();
+
+        Thread.sleep(2000);
+
+        int receiveCnt = 0;
+        for (int i = 0; i < messageCnt; i++) {
+            message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            receiveCnt ++;
+        }
+        Assert.assertEquals(messageCnt, receiveCnt);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveCnt = 0;
+        for (int i = 0; i < messageCnt; i++) {
+            message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            consumer.acknowledge(message);
+            receiveCnt ++;
+        }
+        Assert.assertEquals(messageCnt, receiveCnt);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
         log.info("receive transaction messages count: {}", receiveCnt);
     }
 

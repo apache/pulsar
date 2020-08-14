@@ -118,7 +118,7 @@ public class TransactionBufferTest {
             txnId, 0L
         ).get()) {
             // read 10 entries
-            List<TransactionEntry> txnEntries = reader.readNext(numEntries).get();
+            List<TransactionEntry> txnEntries = reader.readNext(null, numEntries).get();
             verifyAndReleaseEntries(txnEntries, txnId, 0L, numEntries);
         }
     }

@@ -54,7 +54,7 @@ public class InMemTransactionBufferReaderTest {
             33L
         )) {
             try {
-                reader.readNext(-1).join();
+                reader.readNext(null, -1).join();
                 fail("Should fail to readNext if `numEntries` is invalid");
             } catch (CompletionException ce) {
                 assertTrue(ce.getCause() instanceof IllegalArgumentException);
@@ -79,7 +79,7 @@ public class InMemTransactionBufferReaderTest {
 
             int numEntriesToRead = 10;
             // read 10 entries
-            List<TransactionEntry> txnEntries = reader.readNext(numEntriesToRead).get();
+            List<TransactionEntry> txnEntries = reader.readNext(null, numEntriesToRead).get();
             verifyAndReleaseEntries(txnEntries, txnID, 0L, numEntriesToRead);
             verifyEntriesReleased(entries, 0L, numEntriesToRead);
         }
@@ -105,14 +105,14 @@ public class InMemTransactionBufferReaderTest {
 
             int numEntriesToRead = numEntries + 10;
             // read all entries
-            List<TransactionEntry> txnEntries = reader.readNext(numEntriesToRead).get();
+            List<TransactionEntry> txnEntries = reader.readNext(null, numEntriesToRead).get();
             verifyAndReleaseEntries(txnEntries, txnID, 0L, numEntries);
             verifyEntriesReleased(entries, 0L, numEntries);
 
             // since all the entries has been read, the read next operation will be
             // failed with EndOfTransactionException
             try {
-                reader.readNext(1).get();
+                reader.readNext(null, 1).get();
                 fail("should fail to read entries if there is no more in the transaction buffer");
             } catch (ExecutionException ee) {
                 assertTrue(ee.getCause() instanceof EndOfTransactionException);

@@ -1141,6 +1141,14 @@ public final class PulsarApi {
     java.util.List<java.lang.Long> getAckSetList();
     int getAckSetCount();
     long getAckSet(int index);
+    
+    // optional uint64 txnid_least_bits = 6;
+    boolean hasTxnidLeastBits();
+    long getTxnidLeastBits();
+    
+    // optional uint64 txnid_most_bits = 7;
+    boolean hasTxnidMostBits();
+    long getTxnidMostBits();
   }
   public static final class MessageIdData extends
       org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
@@ -1231,12 +1239,34 @@ public final class PulsarApi {
       return ackSet_.get(index);
     }
     
+    // optional uint64 txnid_least_bits = 6;
+    public static final int TXNID_LEAST_BITS_FIELD_NUMBER = 6;
+    private long txnidLeastBits_;
+    public boolean hasTxnidLeastBits() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public long getTxnidLeastBits() {
+      return txnidLeastBits_;
+    }
+    
+    // optional uint64 txnid_most_bits = 7;
+    public static final int TXNID_MOST_BITS_FIELD_NUMBER = 7;
+    private long txnidMostBits_;
+    public boolean hasTxnidMostBits() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public long getTxnidMostBits() {
+      return txnidMostBits_;
+    }
+    
     private void initFields() {
       ledgerId_ = 0L;
       entryId_ = 0L;
       partition_ = -1;
       batchIndex_ = -1;
       ackSet_ = java.util.Collections.emptyList();;
+      txnidLeastBits_ = 0L;
+      txnidMostBits_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -1278,6 +1308,12 @@ public final class PulsarApi {
       for (int i = 0; i < ackSet_.size(); i++) {
         output.writeInt64(5, ackSet_.get(i));
       }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeUInt64(6, txnidLeastBits_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeUInt64(7, txnidMostBits_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -1310,6 +1346,14 @@ public final class PulsarApi {
         }
         size += dataSize;
         size += 1 * getAckSetList().size();
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(6, txnidLeastBits_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(7, txnidMostBits_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -1434,6 +1478,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         ackSet_ = java.util.Collections.emptyList();;
         bitField0_ = (bitField0_ & ~0x00000010);
+        txnidLeastBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000020);
+        txnidMostBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -1488,6 +1536,14 @@ public final class PulsarApi {
           bitField0_ = (bitField0_ & ~0x00000010);
         }
         result.ackSet_ = ackSet_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.txnidLeastBits_ = txnidLeastBits_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000020;
+        }
+        result.txnidMostBits_ = txnidMostBits_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -1515,6 +1571,12 @@ public final class PulsarApi {
             ackSet_.addAll(other.ackSet_);
           }
           
+        }
+        if (other.hasTxnidLeastBits()) {
+          setTxnidLeastBits(other.getTxnidLeastBits());
+        }
+        if (other.hasTxnidMostBits()) {
+          setTxnidMostBits(other.getTxnidMostBits());
         }
         return this;
       }
@@ -1576,6 +1638,16 @@ public final class PulsarApi {
             case 40: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              txnidLeastBits_ = input.readUInt64();
+              break;
+            }
+            case 56: {
+              bitField0_ |= 0x00000040;
+              txnidMostBits_ = input.readUInt64();
               break;
             }
           }
@@ -1709,6 +1781,48 @@ public final class PulsarApi {
       public Builder clearAckSet() {
         ackSet_ = java.util.Collections.emptyList();;
         bitField0_ = (bitField0_ & ~0x00000010);
+        
+        return this;
+      }
+      
+      // optional uint64 txnid_least_bits = 6;
+      private long txnidLeastBits_ ;
+      public boolean hasTxnidLeastBits() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public long getTxnidLeastBits() {
+        return txnidLeastBits_;
+      }
+      public Builder setTxnidLeastBits(long value) {
+        bitField0_ |= 0x00000020;
+        txnidLeastBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidLeastBits() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        txnidLeastBits_ = 0L;
+        
+        return this;
+      }
+      
+      // optional uint64 txnid_most_bits = 7;
+      private long txnidMostBits_ ;
+      public boolean hasTxnidMostBits() {
+        return ((bitField0_ & 0x00000040) == 0x00000040);
+      }
+      public long getTxnidMostBits() {
+        return txnidMostBits_;
+      }
+      public Builder setTxnidMostBits(long value) {
+        bitField0_ |= 0x00000040;
+        txnidMostBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidMostBits() {
+        bitField0_ = (bitField0_ & ~0x00000040);
+        txnidMostBits_ = 0L;
         
         return this;
       }
