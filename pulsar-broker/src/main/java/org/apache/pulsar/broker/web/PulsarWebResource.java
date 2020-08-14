@@ -417,52 +417,6 @@ public abstract class PulsarWebResource {
         return false;
     }
 
-    /**
-     * Checks whether the broker is the owner of all the namespace bundles. Otherwise, if authoritative is false, it
-     * will throw an exception to redirect to assigned owner or leader; if authoritative is true then it will try to
-     * acquire all the namespace bundles.
-     *
-     * @param tenant tenant name
-     * @param cluster cluster name
-     * @param namespace namespace name
-     * @param authoritative if it is an authoritative request
-     * @param readOnly if the request is read-only
-     * @param bundleData bundle data
-     */
-    protected void validateNamespaceOwnershipWithBundles(String tenant, String cluster, String namespace,
-            boolean authoritative, boolean readOnly, BundlesData bundleData) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
-                    bundleData);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                validateBundleOwnership(bundle, authoritative, readOnly);
-            }
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
-    }
-
-    protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
-            boolean readOnly, NamespaceBundle bundle) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            validateBundleOwnership(bundle, authoritative, readOnly);
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
-    }
-
     protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
             String bundleRange) {
         try {
