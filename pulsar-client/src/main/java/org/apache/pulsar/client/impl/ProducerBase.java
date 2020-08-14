@@ -73,7 +73,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     public CompletableFuture<MessageId> sendAsync(Message<?> message) {
-        return internalSendAsync(message);
+        return internalSendAsync(message, null);
     }
 
     @Override
@@ -100,12 +100,12 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
         return new TypedMessageBuilderImpl<>(this, schema, (TransactionImpl) txn);
     }
 
-    abstract CompletableFuture<MessageId> internalSendAsync(Message<?> message);
+    abstract CompletableFuture<MessageId> internalSendAsync(Message<?> message, Transaction txn);
 
     public MessageId send(Message<?> message) throws PulsarClientException {
         try {
             // enqueue the message to the buffer
-            CompletableFuture<MessageId> sendFuture = internalSendAsync(message);
+            CompletableFuture<MessageId> sendFuture = internalSendAsync(message, null);
 
             if (!sendFuture.isDone()) {
                 // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to triggerFlush it out

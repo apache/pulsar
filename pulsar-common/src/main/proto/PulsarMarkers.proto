@@ -32,8 +32,9 @@ enum MarkerType {
     REPLICATED_SUBSCRIPTION_UPDATE            = 13;
 
     // Next markers start at 20
-    TXN_COMMIT = 20;
-    TXN_ABORT = 21;
+    TXN_COMMITTING = 20;
+    TXN_COMMIT = 21;
+    TXN_ABORT = 22;
 }
 
 /// --- Replicated subscriptions ---

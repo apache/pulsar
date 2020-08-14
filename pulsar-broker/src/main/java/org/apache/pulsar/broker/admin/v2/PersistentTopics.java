@@ -39,18 +39,22 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Maps;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 
@@ -244,6 +248,126 @@ public class PersistentTopics extends PersistentTopicsBase {
         validateGlobalNamespaceOwnership(tenant,namespace);
         validateTopicName(tenant, namespace, encodedTopic);
         internalCreateNonPartitionedTopic(authoritative);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Get max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            asyncResponse.resume(topicPolicies.getMaxUnackedMessagesOnSubscription());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Set max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @ApiParam(value = "Max unacked messages on subscription policies for the specified topic")
+                                                            Integer maxUnackedNum) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetMaxUnackedMessagesOnSubscription(maxUnackedNum).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set MaxUnackedMessagesOnSubscription", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnSubscription")
+    @ApiOperation(value = "Delete max unacked messages per subscription config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteMaxUnackedMessagesOnSubscription(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("tenant") String tenant,
+                                                       @PathParam("namespace") String namespace,
+                                                       @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setMaxUnackedMessagesOnSubscription(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Get delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isDelayedDeliveryEnabledSet() && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+            asyncResponse.resume(new DelayedDeliveryPolicies(topicPolicies.getDelayedDeliveryTickTimeMillis()
+                    , topicPolicies.getDelayedDeliveryEnabled()));
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Set delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace,
+                                           @PathParam("topic") @Encoded String encodedTopic,
+                                           @ApiParam(value = "Delayed delivery policies for the specified topic") DelayedDeliveryPolicies deliveryPolicies) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetDelayedDeliveryPolicies(asyncResponse, deliveryPolicies);
+    }
+
+
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/delayedDelivery")
+    @ApiOperation(value = "Set delayed delivery messages config on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
+                                              @PathParam("namespace") String namespace,
+                                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setDelayedDeliveryPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }
 
     /**
@@ -878,6 +1002,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate global cluster configuration") })
     public void resetCursorOnPosition(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -890,8 +1015,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(name = "messageId", value = "messageId to reset back to (ledgerId:entryId)")
             MessageIdImpl messageId) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalResetCursorOnPosition(decode(encodedSubName), authoritative, messageId);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalResetCursorOnPosition(asyncResponse, decode(encodedSubName), authoritative, messageId);
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @GET
@@ -1005,7 +1134,7 @@ public class PersistentTopics extends PersistentTopicsBase {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/backlogQuota")
-    @ApiOperation(value = " Set a backlog quota for a topic.")
+    @ApiOperation(value = "Set a backlog quota for a topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
@@ -1030,6 +1159,135 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("backlogQuotaType") BacklogQuota.BacklogQuotaType backlogQuotaType) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Get message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry")})
+    public int getMessageTTL(@PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        return getTopicPolicies(topicName)
+                .map(TopicPolicies::getMessageTTLInSeconds)
+                .orElse(0);  //same as default ttl at namespace level
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Set message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+                            @ApiResponse(code = 404, message = "Topic does not exist"),
+                            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+                            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void setMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic,
+                              @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+                              @QueryParam("messageTTL") int messageTTL) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, messageTTL);
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/messageTTL")
+    @ApiOperation(value = "Remove message TTL in seconds for a topic")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Not authenticate to perform the request or policy is read only"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid message TTL value") })
+    public void removeMessageTTL(@Suspended final AsyncResponse asyncResponse,
+                              @PathParam("tenant") String tenant,
+                              @PathParam("namespace") String namespace,
+                              @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMessageTTL(asyncResponse, null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/retention")
+    @ApiOperation(value = "Get retention configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void getRetention(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            internalGetRetention(asyncResponse);
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/retention")
+    @ApiOperation(value = "Set retention configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
+    public void setRetention(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetRetention(retention).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(ex);
+            }else if (ex != null) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                try {
+                    log.info("[{}] Successfully updated retention: namespace={}, topic={}, retention={}",
+                            clientAppId(),
+                            namespaceName,
+                            topicName.getLocalName(),
+                            jsonMapper().writeValueAsString(retention));
+                } catch (JsonProcessingException ignore) { }
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/retention")
+    @ApiOperation(value = "Remove retention configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Retention Quota must exceed backlog quota") })
+    public void removeRetention(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace,
+                             @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveRetention().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed updated retention", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove retention: namespace={}, topic={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
     }
 
     @POST

@@ -91,7 +91,10 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     /** proxyServiceUrl and proxyProtocol must be mutually inclusive **/
     private String proxyServiceUrl;
     private ProxyProtocol proxyProtocol;
-    
+
+    // transaction
+    private boolean enableTransaction = false;
+
     @JsonIgnore
     private Clock clock = Clock.systemDefaultZone();
 

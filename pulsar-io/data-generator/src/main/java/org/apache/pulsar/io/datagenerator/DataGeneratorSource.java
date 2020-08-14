@@ -26,19 +26,20 @@ import org.apache.pulsar.io.core.SourceContext;
 import java.util.Map;
 import java.util.Optional;
 
-
 public class DataGeneratorSource implements Source<Person> {
 
     private Fairy fairy;
+    private DataGeneratorSourceConfig dataGeneratorSourceConfig;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-       this.fairy = Fairy.create();
+        dataGeneratorSourceConfig = DataGeneratorSourceConfig.loadOrGetDefault(config);
+        this.fairy = Fairy.create();
     }
 
     @Override
     public Record<Person> read() throws Exception {
-        Thread.sleep(50);
+        Thread.sleep(dataGeneratorSourceConfig.getSleepBetweenMessages());
         return new Record<Person>() {
             @Override
             public Optional<String> getKey() {

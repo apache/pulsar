@@ -336,7 +336,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
 
                 havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages = asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled() ?
+                        asyncReplayEntriesInOrder(messagesToReplayNow) : asyncReplayEntries(messagesToReplayNow);
                 // clear already acked positions from replay bucket
 
                 deletedMessages.forEach(position -> messagesToRedeliver.remove(((PositionImpl) position).getLedgerId(),
@@ -349,7 +350,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, topic.maxUnackedMessagesOnSubscription);
+                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
@@ -372,6 +373,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         return cursor.asyncReplayEntries(positions, this, ReadType.Replay);
     }
 
+    protected Set<? extends Position> asyncReplayEntriesInOrder(Set<? extends Position> positions) {
+        return cursor.asyncReplayEntries(positions, this, ReadType.Replay, true);
+    }
 
     @Override
     public boolean isConsumerConnected() {
@@ -690,7 +694,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void addUnAckedMessages(int numberOfMessages) {
-        int maxUnackedMessages = topic.maxUnackedMessagesOnSubscription;
+        int maxUnackedMessages = topic.getMaxUnackedMessagesOnSubscription();
         if (maxUnackedMessages == -1) {
             maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                     .getMaxUnackedMessagesPerSubscription();
@@ -767,7 +771,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
-        if (!topic.delayedDeliveryEnabled) {
+        if (!topic.isDelayedDeliveryEnabled()) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
         }
@@ -779,7 +783,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                         .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
             }
 
-            delayedDeliveryTracker.get().resetTickTime(topic.delayedDeliveryTickTimeMillis);
+            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             return delayedDeliveryTracker.get().addMessage(ledgerId, entryId, msgMetadata.getDeliverAtTime());
         }
     }
@@ -789,13 +793,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return messagesToRedeliver.items(maxMessagesToRead,
                     (ledgerId, entryId) -> new PositionImpl(ledgerId, entryId));
         } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
-            delayedDeliveryTracker.get().resetTickTime(topic.delayedDeliveryTickTimeMillis);
+            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             return delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
         } else {
             return Collections.emptySet();
         }
     }
 
+    @Override
     public synchronized long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }

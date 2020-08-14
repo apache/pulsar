@@ -89,7 +89,13 @@ public interface TransactionMeta {
      * @param position the position of transaction log
      * @return
      */
-    CompletableFuture<Void> appendEntry(long sequenceId, Position position);
+    CompletableFuture<Position> appendEntry(long sequenceId, Position position);
+
+    /**
+     * Mark the transaction status is committing.
+     * @return
+     */
+    CompletableFuture<TransactionMeta> committingTxn();
 
     /**
      * Mark the transaction is committed.
