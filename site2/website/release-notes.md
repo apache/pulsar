@@ -51,6 +51,10 @@
 - [Broker] Change some WebApplicationException log level to debug [#7725](https://github.com/apache/pulsar/pull/7725)
 - [Broker] Replay delayed messages in order [#7731](https://github.com/apache/pulsar/pull/7731)
 - [Broker] Fix the wrong returned URL for lookup when specify advertised listener [#7737](https://github.com/apache/pulsar/pull/7737)
+- [Broker] Fix topic getting recreated immediately after deletion [#7524](https://github.com/apache/pulsar/pull/7524)
+- [Broker] Set default root log level to debug [#7789](https://github.com/apache/pulsar/pull/7789)
+- [Broker] Fix producer stucks on creating ledger timeout [#7319](https://github.com/apache/pulsar/pull/7319)
+- [Broker] AllowTopicOperationAsync should check the original role is super user [#7788](https://github.com/apache/pulsar/pull/7788)
 
 ##### Zookeeper
 
@@ -89,12 +93,15 @@
 - [CPP Client] Fix segment crashes that caused by race condition of timer in cpp client [#7572](https://github.com/apache/pulsar/pull/7572)
 - [CPP Client] Fix multitopic consumer segfault on connect error [#7588](https://github.com/apache/pulsar/pull/7588)
 - [CPP Client] Add support to read credentials from file [#7606](https://github.com/apache/pulsar/pull/7606)
+- [CPP Client] Fix the issuer_url parsing failure in oauth2 [#7791](https://github.com/apache/pulsar/pull/7791)
+- [CPP Client] Fix reference leak when reader create [#7793](https://github.com/apache/pulsar/pull/7793)
 
 ##### Pulsar Functions
 
 - [Pulsar Function] Use fully qualified hostname as default to advertise worker [#7360](https://github.com/apache/pulsar/pull/7360)
 - [Pulsar Function] Fix the function BC issue introduced in release 2.6.0 [#7528](https://github.com/apache/pulsar/pull/7528)
 - [Pulsar Function] Improve security setting of Pulsar Functions [#7578](https://github.com/apache/pulsar/pull/7578)
+- [Pulsar Function] Differentiate authorization between source/sink/function operations [#7466](https://github.com/apache/pulsar/pull/7466)
 
 ##### Go Function
 
