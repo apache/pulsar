@@ -9,9 +9,9 @@
 
 ### 2.6.1 &mdash; 2020-08-07 <a id=“2.6.1”></a>
 
-#### Fixes and Enhancements
+The following lists fixes and enhancements in 2.6.1 release.
 
-##### Broker
+#### Broker
 
 - [Broker] Limit batch size to the minimum of the `maxNumberOfMessages` and `maxSizeOfMessages` [#6865](https://github.com/apache/pulsar/pull/6865)
 - [Broker] Fix hash range conflict issue in Key_Shared with sticky hash range [#7231](https://github.com/apache/pulsar/pull/7231)
@@ -56,26 +56,26 @@
 - [Broker] Fix producer stucks on creating ledger timeout [#7319](https://github.com/apache/pulsar/pull/7319)
 - [Broker] AllowTopicOperationAsync should check the original role is super user [#7788](https://github.com/apache/pulsar/pull/7788)
 
-##### Zookeeper
+#### Zookeeper
 
 - [Zookeeper] Use hostname for bookie rackawareness mapping [#7361](https://github.com/apache/pulsar/pull/7361)
 
-##### Pulsar SQL
+#### Pulsar SQL
 
 - [Pulsar SQL] Make Pulsar SQL get correct offload configurations [#7701](https://github.com/apache/pulsar/pull/7701)
 
-##### Pulsar Schema
+#### Pulsar Schema
 - [Schema] Fix the error that occurs when getting schemaName by partitioned topic name [#7708](https://github.com/apache/pulsar/pull/7708)
 
-##### Java Client
+#### Java Client
 
 - [Java Client] Fix the issue that the HTTP header used in Athenz authentication can not be renamed [#7311](https://github.com/apache/pulsar/pull/7311)
 - [Java Client] Add more detail information of retry errors [#7341](https://github.com/apache/pulsar/pull/7341)
-- [Java Client] Support for tombstones (null value in messages) does not work [#7408](https://github.com/apache/pulsar/pull/7408)
+- [Java Client] Check NPE when a tombstone (null value) is produced. [#7408](https://github.com/apache/pulsar/pull/7408)
 - [Java Client] Fix batch ackset recycled multiple times. [#7409](https://github.com/apache/pulsar/pull/7409)
 - [Java Client] Support Oauth2 authentication [#7420](https://github.com/apache/pulsar/pull/7420)
 - [Java Client] Ensure the create subscription can be completed when the operation timeout happens [#7522](https://github.com/apache/pulsar/pull/7522)
-- [Java Client] Don't try to subscribe to the topic if the consumer is closed [#7589](https://github.com/apache/pulsar/pull/7589)
+- [Java Client] Fix race condition on the close consumer while reconnecting to the broker. [#7589](https://github.com/apache/pulsar/pull/7589)
 - [Java Client] Fix validation never return false [#7593](https://github.com/apache/pulsar/pull/7593)
 - [Java Client] Make OAuth2 auth plugin to use AsyncHttpClient [#7615](https://github.com/apache/pulsar/pull/7615)
 - [Java Client] Support to set listener name for client CLI [#7621](https://github.com/apache/pulsar/pull/7621)
@@ -85,7 +85,7 @@
 - [Java Client] Fix producer stats recorder time unit error [#7670](https://github.com/apache/pulsar/pull/7670)
 - [Java Client] Fix shutdown AsyncHttpConnector.delayer [#7687](https://github.com/apache/pulsar/pull/7687)
 
-##### CPP Client
+#### CPP Client
 
 - [CPP Client] Fix partition index error in closing callback [#7282](https://github.com/apache/pulsar/pull/7282)
 - [CPP Client] Reduce log level for ack-grouping tracker [#7373](https://github.com/apache/pulsar/pull/7373)
@@ -96,19 +96,19 @@
 - [CPP Client] Fix the issuer_url parsing failure in oauth2 [#7791](https://github.com/apache/pulsar/pull/7791)
 - [CPP Client] Fix reference leak when reader create [#7793](https://github.com/apache/pulsar/pull/7793)
 
-##### Pulsar Functions
+#### Pulsar Functions
 
 - [Pulsar Function] Use fully qualified hostname as default to advertise worker [#7360](https://github.com/apache/pulsar/pull/7360)
 - [Pulsar Function] Fix the function BC issue introduced in release 2.6.0 [#7528](https://github.com/apache/pulsar/pull/7528)
 - [Pulsar Function] Improve security setting of Pulsar Functions [#7578](https://github.com/apache/pulsar/pull/7578)
 - [Pulsar Function] Differentiate authorization between source/sink/function operations [#7466](https://github.com/apache/pulsar/pull/7466)
 
-##### Go Function
+#### Go Function
 
 - [Go Function] Fix Go instance config port [#7322](https://github.com/apache/pulsar/pull/7322)
 - [Go Function] Remove timestamp from metrics [#7539](https://github.com/apache/pulsar/pull/7539)
 
-##### Pulsar Perf
+#### Pulsar Perf
 
 - [Pulsar Perf] Supports `tlsAllowInsecureConnection` in pulsar-perf produce/consume/read [#7300](https://github.com/apache/pulsar/pull/7300)
 
