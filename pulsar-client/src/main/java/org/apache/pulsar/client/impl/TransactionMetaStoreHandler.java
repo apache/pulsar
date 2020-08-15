@@ -148,7 +148,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newAddPartitionToTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits());
+        ByteBuf cmd = Commands.newAddPartitionToTxn(
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));

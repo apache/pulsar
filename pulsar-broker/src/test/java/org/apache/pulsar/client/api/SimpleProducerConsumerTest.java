@@ -3352,4 +3352,78 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         log.info("-- Exiting {} test --", methodName);
     }
+
+    @Test(timeOut = 5000)
+    public void testReceiveAsyncCompletedWhenClosing() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testCompletedWhenClosing";
+        final String partitionedTopic = "persistent://my-property/my-ns/testCompletedWhenClosing-partitioned";
+        final String errorMsg = "cleaning and closing the consumers";
+        BatchReceivePolicy batchReceivePolicy
+                = BatchReceivePolicy.builder().maxNumBytes(10 * 1024).maxNumMessages(10).timeout(-1, TimeUnit.SECONDS).build();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("my-subscriber-name")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        // 1) Test receiveAsync is interrupted
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        new Thread(() -> {
+            try {
+                consumer.receiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                consumer.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch.await();
+
+        // 2) Test batchReceiveAsync is interrupted
+        CountDownLatch countDownLatch2 = new CountDownLatch(1);
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic).subscriptionName("my-subscriber-name")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        new Thread(() -> {
+            try {
+                consumer2.batchReceiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch2.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                consumer2.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch2.await();
+        // 3) Test partitioned topic batchReceiveAsync is interrupted
+        CountDownLatch countDownLatch3 = new CountDownLatch(1);
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
+        Consumer<String> partitionedTopicConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(partitionedTopic).subscriptionName("my-subscriber-name-partitionedTopic")
+                .batchReceivePolicy(batchReceivePolicy).subscribe();
+        new Thread(() -> {
+            try {
+                partitionedTopicConsumer.batchReceiveAsync().get();
+                Assert.fail("should be interrupted");
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains(errorMsg));
+                countDownLatch3.countDown();
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                partitionedTopicConsumer.close();
+            } catch (PulsarClientException ignore) {
+            }
+        }).start();
+        countDownLatch3.await();
+    }
 }

@@ -566,15 +566,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         lock.readLock().lock();
         try {
             if (listenerExecutor != null && !listenerExecutor.isShutdown()) {
-                while (!pendingReceives.isEmpty()) {
-                    CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
-                    if (receiveFuture != null) {
-                        receiveFuture.completeExceptionally(
-                                new PulsarClientException.AlreadyClosedException("Consumer is already closed"));
-                    } else {
-                        break;
-                    }
-                }
+                failPendingReceives(pendingReceives);
+                failPendingBatchReceives(pendingBatchReceives);
             }
         } finally {
             lock.readLock().unlock();
@@ -728,10 +721,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private boolean topicNameValid(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
-        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
-
-        return true;
+        return TopicName.isValid(topicName) && !topics.containsKey(topicName);
     }
 
     // subscribe one more given topic
@@ -792,7 +782,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // subscribe one more given topic, but already know the numberPartitions
-    private CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
+    @VisibleForTesting
+    CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         if (!topicNameValid(topicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
@@ -829,7 +820,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         List<CompletableFuture<Consumer<T>>> futureList;
         if (numPartitions > 0) {
-            this.topics.putIfAbsent(topicName, numPartitions);
+            // Below condition is true if subscribeAsync() has been invoked second time with same
+            // topicName before the first invocation had reached this point.
+            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, numPartitions) != null;
+            if (isTopicBeingSubscribedForInOtherThread) {
+                String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                    + "Topic is already being subscribed for in other thread.", topic, topicName);
+                log.warn(errorMessage);
+                subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                return;
+            }
             allTopicPartitionsNumber.addAndGet(numPartitions);
 
             int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
@@ -853,7 +853,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     })
                 .collect(Collectors.toList());
         } else {
-            this.topics.putIfAbsent(topicName, 1);
+            boolean isTopicBeingSubscribedForInOtherThread = this.topics.putIfAbsent(topicName, 1) != null;
+            if (isTopicBeingSubscribedForInOtherThread) {
+                String errorMessage = String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
+                    + "Topic is already being subscribed for in other thread.", topic, topicName);
+                log.warn(errorMessage);
+                subscribeResult.completeExceptionally(new PulsarClientException(errorMessage));
+                return;
+            }
             allTopicPartitionsNumber.incrementAndGet();
 
             CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
@@ -872,8 +879,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     setMaxReceiverQueueSize(allTopicPartitionsNumber.get());
                 }
                 int numTopics = this.topics.values().stream().mapToInt(Integer::intValue).sum();
-                checkState(allTopicPartitionsNumber.get() == numTopics,
-                    "allTopicPartitionsNumber " + allTopicPartitionsNumber.get()
+                int currentAllTopicsPartitionsNumber = allTopicPartitionsNumber.get();
+                checkState(currentAllTopicsPartitionsNumber == numTopics,
+                    "allTopicPartitionsNumber " + currentAllTopicsPartitionsNumber
                         + " not equals expected: " + numTopics);
 
                 // We have successfully created new consumers, so we can start receiving messages for them

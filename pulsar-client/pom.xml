@@ -104,17 +104,6 @@
       <artifactId>gson</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpclient</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-         </exclusion>
-      </exclusions>
-    </dependency>
-
     <!--Schema dependencies-->
 
     <dependency>
@@ -156,18 +145,6 @@
     <dependency>
       <groupId>net.jcip</groupId>
       <artifactId>jcip-annotations</artifactId>
-    </dependency>
-
-    <!-- httpclient-hostname-verification depends on below dependencies  -->
-    <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
-      <version>1.1.1</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.httpcomponents</groupId>
-      <artifactId>httpcore</artifactId>
-      <version>4.4.9</version>
     </dependency>
 
     <!-- Testing dependencies -->

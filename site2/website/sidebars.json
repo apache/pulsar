@@ -31,7 +31,8 @@
       "functions-develop",
       "functions-debug",
       "functions-deploy",
-      "functions-cli"
+      "functions-cli",
+      "window-functions-context"
     ],
     "Pulsar IO": [
       "io-overview",
@@ -69,6 +70,7 @@
       "deploy-bare-metal",
       "deploy-bare-metal-multi-cluster",
       "deploy-dcos",
+      "deploy-docker",
       "deploy-monitoring"
     ],
     "Administration": [

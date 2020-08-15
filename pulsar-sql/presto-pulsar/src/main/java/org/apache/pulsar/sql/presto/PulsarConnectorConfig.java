@@ -23,6 +23,7 @@ import io.airlift.configuration.Config;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
 import java.util.regex.Matcher;
 import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.stats.NullStatsProvider;
@@ -31,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -397,6 +399,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
             this.pulsarAdmin = builder.serviceHttpUrl(getBrokerServiceUrl()).build();
         }
         return this.pulsarAdmin;
+    }
+
+    public OffloadPolicies getOffloadPolices() {
+        Properties offloadProperties = new Properties();
+        offloadProperties.putAll(getOffloaderProperties());
+        OffloadPolicies offloadPolicies = OffloadPolicies.create(offloadProperties);
+        offloadPolicies.setManagedLedgerOffloadDriver(getManagedLedgerOffloadDriver());
+        offloadPolicies.setManagedLedgerOffloadMaxThreads(getManagedLedgerOffloadMaxThreads());
+        offloadPolicies.setOffloadersDirectory(getOffloadersDirectory());
+        return offloadPolicies;
     }
 
     @Override

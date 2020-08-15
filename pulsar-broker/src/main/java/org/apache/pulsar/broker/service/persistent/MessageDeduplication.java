@@ -60,6 +60,10 @@ public class MessageDeduplication {
     private ManagedCursor managedCursor;
 
     enum Status {
+
+        // Deduplication is initialized
+        Initialized,
+
         // Deduplication is disabled
         Disabled,
 
@@ -122,7 +126,7 @@ public class MessageDeduplication {
         this.pulsar = pulsar;
         this.topic = topic;
         this.managedLedger = managedLedger;
-        this.status = Status.Disabled;
+        this.status = Status.Initialized;
         this.snapshotInterval = pulsar.getConfiguration().getBrokerDeduplicationEntriesInterval();
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
@@ -200,6 +204,25 @@ public class MessageDeduplication {
                     pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                     return CompletableFuture.completedFuture(null);
                 }
+                if (status == Status.Initialized && !shouldBeEnabled) {
+                    status = Status.Removing;
+                    managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new DeleteCursorCallback() {
+                        @Override
+                        public void deleteCursorComplete(Object ctx) {
+                            status = Status.Disabled;
+                            log.info("[{}] Deleted deduplication cursor", topic.getName());
+                        }
+
+                        @Override
+                        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                            if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                status = Status.Disabled;
+                            } else {
+                                log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
+                            }
+                        }
+                    }, null);
+                }
 
                 if (status == Status.Enabled && !shouldBeEnabled) {
                     // Disabled deduping
@@ -220,15 +243,24 @@ public class MessageDeduplication {
 
                                 @Override
                                 public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
-                                            exception.getMessage());
-                                    status = Status.Failed;
-                                    future.completeExceptionally(exception);
+                                    // It's ok for disable message deduplication.
+                                    if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                        status = Status.Disabled;
+                                        managedCursor = null;
+                                        highestSequencedPushed.clear();
+                                        highestSequencedPersisted.clear();
+                                        future.complete(null);
+                                    } else {
+                                        log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
+                                                exception.getMessage());
+                                        status = Status.Failed;
+                                        future.completeExceptionally(exception);
+                                    }
                                 }
                             }, null);
 
                     return future;
-                } else if (status == Status.Disabled && shouldBeEnabled) {
+                } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
                     // Enable deduping
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {

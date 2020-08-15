@@ -53,6 +53,9 @@ public class PulsarClientTool {
     @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name.")
     String authPluginClassName = null;
 
+    @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+    String listenerName = null;
+
     @Parameter(
         names = { "--auth-params" },
         description = "Authentication parameters, whose format is determined by the implementation " +
@@ -114,6 +117,9 @@ public class PulsarClientTool {
         if (isNotBlank(this.authPluginClassName)) {
             authentication = AuthenticationFactory.create(authPluginClassName, authParams);
             clientBuilder.authentication(authentication);
+        }
+        if (isNotBlank(this.listenerName)) {
+            clientBuilder.listenerName(this.listenerName);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);

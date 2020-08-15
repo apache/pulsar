@@ -23,7 +23,6 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
-
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
@@ -101,7 +100,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.10.0</bookkeeper.version>
     <zookeeper.version>3.5.7</zookeeper.version>
-    <netty.version>4.1.48.Final</netty.version>
+    <netty.version>4.1.51.Final</netty.version>
     <netty-tc-native.version>2.0.30.Final</netty-tc-native.version>
     <storm.version>2.0.0</storm.version>
     <jetty.version>9.4.29.v20200521</jetty.version>
@@ -145,7 +144,6 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>2.6.0</mariadb-jdbc.version>
     <hdfs-offload-version3>3.2.0</hdfs-offload-version3>
     <org.eclipse.jetty-hdfs-offload>9.3.24.v20180605</org.eclipse.jetty-hdfs-offload>
-    <test-hdfs-offload-jetty>9.3.24.v20180605</test-hdfs-offload-jetty>
     <elasticsearch.version>6.3.2</elasticsearch.version>
     <presto.version>332</presto.version>
     <flink.version>1.6.0</flink.version>
@@ -153,14 +151,13 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.version>1.0.0.Final</debezium.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.18.0</opencensus.version>
-    <hbase.version>1.4.9</hbase.version>
+    <hbase.version>2.3.0</hbase.version>
     <guava.version>25.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.12.0</prometheus-jmx.version>
     <confluent.version>5.3.2</confluent.version>
     <kafka-avro-convert-jackson.version>1.9.13</kafka-avro-convert-jackson.version>
     <aircompressor.version>0.16</aircompressor.version>
-    <httpcomponents.version>4.5.5</httpcomponents.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.48</jcommander.version>
     <commons-lang3.version>3.6</commons-lang3.version>
@@ -234,12 +231,6 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.httpcomponents</groupId>
-        <artifactId>httpclient</artifactId>
-        <version>${httpcomponents.version}</version>
       </dependency>
 
       <dependency>
@@ -1694,6 +1685,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>dashboard</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-config-validation</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
@@ -1747,6 +1739,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-zookeeper</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
+        <module>pulsar-config-validation</module>
 
         <!-- transaction related modules -->
         <module>pulsar-transaction</module>
