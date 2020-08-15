@@ -143,12 +143,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     private void waitCacheInit(String topicName) throws Exception {
         for (int i = 0; i < 50; i++) {
+            //wait for server init
+            Thread.sleep(1000);
             try {
-                admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
+                admin.topics().getDeduplicationEnabled(topicName);
                 break;
             } catch (Exception e) {
                 //ignore
-                Thread.sleep(100);
             }
             if (i == 49) {
                 throw new RuntimeException("Waiting for cache initialization has timed out");
