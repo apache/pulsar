@@ -140,7 +140,7 @@
 <tr><td style="text-align:left"><code>tlsTrustCertsFilePath</code></td><td style="text-align:left">信任的 TLS 证书的文件路径。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>tlsValidateHostname</code></td><td style="text-align:left">设置是否启用 TLS 主机名验证。</td><td style="text-align:left"><code>false</code></td></tr>
 <tr><td style="text-align:left"><code>tlsAllowInsecureConnection</code></td><td style="text-align:left">设置是否让 Pulsar 客户端从 broker 接受不信任的 TLS 证书。</td><td style="text-align:left"><code>false</code></td></tr>
-<tr><td style="text-align:left"><code>statsIntervalInSeconds</code></td><td style="text-align:left">两次信息统计之间的时间间隔。 当 statsInterval 为正数时启用信息统计。 值应该设置为至少 1 秒。</td><td style="text-align:left">600</td></tr>
+<tr><td style="text-align:left"><code>statsIntervalInSeconds</code></td><td style="text-align:left">两次信息统计之间的时间间隔。 当 statsInterval 为正数时启用信息统计。 最小值为 1 秒。</td><td style="text-align:left">600</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
@@ -158,7 +158,7 @@
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="promise-操作"></a><a href="#promise-操作" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Promise 操作</h4>
-<p>当你创建一个新的 Pulsar 生产者时，该操作会返回一个 <code>Promise</code> 对象以及生产者实例，亦或是通过 executor 函数来抛出错误。 这个例子中使用了 await 操作，而不是 executor 函数。</p>
+<p>创建新的 Pulsar producer 时，或返回 <code>Promise</code> 对象和 producer 实例，或通过 executor 函数抛出异常。 本示例使用了 await 操作，没有使用 executor 函数。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="producer-operations"></a><a href="#producer-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer operations</h3>
 <p>Pulsar Node.js producers have the following methods available:</p>
@@ -167,9 +167,9 @@
 <tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>send(Object)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. 当消息成功地被 Pulsar broker 确认，或是准备抛出错误时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">从发送队列发送消息给 Pulsar broker。 当消息成功地被 Pulsar broker 确认，或是准备抛出错误时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. 如果 <code>close()</code> 被调用，那么将不再接收发布者的消息。 此方法将返回 Promise 对象，并在所有待发布请求被 Pulsar 持久化时运行 executor 函数。 If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>send(Object)</code></td><td style="text-align:left">Publishes a <a href="#messages">message</a> to the producer's topic. 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>flush()</code></td><td style="text-align:left">从发送队列发送消息给 Pulsar broker。 当 Pulsar broker 成功确认消息，或是准备抛出异常时，Promise 对象会运行 executor 函数。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">Closes the producer and releases all resources allocated to it. 如果调用 <code>close()</code>，则不再接收发布者的消息。 此方法将返回 Promise 对象，并在 Pulsar 持久化所有待发布请求时运行 executor 函数。 If an error is thrown, no pending writes will be retried.</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
@@ -178,20 +178,20 @@
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">生产者发布消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">主题</a>。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">A name for the producer. 如果没有明确指定一个名称，Pulsar 将自动生成一个全局唯一的名称。  如果明确指定了一个名称，那么它必须是在 <em>所有</em> Pulsar 集群中唯一的，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>sendTimeoutMs</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. 如果你将 <code>sendTimeoutMs</code> 设为 -1，那么超时时间将会被设置为无穷大（从而移除超时限定）。 Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/next/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30000</td></tr>
-<tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">消息的初始序列号 当生产者发送消息时，将序列号添加到消息中。 每次发送消息都会让序列号增加。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>). 默认地，当队列满时，所有对 <code>send</code> 方法的调用会失败，<em>除非</em> <code>blockIfQueueFull</code> 被设置为了 <code>true</code>.</td><td style="text-align:left">1000</td></tr>
-<tr><td style="text-align:left"><code>maxPendingMessagesAcrossPartitions</code></td><td style="text-align:left">所有分区的等待队列空间总和的最大值。</td><td style="text-align:left">50000</td></tr>
-<tr><td style="text-align:left"><code>blockIfQueueFull</code></td><td style="text-align:left">如果设置为 <code>true</code>，当消息传出队列满时，生产者的 <code>send</code> 方法会进行等待，而不是失败并抛出错误（该队列的大小由 <code>maxPendingMessages</code> 参数指示）；如果设置为 <code>false</code> （默认值），当队列满时 <code>send</code> 操作会失败并抛出错误。</td><td style="text-align:left"><code>false</code></td></tr>
-<tr><td style="text-align:left"><code>messageRoutingMode</code></td><td style="text-align:left">消息路由逻辑 （<a href="/docs/zh-CN/next/concepts-messaging#partitioned-topics">分区主题</a> 上的生产者使用的)。 This logic is applied only when no key is set on messages. 可选项有：round robin （<code>RoundRobinDistribution</code>），或是将所有消息发布到单个分区 （<code>UseSinglePartition</code>，默认值）。</td><td style="text-align:left"><code>UseSinglePartition</code></td></tr>
-<tr><td style="text-align:left"><code>hashingScheme</code></td><td style="text-align:left">The hashing function that determines the partition on which a particular message is published (partitioned topics only). 可用的选项有： <code>JavaStringHash</code>（等价于 Java 中的 <code>String.hashCode()</code>），<code>Murmur3_32Hash</code>（采用了 <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> 散列函数）, 或是 <code>BoostHash</code> （采用了 C++ 中 <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> 库的散列函数）。</td><td style="text-align:left"><code>BoostHash</code></td></tr>
-<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">The message data compression type used by the producer. 可选项有：<a href="https://github.com/lz4/lz4"><code>LZ4</code></a>，以及 <a href="https://zlib.net/"><code>Zlib</code></a>。</td><td style="text-align:left">Compression None</td></tr>
-<tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">如果设置为 <code>true</code> 生产者会批量发送消息。</td><td style="text-align:left"><code>true</code></td></tr>
-<tr><td style="text-align:left"><code>batchingMaxPublishDelayMs</code></td><td style="text-align:left">批量发送消息的最大延迟时间。</td><td style="text-align:left">10</td></tr>
-<tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">每次批量发送消息的消息大小最大值。</td><td style="text-align:left">1000</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">生产者的元数据。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Producer 发布消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a>。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">A name for the producer. 如果没有指定名称，Pulsar 将自动生成全局唯一的名称。  如果指定名称，则指定的名称必须在<em>所有</em> Pulsar 集群中唯一，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>sendTimeoutMs</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. 如果将 <code>sendTimeoutMs</code> 设为 -1，那么超时时间将为无穷大（因而移除超时限定）。 Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/next/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30000</td></tr>
+<tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">消息的初始序列号 Producer 在发送消息时，将序列号添加到消息中。 只要发送消息，序列号就会相应增加。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a>). 默认情况下，当队列已满时，不能继续调用 <code>send</code> 方法，<em>除非</em>将 <code>blockIfQueueFull</code> 设置为 <code>true</code>。</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>maxPendingMessagesAcrossPartitions</code></td><td style="text-align:left">所有分区等待队列空间总和的最大值。</td><td style="text-align:left">50000</td></tr>
+<tr><td style="text-align:left"><code>blockIfQueueFull</code></td><td style="text-align:left">如果设置为 <code>true</code>，当消息传出队列已满时，producer 的 <code>send</code> 方法会进行等待，而不是抛出异常（该队列大小由 <code>maxPendingMessages</code> 参数决定）；如果设置为 <code>false</code> （默认值），当队列已满时，不能调用 <code>send</code>，并抛出异常。</td><td style="text-align:left"><code>false</code></td></tr>
+<tr><td style="text-align:left"><code>messageRoutingMode</code></td><td style="text-align:left">消息路由逻辑（<a href="/docs/zh-CN/next/concepts-messaging#partitioned-topics">分区 topic</a> 上的 producer 使用）。 This logic is applied only when no key is set on messages. 可以设置为循环（<code>RoundRobinDistribution</code>），或是发布所有消息到单个分区 （<code>UseSinglePartition</code>，默认值）。</td><td style="text-align:left"><code>UseSinglePartition</code></td></tr>
+<tr><td style="text-align:left"><code>hashingScheme</code></td><td style="text-align:left">The hashing function that determines the partition on which a particular message is published (partitioned topics only). 可以设置为 <code>JavaStringHash</code>（等同于 Java 中的 <code>String.hashCode()</code>）、<code>Murmur3_32Hash</code>（应用了 <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> 散列函数）、或 <code>BoostHash</code> （应用了 C++ 中 <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> 库的散列函数）。</td><td style="text-align:left"><code>BoostHash</code></td></tr>
+<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">The message data compression type used by the producer. 可以设置为 <a href="https://github.com/lz4/lz4"><code>LZ4</code></a> 和 <a href="https://zlib.net/"><code>Zlib</code></a>。</td><td style="text-align:left">Compression None</td></tr>
+<tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">如果设置为 <code>true</code>，producer 将批量发送消息。</td><td style="text-align:left"><code>true</code></td></tr>
+<tr><td style="text-align:left"><code>batchingMaxPublishDelayMs</code></td><td style="text-align:left">批量发送消息的最大延迟。</td><td style="text-align:left">10</td></tr>
+<tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">批量发送消息时，消息大小的最大值。</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Producer 的元数据。</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="生产者示例"></a><a href="#生产者示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者示例</h3>
@@ -239,7 +239,7 @@ consumer.acknowledge(msg);
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="promise-操作-1"></a><a href="#promise-操作-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Promise 操作</h4>
-<p>当你创建一个新的 Pulsar 生产者时，该操作会返回一个 <code>Promise</code> 对象以及生产者实例，亦或是通过 executor 函数来抛出错误。 这个例子中使用了 await 操作，而不是 executor 函数。</p>
+<p>创建新的 Pulsar consumer 时，或返回 <code>Promise</code> 对象和 consumer 实例，或通过 executor 函数抛出异常。 本示例使用了 await 操作，没有使用 executor 函数。</p>
 </blockquote>
 <h3><a class="anchor" aria-hidden="true" id="consumer-operations"></a><a href="#consumer-operations" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer operations</h3>
 <p>Pulsar Node.js consumers have the following methods available:</p>
@@ -249,12 +249,12 @@ consumer.acknowledge(msg);
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>receive()</code></td><td style="text-align:left">Receives a single message from the topic. 当消息可用时，Promise 对象运行 executor 函数并获取消息对象。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>receive(Number)</code></td><td style="text-align:left">在指定的超时时间（以毫秒为单位）下从主题接收单条消息。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>acknowledge(Object)</code></td><td style="text-align:left">通过消息对象向 Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a> 一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>acknowledgeId(Object)</code></td><td style="text-align:left">通过消息 ID 向 Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a> 一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>acknowledgeCumulative(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a> 流中的 <em>所有</em> 消息，直到（包括）指定的消息为止。 <code>acknowledgeCumulative</code> 方法返回 void ，并向 broker 异步发送 ack。 然后，消息 <em>不会</em> 重新发送给消费者。 累积性发送 ack 的方式不能在 <a href="/docs/zh-CN/next/concepts-messaging#shared">shared</a> 订阅类型下使用。</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>acknowledgeCumulativeId(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a> 流中的 <em>所有</em> 消息，直到（包括）指定的消息 ID 为止。</td><td style="text-align:left"><code>void</code></td></tr>
-<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭消费者，禁用其从 broker 接收消息的功能。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>receive(Number)</code></td><td style="text-align:left">在指定的超时时间（以毫秒为单位）内从 topic 接收单条消息。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>acknowledge(Object)</code></td><td style="text-align:left">通过消息对象向 Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>acknowledgeId(Object)</code></td><td style="text-align:left">通过消息 ID 向 Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>acknowledgeCumulative(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止的<em>所有</em>消息，包括指定消息。 <code>acknowledgeCumulative</code> 方法返回 void，并向 broker 异步发送确认。 消息将<em>不会</em>重新发送给 consumer。 <a href="/docs/zh-CN/next/concepts-messaging#shared">共享</a>订阅类型不支持累积确认。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>acknowledgeCumulativeId(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止<em>所有</em>消息的 ID，包括指定消息的 ID。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭 consumer，使 consumer 不再从 broker 接收消息。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
@@ -263,14 +263,14 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">消费者建立订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">主题</a>。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>subscription</code></td><td style="text-align:left">此消费者的订阅名。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">可选项有：<code>Exclusive</code>、<code>Shared</code> 和 <code>Failover</code>。</td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Consumer 创建订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a>。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>subscription</code></td><td style="text-align:left">Consumer 的订阅名称。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">可以设置为<code>独占</code>、<code>共享</code>或<code>灾备</code>。</td><td style="text-align:left"><code>Exclusive</code></td></tr>
 <tr><td style="text-align:left"><code>ackTimeoutMs</code></td><td style="text-align:left">消息确认的超时时间（以毫秒为单位）。</td><td style="text-align:left">0</td></tr>
-<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置消费者的接收队列大小，即在应用程序调用 <code>receive</code> 之前能够堆积的消息数。 A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
-<tr><td style="text-align:left"><code>receiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. 此设置将用于在总数超过此值时减少每个分区的接收队列大小。</td><td style="text-align:left">50000</td></tr>
-<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">消费者的名称。 当前（v2.4.1）， <a href="/docs/zh-CN/next/concepts-messaging#failover">failover</a>模式以消费者名称顺序排序。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">消费者的元数据。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置 consumer 接收队列的大小，即在应用程序调用 <code>receive</code> 之前允许堆积的消息数。 A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. 当接收队列总数超过此值时，将减小每个分区接收队列的大小。</td><td style="text-align:left">50000</td></tr>
+<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">Consumer 的名称。 当前（v2.4.1）版本中， <a href="/docs/zh-CN/next/concepts-messaging#failover">灾备</a>模式按照 consumer 名称排序。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Consumer 的元数据。</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="消费者示例"></a><a href="#消费者示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者示例</h3>
@@ -321,10 +321,10 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>readNext()</code></td><td style="text-align:left">接收主题中的下一条消息（类似于消费者中的 <code>receive</code> 方法）。 当消息可用时，Promise 对象运行 executor 函数并获取消息对象。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>readNext(Number)</code></td><td style="text-align:left">在指定的超时时间（以毫秒为单位）下从主题接收单条消息。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>hasNext()</code></td><td style="text-align:left">返回布尔值，表示 broker 是否在目标主题中存在下一条消息。</td><td style="text-align:left"><code>Boolean</code></td></tr>
-<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭读者，禁用其从 broker 接收消息的功能。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>readNext()</code></td><td style="text-align:left">接收 topic 中的下一条消息（类似于 consumer 中的 <code>receive</code> 方法）。 当消息可用时，Promise 对象运行 executor 函数并获取消息对象。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>readNext(Number)</code></td><td style="text-align:left">在指定的超时时间（以毫秒为单位）内从 topic 接收单条消息。</td><td style="text-align:left"><code>Promise&lt;Object&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>hasNext()</code></td><td style="text-align:left">返回 broker 是否在目标 topic 中存有下一条消息。</td><td style="text-align:left"><code>Boolean</code></td></tr>
+<tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭 reader，使 reader 不再从 broker 接收消息。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
@@ -333,14 +333,14 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">读者建立订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">主题</a>。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>startMessageId</code></td><td style="text-align:left">初始的读者位置，即读者开始进行消息处理的那条起始消息。 可选项有 <code>Pulsar.MessageId.earliest</code>（主题中最早的可用消息）, <code>Pulsar.MessageId.latest</code> （主题中最晚的可用消息）或是一个既不最早也不最晚的消息 ID 对象。</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置读者的接收队列大小，即在应用程序调用 <code>readNext</code> 之前能够堆积的消息数。 A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
-<tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">读者的名称。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Reader 创建订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a>。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>startMessageId</code></td><td style="text-align:left">Reader 的初始位置，即 reader 处理的第一条消息的位置。 可以设置为 <code>Pulsar.MessageId.earliest</code>（topic 中最早的可用消息），或 <code>Pulsar.MessageId.latest</code> （topic 中最新的可用消息），或是任一其他消息 ID。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置 reader 接收队列的大小，即在应用程序调用 <code>readNext</code> 之前允许堆积的消息数。 A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
+<tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">Reader 的名称。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscriptionRolePrefix</code></td><td style="text-align:left">The subscription role prefix.</td><td style="text-align:left"></td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="读者示例"></a><a href="#读者示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>读者示例</h3>
+<h3><a class="anchor" aria-hidden="true" id="reader-示例"></a><a href="#reader-示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 示例</h3>
 <p>This example creates a Node.js reader with the <code>my-topic</code> topic, reads messages, and prints the content that arrive for 10 times:</p>
 <pre><code class="hljs css language-JavaScript"><span class="hljs-keyword">const</span> Pulsar = <span class="hljs-built_in">require</span>(<span class="hljs-string">'pulsar-client'</span>);
 
@@ -391,11 +391,11 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">消息实际搭载的数据。</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">一个对象，用于存储应用程序指定让消息附带的任意元数据。</td></tr>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">消息数据的实际有效负载。</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">用于存储应用程序指定消息附带的所有元数据。</td></tr>
 <tr><td style="text-align:left"><code>eventTimestamp</code></td><td style="text-align:left">与消息相关联的时间戳。</td></tr>
 <tr><td style="text-align:left"><code>sequenceId</code></td><td style="text-align:left">消息的序列号。</td></tr>
-<tr><td style="text-align:left"><code>partitionKey</code></td><td style="text-align:left">与消息关联的可选键值（对于主题压缩之类的事项尤其有用）。</td></tr>
+<tr><td style="text-align:left"><code>partitionKey</code></td><td style="text-align:left">与消息关联的可选键值（对于 topic 压缩等尤其有用）。</td></tr>
 <tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">The clusters to which this message will be replicated. Pulsar brokers handle message replication automatically; you should only change this setting if you want to override the broker default.</td></tr>
 </tbody>
 </table>
@@ -407,12 +407,12 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>getTopicName()</code></td><td style="text-align:left">主题名称的 Getter 方法。</td><td style="text-align:left"><code>String</code></td></tr>
-<tr><td style="text-align:left"><code>getProperties()</code></td><td style="text-align:left">属性的 Getter 方法。</td><td style="text-align:left"><code>Array&lt;Object&gt;</code></td></tr>
-<tr><td style="text-align:left"><code>getData()</code></td><td style="text-align:left">消息数据的Getter方法。</td><td style="text-align:left"><code>Buffer</code></td></tr>
-<tr><td style="text-align:left"><code>getMessageId()</code></td><td style="text-align:left"><a href="#message-id-object-operations">消息 id 对象</a> 的 Getter 方法。</td><td style="text-align:left"><code>Object</code></td></tr>
-<tr><td style="text-align:left"><code>getPublishTimestamp()</code></td><td style="text-align:left">发布时间戳的 Getter 方法。</td><td style="text-align:left"><code>Number</code></td></tr>
-<tr><td style="text-align:left"><code>getEventTimestamp()</code></td><td style="text-align:left">事件时间戳的 Getter 方法。</td><td style="text-align:left"><code>Number</code></td></tr>
+<tr><td style="text-align:left"><code>getTopicName()</code></td><td style="text-align:left">Topic 名称的 Getter 方法。</td><td style="text-align:left"><code>String</code></td></tr>
+<tr><td style="text-align:left"><code>getProperties()</code></td><td style="text-align:left">属性的 Getter 方法。</td><td style="text-align:left"><code>数组&lt;Object&gt;</code></td></tr>
+<tr><td style="text-align:left"><code>getData()</code></td><td style="text-align:left">消息数据的 Getter方法。</td><td style="text-align:left"><code>Buffer</code></td></tr>
+<tr><td style="text-align:left"><code>getMessageId()</code></td><td style="text-align:left"><a href="#message-id-object-operations">消息 id 对象</a>的 Getter 方法。</td><td style="text-align:left"><code>对象</code></td></tr>
+<tr><td style="text-align:left"><code>getPublishTimestamp()</code></td><td style="text-align:left">发布时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
+<tr><td style="text-align:left"><code>getEventTimestamp()</code></td><td style="text-align:left">事件时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
 <tr><td style="text-align:left"><code>getPartitionKey()</code></td><td style="text-align:left">分区键的 Getter 方法。</td><td style="text-align:left"><code>String</code></td></tr>
 </tbody>
 </table>
@@ -424,8 +424,8 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>serialize()</code></td><td style="text-align:left">将消息 id 序列化到缓存中进行存储。</td><td style="text-align:left"><code>Buffer</code></td></tr>
-<tr><td style="text-align:left"><code>toString()</code></td><td style="text-align:left">以字符串的形式获取消息 id。</td><td style="text-align:left"><code>String</code></td></tr>
+<tr><td style="text-align:left"><code>serialize()</code></td><td style="text-align:left">序列化消息 id 到缓存中进行存储。</td><td style="text-align:left"><code>Buffer</code></td></tr>
+<tr><td style="text-align:left"><code>toString()</code></td><td style="text-align:left">获取消息 id 字符串。</td><td style="text-align:left"><code>String</code></td></tr>
 </tbody>
 </table>
 <p>The client has static method of message id object. You can access it as <code>Pulsar.MessageId.someStaticMethod</code> too.</p>
@@ -435,12 +435,12 @@ consumer.acknowledge(msg);
 <tr><th style="text-align:left">Method</th><th style="text-align:left">Description</th><th style="text-align:left">Return type</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>earliest()</code></td><td style="text-align:left">MessageId 表示存储在主题中最早/最老的可用消息。</td><td style="text-align:left"><code>Object</code></td></tr>
-<tr><td style="text-align:left"><code>latest()</code></td><td style="text-align:left">MessageId 表示主题中最晚/最后发布的可用消息。</td><td style="text-align:left"><code>Object</code></td></tr>
-<tr><td style="text-align:left"><code>deserialize(Buffer)</code></td><td style="text-align:left">从缓存中反序列化出消息 id。</td><td style="text-align:left"><code>Object</code></td></tr>
+<tr><td style="text-align:left"><code>earliest()</code></td><td style="text-align:left">MessageId 表示存储在 topic 中最早/最旧的可用消息。</td><td style="text-align:left"><code>对象</code></td></tr>
+<tr><td style="text-align:left"><code>latest()</code></td><td style="text-align:left">MessageId 表示存储在 topic 中最晚/最新的可用消息。</td><td style="text-align:left"><code>对象</code></td></tr>
+<tr><td style="text-align:left"><code>deserialize(Buffer)</code></td><td style="text-align:left">从缓存中反序列化出消息 id。</td><td style="text-align:left"><code>对象</code></td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-websocket"><span class="function-name-prevnext">WebSocket</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#兼容性">兼容性</a></li><li><a href="#使用-npm-安装">使用 npm 安装</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建客户端">创建客户端</a><ul class="toc-headings"><li><a href="#客户端配置">客户端配置</a></li></ul></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li><li><a href="#生产者示例">生产者示例</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li><li><a href="#消费者示例">消费者示例</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li><li><a href="#读者示例">读者示例</a></li></ul></li><li><a href="#messages">Messages</a><ul class="toc-headings"><li><a href="#消息对象操作">消息对象操作</a></li><li><a href="#消息-id-对象操作">消息 ID 对象操作</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-cpp"><span class="arrow-prev">← </span><span>C++</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-websocket"><span class="function-name-prevnext">WebSocket</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装">安装</a><ul class="toc-headings"><li><a href="#要求">要求</a></li><li><a href="#兼容性">兼容性</a></li><li><a href="#使用-npm-安装">使用 npm 安装</a></li></ul></li><li><a href="#连接-url">连接 URL</a></li><li><a href="#创建客户端">创建客户端</a><ul class="toc-headings"><li><a href="#客户端配置">客户端配置</a></li></ul></li><li><a href="#producers">Producers</a><ul class="toc-headings"><li><a href="#producer-operations">Producer operations</a></li><li><a href="#producer-配置">Producer 配置</a></li><li><a href="#生产者示例">生产者示例</a></li></ul></li><li><a href="#consumers">Consumers</a><ul class="toc-headings"><li><a href="#consumer-operations">Consumer operations</a></li><li><a href="#consumer-configuration">Consumer configuration</a></li><li><a href="#消费者示例">消费者示例</a></li></ul></li><li><a href="#readers">Readers</a><ul class="toc-headings"><li><a href="#reader-operations">Reader operations</a></li><li><a href="#reader-configuration">Reader configuration</a></li><li><a href="#reader-示例">Reader 示例</a></li></ul></li><li><a href="#messages">Messages</a><ul class="toc-headings"><li><a href="#消息对象操作">消息对象操作</a></li><li><a href="#消息-id-对象操作">消息 ID 对象操作</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

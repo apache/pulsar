@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar的 WebSocket API · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API 提供了一种简单便捷的交互方式和 Pulsar 进行交互，它完全不依赖于官方[客户端库](/docs/zh-CN/next/client-libraries)。 通过 WebSocket ，你可以利用 Java、Go、Python 和 C++ 客户端中提供的所有功能来进行发布和订阅消息。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar的 WebSocket API · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API 提供了一种简单便捷的交互方式和 Pulsar 进行交互，它完全不依赖于官方[客户端库](/docs/zh-CN/next/client-libraries)。 通过 WebSocket ，你可以利用 Java、Go、Python 和 C++ 客户端中提供的所有功能来进行发布和订阅消息。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar 的 WebSocket API · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="通过 Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方[客户端库](/docs/zh-CN/next/client-libraries)。 WebSocket 支持使用 [Java](/docs/zh-CN/next/client-libraries-java)、[Go](/docs/zh-CN/next/client-libraries-go)、[Python](/docs/zh-CN/next/client-libraries-python) 和 [C++](/docs/zh-CN/next/client-libraries-cpp) 客户端中提供的所有功能来发布和订阅消息。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar 的 WebSocket API · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="通过 Pulsar 的[ WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方[客户端库](/docs/zh-CN/next/client-libraries)。 WebSocket 支持使用 [Java](/docs/zh-CN/next/client-libraries-java)、[Go](/docs/zh-CN/next/client-libraries-go)、[Python](/docs/zh-CN/next/client-libraries-python) 和 [C++](/docs/zh-CN/next/client-libraries-cpp) 客户端中提供的所有功能来发布和订阅消息。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -75,7 +75,7 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar的 WebSocket API</h1></header><article><div><span><p>Pulsar 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"> WebSocket</a> API 提供了一种简单便捷的交互方式和 Pulsar 进行交互，它完全不依赖于官方<a href="/docs/zh-CN/next/client-libraries">客户端库</a>。 通过 WebSocket ，你可以利用 Java、Go、Python 和 C++ 客户端中提供的所有功能来进行发布和订阅消息。</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar 的 WebSocket API</h1></header><article><div><span><p>通过 Pulsar 的<a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"> WebSocket</a> API，用户可以简单便捷地与 Pulsar 进行交互，WebSocket API 不依赖于官方<a href="/docs/zh-CN/next/client-libraries">客户端库</a>。 WebSocket 支持使用 <a href="/docs/zh-CN/next/client-libraries-java">Java</a>、<a href="/docs/zh-CN/next/client-libraries-go">Go</a>、<a href="/docs/zh-CN/next/client-libraries-python">Python</a> 和 <a href="/docs/zh-CN/next/client-libraries-cpp">C++</a> 客户端中提供的所有功能来发布和订阅消息。</p>
 <blockquote>
 <p>你可以将 Pulsar 的 WebSocket API 与任何的 WebSocket 客户端库一起使用。请参阅<a href="#client-examples">下面</a>的 Python 和 Node.js 示例。</p>
 </blockquote>
@@ -107,31 +107,31 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> bin/pulsar-daemon start websocket</span>
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="api-手册："></a><a href="#api-手册：" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>API 手册：</h2>
-<p>Pulsar 的 WebSocket API 提供三个端点，用于<a href="#producer-endpoint">生产消息</a>，<a href="#consumer-endpoint">消费消息</a>和<a href="#reader-endpoint">阅读消息</a>。</p>
-<p>所有通过 WebSocket API 的数据交互都是使用 JSON 的方式来进行的。</p>
-<h3><a class="anchor" aria-hidden="true" id="生产者端"></a><a href="#生产者端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>生产者端</h3>
-<p>生产者端需要在 URL 中指定租户、命名空间和主题，例如：</p>
+<p>Pulsar 的 WebSocket API 提供三个端点，用于<a href="#producer-endpoint">生产消息</a>、<a href="#consumer-endpoint">消费消息</a>和<a href="#reader-endpoint">阅读消息</a>。</p>
+<p>所有通过 WebSocket API 的数据都使用 JSON 进行交互。</p>
+<h3><a class="anchor" aria-hidden="true" id="producer-端"></a><a href="#producer-端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 端</h3>
+<p>Producer 端需要在 URL 中指定租户、命名空间和 topic，例如：</p>
 <pre><code class="hljs css language-http">ws://broker-service-url:8080/ws/v2/producer/persistent/:tenant/:namespace/:topic 
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="查询参数"></a><a href="#查询参数" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>sendTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">发送超时(默认值：30秒)</td></tr>
-<tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">boolean</td><td style="text-align:left">no</td><td style="text-align:left">启用批量缓存消息 (默认: false)</td></tr>
-<tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">批量允许的最大消息数(默认：1000)</td></tr>
-<tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">设置包含消息的内部队列最大值 (默认: 1000)</td></tr>
-<tr><td style="text-align:left"><code>batchingMaxPublishDelay</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">消息将被批量处理的时间(默认：10毫秒)</td></tr>
-<tr><td style="text-align:left"><code>messageRoutingMode</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">分区生产者的消息<a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html">路由模式</a>：<code>SingleSection</code>, <code>RoundRobinSection</code></td></tr>
-<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">压缩 <a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/CompressionType.html">类型</a>: <code>LZ4</code>, <code>ZLIB</code></td></tr>
-<tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">指定生产者的名称。Pulsar 只强制执行一个具有相同名称的生产者可以发布主题</td></tr>
-<tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">设置生产者发布的消息的序列 id 的标准。</td></tr>
-<tr><td style="text-align:left"><code>hashingScheme</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">在分区主题上发布时使用的<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html">哈希函数</a>：JavaStringHash，Murmur3_32Hash</td></tr>
+<tr><td style="text-align:left"><code>sendTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">发送超时(默认值：30秒)</td></tr>
+<tr><td style="text-align:left"><code>batchingEnabled</code></td><td style="text-align:left">boolean</td><td style="text-align:left">否</td><td style="text-align:left">启用批量缓存消息（默认值：false）</td></tr>
+<tr><td style="text-align:left"><code>batchingMaxMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">批量消息数最大值（默认值：1000）</td></tr>
+<tr><td style="text-align:left"><code>maxPendingMessages</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">设置包含消息的内部队列最大值 (默认: 1000)</td></tr>
+<tr><td style="text-align:left"><code>batchingMaxPublishDelay</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">消息将被批量处理的时间(默认：10毫秒)</td></tr>
+<tr><td style="text-align:left"><code>messageRoutingMode</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">分区生产者的消息<a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html">路由模式</a>：<code>SingleSection</code>, <code>RoundRobinSection</code></td></tr>
+<tr><td style="text-align:left"><code>compressionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">压缩 <a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/CompressionType.html">类型</a>: <code>LZ4</code>, <code>ZLIB</code></td></tr>
+<tr><td style="text-align:left"><code>producerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">指定生产者的名称。Pulsar 只强制执行一个具有相同名称的生产者可以发布主题</td></tr>
+<tr><td style="text-align:left"><code>initialSequenceId</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">设置生产者发布的消息的序列 id 的标准。</td></tr>
+<tr><td style="text-align:left"><code>hashingScheme</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">在分区主题上发布时使用的<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html">哈希函数</a>：JavaStringHash，Murmur3_32Hash</td></tr>
 </tbody>
 </table>
-<h4><a class="anchor" aria-hidden="true" id="发布一条消息"></a><a href="#发布一条消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发布一条消息</h4>
+<h4><a class="anchor" aria-hidden="true" id="发布消息"></a><a href="#发布消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>发布消息</h4>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"payload"</span>: <span class="hljs-string">"SGVsbG8gV29ybGQ="</span>,
   <span class="hljs-attr">"properties"</span>: {<span class="hljs-attr">"key1"</span>: <span class="hljs-string">"value1"</span>, <span class="hljs-attr">"key2"</span>: <span class="hljs-string">"value2"</span>},
@@ -140,24 +140,24 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
-<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
-<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">对于分区主题，决定哪些分区需要使用</td></tr>
-<tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">array</td><td style="text-align:left">no</td><td style="text-align:left">将副本限制为由 name 指定的<a href="/docs/zh-CN/next/reference-terminology#cluster">群集</a>列表</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">对于分区主题，决定哪些分区需要使用</td></tr>
+<tr><td style="text-align:left"><code>replicationClusters</code></td><td style="text-align:left">数组</td><td style="text-align:left">否</td><td style="text-align:left">将副本限制为由 name 指定的<a href="/docs/zh-CN/next/reference-terminology#cluster">群集</a>列表</td></tr>
 </tbody>
 </table>
-<h5><a class="anchor" aria-hidden="true" id="示例响应成功"></a><a href="#示例响应成功" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例响应成功</h5>
+<h5><a class="anchor" aria-hidden="true" id="响应成功示例"></a><a href="#响应成功示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>响应成功示例</h5>
 <pre><code class="hljs css language-json">{
    <span class="hljs-attr">"result"</span>: <span class="hljs-string">"ok"</span>,
    <span class="hljs-attr">"messageId"</span>: <span class="hljs-string">"CAAQAw=="</span>,
    <span class="hljs-attr">"context"</span>: <span class="hljs-string">"1"</span>
  }
 </code></pre>
-<h5><a class="anchor" aria-hidden="true" id="示例响应失败"></a><a href="#示例响应失败" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例响应失败</h5>
+<h5><a class="anchor" aria-hidden="true" id="响应失败示例"></a><a href="#响应失败示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>响应失败示例</h5>
 <pre><code class="hljs css language-json"> {
    <span class="hljs-attr">"result"</span>: <span class="hljs-string">"send-error:3"</span>,
    <span class="hljs-attr">"errorMsg"</span>: <span class="hljs-string">"Failed to de-serialize from JSON"</span>,
@@ -166,32 +166,32 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>result</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left"><code>ok</code> 要么成功发送，要么发送错误，要么发送不成功</td></tr>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID 用来分配给已发布的消息</td></tr>
-<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
+<tr><td style="text-align:left"><code>result</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发送成功则为 <code>ok</code>，否则抛出异常</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">已发布消息的 Message ID</td></tr>
+<tr><td style="text-align:left"><code>context</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的请求标识符</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="消费端"></a><a href="#消费端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费端</h3>
+<h3><a class="anchor" aria-hidden="true" id="consumer-端"></a><a href="#consumer-端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer 端</h3>
 <p>消费端要求您在 URL 中指定租户，命名空间和主题以及订阅：</p>
 <pre><code class="hljs css language-http">ws://broker-service-url:8080/ws/v2/consumer/persistent/:tenant/:namespace/:topic/:subscription
 </code></pre>
 <h5><a class="anchor" aria-hidden="true" id="查询参数-1"></a><a href="#查询参数-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>ackTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">no</td><td style="text-align:left">设置未完成 ACK 的超时时间（默认值：0）</td></tr>
-<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left"><a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/SubscriptionType.html">订阅类型</a>：<code>Exclusive</code>, <code>Failover</code>, <code>Shared</code></td></tr>
-<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
-<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">消费者名称</td></tr>
-<tr><td style="text-align:left"><code>priorityLevel</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">指定消费者<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-"> 优先级 </a></td></tr>
-<tr><td style="text-align:left"><code>maxRedeliverCount</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定 <a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">maxRedeliverCount</a> （默认值：0） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
-<tr><td style="text-align:left"><code>deadLetterTopic</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">为消费者指定<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">deadLetterTopic</a> （默认值：{topic}-{subscription}-DLQ） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
-<tr><td style="text-align:left"><code>pullMode</code></td><td style="text-align:left">boolean</td><td style="text-align:left">no</td><td style="text-align:left">启用 pull 模式 （默认: false），详见下文 &quot;Flow Control&quot; 。</td></tr>
+<tr><td style="text-align:left"><code>ackTimeoutMillis</code></td><td style="text-align:left">long</td><td style="text-align:left">否</td><td style="text-align:left">设置未完成 ACK 的超时时间（默认值：0）</td></tr>
+<tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left"><a href="https://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/index.html?org/apache/pulsar/client/api/SubscriptionType.html">订阅类型</a>：<code>Exclusive</code>, <code>Failover</code>, <code>Shared</code></td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
+<tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">消费者名称</td></tr>
+<tr><td style="text-align:left"><code>priorityLevel</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">指定消费者<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-"> 优先级 </a></td></tr>
+<tr><td style="text-align:left"><code>maxRedeliverCount</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">为消费者指定 <a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">maxRedeliverCount</a> （默认值：0） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
+<tr><td style="text-align:left"><code>deadLetterTopic</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">为消费者指定<a href="http://pulsar.apache.org/api/client/2.6.0-SNAPSHOT/org/apache/pulsar/client/api/ConsumerBuilder.html#deadLetterPolicy-org.apache.pulsar.client.api.DeadLetterPolicy-">deadLetterTopic</a> （默认值：{topic}-{subscription}-DLQ） 激活 <a href="https://github.com/apache/pulsar/wiki/PIP-22%3A-Pulsar-Dead-Letter-Topic"> Dead Letter Topic </a> 功能。</td></tr>
+<tr><td style="text-align:left"><code>pullMode</code></td><td style="text-align:left">boolean</td><td style="text-align:left">否</td><td style="text-align:left">启用 pull 模式 （默认: false），详见下文 &quot;Flow Control&quot; 。</td></tr>
 </tbody>
 </table>
 <p>注意：以上这些参数（` pullMode &lt;/ code&gt;除外）适用于 WebSocket 服务的内部消费者。
@@ -207,14 +207,14 @@
 `</pre> 
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
-<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
-<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Message ID</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="ack-确认消息"></a><a href="#ack-确认消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 确认消息</h4>
@@ -225,10 +225,10 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">处理消息的消息ID</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">处理消息的消息ID</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="流控流量控制"></a><a href="#流控流量控制" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>流控/流量控制</h4>
@@ -244,15 +244,15 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>type</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">命令类型， 必须是` permit &lt;/ code&gt;</td></td></tr>
+<tr><td style="text-align:left"><code>type</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">命令类型， 必须是` permit &lt;/ code&gt;</td></td></tr>
 </tbody>
 </table>
 </tr>
 <tr>
-  <td align="left"><code>permitMessages` | int | yes | 允许的消息数量 |
+  <td align="left"><code>permitMessages` | int | 是 | 允许的消息数量 |
 <p>注意：在这种模式下，可以在不同的连接中确认消息。</p>
 <h3><a class="anchor" aria-hidden="true" id="阅读端"></a><a href="#阅读端" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>阅读端</h3>
 <p>The reader endpoint requires you to specify a tenant, namespace, and topic in the URL:</p>
@@ -261,12 +261,12 @@
 <h5><a class="anchor" aria-hidden="true" id="查询参数-2"></a><a href="#查询参数-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>查询参数</h5>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">Reader name</td></tr>
-<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">no</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">int or enum</td><td style="text-align:left">no</td><td style="text-align:left">Message ID to start from, <code>earliest</code> or <code>latest</code> (default: <code>latest</code>)</td></tr>
+<tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">Reader name</td></tr>
+<tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">int</td><td style="text-align:left">否</td><td style="text-align:left">消费者接收队列大小 （默认: 1000）</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">int or enum</td><td style="text-align:left">否</td><td style="text-align:left">Message ID to start from, <code>earliest</code> or <code>latest</code> (default: <code>latest</code>)</td></tr>
 </tbody>
 </table>
 <h5><a class="anchor" aria-hidden="true" id="接收消息"></a><a href="#接收消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>接收消息</h5>
@@ -280,14 +280,14 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Message ID</td></tr>
-<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
-<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">发布时间戳</td></tr>
-<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">key-value</td><td style="text-align:left">no</td><td style="text-align:left">应用程序定义的属性</td></tr>
-<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">no</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Message ID</td></tr>
+<tr><td style="text-align:left"><code>payload</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">Base-64 编码的 payload</td></tr>
+<tr><td style="text-align:left"><code>publishTime</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">发布时间戳</td></tr>
+<tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">键值对</td><td style="text-align:left">否</td><td style="text-align:left">应用程序定义的属性</td></tr>
+<tr><td style="text-align:left"><code>key</code></td><td style="text-align:left">string</td><td style="text-align:left">否</td><td style="text-align:left">生产者设置的原始路由密钥</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="ack-确认消息-1"></a><a href="#ack-确认消息-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ACK 确认消息</h4>
@@ -298,10 +298,10 @@
 </code></pre>
 <table>
 <thead>
-<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">必须？</th><th style="text-align:left">说明</th></tr>
+<tr><th style="text-align:left">Key</th><th style="text-align:left">类型</th><th style="text-align:left">是否必需</th><th style="text-align:left">说明</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">yes</td><td style="text-align:left">处理消息的消息ID</td></tr>
+<tr><td style="text-align:left"><code>messageId</code></td><td style="text-align:left">string</td><td style="text-align:left">是</td><td style="text-align:left">处理消息的消息ID</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="错误代码"></a><a href="#错误代码" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>错误代码</h3>
@@ -451,7 +451,7 @@ ws.on(<span class="hljs-string">'message'</span>, <span class="hljs-function"><s
 });
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/next/client-libraries-node"><span class="arrow-prev">← </span><span>Node.js
-</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-dotnet"><span>C#</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#运行-websocket-服务">运行 WebSocket 服务</a><ul class="toc-headings"><li><a href="#嵌入-pulsar-broker">嵌入 Pulsar Broker</a></li><li><a href="#作为一个独立的组件">作为一个独立的组件</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#api-手册：">API 手册：</a><ul class="toc-headings"><li><a href="#生产者端">生产者端</a></li><li><a href="#消费端">消费端</a></li><li><a href="#阅读端">阅读端</a></li><li><a href="#错误代码">错误代码</a></li></ul></li><li><a href="#客户端示例">客户端示例</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></a><a class="docs-next button" href="/docs/zh-CN/next/client-libraries-dotnet"><span>C#</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#运行-websocket-服务">运行 WebSocket 服务</a><ul class="toc-headings"><li><a href="#嵌入-pulsar-broker">嵌入 Pulsar Broker</a></li><li><a href="#作为一个独立的组件">作为一个独立的组件</a></li><li><a href="#启动-broker">启动 Broker</a></li></ul></li><li><a href="#api-手册：">API 手册：</a><ul class="toc-headings"><li><a href="#producer-端">Producer 端</a></li><li><a href="#consumer-端">Consumer 端</a></li><li><a href="#阅读端">阅读端</a></li><li><a href="#错误代码">错误代码</a></li></ul></li><li><a href="#客户端示例">客户端示例</a><ul class="toc-headings"><li><a href="#python">Python</a></li><li><a href="#nodejs">Node.js</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
