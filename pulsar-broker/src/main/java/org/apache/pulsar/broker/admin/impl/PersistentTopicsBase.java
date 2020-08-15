@@ -2301,12 +2301,12 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
-        Optional<PersistencePolicies> retention = getTopicPolicies(topicName)
+        Optional<PersistencePolicies> persistencePolicies = getTopicPolicies(topicName)
                 .map(TopicPolicies::getPersistence);
-        if (!retention.isPresent()) {
+        if (!persistencePolicies.isPresent()) {
             asyncResponse.resume(Response.noContent().build());
         }else {
-            asyncResponse.resume(retention.get());
+            asyncResponse.resume(persistencePolicies.get());
         }
     }
 

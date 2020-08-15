@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
@@ -45,6 +50,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     private final String myNamespace = testTenant + "/" + testNamespace;
 
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
+
+    private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
 
     @BeforeMethod
     @Override
@@ -282,15 +289,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetPersistence() throws Exception {
-        PersistencePolicies persistencePolicies = new PersistencePolicies(2, 2, 2, 0.0);
-        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
 
-        admin.topics().setPersistence(testTopic, persistencePolicies);
+        admin.topics().setPersistence(persistenceTopic, persistencePolicies);
         Thread.sleep(3000);
-        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(testTopic);
-        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer = pulsarClient.newProducer().topic(persistenceTopic).create();
+        producer.close();
+
+        admin.lookups().lookupTopic(persistenceTopic);
+        Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
+        PersistentTopic persistentTopic = (PersistentTopic) t;
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        assertEquals(managedLedgerConfig.getEnsembleSize(), 3);
+        assertEquals(managedLedgerConfig.getWriteQuorumSize(), 3);
+        assertEquals(managedLedgerConfig.getAckQuorumSize(), 3);
+        assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.1);
+
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(persistenceTopic);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
 
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
