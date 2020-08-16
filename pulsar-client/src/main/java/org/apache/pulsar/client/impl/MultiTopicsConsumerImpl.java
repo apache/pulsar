@@ -722,13 +722,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private String getFullTopicName(String topic) {
         try {
-            TopicName topicName = TopicName.get(topic);
-            if (!topics.containsKey(topicName.toString())) {
-                return topicName.toString();
-            }
+            return TopicName.get(topic).toString();
         } catch (Exception ignored) {
         }
-        return null;  // `topic` is invalid or already exists
+        return null;  // `topic` is invalid
     }
 
     private void removeTopic(String topic) {
@@ -741,7 +738,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // subscribe one more given topic
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
         final String fullTopicName = getFullTopicName(topicName);
-        if (fullTopicName == null) {
+        if (fullTopicName == null || topics.containsKey(fullTopicName)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
@@ -800,7 +797,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @VisibleForTesting
     CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         final String fullTopicName = getFullTopicName(topicName);
-        if (fullTopicName == null) {
+        if (fullTopicName == null || topics.containsKey(fullTopicName)) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
