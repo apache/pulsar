@@ -720,12 +720,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private String getFullTopicName(String topic) {
+    private TopicName getTopicName(String topic) {
         try {
-            return TopicName.get(topic).toString();
+            return TopicName.get(topic);
         } catch (Exception ignored) {
+            return null;
         }
-        return null;  // `topic` is invalid
+    }
+
+    private String getFullTopicName(String topic) {
+        TopicName topicName = getTopicName(topic);
+        return (topicName != null) ? topicName.toString() : null;
     }
 
     private void removeTopic(String topic) {
@@ -737,11 +742,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // subscribe one more given topic
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
-        final String fullTopicName = getFullTopicName(topicName);
-        if (fullTopicName == null || topics.containsKey(fullTopicName)) {
+        TopicName topicNameInstance = getTopicName(topicName);
+        if (topicNameInstance == null
+                || topics.containsKey(topicNameInstance.toString())
+                || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
+        String fullTopicName = topicNameInstance.toString();
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -796,7 +804,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // subscribe one more given topic, but already know the numberPartitions
     @VisibleForTesting
     CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
-        final String fullTopicName = getFullTopicName(topicName);
+        TopicName topicNameInstance = getTopicName(topicName);
+        if (topicNameInstance == null
+                || topics.containsKey(topicNameInstance.toString())
+                || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Topic name not valid"));
+        }
+        String fullTopicName = topicNameInstance.toString();
         if (fullTopicName == null || topics.containsKey(fullTopicName)) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Topic name not valid"));

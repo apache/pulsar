@@ -598,6 +598,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
 
+        // 12. resubscribe a partition of a subscribed partitioned topic should be invalid
+        String partitionName = topicName2 + "-partition-0";
+        ((MultiTopicsConsumerImpl<byte[]>) consumer).subscribeAsync(partitionName, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            return null;
+        }).get();
+
         consumer.unsubscribe();
         consumer.close();
         producer1.close();
