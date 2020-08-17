@@ -118,9 +118,10 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertNull(moreMessage);
 
         // check the mark delete position was changed
+        BatchMessageIdImpl ackedMessageId = (BatchMessageIdImpl) received.get(0);
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
         String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
-        Assert.assertNotEquals(markDeletePosition.split(":")[1], "-1");
+        Assert.assertEquals(ackedMessageId.ledgerId + ":" + ackedMessageId.entryId, markDeletePosition);
 
         futures.clear();
         for (int i = 0; i < 50; i++) {
