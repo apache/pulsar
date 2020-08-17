@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -58,13 +59,14 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testBatchMessageIndexAckForSharedSubscription() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testBatchMessageIndexAckForSharedSubscription() throws Exception {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
+        final String subscriptionName = "sub";
 
         @Cleanup
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
             .topic(topic)
-            .subscriptionName("sub")
+            .subscriptionName(subscriptionName)
             .receiverQueueSize(100)
             .subscriptionType(SubscriptionType.Shared)
             .enableBatchIndexAcknowledgment(true)
@@ -114,6 +116,11 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
         Message<Integer> moreMessage = consumer.receive(2, TimeUnit.SECONDS);
         Assert.assertNull(moreMessage);
+
+        // check the mark delete position was changed
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        String markDeletePosition = stats.cursors.get(subscriptionName).markDeletePosition;
+        Assert.assertNotEquals(markDeletePosition.split(":")[1], "-1");
 
         futures.clear();
         for (int i = 0; i < 50; i++) {
