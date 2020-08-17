@@ -608,7 +608,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test
     public void testResubscribeSameTopic() throws Exception {
-        final String localTopicName = "TopicsConsumerResubscribeWithDefaultNamespaceTest";
+        final String localTopicName = "TopicsConsumerResubscribeSameTopicTest";
         final String localPartitionName = localTopicName + "-partition-0";
         final String topicNameWithNamespace = "public/default/" + localTopicName;
         final String topicNameWithDomain = "persistent://" + topicNameWithNamespace;
