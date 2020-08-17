@@ -1959,11 +1959,11 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetMessageById(AsyncResponse asyncResponse, long ledgerId, long entryId,
                                               boolean authoritative) {
-        verifyReadOperation(authoritative);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
         try {
+            // will redirect if the topic not owned by current broker
+            validateReadOperationOnTopic(authoritative);
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
