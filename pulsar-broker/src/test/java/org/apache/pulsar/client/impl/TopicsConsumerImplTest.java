@@ -598,19 +598,49 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(consumers.size(), 6);
         assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 3);
 
-        // 12. resubscribe a partition of a subscribed partitioned topic should be invalid
-        String partitionName = topicName2 + "-partition-0";
-        ((MultiTopicsConsumerImpl<byte[]>) consumer).subscribeAsync(partitionName, false).handle((res, exception) -> {
-            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
-            assertEquals(exception.getMessage(), "Already subscribed to " + partitionName);
-            return null;
-        }).get();
-
         consumer.unsubscribe();
         consumer.close();
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+
+    @Test
+    public void testResubscribeSameTopic() throws Exception {
+        final String localTopicName = "TopicsConsumerResubscribeWithDefaultNamespaceTest";
+        final String localPartitionName = localTopicName + "-partition-0";
+        final String topicNameWithNamespace = "public/default/" + localTopicName;
+        final String topicNameWithDomain = "persistent://" + topicNameWithNamespace;
+
+        admin.topics().createPartitionedTopic(localTopicName, 2);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(localTopicName)
+                .subscriptionName("SubscriptionName")
+                .subscribe();
+
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+
+        multiTopicsConsumer.subscribeAsync(topicNameWithNamespace, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithNamespace);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(topicNameWithDomain, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithDomain);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(localPartitionName, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + localPartitionName);
+            return null;
+        }).get();
+
+        consumer.unsubscribe();
+        consumer.close();
     }
 
 
