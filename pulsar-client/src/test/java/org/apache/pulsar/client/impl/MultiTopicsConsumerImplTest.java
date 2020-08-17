@@ -108,9 +108,7 @@ public class MultiTopicsConsumerImplTest {
         Throwable t = expectThrows(ExecutionException.class, secondInvocation::get);
         Throwable cause = t.getCause();
         assertEquals(cause.getClass(), PulsarClientException.class);
-        assertTrue(cause.getMessage().endsWith(
-            "Failed to subscribe for topic [parallel-subscribe-async-topic] in topics consumer. "
-                + "Topic is already being subscribed for in other thread."));
+        assertTrue(cause.getMessage().endsWith("Topic is already being subscribed for in other thread."));
     }
 
     private <T> PulsarClientImpl setUpPulsarClientMock(Schema<T> schema, int completionDelayMillis) {
