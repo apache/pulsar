@@ -472,7 +472,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }).get();
         ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName, 3).handle((res, exception) -> {
             assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
-            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Already subscribed to " + topicName);
             return null;
         }).get();
     }
@@ -602,7 +602,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         String partitionName = topicName2 + "-partition-0";
         ((MultiTopicsConsumerImpl<byte[]>) consumer).subscribeAsync(partitionName, false).handle((res, exception) -> {
             assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
-            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            assertEquals(exception.getMessage(), "Already subscribed to " + partitionName);
             return null;
         }).get();
 

@@ -743,13 +743,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // subscribe one more given topic
     public CompletableFuture<Void> subscribeAsync(String topicName, boolean createTopicIfDoesNotExist) {
         TopicName topicNameInstance = getTopicName(topicName);
-        if (topicNameInstance == null
-                || topics.containsKey(topicNameInstance.toString())
-                || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+        if (topicNameInstance == null) {
             return FutureUtil.failedFuture(
-                new PulsarClientException.AlreadyClosedException("Topic name not valid"));
+                    new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
         String fullTopicName = topicNameInstance.toString();
+        if (topics.containsKey(fullTopicName) || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
+        }
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -805,16 +807,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @VisibleForTesting
     CompletableFuture<Void> subscribeAsync(String topicName, int numberPartitions) {
         TopicName topicNameInstance = getTopicName(topicName);
-        if (topicNameInstance == null
-                || topics.containsKey(topicNameInstance.toString())
-                || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+        if (topicNameInstance == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Topic name not valid"));
         }
         String fullTopicName = topicNameInstance.toString();
-        if (fullTopicName == null || topics.containsKey(fullTopicName)) {
+        if (topics.containsKey(fullTopicName) || topics.containsKey(topicNameInstance.getPartitionedTopicName())) {
             return FutureUtil.failedFuture(
-                    new PulsarClientException.AlreadyClosedException("Topic name not valid"));
+                    new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
 
         if (getState() == State.Closing || getState() == State.Closed) {
