@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -453,6 +454,34 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return consumer.doAcknowledgeWithTxn(innerId, ackType, properties, txnImpl)
                 .thenRun(() ->
                     unAckedMessageTracker.remove(topicMessageId));
+        }
+    }
+
+    @Override
+    protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType, Map<String, Long> properties, TransactionImpl txn) {
+        List<CompletableFuture<Void>> resultFutures = new ArrayList<>();
+        if (ackType == AckType.Cumulative) {
+            messageIdList.forEach(messageId -> resultFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
+            return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
+        } else {
+            if (getState() != State.Ready) {
+                return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
+            }
+            Map<String, List<MessageId>> topicToMessageIdMap = new HashMap<>();
+            for (MessageId messageId : messageIdList) {
+                if (!(messageId instanceof TopicMessageIdImpl)) {
+                    return FutureUtil.failedFuture(new IllegalArgumentException("messageId is not instance of TopicMessageIdImpl"));
+                }
+                TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
+                topicToMessageIdMap.putIfAbsent(topicMessageId.getTopicPartitionName(), new ArrayList<>());
+                topicToMessageIdMap.get(topicMessageId.getTopicPartitionName()).add(topicMessageId.getInnerMessageId());
+            }
+            topicToMessageIdMap.forEach((topicPartitionName, messageIds) -> {
+                ConsumerImpl<T> consumer = consumers.get(topicPartitionName);
+                resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
+                        .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
+            });
+            return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
         }
     }
 

@@ -447,6 +447,11 @@ public class PulsarConsumerSourceTests {
         }
 
         @Override
+        public void acknowledge(List<MessageId> messageIdList) throws PulsarClientException {
+
+        }
+
+        @Override
         public void negativeAcknowledge(Message<?> message) {
         }
 
@@ -482,6 +487,11 @@ public class PulsarConsumerSourceTests {
 
         @Override
         public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList) {
             return null;
         }
 
