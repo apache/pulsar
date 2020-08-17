@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.admin;
 
 import com.google.gson.JsonObject;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -38,6 +36,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -1753,4 +1752,52 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * Set the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setPersistence(String topic, PersistencePolicies persistencePolicies) throws PulsarAdminException;
+
+    /**
+     * Set the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     */
+    CompletableFuture<Void> setPersistenceAsync(String topic, PersistencePolicies persistencePolicies);
+
+    /**
+     * Get the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
+
+    /**
+     * Remove the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removePersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removePersistenceAsync(String topic);
 }

@@ -31,7 +31,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -42,7 +41,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -70,11 +68,9 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
-
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -118,7 +114,6 @@ import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -144,6 +139,7 @@ import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
@@ -1070,6 +1066,26 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // Get persistence policy for this topic
             Optional<Policies> policies = Optional.empty();
             Optional<LocalPolicies> localPolicies = Optional.empty();
+
+            PersistencePolicies persistencePolicies = null;
+            RetentionPolicies retentionPolicies = null;
+
+            if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
+                TopicName cloneTopicName = topicName;
+                if (topicName.isPartitioned()) {
+                    cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+                }
+                try {
+                    TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+                    if (topicPolicies != null) {
+                        persistencePolicies = topicPolicies.getPersistence();
+                        retentionPolicies = topicPolicies.getRetentionPolicies();
+                    }
+                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                    log.warn("Topic {} policies cache have not init.", topicName);
+                }
+            }
+
             try {
                 policies = pulsar
                         .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
@@ -1083,16 +1099,20 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return;
             }
 
-            PersistencePolicies persistencePolicies = policies.map(p -> p.persistence).orElseGet(
-                    () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                            serviceConfig.getManagedLedgerDefaultWriteQuorum(),
-                            serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                            serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
+            if (persistencePolicies == null) {
+                persistencePolicies = policies.map(p -> p.persistence).orElseGet(
+                        () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
+                                serviceConfig.getManagedLedgerDefaultWriteQuorum(),
+                                serviceConfig.getManagedLedgerDefaultAckQuorum(),
+                                serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
+            }
 
-            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
-                    () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
-                            serviceConfig.getDefaultRetentionSizeInMB())
-            );
+            if (retentionPolicies == null) {
+                retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
+                        () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
+                                serviceConfig.getDefaultRetentionSizeInMB())
+                );
+            }
 
             ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
             managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
