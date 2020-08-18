@@ -2,6 +2,7 @@
 id: version-2.6.1-helm-upgrade
 title: Upgrade Pulsar Helm release
 sidebar_label: Upgrade
+original_id: helm-upgrade
 ---
 
 Before upgrading your Pulsar installation, you need to check the change log corresponding to the specific release you want to upgrade to and look for any release notes that might pertain to the new Pulsar helm chart version.

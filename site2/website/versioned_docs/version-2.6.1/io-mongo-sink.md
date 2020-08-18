@@ -2,6 +2,7 @@
 id: version-2.6.1-io-mongo-sink
 title: MongoDB sink connector
 sidebar_label: MongoDB sink connector
+original_id: io-mongo-sink
 ---
 
 The MongoDB sink connector pulls messages from Pulsar topics 

@@ -2,6 +2,7 @@
 id: version-2.6.1-administration-proxy
 title: The Pulsar proxy
 sidebar_label: Pulsar proxy
+original_id: administration-proxy
 ---
 
 The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) is an optional gateway that you can run in front of the brokers in a Pulsar cluster. You can run a Pulsar proxy in cases when direction connections between clients and Pulsar brokers are either infeasible, undesirable, or both, for example when you run Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.

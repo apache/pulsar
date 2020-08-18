@@ -2,6 +2,7 @@
 id: version-2.6.1-io-kinesis-source
 title: Kinesis source connector
 sidebar_label: Kinesis source connector
+original_id: io-kinesis-source
 ---
 
 The Kinesis source connector pulls data from Amazon Kinesis and persists data into Pulsar.

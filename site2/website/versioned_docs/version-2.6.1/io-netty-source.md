@@ -2,6 +2,7 @@
 id: version-2.6.1-io-netty-source
 title: Netty source connector
 sidebar_label: Netty source connector
+original_id: io-netty-source
 ---
 
 The Netty source connector opens a port that accepts incoming data via the configured network protocol 

@@ -2,6 +2,7 @@
 id: version-2.6.1-io-kinesis-sink
 title: Kinesis sink connector
 sidebar_label: Kinesis sink connector
+original_id: io-kinesis-sink
 ---
 
 The Kinesis sink connector pulls data from Pulsar and persists data into Amazon Kinesis.

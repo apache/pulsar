@@ -2,6 +2,7 @@
 id: version-2.6.1-reference-cli-tools
 title: Pulsar command-line tools
 sidebar_label: Pulsar CLI tools
+original_id: reference-cli-tools
 ---
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.

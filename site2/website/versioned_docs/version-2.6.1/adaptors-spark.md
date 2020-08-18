@@ -2,6 +2,7 @@
 id: version-2.6.1-adaptors-spark
 title: Pulsar adaptor for Apache Spark
 sidebar_label: Apache Spark
+original_id: adaptors-spark
 ---
 
 The Spark Streaming receiver for Pulsar is a custom receiver that enables Apache [Spark Streaming](https://spark.apache.org/streaming/) to receive data from Pulsar.

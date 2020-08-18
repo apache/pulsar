@@ -2,6 +2,7 @@
 id: version-2.6.1-functions-debug
 title: Debug Pulsar Functions
 sidebar_label: "How-to: Debug"
+original_id: functions-debug
 ---
 
 You can use the following methods to debug Pulsar Functions:

@@ -2,6 +2,7 @@
 id: version-2.6.1-schema-understand
 title: Understand schema
 sidebar_label: Understand schema
+original_id: schema-understand
 ---
 
 This chapter explains the basic concepts of Pulsar schema, focuses on the topics of particular importance, and provides additional background.

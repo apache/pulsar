@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-cpp
 title: Pulsar C++ client
 sidebar_label: C++
+original_id: client-libraries-cpp
 ---
 
 You can use Pulsar C++ client to create Pulsar producers and consumers in C++.

@@ -2,6 +2,7 @@
 id: version-2.6.1-concepts-multi-tenancy
 title: Multi Tenancy
 sidebar_label: Multi Tenancy
+original_id: concepts-multi-tenancy
 ---
 
 Pulsar was created from the ground up as a multi-tenant system. To support multi-tenancy, Pulsar has a concept of tenants. Tenants can be spread across clusters and can each have their own [authentication and authorization](security-overview.md) scheme applied to them. They are also the administrative unit at which storage quotas, [message TTL](cookbooks-retention-expiry.md#time-to-live-ttl), and isolation policies can be managed.

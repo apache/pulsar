@@ -2,6 +2,7 @@
 id: version-2.6.1-security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
 sidebar_label: Authentication using OAuth 2.0 access tokens
+original_id: security-oauth2
 ---
 
 Pulsar supports authenticating clients using OAuth 2.0 access tokens. You can use OAuth 2.0 access tokens to identify a Pulsar client and associate the Pulsar client with some "principal" (or "role"), which is permitted to do some actions, such as publishing messages to a topic or consume messages from a topic.

@@ -2,6 +2,7 @@
 id: version-2.6.1-reference-metrics
 title: Pulsar Metrics
 sidebar_label: Pulsar Metrics
+original_id: reference-metrics
 ---
 
 <style type="text/css">

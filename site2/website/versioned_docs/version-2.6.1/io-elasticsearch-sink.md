@@ -2,6 +2,7 @@
 id: version-2.6.1-io-elasticsearch-sink
 title: ElasticSearch sink connector
 sidebar_label: ElasticSearch sink connector
+original_id: io-elasticsearch-sink
 ---
 
 The ElasticSearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.

@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-cgo
 title: Pulsar CGo client
 sidebar_label: CGo(deprecated)
+original_id: client-libraries-cgo
 ---
 
 You can use Pulsar Go client to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Go (aka Golang).

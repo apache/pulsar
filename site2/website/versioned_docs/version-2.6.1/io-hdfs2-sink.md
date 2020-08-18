@@ -2,6 +2,7 @@
 id: version-2.6.1-io-hdfs2-sink
 title: HDFS2 sink connector
 sidebar_label: HDFS2 sink connector
+original_id: io-hdfs2-sink
 ---
 
 The HDFS2 sink connector pulls the messages from Pulsar topics 

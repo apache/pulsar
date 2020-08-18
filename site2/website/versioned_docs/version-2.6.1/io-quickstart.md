@@ -2,6 +2,7 @@
 id: version-2.6.1-io-quickstart
 title: How to connect Pulsar to database
 sidebar_label: Get started
+original_id: io-quickstart
 ---
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  

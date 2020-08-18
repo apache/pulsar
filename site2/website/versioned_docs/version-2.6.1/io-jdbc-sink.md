@@ -2,6 +2,7 @@
 id: version-2.6.1-io-jdbc-sink
 title: JDBC sink connector
 sidebar_label: JDBC sink connector
+original_id: io-jdbc-sink
 ---
 
 The JDBC sink connectors allow pulling messages from Pulsar topics 

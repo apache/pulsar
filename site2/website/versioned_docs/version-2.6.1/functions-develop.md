@@ -2,6 +2,7 @@
 id: version-2.6.1-functions-develop
 title: Develop Pulsar Functions
 sidebar_label: "How-to: Develop"
+original_id: functions-develop
 ---
 
 This tutorial walks you through how to develop Pulsar Functions.

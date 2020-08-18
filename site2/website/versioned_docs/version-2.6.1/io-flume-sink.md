@@ -2,6 +2,7 @@
 id: version-2.6.1-io-flume-sink
 title: Flume sink connector
 sidebar_label: Flume sink connector
+original_id: io-flume-sink
 ---
 
 The Flume sink connector pulls messages from Pulsar topics to logs.

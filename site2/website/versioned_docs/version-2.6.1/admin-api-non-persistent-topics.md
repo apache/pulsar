@@ -2,6 +2,7 @@
 id: version-2.6.1-admin-api-non-persistent-topics
 title: Managing non-persistent topics
 sidebar_label: Non-Persistent topics
+original_id: admin-api-non-persistent-topics
 ---
 
 Non-persistent can be used in applications that only want to consume real time published messages and

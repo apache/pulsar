@@ -2,6 +2,7 @@
 id: version-2.6.1-schema-evolution-compatibility
 title: Schema evolution and compatibility
 sidebar_label: Schema evolution and compatibility
+original_id: schema-evolution-compatibility
 ---
 
 Normally, schemas do not stay the same over a long period of time. Instead, they undergo evolutions to satisfy new needs. 

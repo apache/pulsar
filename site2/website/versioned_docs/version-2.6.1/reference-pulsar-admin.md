@@ -2,6 +2,7 @@
 id: version-2.6.1-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
+original_id: pulsar-admin
 ---
 
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.

@@ -2,6 +2,7 @@
 id: version-2.6.1-standalone-docker
 title: Set up a standalone Pulsar in Docker
 sidebar_label: Run Pulsar in Docker
+original_id: standalone-docker
 ---
 
 For local development and testing, you can run Pulsar in standalone

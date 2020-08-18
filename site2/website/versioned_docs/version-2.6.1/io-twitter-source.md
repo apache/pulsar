@@ -2,6 +2,7 @@
 id: version-2.6.1-io-twitter-source
 title: Twitter Firehose source connector
 sidebar_label: Twitter Firehose source connector
+original_id: io-twitter-source
 ---
 
 The Twitter Firehose source connector receives tweets from Twitter Firehose and 

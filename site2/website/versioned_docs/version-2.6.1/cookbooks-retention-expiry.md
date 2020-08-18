@@ -2,6 +2,7 @@
 id: version-2.6.1-cookbooks-retention-expiry
 title: Message retention and expiry
 sidebar_label: Message retention and expiry
+original_id: cookbooks-retention-expiry
 ---
 
 Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, for each topic, brokers only retain messages that are in at least one backlog. A backlog is the set of unacknowledged messages for a particular subscription. As a topic can have multiple subscriptions, a topic can have multiple backlogs.

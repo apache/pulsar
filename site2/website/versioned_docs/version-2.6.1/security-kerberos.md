@@ -2,6 +2,7 @@
 id: version-2.6.1-security-kerberos
 title: Authentication using Kerberos
 sidebar_label: Authentication using Kerberos
+original_id: security-kerberos
 ---
 
 [Kerberos](https://web.mit.edu/kerberos/) is a network authentication protocol. By using secret-key cryptography, [Kerberos](https://web.mit.edu/kerberos/) is designed to provide strong authentication for client applications and server applications. 

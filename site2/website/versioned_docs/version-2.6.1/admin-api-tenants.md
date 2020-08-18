@@ -2,6 +2,7 @@
 id: version-2.6.1-admin-api-tenants
 title: Managing Tenants
 sidebar_label: Tenants
+original_id: admin-api-tenants
 ---
 
 Tenants, like namespaces, can be managed using the [admin API](admin-api-overview.md). There are currently two configurable aspects of tenants:

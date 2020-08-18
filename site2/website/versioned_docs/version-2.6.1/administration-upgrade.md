@@ -2,6 +2,7 @@
 id: version-2.6.1-administration-upgrade
 title: Upgrade Guide
 sidebar_label: Upgrade
+original_id: administration-upgrade
 ---
 
 ## Upgrade guidelines

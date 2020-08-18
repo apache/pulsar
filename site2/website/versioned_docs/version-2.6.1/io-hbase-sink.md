@@ -2,6 +2,7 @@
 id: version-2.6.1-io-hbase-sink
 title: HBase sink connector
 sidebar_label: HBase sink connector
+original_id: io-hbase-sink
 ---
 
 The HBase sink connector pulls the messages from Pulsar topics 

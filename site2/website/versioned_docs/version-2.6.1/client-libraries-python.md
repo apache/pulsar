@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-python
 title: Pulsar Python client
 sidebar_label: Python
+original_id: client-libraries-python
 ---
 
 Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.

@@ -2,6 +2,7 @@
 id: version-2.6.1-io-kafka-sink
 title: Kafka sink connector
 sidebar_label: Kafka sink connector
+original_id: io-kafka-sink
 ---
 
 The Kafka sink connector pulls messages from Pulsar topics and persists the messages

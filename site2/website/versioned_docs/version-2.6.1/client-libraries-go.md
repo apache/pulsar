@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-go
 title: Pulsar Go client
 sidebar_label: Go
+original_id: client-libraries-go
 ---
 
 > Tips: Currently, the CGo client will be deprecated, if you want to know more about the CGo client, please refer to [CGo client docs](client-libraries-cgo.md)

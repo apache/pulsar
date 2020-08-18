@@ -2,6 +2,7 @@
 id: version-2.6.1-security-tls-authentication
 title: Authentication using TLS
 sidebar_label: Authentication using TLS
+original_id: security-tls-authentication
 ---
 
 ## TLS authentication overview

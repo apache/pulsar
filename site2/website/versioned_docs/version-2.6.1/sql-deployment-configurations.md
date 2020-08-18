@@ -2,6 +2,7 @@
 id: version-2.6.1-sql-deployment-configurations
 title: Pulsar SQL configuration and deployment
 sidebar_label: Configuration and deployment
+original_id: sql-deployment-configurations
 ---
 
 You can configure Presto Pulsar connector and deploy a cluster with the following instruction.

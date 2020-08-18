@@ -2,6 +2,7 @@
 id: version-2.6.1-concepts-messaging
 title: Messaging
 sidebar_label: Messaging
+original_id: concepts-messaging
 ---
 
 Pulsar is built on the [publish-subscribe](https://en.wikipedia.org/wiki/Publish%E2%80%93subscribe_pattern) pattern (short for pub-sub). In this pattern, [producers](#producers) publish messages to [topics](#topics). [Consumers](#consumers) [subscribe](#subscription-modes) to those topics, process incoming messages, and send an acknowledgement when processing is complete.

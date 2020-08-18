@@ -2,6 +2,7 @@
 id: version-2.6.1-io-aerospike-sink
 title: Aerospike sink connector
 sidebar_label: Aerospike sink connector
+original_id: io-aerospike-sink
 ---
 
 The Aerospike sink connector pulls messages from Pulsar topics to Aerospike clusters.

@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-node
 title: The Pulsar Node.js client
 sidebar_label: Node.js
+original_id: client-libraries-node
 ---
 
 The Pulsar Node.js client can be used to create Pulsar [producers](#producers), [consumers](#consumers), and [readers](#readers) in Node.js.

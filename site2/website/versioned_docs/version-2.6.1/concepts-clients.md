@@ -2,6 +2,7 @@
 id: version-2.6.1-concepts-clients
 title: Pulsar Clients
 sidebar_label: Clients
+original_id: concepts-clients
 ---
 
 Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md) and [C++](client-libraries-cpp.md). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.

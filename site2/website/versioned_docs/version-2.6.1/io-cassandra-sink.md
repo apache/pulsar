@@ -2,6 +2,7 @@
 id: version-2.6.1-io-cassandra-sink
 title: Cassandra sink connector
 sidebar_label: Cassandra sink connector
+original_id: io-cassandra-sink
 ---
 
 The Cassandra sink connector pulls messages from Pulsar topics to Cassandra clusters.

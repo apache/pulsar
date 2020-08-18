@@ -2,6 +2,7 @@
 id: version-2.6.1-performance-pulsar-perf
 title: Pulsar Perf
 sidebar_label: Pulsar Perf
+original_id: performance-pulsar-perf
 ---
 
 This document describes how to use the Pulsar Perf for performance testing. For detailed information about performance tuning, see [here](https://streamnative.io/whitepaper/taking-a-deep-dive-into-apache-pulsar-architecture-for-performance-tuning/).

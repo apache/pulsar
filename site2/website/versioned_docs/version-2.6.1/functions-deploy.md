@@ -2,6 +2,7 @@
 id: version-2.6.1-functions-deploy
 title: Deploy Pulsar Functions
 sidebar_label: "How-to: Deploy"
+original_id: functions-deploy
 ---
 
 ## Requirements

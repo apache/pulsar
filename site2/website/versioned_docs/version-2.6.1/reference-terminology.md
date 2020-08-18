@@ -2,6 +2,7 @@
 id: version-2.6.1-reference-terminology
 title: Pulsar Terminology
 sidebar_label: Terminology
+original_id: reference-terminology
 ---
 
 Here is a glossary of terms related to Apache Pulsar:

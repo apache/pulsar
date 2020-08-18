@@ -2,6 +2,7 @@
 id: version-2.6.1-administration-dashboard
 title: Pulsar dashboard
 sidebar_label: Dashboard
+original_id: administration-dashboard
 ---
 
 > Note   

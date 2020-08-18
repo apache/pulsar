@@ -1,7 +1,8 @@
 ---
 id: version-2.6.1-cookbooks-deduplication
 title: Message deduplication
-sidebar_label: Message deduplication 
+sidebar_label: Message deduplication
+original_id: cookbooks-deduplication
 ---
 
 When **Message deduplication** is enabled, it ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication is handled automatically on the server side. 

@@ -2,6 +2,7 @@
 id: version-2.6.1-io-debezium-source
 title: Debezium source connector
 sidebar_label: Debezium source connector
+original_id: io-debezium-source
 ---
 
 The Debezium source connector pulls messages from MySQL or PostgreSQL 

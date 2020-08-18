@@ -2,6 +2,7 @@
 id: version-2.6.1-io-file-source
 title: File source connector
 sidebar_label: File source connector
+original_id: io-file-source
 ---
 
 The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.

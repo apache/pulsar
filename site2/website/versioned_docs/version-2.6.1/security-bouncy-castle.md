@@ -2,6 +2,7 @@
 id: version-2.6.1-security-bouncy-castle
 title: Bouncy Castle Providers
 sidebar_label: Bouncy Castle Providers
+original_id: security-bouncy-castle
 ---
 
 ## BouncyCastle Introduce

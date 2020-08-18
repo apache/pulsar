@@ -2,6 +2,7 @@
 id: version-2.6.1-admin-api-brokers
 title: Managing Brokers
 sidebar_label: Brokers
+original_id: admin-api-brokers
 ---
 
 Pulsar brokers consist of two components:

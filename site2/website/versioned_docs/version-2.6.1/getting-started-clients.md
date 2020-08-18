@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries
 title: Pulsar client libraries
 sidebar_label: Use Pulsar with client libraries
+original_id: client-libraries
 ---
 
 Pulsar supports the following client libraries:

@@ -2,6 +2,7 @@
 id: version-2.6.1-io-cli
 title: Connector Admin CLI
 sidebar_label: CLI
+original_id: io-cli
 ---
 
 The `pulsar-admin` tool helps you manage Pulsar connectors.

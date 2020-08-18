@@ -2,6 +2,7 @@
 id: version-2.6.1-client-libraries-java
 title: Pulsar Java client
 sidebar_label: Java
+original_id: client-libraries-java
 ---
 
 You can use Pulsar Java client to create Java [producer](#producer), [consumer](#consumer), and [readers](#reader-interface) of messages and to perform [administrative tasks](admin-api-overview.md). The current version of the Java client is **{{pulsar:version}}**.

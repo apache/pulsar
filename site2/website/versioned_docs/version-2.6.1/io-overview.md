@@ -2,6 +2,7 @@
 id: version-2.6.1-io-overview
 title: Pulsar connector overview
 sidebar_label: Overview
+original_id: io-overview
 ---
 
 Messaging systems are most powerful when you can easily use them with external systems like databases and other messaging systems.

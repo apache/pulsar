@@ -2,6 +2,7 @@
 id: version-2.6.1-io-hdfs3-sink
 title: HDFS3 sink connector
 sidebar_label: HDFS3 sink connector
+original_id: io-hdfs3-sink
 ---
 
 The HDFS3 sink connector pulls the messages from Pulsar topics 

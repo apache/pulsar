@@ -2,6 +2,7 @@
 id: version-2.6.1-io-rabbitmq-sink
 title: RabbitMQ sink connector
 sidebar_label: RabbitMQ sink connector
+original_id: io-rabbitmq-sink
 ---
 
 The RabbitMQ sink connector pulls messages from Pulsar topics 

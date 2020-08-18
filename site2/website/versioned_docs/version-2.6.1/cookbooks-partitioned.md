@@ -2,6 +2,7 @@
 id: version-2.6.1-cookbooks-partitioned
 title: Partitioned topics
 sidebar_label: Partitioned Topics
+original_id: cookbooks-partitioned
 ---
 
 By default, Pulsar topics are served by a single broker. Using only a single broker limits a topic's maximum throughput. *Partitioned topics* are a special type of topic that can span multiple brokers and thus allow for much higher throughput. For an explanation of how partitioned topics work, see the [Partitioned Topics](concepts-messaging.md#partitioned-topics) concepts.

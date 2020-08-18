@@ -2,6 +2,7 @@
 id: version-2.6.1-admin-api-namespaces
 title: Managing Namespaces
 sidebar_label: Namespaces
+original_id: admin-api-namespaces
 ---
 
 Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).

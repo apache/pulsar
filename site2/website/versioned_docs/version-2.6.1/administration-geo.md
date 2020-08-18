@@ -2,6 +2,7 @@
 id: version-2.6.1-administration-geo
 title: Pulsar geo-replication
 sidebar_label: Geo-replication
+original_id: administration-geo
 ---
 
 *Geo-replication* is the replication of persistently stored message data across multiple clusters of a Pulsar instance.

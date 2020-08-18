@@ -2,6 +2,7 @@
 id: version-2.6.1-admin-api-clusters
 title: Managing Clusters
 sidebar_label: Clusters
+original_id: admin-api-clusters
 ---
 
 Pulsar clusters consist of one or more Pulsar [brokers](reference-terminology.md#broker), one or more [BookKeeper](reference-terminology.md#bookkeeper)

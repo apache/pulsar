@@ -2,6 +2,7 @@
 id: version-2.6.1-schema-get-started
 title: Get started
 sidebar_label: Get started
+original_id: schema-get-started
 ---
 
 This chapter introduces Pulsar schemas and explains why they are important. 
