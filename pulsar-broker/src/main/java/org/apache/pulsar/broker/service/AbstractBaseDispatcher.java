@@ -21,16 +21,14 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
-import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.broker.service.persistent.TransactionReader;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -43,11 +41,9 @@ import org.apache.pulsar.common.protocol.Markers;
 public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
-    protected final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
 
     protected AbstractBaseDispatcher(Subscription subscription) {
         this.subscription = subscription;
-        this.pendingTxnQueue = Queues.newConcurrentLinkedQueue();
     }
 
     /**
@@ -71,7 +67,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      *            an object where the total size in messages and bytes will be returned back to the caller
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
-             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor) {
+                                         SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
+                                         ManagedCursor cursor, EntryStartBatchIndexes startBatchIndexes,
+                                         TransactionReader transactionReader) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -89,7 +87,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             try {
                 if (Markers.isTxnCommitMarker(msgMetadata)) {
                     entries.set(i, null);
-                    pendingTxnQueue.add(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()));
+                    transactionReader.addPendingTxn(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits());
                     continue;
                 } else if (msgMetadata == null || Markers.isServerOnlyMarker(msgMetadata)) {
                     PositionImpl pos = (PositionImpl) entry.getPosition();
@@ -110,6 +108,14 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entries.set(i, null);
                     entry.release();
                     continue;
+                }
+
+                if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                    startBatchIndexes.setStartBatchIndex(i,
+                            transactionReader.calculateStartBatchIndex(
+                                    entries.get(i).getLedgerId(),
+                                    entries.get(i).getEntryId(),
+                                    msgMetadata.getNumMessagesInBatch()));
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();
@@ -168,15 +174,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return key;
     }
 
-    public boolean havePendingTxnToRead() {
-        return pendingTxnQueue.size() > 0;
-    }
-
     public Subscription getSubscription() {
         return this.subscription;
-    }
-
-    public ConcurrentLinkedQueue<TxnID> getPendingTxnQueue() {
-        return this.pendingTxnQueue;
     }
 }

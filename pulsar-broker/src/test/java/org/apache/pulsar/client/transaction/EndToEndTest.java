@@ -120,7 +120,7 @@ public class EndToEndTest extends TransactionTestBase {
         for (int i = 0; i < messageCnt; i++) {
             message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("receive msg: {}", new String(message.getData(), UTF_8));
+            log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt, receiveCnt);

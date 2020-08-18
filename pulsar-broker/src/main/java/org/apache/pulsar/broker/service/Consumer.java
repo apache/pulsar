@@ -213,8 +213,17 @@ public class Consumer {
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
 
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                                   EntryBatchIndexesAcks batchIndexesAcks, int totalMessages,
+                                   long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+        return sendMessages(entries, batchSizes, batchIndexesAcks, null,
+                totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker);
+    }
+
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
+                               EntryBatchIndexesAcks batchIndexesAcks, EntryStartBatchIndexes startBatchIndexes,
+                               int totalMessages, long totalBytes, long totalChunkedMessages,
+                               RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -228,6 +237,9 @@ public class Consumer {
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
+            }
+            if (startBatchIndexes != null) {
+                startBatchIndexes.recycle();
             }
             return writePromise;
         }
@@ -280,7 +292,9 @@ public class Consumer {
                 }
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                messageIdBuilder.setBatchIndex(entry.getStartBatchIndex());
+                if (startBatchIndexes != null) {
+                    messageIdBuilder.setBatchIndex(startBatchIndexes.getStartBatchIndex(i));
+                }
                 MessageIdData messageId = messageIdBuilder
                     .setLedgerId(entry.getLedgerId())
                     .setEntryId(entry.getEntryId())
@@ -317,6 +331,9 @@ public class Consumer {
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
+            }
+            if (startBatchIndexes != null) {
+                startBatchIndexes.recycle();
             }
         });
 

@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.EntryStartBatchIndexes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
@@ -86,7 +87,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader  = new TransactionReader(this, cursor);
+        this.transactionReader  = new TransactionReader(subscription.getTopic(), cursor);
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -242,15 +243,17 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+            EntryStartBatchIndexes startBatchIndexes = EntryStartBatchIndexes.get(entries.size());
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
+                    startBatchIndexes, transactionReader);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
 
             currentConsumer
-                    .sendMessages(entries, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
-                            sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
-                            redeliveryTracker)
+                    .sendMessages(entries, batchSizes, batchIndexesAcks, startBatchIndexes,
+                            sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
+                            sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker)
                     .addListener(future -> {
                         if (future.isSuccess()) {
                             // acquire message-dispatch permits for already delivered messages
@@ -457,7 +460,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
             havePendingRead = true;
 
-            if (havePendingTxnToRead()) {
+            if (transactionReader.havePendingTxnToRead()) {
                 log.info("[havePendingTxnToRead]");
                 transactionReader.read(messagesToRead, consumer, this);
             } else if (consumer.readCompacted()) {

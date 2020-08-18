@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service.persistent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
+import com.google.common.collect.Queues;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -30,13 +32,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * Used to read transaction messages for dispatcher.
@@ -45,17 +45,31 @@ import org.apache.pulsar.common.protocol.Commands;
 @Slf4j
 public class TransactionReader {
 
-    private final AbstractBaseDispatcher dispatcher;
+    private final Topic topic;
     private final ManagedCursor managedCursor;
+    private final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
 
-    private volatile TransactionBuffer transactionBuffer;
-    private volatile long startSequenceId = 0;
-    private volatile CompletableFuture<TransactionBufferReader> transactionBufferReader;
+    private TransactionBuffer transactionBuffer;
+    private long startSequenceId = 0;
+    private CompletableFuture<TransactionBufferReader> transactionBufferReader;
+    private volatile TxnID currentReadTxnID;
+
+    private long lastCalStartBatchIndexLedgerId = -1;
+    private long lastCalStartBatchIndexEntryId = -1;
     private int startBatchIndex = 0;
 
-    public TransactionReader(AbstractBaseDispatcher abstractBaseDispatcher, ManagedCursor managedCursor) {
-        this.dispatcher = abstractBaseDispatcher;
+    public TransactionReader(Topic topic, ManagedCursor managedCursor) {
+        this.topic = topic;
         this.managedCursor = managedCursor;
+        this.pendingTxnQueue = Queues.newConcurrentLinkedQueue();
+    }
+
+    public void addPendingTxn(long txnidMostBits, long txnidLatestBits) {
+        pendingTxnQueue.add(new TxnID(txnidMostBits, txnidLatestBits));
+    }
+
+    public boolean havePendingTxnToRead() {
+        return pendingTxnQueue.size() > 0;
     }
 
     /**
@@ -67,8 +81,7 @@ public class TransactionReader {
      */
     public void read(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
         if (transactionBuffer == null) {
-            dispatcher.getSubscription().getTopic()
-                    .getTransactionBuffer(false).whenComplete((tb, throwable) -> {
+            topic.getTransactionBuffer(false).whenComplete((tb, throwable) -> {
                 if (throwable != null) {
                     log.error("Get transactionBuffer failed.", throwable);
                     readEntriesCallback.readEntriesFailed(
@@ -98,8 +111,9 @@ public class TransactionReader {
                     ManagedLedgerException.getManagedLedgerException(new Exception("No valid txn to read.")), ctx);
             return;
         }
-        if (transactionBufferReader == null) {
+        if (currentReadTxnID == null) {
             transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, startSequenceId);
+            currentReadTxnID = txnID;
         }
         transactionBufferReader.thenAccept(reader -> {
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
@@ -131,24 +145,14 @@ public class TransactionReader {
                         startSequenceId = txnEntry.sequenceId();
                     }
                     EntryImpl entry = EntryImpl.create(ledgerId, entryId, transactionEntries.get(i).getEntryBuffer());
-
-                    int readerIndex = transactionEntries.get(i).getEntryBuffer().readerIndex();
-                    PulsarApi.MessageMetadata messageMetadata =
-                            Commands.parseMessageMetadata(transactionEntries.get(i).getEntryBuffer());
-                    int numMessagesInBatch = messageMetadata.getNumMessagesInBatch();
-                    transactionEntries.get(i).getEntryBuffer().readerIndex(readerIndex);
-                    messageMetadata.recycle();
-
-                    entry.setStartBatchIndex(startBatchIndex);
-                    startBatchIndex += numMessagesInBatch;
                     entryList.add(entry);
                 }
 
                 if (transactionEntries.size() < readMessageNum) {
                     startSequenceId = 0;
-                    dispatcher.getPendingTxnQueue().remove(txnID);
+                    pendingTxnQueue.remove(txnID);
                     transactionBufferReader = null;
-                    startBatchIndex = 0;
+                    currentReadTxnID = null;
                     reader.close();
                 }
                 readEntriesCallback.readEntriesComplete(entryList, ctx);
@@ -164,18 +168,40 @@ public class TransactionReader {
     private TxnID getValidTxn() {
         TxnID txnID;
         do {
-            txnID = dispatcher.getPendingTxnQueue().peek();
+            txnID = pendingTxnQueue.peek();
             if (txnID == null) {
                 if (log.isDebugEnabled()) {
                     log.debug("Peek null txnID from dispatcher pendingTxnQueue.");
                 }
-                dispatcher.getPendingTxnQueue().poll();
-                if (dispatcher.getPendingTxnQueue().size() <= 0) {
+                pendingTxnQueue.poll();
+                if (pendingTxnQueue.size() <= 0) {
                     break;
                 }
             }
         } while (txnID == null);
         return txnID;
+    }
+
+    /**
+     * Calculate the startBatchIndex for the Entry,
+     * the batchIndex accumulate the numMessagesInBatch till the ledgerId or entryId changed.
+     *
+     * @param ledgerId commit marker entry ledgerId
+     * @param entryId commit marker entry entryId
+     * @param numMessagesInBatch the number messages in a batch
+     * @return startBatchIndex of the Entry
+     */
+    public int calculateStartBatchIndex(long ledgerId, long entryId, int numMessagesInBatch) {
+        int startBatchIndex = 0;
+        if (lastCalStartBatchIndexLedgerId != ledgerId || lastCalStartBatchIndexEntryId != entryId) {
+            lastCalStartBatchIndexLedgerId = ledgerId;
+            lastCalStartBatchIndexEntryId = entryId;
+            this.startBatchIndex = numMessagesInBatch;
+        } else {
+            startBatchIndex = this.startBatchIndex;
+            this.startBatchIndex += numMessagesInBatch;
+        }
+        return startBatchIndex;
     }
 
 }

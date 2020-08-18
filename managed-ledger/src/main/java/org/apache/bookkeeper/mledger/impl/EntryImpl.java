@@ -45,8 +45,6 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long entryId;
     ByteBuf data;
 
-    private int startBatchIndex = -1;
-
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
         entry.timestamp = System.nanoTime();
@@ -167,17 +165,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
         timestamp = -1;
         ledgerId = -1;
         entryId = -1;
-        startBatchIndex = -1;
         recyclerHandle.recycle(this);
-    }
-
-    @Override
-    public int getStartBatchIndex() {
-        return startBatchIndex;
-    }
-
-    public void setStartBatchIndex(int startBatchIndex) {
-        this.startBatchIndex = startBatchIndex;
     }
 
 }
