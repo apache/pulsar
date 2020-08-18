@@ -384,6 +384,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        conf.setAutoUpdatePartitionsIntervalMin(interval, unit);
+        return this;
+    }
+
+    @Override
 
     public ConsumerBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);
