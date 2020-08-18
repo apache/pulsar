@@ -95,6 +95,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     private Integer grpcPort;
     private Integer metricsPort;
     private String narExtractionDirectory;
+    private String functionInstanceClassPath;
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -233,6 +234,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         this.grpcPort = factoryConfig.getGrpcPort();
         this.metricsPort = factoryConfig.getMetricsPort();
         this.narExtractionDirectory = factoryConfig.getNarExtractionDirectory();
+        this.functionInstanceClassPath = factoryConfig.getFunctionInstanceClassPath();
     }
 
     @Override

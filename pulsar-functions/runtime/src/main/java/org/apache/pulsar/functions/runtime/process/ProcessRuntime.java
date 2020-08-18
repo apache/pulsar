@@ -136,7 +136,9 @@ class ProcessRuntime implements Runtime {
             false,
             null,
             null,
-                this.metricsPort, narExtractionDirectory);
+                this.metricsPort,
+                narExtractionDirectory,
+                null);
     }
 
     /**
