@@ -158,6 +158,18 @@ public class SourceConfigUtils {
             if (sourceConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
                 pbldr.setUseThreadLocalProducers(sourceConfig.getProducerConfig().getUseThreadLocalProducers());
             }
+            if (sourceConfig.getProducerConfig().getDisableBatching() != null) {
+                pbldr.setDisableBatching(sourceConfig.getProducerConfig().getDisableBatching());
+            }
+            if (sourceConfig.getProducerConfig().getBatchingMaxPublishDelay() != null) {
+                pbldr.setBatchingMaxPublishDelay(sourceConfig.getProducerConfig().getBatchingMaxPublishDelay());
+            }
+            if (sourceConfig.getProducerConfig().getBatchingMaxMessages() != null) {
+                pbldr.setBatchingMaxMessages(sourceConfig.getProducerConfig().getBatchingMaxMessages());
+            }
+            if (sourceConfig.getProducerConfig().getBatchingMaxBytes() != null) {
+                pbldr.setBatchingMaxBytes(sourceConfig.getProducerConfig().getBatchingMaxBytes());
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
@@ -239,6 +251,16 @@ public class SourceConfigUtils {
                 producerConfig.setMaxPendingMessagesAcrossPartitions(sinkSpec.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
             }
             producerConfig.setUseThreadLocalProducers(sinkSpec.getProducerSpec().getUseThreadLocalProducers());
+            producerConfig.setDisableBatching(functionDetails.getSink().getProducerSpec().getDisableBatching());
+            if (functionDetails.getSink().getProducerSpec().getBatchingMaxPublishDelay() != 0) {
+                producerConfig.setBatchingMaxPublishDelay(functionDetails.getSink().getProducerSpec().getBatchingMaxPublishDelay());
+            }
+            if (functionDetails.getSink().getProducerSpec().getBatchingMaxMessages() != 0) {
+                producerConfig.setBatchingMaxMessages(functionDetails.getSink().getProducerSpec().getBatchingMaxMessages());
+            }
+            if (functionDetails.getSink().getProducerSpec().getBatchingMaxBytes() != 0) {
+                producerConfig.setBatchingMaxBytes(functionDetails.getSink().getProducerSpec().getBatchingMaxBytes());
+            }
             sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {

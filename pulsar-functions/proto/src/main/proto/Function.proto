@@ -105,6 +105,10 @@ message ProducerSpec {
     int32 maxPendingMessages = 1;
     int32 maxPendingMessagesAcrossPartitions = 2;
     bool useThreadLocalProducers = 3;
+    bool disableBatching = 4;
+    int32 batchingMaxPublishDelay = 5;
+    int32 batchingMaxMessages = 6;
+    int32 batchingMaxBytes = 7;
 }
 
 message SourceSpec {

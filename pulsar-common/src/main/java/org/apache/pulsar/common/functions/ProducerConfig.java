@@ -36,4 +36,8 @@ public class ProducerConfig {
     private Integer maxPendingMessages;
     private Integer maxPendingMessagesAcrossPartitions;
     private Boolean useThreadLocalProducers;
+    private Boolean disableBatching;
+    private Integer batchingMaxPublishDelay;
+    private Integer batchingMaxMessages;
+    private Integer batchingMaxBytes;
 }

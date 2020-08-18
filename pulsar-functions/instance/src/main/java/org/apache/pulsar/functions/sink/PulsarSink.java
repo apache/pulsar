@@ -90,8 +90,6 @@ public class PulsarSink<T> implements Sink<T> {
                 throws PulsarClientException {
             ProducerBuilder<T> builder = client.newProducer(schema)
                     .blockIfQueueFull(true)
-                    .enableBatching(true)
-                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS)
                     .compressionType(CompressionType.LZ4)
                     .hashingScheme(HashingScheme.Murmur3_32Hash) //
                     .messageRoutingMode(MessageRoutingMode.CustomPartition)
@@ -109,6 +107,20 @@ public class PulsarSink<T> implements Sink<T> {
                 }
                 if (pulsarSinkConfig.getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
                     builder.maxPendingMessagesAcrossPartitions(pulsarSinkConfig.getProducerSpec().getMaxPendingMessagesAcrossPartitions());
+                }
+                if (!pulsarSinkConfig.getProducerSpec().getDisableBatching()) {
+                    builder.enableBatching(true);
+                    if (pulsarSinkConfig.getProducerSpec().getBatchingMaxPublishDelay() > 0) {
+                        builder.batchingMaxPublishDelay(pulsarSinkConfig.getProducerSpec().getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS);
+                    } else {
+                        builder.batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS); // for backwards compatibility
+                    }
+                    if (pulsarSinkConfig.getProducerSpec().getBatchingMaxMessages() > 0) {
+                        builder.batchingMaxMessages(pulsarSinkConfig.getProducerSpec().getBatchingMaxMessages());
+                    }
+                    if (pulsarSinkConfig.getProducerSpec().getBatchingMaxBytes() > 0) {
+                        builder.batchingMaxBytes(pulsarSinkConfig.getProducerSpec().getBatchingMaxBytes());
+                    }
                 }
             }
 
