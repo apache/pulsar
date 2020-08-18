@@ -112,10 +112,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                 if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
                     startBatchIndexes.setStartBatchIndex(i,
-                            transactionReader.calculateStartBatchIndex(
-                                    entries.get(i).getLedgerId(),
-                                    entries.get(i).getEntryId(),
-                                    msgMetadata.getNumMessagesInBatch()));
+                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();

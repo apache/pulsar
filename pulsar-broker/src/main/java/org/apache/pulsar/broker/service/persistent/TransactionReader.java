@@ -54,8 +54,6 @@ public class TransactionReader {
     private CompletableFuture<TransactionBufferReader> transactionBufferReader;
     private volatile TxnID currentReadTxnID;
 
-    private long lastCalStartBatchIndexLedgerId = -1;
-    private long lastCalStartBatchIndexEntryId = -1;
     private int startBatchIndex = 0;
 
     public TransactionReader(Topic topic, ManagedCursor managedCursor) {
@@ -150,6 +148,7 @@ public class TransactionReader {
 
                 if (transactionEntries.size() < readMessageNum) {
                     startSequenceId = 0;
+                    startBatchIndex = 0;
                     pendingTxnQueue.remove(txnID);
                     transactionBufferReader = null;
                     currentReadTxnID = null;
@@ -184,23 +183,15 @@ public class TransactionReader {
 
     /**
      * Calculate the startBatchIndex for the Entry,
-     * the batchIndex accumulate the numMessagesInBatch till the ledgerId or entryId changed.
+     * the batchIndex accumulate the numMessagesInBatch,
+     * when reading one transaction finished the startBatchIndex will be reset to 0.
      *
-     * @param ledgerId commit marker entry ledgerId
-     * @param entryId commit marker entry entryId
      * @param numMessagesInBatch the number messages in a batch
      * @return startBatchIndex of the Entry
      */
-    public int calculateStartBatchIndex(long ledgerId, long entryId, int numMessagesInBatch) {
-        int startBatchIndex = 0;
-        if (lastCalStartBatchIndexLedgerId != ledgerId || lastCalStartBatchIndexEntryId != entryId) {
-            lastCalStartBatchIndexLedgerId = ledgerId;
-            lastCalStartBatchIndexEntryId = entryId;
-            this.startBatchIndex = numMessagesInBatch;
-        } else {
-            startBatchIndex = this.startBatchIndex;
-            this.startBatchIndex += numMessagesInBatch;
-        }
+    public int calculateStartBatchIndex(int numMessagesInBatch) {
+        int startBatchIndex = this.startBatchIndex;
+        this.startBatchIndex += numMessagesInBatch;
         return startBatchIndex;
     }
 

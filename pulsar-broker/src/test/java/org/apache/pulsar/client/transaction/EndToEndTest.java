@@ -21,11 +21,13 @@ package org.apache.pulsar.client.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -117,13 +119,29 @@ public class EndToEndTest extends TransactionTestBase {
         txn.commit().get();
 
         int receiveCnt = 0;
+        Set<MessageId> firstReceivedMessageIdList = Sets.newHashSet();
         for (int i = 0; i < messageCnt; i++) {
             message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
+            firstReceivedMessageIdList.add(message.getMessageId());
             log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt, receiveCnt);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveCnt = 0;
+        for (int i = 0; i < messageCnt; i++) {
+            message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertTrue(firstReceivedMessageIdList.remove(message.getMessageId()));
+            log.info("second receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
+            receiveCnt ++;
+        }
+        Assert.assertEquals(messageCnt, receiveCnt);
+        Assert.assertEquals(firstReceivedMessageIdList.size(), 0);
+
         log.info("receive transaction messages count: {}", receiveCnt);
     }
 
