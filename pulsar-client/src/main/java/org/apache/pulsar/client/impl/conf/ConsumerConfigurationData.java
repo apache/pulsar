@@ -119,6 +119,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
+    private long autoUpdatePartitionsIntervalMin = 1;
+
     private boolean replicateSubscriptionState = false;
 
     private boolean resetIncludeHead = false;

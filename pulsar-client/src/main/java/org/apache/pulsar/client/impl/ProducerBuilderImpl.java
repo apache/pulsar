@@ -295,6 +295,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        conf.setAutoUpdatePartitionsIntervalMin(interval, unit);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> enableMultiSchema(boolean multiSchema) {
         conf.setMultiSchema(multiSchema);
         return this;
