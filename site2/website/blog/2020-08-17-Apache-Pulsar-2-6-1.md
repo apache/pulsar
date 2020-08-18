@@ -13,25 +13,23 @@ Here is a selection of some of the most interesting and major features added to 
 
 #### Limit the batch size to the minimum of the `maxNumberOfMessages` and `maxSizeOfMessages`
 
-The Batch size is not limited to the minimum of the `maxNumberOfMessages` and `maxSizeOfMessages` from the `BatchReceive` policy.
-
-1. Batch size is not limited to the minimum of the maxNumberOfMessages and maxSizeOfMessages from the BatchReceive policy.
-2. When the batch size is greater than the receiveQ of the consumer (I used a batch size of 3000 and a receiveQ of 500), I notice the following issues:
+1. Batch size is not limited to the minimum of the `maxNumberOfMessages` and `maxSizeOfMessages` from the BatchReceive policy.
+2. When the batch size is greater than the `receiveQ` of the consumer (for example, the batch size is 3000 and a receiveQ is 500), the following issue occurs:
 	
-	In a multi-topic (pattern) consumer, the client stops receiving any messages. I think it gets paused and never resumed when setting a timeout in the batch policy. Only one batch is fetched and the client is never resumed.
+	In a multi-topic (pattern) consumer, the client stops receiving any messages. The client gets paused and never resumed when setting a timeout in the batch policy. Only one batch is fetched and the client is never resumed.
 
 For more information about implementation details, see [PR-6865](https://github.com/apache/pulsar/pull/6865).
 
 #### Fix hash range conflict issue in Key_Shared subscription with sticky hash range
 In `Key_Shared` subscription where the`stickyHashRange` is used, consumers are not allowed to use interleaving hashes.
 
-The pull request will fix hash range conflict issue in `Key_Shared` with sticky hash range.
+The pull request fixs hash range conflict issue in `Key_Shared` with sticky hash range.
 
 For more information about implementation details, see [PR-7231](https://github.com/apache/pulsar/pull/7231).
 
 #### Fix: get lookup permission error
 
-Currently，when Pulsar AuthorizationService checks lookup permission, if the user has the role canProducer **or** canConsumer, it means that the user can perform canLookup operations, but actually in the code:
+Currently，when Pulsar AuthorizationService checks lookup permission, if the user has the role `canProducer` or `canConsumer`, it means that the user can perform `canLookup` operations, but actually in the code:
 
 ```java
 try {
@@ -39,15 +37,15 @@ try {
             .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
 }
 ```
-If the method `canProduce` or `canConsume` throw an exception, the `canLookup` method will just throw the exception and will not check the other permission.
+If the method `canProduce` or `canConsume` throw an exception, the `canLookup` method just throw the exception and not check the other permission.
 
-The pull request will invoke `canLookupAsync` instead.
+The pull request invokes `canLookupAsync` instead.
 
 For more information about implementation details, see [PR-7234](https://github.com/apache/pulsar/pull/7234).
 
 #### Avoid introducing null read position for the managed cursor
 
-Avoid introducing null read position for the managed cursor. The most doubtful thing is `getNextValidPosition` method in the `ManagedLedgerImpl`. If a given position is greater than the last add position, it will return a null value. This may cause the read position to become null. But I have not found how this situation appears. So in the PR, I added a log and print the stack trace which can help us to find the root cause and fallback to the next position of the last position if the null next valid position occurs.
+Avoid introducing null read position for the managed cursor. The most doubtful thing is `getNextValidPosition` method in the `ManagedLedgerImpl`. If a given position is greater than the last add position, it returns a `null` value. This may cause the read position to become null. So in the PR, we added a log and print the stack trace which can help us to find the root cause and fallback to the next position of the last position if the null next valid position occurs.
                                                            
 For more information about implementation details, see [PR-7264](https://github.com/apache/pulsar/pull/7264).
 
