@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-admin-api-overview
+id: admin-api-overview
 title: The Pulsar admin interface
 sidebar_label: Overview
-original_id: admin-api-overview
 ---
 
 The Pulsar admin interface enables you to manage all of the important entities in a Pulsar [instance](reference-terminology.md#instance), such as [tenants](reference-terminology.md#tenant), [topics](reference-terminology.md#topic), and [namespaces](reference-terminology.md#namespace).

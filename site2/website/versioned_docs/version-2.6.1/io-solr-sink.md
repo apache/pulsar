@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-solr-sink
+id: io-solr-sink
 title: Solr sink connector
 sidebar_label: Solr sink connector
-original_id: io-solr-sink
 ---
 
 The Solr sink connector pulls messages from Pulsar topics 

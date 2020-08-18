@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-admin-api-persistent-topics
+id: admin-api-persistent-topics
 title: Managing persistent topics
 sidebar_label: Persistent topics
-original_id: admin-api-persistent-topics
 ---
 
 Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.

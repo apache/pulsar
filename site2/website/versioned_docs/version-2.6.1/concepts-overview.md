@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-concepts-overview
+id: concepts-overview
 title: Pulsar Overview
 sidebar_label: Overview
-original_id: concepts-overview
 ---
 
 Pulsar is a multi-tenant, high-performance solution for server-to-server messaging. Pulsar was originally developed by Yahoo, it is under the stewardship of the [Apache Software Foundation](https://www.apache.org/).

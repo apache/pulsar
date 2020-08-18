@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-admin-api-functions
+id: admin-api-functions
 title: Manage Functions
 sidebar_label: Functions
-original_id: admin-api-functions
 ---
 
 **Pulsar Functions** are lightweight compute processes that

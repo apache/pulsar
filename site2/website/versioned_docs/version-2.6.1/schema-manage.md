@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-schema-manage
+id: schema-manage
 title: Manage schema
 sidebar_label: Manage schema
-original_id: schema-manage
 ---
 
 This guide demonstrates the ways to manage schemas:

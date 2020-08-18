@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-influxdb-sink
+id: io-influxdb-sink
 title: InfluxDB sink connector
 sidebar_label: InfluxDB sink connector
-original_id: io-influxdb-sink
 ---
 
 The InfluxDB sink connector pulls messages from Pulsar topics 

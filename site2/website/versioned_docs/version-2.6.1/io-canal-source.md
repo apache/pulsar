@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-canal-source
+id: io-canal-source
 title: Canal source connector
 sidebar_label: Canal source connector
-original_id: io-canal-source
 ---
 
 The Canal source connector pulls messages from MySQL to Pulsar topics.

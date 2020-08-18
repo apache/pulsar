@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-sql-getting-started
+id: sql-getting-started
 title: Query data with Pulsar SQL
 sidebar_label: Query data
-original_id: sql-getting-started
 ---
 
 Before querying data in Pulsar, you need to install Pulsar and built-in connectors. 

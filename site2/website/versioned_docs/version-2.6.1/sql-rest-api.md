@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-sql-rest-api
+id: sql-rest-api
 title: Pulsar SQL REST APIs
 sidebar_label: REST APIs
-original_id: sql-rest-api
 ---
 
 This section lists resources that make up the Presto REST API v1. 

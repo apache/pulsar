@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-cookbooks-tiered-storage
+id: cookbooks-tiered-storage
 title: Tiered Storage
 sidebar_label: Tiered Storage
-original_id: cookbooks-tiered-storage
 ---
 
 Pulsar's **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. This cookbook walks you through using tiered storage in your Pulsar cluster.
@@ -33,8 +32,6 @@ The configured bucket must exist before attempting to offload. If it does not ex
 Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data.
 We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid
 getting charged for incomplete uploads.
-
-When ledgers are offloaded to long term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
 
 ## Configuring the offload driver
 

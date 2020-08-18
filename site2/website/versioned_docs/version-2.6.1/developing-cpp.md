@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-develop-cpp
+id: develop-cpp
 title: Building Pulsar C++ client
 sidebar_label: Building Pulsar C++ client
-original_id: develop-cpp
 ---
 
 ## Supported platforms

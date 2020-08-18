@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-administration-zk-bk
+id: administration-zk-bk
 title: ZooKeeper and BookKeeper administration
 sidebar_label: ZooKeeper and BookKeeper
-original_id: administration-zk-bk
 ---
 
 Pulsar relies on two external systems for essential tasks:
@@ -163,49 +162,17 @@ BookKeeper is responsible for all durable message storage in Pulsar. BookKeeper 
 
 > For a guide to managing message persistence, retention, and expiry in Pulsar, see [this cookbook](cookbooks-retention-expiry.md).
 
-### Hardware considerations
-
-Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, ensuring that the bookies have a suitable hardware configuration is essential. You can choose two key dimensions to bookie hardware capacity:
-
-* Disk I/O capacity read/write
-* Storage capacity
-
-Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:
-
-* A **journal** to ensure durability. For sequential writes, having fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts is critical. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID)s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
-* A **ledger storage device** is where data is stored until all consumers have acknowledged the message. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
-
-### Configure BookKeeper
-
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
-
-Minimum configuration changes required in `conf/bookkeeper.conf` are:
-
-```properties
-# Change to point to journal disk mount point
-journalDirectory=data/bookkeeper/journal
-
-# Point to ledger storage disk mount point
-ledgerDirectories=data/bookkeeper/ledgers
-
-# Point to local ZK quorum
-zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
-
-# Change the ledger manager type
-ledgerManagerType=hierarchical
-```
-
-To change the zookeeper root path that Bookkeeper uses, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
-
-> Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
-
 ### Deploy BookKeeper
 
 BookKeeper provides [persistent message storage](concepts-architecture-overview.md#persistent-storage) for Pulsar.
 
 Each Pulsar broker needs to have its own cluster of bookies. The BookKeeper cluster shares a local ZooKeeper quorum with the Pulsar cluster.
 
-### Starting bookies manually
+### Configure bookies
+
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important aspect of configuring each bookie is ensuring that the [`zkServers`](reference-configuration.md#bookkeeper-zkServers) parameter is set to the connection string for local ZooKeeper of the Pulsar cluster.
+
+### Start up bookies
 
 You can start up a bookie in two ways: in the foreground or as a background daemon.
 
@@ -229,45 +196,43 @@ $ bin/bookkeeper shell bookiesanity
 
 This command creates a new ledger on the local bookie, writes a few entries, reads them back and finally deletes the ledger.
 
-### Decommissioning bookies cleanly
+### Hardware considerations
+
+Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, ensuring that the bookies have a suitable hardware configuration is essential. You can choose two key dimensions to bookie hardware capacity:
+
+* Disk I/O capacity read/write
+* Storage capacity
+
+Message entries written to bookies are always synced to disk before returning an acknowledgement to the Pulsar broker. To ensure low write latency, BookKeeper is designed to use multiple devices:
+
+* A **journal** to ensure durability. For sequential writes, having fast [fsync](https://linux.die.net/man/2/fsync) operations on bookie hosts is critical. Typically, small and fast [solid-state drives](https://en.wikipedia.org/wiki/Solid-state_drive) (SSDs) should suffice, or [hard disk drives](https://en.wikipedia.org/wiki/Hard_disk_drive) (HDDs) with a [RAID](https://en.wikipedia.org/wiki/RAID)s controller and a battery-backed write cache. Both solutions can reach fsync latency of ~0.4 ms.
+* A **ledger storage device** is where data is stored until all consumers have acknowledged the message. Writes happen in the background, so write I/O is not a big concern. Reads happen sequentially most of the time and the backlog is drained only in case of consumer drain. To store large amounts of data, a typical configuration involves multiple HDDs with a RAID controller.
 
 
-In case the user wants to decommission a bookie, the following process is useful to follow in order to verify if the
-decommissioning was safely done.
 
-#### Before we decommission
-1. Ensure state of your cluster can support the decommissioning of the target bookie.
-Check if `EnsembleSize >= Write Quorum >= Ack Quorum` stays true with one less bookie
+### Configure BookKeeper
 
-2. Ensure target bookie shows up in the listbookies command.
+you can find configurable parameters for BookKeeper bookies in the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) file.
 
-3. Ensure that there is no other process ongoing (upgrade etc).
+Minimum configuration changes required in `conf/bookkeeper.conf` are:
 
-#### Process of Decommissioning
-1. Log on to the bookie node, check if there are underreplicated ledgers.
+```properties
+# Change to point to journal disk mount point
+journalDirectory=data/bookkeeper/journal
 
-If there are, the decommission command will force them to be replicated.
-`$ bin/bookkeeper shell listunderreplicated`
+# Point to ledger storage disk mount point
+ledgerDirectories=data/bookkeeper/ledgers
 
-2. Stop the bookie by killing the bookie process. Make sure there are no liveness / readiness probes setup for the bookies to spin them back up if you are deployed in a kubernetes environment.
+# Point to local ZK quorum
+zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
-3. Run the decommission command.
-If you have logged onto the node you wish to decommission, you don't need to provide `-bookieid`
-If you are running the decommission command for target bookie node from another bookie node you should mention 
-the target bookie id in the arguments for `-bookieid`
-`$ bin/bookkeeper shell decommissionbookie`
-or
-`$ bin/bookkeeper shell decommissionbookie -bookieid <target bookieid>`
-
-4. Validate that there are no ledgers on decommissioned bookie
-`$ bin/bookkeeper shell listledgers -bookieid <target bookieid>`
-
-Last step to verify is you could run this command to check if the bookie you decommissioned doesn’t show up in list bookies:
-
-```bash
-./bookkeeper shell listbookies -rw -h
-./bookkeeper shell listbookies -ro -h
+# Change the ledger manager type
+ledgerManagerType=hierarchical
 ```
+
+To change the zookeeper root path that Bookkeeper uses, use zkLedgersRootPath=/MY-PREFIX/ledgers instead of zkServers=localhost:2181/MY-PREFIX
+
+> Consult the official [BookKeeper docs](http://bookkeeper.apache.org) for more information about BookKeeper.
 
 ## BookKeeper persistence policies
 

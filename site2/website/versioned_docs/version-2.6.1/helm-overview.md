@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-helm-overview
+id: helm-overview
 title: Apache Pulsar Helm Chart
 sidebar_label: Overview
-original_id: helm-overview
 ---
 
 This is the official supported Helm chart to install Apache Pulsar on a cloud-native environment. It was enhanced based on StreamNative's [Helm Chart](https://github.com/streamnative/charts).

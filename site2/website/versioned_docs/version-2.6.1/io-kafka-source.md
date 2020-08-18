@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-kafka-source
+id: io-kafka-source
 title: Kafka source connector
 sidebar_label: Kafka source connector
-original_id: io-kafka-source
 ---
 
 The Kafka source connector pulls messages from Kafka topics and persists the messages

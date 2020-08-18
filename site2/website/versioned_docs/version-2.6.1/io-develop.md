@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-develop
+id: io-develop
 title: How to develop Pulsar connectors
 sidebar_label: Develop
-original_id: io-develop
 ---
 
 This guide describes how to develop Pulsar connectors to move data

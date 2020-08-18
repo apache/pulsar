@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-develop-tools
+id: develop-tools
 title: Simulation tools
 sidebar_label: Simulation tools
-original_id: develop-tools
 ---
 
 It is sometimes necessary create an test environment and incur artificial load to observe how well load managers

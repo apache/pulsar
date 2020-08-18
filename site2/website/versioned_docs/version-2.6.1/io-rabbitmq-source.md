@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-rabbitmq-source
+id: io-rabbitmq-source
 title: RabbitMQ source connector
 sidebar_label: RabbitMQ source connector
-original_id: io-rabbitmq-source
 ---
 
 The RabbitMQ source connector receives messages from RabbitMQ clusters 

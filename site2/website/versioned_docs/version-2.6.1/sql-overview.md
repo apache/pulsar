@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-sql-overview
+id: sql-overview
 title: Pulsar SQL Overview
 sidebar_label: Overview
-original_id: sql-overview
 ---
 
 Apache Pulsar is used to store streams of event data, and the event data is structured with predefined fields. With the implementation of the [Schema Registry](schema-get-started.md), you can store structured data in Pulsar and query the data by using [Presto](https://prestosql.io/).  

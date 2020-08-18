@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-cdc-debezium
+id: io-cdc-debezium
 title: Debezium source connector
 sidebar_label: Debezium source connector
-original_id: io-cdc-debezium
 ---
 
 The Debezium source connector pulls messages from MySQL or PostgreSQL 

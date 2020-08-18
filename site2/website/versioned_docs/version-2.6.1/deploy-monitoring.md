@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-deploy-monitoring
+id: deploy-monitoring
 title: Monitoring
 sidebar_label: Monitoring
-original_id: deploy-monitoring
 ---
 
 You can use different ways to monitor a Pulsar cluster, exposing both metrics that relate to the usage of topics and the overall health of the individual components of the cluster.

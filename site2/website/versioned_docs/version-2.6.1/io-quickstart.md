@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-quickstart
+id: io-quickstart
 title: How to connect Pulsar to database
 sidebar_label: Get started
-original_id: io-quickstart
 ---
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
@@ -202,10 +201,6 @@ You can use the [Connector Admin CLI](io-cli.md)
 to create a sink connector and perform other operations on them.
 
 Run the following command to create a Cassandra sink connector with sink type _cassandra_ and the config file _examples/cassandra-sink.yml_ created previously.
-
-#### Note
-
-> The `sink-type` parameter of the currently built-in connectors is determined by the setting of the `name` parameter specified in the pulsar-io.yaml file.
 
 ```bash
 bin/pulsar-admin sinks create \

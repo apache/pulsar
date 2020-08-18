@@ -1,7 +1,6 @@
 ---
-id: version-2.6.1-cookbooks-bookkeepermetadata
+id: cookbooks-bookkeepermetadata
 title: BookKeeper Ledger Metadata
-original_id: cookbooks-bookkeepermetadata
 ---
 
 Pulsar stores data on BookKeeper ledgers, you can understand the contents of a ledger by inspecting the metadata attached to the ledger.

@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-cookbooks-encryption
+id: cookbooks-encryption
 title: Pulsar Encryption
-sidebar_label: Encryption
-original_id: cookbooks-encryption
+sidebar_label: Encryption 
 ---
 
 Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.

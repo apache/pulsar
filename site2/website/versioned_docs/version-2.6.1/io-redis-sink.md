@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-redis-sink
+id: io-redis-sink
 title: Redis sink connector
 sidebar_label: Redis sink connector
-original_id: io-redis-sink
 ---
 
 The  Redis sink connector pulls messages from Pulsar topics 

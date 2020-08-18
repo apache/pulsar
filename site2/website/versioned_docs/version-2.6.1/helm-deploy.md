@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-helm-deploy
+id: helm-deploy
 title: Deploy Pulsar cluster using Helm
 sidebar_label: Deployment
-original_id: helm-deploy
 ---
 
 Before running `helm install`, you need to decide how to run Pulsar.

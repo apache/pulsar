@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-io-cdc
+id: io-cdc
 title: CDC connector
 sidebar_label: CDC connector
-original_id: io-cdc
 ---
 
 CDC source connectors capture log changes of databases (such as MySQL, MongoDB, and PostgreSQL) into Pulsar.

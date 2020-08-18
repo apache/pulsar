@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-deploy-kubernetes
+id: deploy-kubernetes
 title: Deploy Pulsar on Kubernetes
 sidebar_label: Kubernetes
-original_id: deploy-kubernetes
 ---
 
 To get up and running with these charts as fast as possible, in a **non-production** use case, we provide

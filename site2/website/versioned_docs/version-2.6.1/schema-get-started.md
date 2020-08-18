@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-schema-get-started
+id: schema-get-started
 title: Get started
 sidebar_label: Get started
-original_id: schema-get-started
 ---
 
 This chapter introduces Pulsar schemas and explains why they are important. 
@@ -14,10 +13,6 @@ Type safety is extremely important in any application built around a message bus
 Producers and consumers need some kind of mechanism for coordinating types at the topic level to avoid various potential problems arise. For example, serialization and deserialization issues. 
 
 Applications typically adopt one of the following approaches to guarantee type safety in messaging. Both approaches are available in Pulsar, and you're free to adopt one or the other or to mix and match on a per-topic basis.
-
-#### Note
->
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-cgo.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
 
 ### Client-side approach
 

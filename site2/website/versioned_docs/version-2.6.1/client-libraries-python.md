@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-client-libraries-python
+id: client-libraries-python
 title: Pulsar Python client
 sidebar_label: Python
-original_id: client-libraries-python
 ---
 
 Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
@@ -85,33 +84,6 @@ while True:
         consumer.negative_acknowledge(msg)
 
 client.close()
-```
-
-This example shows how to configure negative acknowledgement.
-
-```python
-from pulsar import Client, schema
-client = Client('pulsar://localhost:6650')
-consumer = client.subscribe('negative_acks','test',schema=schema.StringSchema())
-producer = client.create_producer('negative_acks',schema=schema.StringSchema())
-for i in range(10):
-    print('send msg "hello-%d"' % i)
-    producer.send_async('hello-%d' % i, callback=None)
-producer.flush()
-for i in range(10):
-    msg = consumer.receive()
-    consumer.negative_acknowledge(msg)
-    print('receive and nack msg "%s"' % msg.data())
-for i in range(10):
-    msg = consumer.receive()
-    consumer.acknowledge(msg)
-    print('receive and ack msg "%s"' % msg.data())
-try:
-    # No more messages expected
-    msg = consumer.receive(100)
-except:
-    print("no more msg")
-    pass
 ```
 
 ### Reader interface example

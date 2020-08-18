@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-deploy-bare-metal
+id: deploy-bare-metal
 title: Deploy a cluster on bare metal
 sidebar_label: Bare metal
-original_id: deploy-bare-metal
 ---
 
 
@@ -286,7 +285,7 @@ $ bin/pulsar-daemon start bookie
 To start the bookie in the foreground:
 
 ```bash
-$ bin/bookkeeper bookie
+$ bin/pulsar bookie
 ```
 
 You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):

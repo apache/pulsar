@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-helm-install
+id: helm-install
 title: Install Apache Pulsar using Helm
-sidebar_label: Install
-original_id: helm-install
+sidebar_label: Install 
 ---
 
 Install Apache Pulsar on Kubernetes with the official Pulsar Helm chart.

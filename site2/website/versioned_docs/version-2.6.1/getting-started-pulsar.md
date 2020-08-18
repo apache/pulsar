@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-pulsar-2.0
+id: pulsar-2.0
 title: Pulsar 2.0
 sidebar_label: Pulsar 2.0
-original_id: pulsar-2.0
 ---
 
 Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview.md) feature, some terminology changes, and more.

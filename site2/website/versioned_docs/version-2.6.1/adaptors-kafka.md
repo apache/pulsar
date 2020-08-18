@@ -1,8 +1,7 @@
 ---
-id: version-2.6.1-adaptors-kafka
+id: adaptors-kafka
 title: Pulsar adaptor for Apache Kafka
 sidebar_label: Kafka client wrapper
-original_id: adaptors-kafka
 ---
 
 

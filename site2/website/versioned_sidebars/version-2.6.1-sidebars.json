@@ -1,0 +1,152 @@
+{
+  "docs": {
+    "Get started": [
+      "pulsar-2.0",
+      "standalone",
+      "standalone-docker",
+      "kubernetes-helm",
+      "client-libraries"
+    ],
+    "Concepts and Architecture": [
+      "concepts-overview",
+      "concepts-messaging",
+      "concepts-architecture-overview",
+      "concepts-clients",
+      "concepts-replication",
+      "concepts-multi-tenancy",
+      "concepts-authentication",
+      "concepts-topic-compaction",
+      "concepts-tiered-storage",
+      "concepts-proxy-sni-routing"
+    ],
+    "Pulsar Schema": [
+      "schema-get-started",
+      "schema-understand",
+      "schema-evolution-compatibility",
+      "schema-manage"
+    ],
+    "Pulsar Functions": [
+      "functions-overview",
+      "functions-worker",
+      "functions-runtime",
+      "functions-develop",
+      "functions-debug",
+      "functions-deploy",
+      "functions-cli",
+      "window-functions-context"
+    ],
+    "Pulsar IO": [
+      "io-overview",
+      "io-quickstart",
+      "io-use",
+      "io-debug",
+      "io-connectors",
+      "io-cdc",
+      "io-develop",
+      "io-cli"
+    ],
+    "Pulsar SQL": [
+      "sql-overview",
+      "sql-getting-started",
+      "sql-deployment-configurations",
+      "sql-rest-api"
+    ],
+    "Kubernetes (Helm)": [
+      "helm-overview",
+      "helm-prepare",
+      "helm-install",
+      "helm-deploy",
+      "helm-upgrade",
+      "helm-tools"
+    ],
+    "Deployment": [
+      "deploy-aws",
+      "deploy-kubernetes",
+      "deploy-bare-metal",
+      "deploy-bare-metal-multi-cluster",
+      "deploy-dcos",
+      "deploy-monitoring"
+    ],
+    "Administration": [
+      "administration-zk-bk",
+      "administration-geo",
+      "administration-pulsar-manager",
+      "administration-stats",
+      "administration-load-balance",
+      "administration-proxy",
+      "administration-upgrade"
+    ],
+    "Security": [
+      "security-overview",
+      "security-tls-transport",
+      "security-tls-authentication",
+      "security-tls-keystore",
+      "security-jwt",
+      "security-athenz",
+      "security-kerberos",
+      "security-oauth2",
+      "security-authorization",
+      "security-encryption",
+      "security-extending",
+      "security-bouncy-castle"
+    ],
+    "Performance": [
+      "performance-pulsar-perf"
+    ],
+    "Client libraries": [
+      "client-libraries-java",
+      "client-libraries-go",
+      "client-libraries-python",
+      "client-libraries-cpp",
+      "client-libraries-node",
+      "client-libraries-websocket",
+      "client-libraries-dotnet"
+    ],
+    "Admin API": [
+      "admin-api-overview",
+      "admin-api-clusters",
+      "admin-api-tenants",
+      "admin-api-brokers",
+      "admin-api-namespaces",
+      "admin-api-permissions",
+      "admin-api-persistent-topics",
+      "admin-api-non-persistent-topics",
+      "admin-api-partitioned-topics",
+      "admin-api-non-partitioned-topics",
+      "admin-api-schemas",
+      "admin-api-functions"
+    ],
+    "Adaptors": [
+      "adaptors-kafka",
+      "adaptors-spark",
+      "adaptors-storm"
+    ],
+    "Cookbooks": [
+      "cookbooks-tiered-storage",
+      "cookbooks-compaction",
+      "cookbooks-deduplication",
+      "cookbooks-non-persistent",
+      "cookbooks-partitioned",
+      "cookbooks-retention-expiry",
+      "cookbooks-encryption",
+      "cookbooks-message-queue",
+      "cookbooks-bookkeepermetadata"
+    ],
+    "Development": [
+      "develop-tools",
+      "develop-binary-protocol",
+      "develop-schema",
+      "develop-load-manager",
+      "develop-cpp"
+    ],
+    "Reference": [
+      "reference-terminology",
+      "reference-cli-tools",
+      "reference-configuration",
+      "reference-metrics"
+    ]
+  },
+  "docs-other": {
+    "First Category": ["doc4", "doc5"]
+  }
+}
