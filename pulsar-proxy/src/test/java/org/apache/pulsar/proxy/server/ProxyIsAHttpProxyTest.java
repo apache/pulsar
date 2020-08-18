@@ -47,6 +47,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 
@@ -69,6 +70,8 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        // Set number of CPU's to two for unit tests for running in resource constrained env.
+        ProcessorUtils.setAvailableProcessors(2);
 
         backingServer1 = new Server(0);
         backingServer1.setHandler(newHandler("server1"));
