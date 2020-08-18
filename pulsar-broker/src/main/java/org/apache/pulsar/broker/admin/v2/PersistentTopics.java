@@ -971,6 +971,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Create a subscription on the topic.", notes = "Creates a subscription on the topic at the specified message id")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 400, message = "Create subscription on non persistent topic is not supported"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant or" +
                     "subscriber is not authorized to access this operation"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1001,6 +1002,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             ) {
         try {
             validateTopicName(tenant, namespace, topic);
+            if (!topicName.isPersistent()) {
+                throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic" +
+                        "can only be done through client");
+            }
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
