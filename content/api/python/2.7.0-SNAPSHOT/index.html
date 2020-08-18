@@ -993,6 +993,15 @@ table {
 
         </li>
         <li class="mono">
+        <span class="class_name"><a href="#pulsar.AuthenticationOauth2">AuthenticationOauth2</a></span>
+        
+          
+  <ul>
+    <li class="mono"><a href="#pulsar.AuthenticationOauth2.__init__">__init__</a></li>
+  </ul>
+
+        </li>
+        <li class="mono">
         <span class="class_name"><a href="#pulsar.AuthenticationTLS">AuthenticationTLS</a></span>
         
           
@@ -1529,6 +1538,20 @@ class AuthenticationAthenz(Authentication):
         _check_type(str, auth_params_string, 'auth_params_string')
         self.auth = _pulsar.AuthenticationAthenz(auth_params_string)
 
+class AuthenticationOauth2(Authentication):
+    """
+    Oauth2 Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Oauth2 authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Oauth2 client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
 
 class Client:
     """
@@ -1562,7 +1585,7 @@ class Client:
 
         * `authentication`:
           Set the authentication provider to be used with the broker. For example:
-          `AuthenticationTls` or `AuthenticationAthenz`
+          `AuthenticationTls`, AuthenticaionToken, `AuthenticationAthenz`or `AuthenticationOauth2`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -2606,6 +2629,93 @@ shared library.</p></div>
       </div>
       
       <div class="item">
+      <p id="pulsar.AuthenticationOauth2" class="name">class <span class="ident">AuthenticationOauth2</span></p>
+      
+  
+    <div class="desc"><p>Oauth2 Authentication implementation</p></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationOauth2', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationOauth2" class="source">
+    <pre><code>class AuthenticationOauth2(Authentication):
+    """
+    Oauth2 Authentication implementation
+    """
+    def __init__(self, auth_params_string):
+        """
+        Create the Oauth2 authentication provider instance.
+
+        **Args**
+
+        * `auth_params_string`: JSON encoded configuration for Oauth2 client
+        """
+        _check_type(str, auth_params_string, 'auth_params_string')
+        self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
+</code></pre>
+  </div>
+</div>
+
+
+      <div class="class">
+          <h3>Ancestors (in MRO)</h3>
+          <ul class="class_list">
+          <li><a href="#pulsar.AuthenticationOauth2">AuthenticationOauth2</a></li>
+          <li><a href="#pulsar.Authentication">Authentication</a></li>
+          </ul>
+          <h3>Instance variables</h3>
+            <div class="item">
+            <p id="pulsar.AuthenticationOauth2.auth" class="name">var <span class="ident">auth</span></p>
+            
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.auth">auth</a></code>
+    </p>
+
+            
+  
+  <div class="source_cont">
+</div>
+
+            </div>
+          <h3>Methods</h3>
+            
+  <div class="item">
+    <div class="name def" id="pulsar.AuthenticationOauth2.__init__">
+    <p>def <span class="ident">__init__</span>(</p><p>self, auth_params_string)</p>
+    </div>
+    
+    <p class="inheritance">
+     <strong>Inheritance:</strong>
+       <code><a href="#pulsar.Authentication">Authentication</a></code>.<code><a href="#pulsar.Authentication.__init__">__init__</a></code>
+    </p>
+
+    
+  
+    <div class="desc"><p>Create the Oauth2 authentication provider instance.</p>
+<p><strong>Args</strong></p>
+<ul>
+<li><code>auth_params_string</code>: JSON encoded configuration for Oauth2 client</li>
+</ul></div>
+  <div class="source_cont">
+  <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-pulsar.AuthenticationOauth2.__init__', this);">Show source &equiv;</a></p>
+  <div id="source-pulsar.AuthenticationOauth2.__init__" class="source">
+    <pre><code>def __init__(self, auth_params_string):
+    """
+    Create the Oauth2 authentication provider instance.
+    **Args**
+    * `auth_params_string`: JSON encoded configuration for Oauth2 client
+    """
+    _check_type(str, auth_params_string, 'auth_params_string')
+    self.auth = _pulsar.AuthenticationOauth2(auth_params_string)
+</code></pre>
+  </div>
+</div>
+
+  </div>
+  
+      </div>
+      </div>
+      
+      <div class="item">
       <p id="pulsar.AuthenticationTLS" class="name">class <span class="ident">AuthenticationTLS</span></p>
       
   
@@ -2832,7 +2942,7 @@ producers and consumers.</p></div>
 
         * `authentication`:
           Set the authentication provider to be used with the broker. For example:
-          `AuthenticationTls` or `AuthenticationAthenz`
+          `AuthenticationTls`, AuthenticaionToken, `AuthenticationAthenz`or `AuthenticationOauth2`
         * `operation_timeout_seconds`:
           Set timeout on client operations (subscribe, create producer, close,
           unsubscribe).
@@ -3279,7 +3389,7 @@ producers and consumers.</p></div>
 <ul>
 <li><code>authentication</code>:
   Set the authentication provider to be used with the broker. For example:
-  <code>AuthenticationTls</code> or <code>AuthenticationAthenz</code></li>
+  <code>AuthenticationTls</code>, AuthenticaionToken, <code>AuthenticationAthenz</code>or <code>AuthenticationOauth2</code></li>
 <li><code>operation_timeout_seconds</code>:
   Set timeout on client operations (subscribe, create producer, close,
   unsubscribe).</li>
@@ -3333,7 +3443,7 @@ producers and consumers.</p></div>
     **Options**
     * `authentication`:
       Set the authentication provider to be used with the broker. For example:
-      `AuthenticationTls` or `AuthenticationAthenz`
+      `AuthenticationTls`, AuthenticaionToken, `AuthenticationAthenz`or `AuthenticationOauth2`
     * `operation_timeout_seconds`:
       Set timeout on client operations (subscribe, create producer, close,
       unsubscribe).
@@ -3428,7 +3538,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd2afa7e990&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f9652ff4ad0&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
     </div>
     
 
@@ -3601,7 +3711,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd2afa96090&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f965300b1d0&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -3780,7 +3890,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fd2afa8cfd0&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f965300b150&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
     </div>
     
 

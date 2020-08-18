@@ -75,7 +75,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing partitioned topics</h1></header><article><div><span><p>您可以使用Pulsar的 <a href="/docs/zh-CN/2.5.0/admin-api-overview">admin API</a>来创建和管理分区主题。</p>
-<p>下面所有说明和命令中，topic名称的结构为：</p>
+<p>以下说明和命令中所使用 topic 的名称结构如下：</p>
 <pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="分区主题资源"></a><a href="#分区主题资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>分区主题资源</h2>
@@ -129,7 +129,7 @@ admin.persistentTopics().createMissedPartitions(topicName);
 <tr><th style="text-align:left">字段</th><th style="text-align:left">含义</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">Topic划分的分区数量</td></tr>
+<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">Topic 分区的数量</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-2"></a><a href="#pulsar-admin-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
@@ -251,7 +251,7 @@ persistent://tenant/namespace/topic2
 <tr><td>connected</td><td>Whether the outbound replicator is connected</td></tr>
 <tr><td>replicationDelayInSeconds</td><td>How long the oldest message has been waiting to be sent through the connection, if connected is true</td></tr>
 <tr><td>inboundConnection</td><td>The IP and port of the broker in the remote cluster’s publisher connection to this broker</td></tr>
-<tr><td>inboundConnectedSince</td><td>The TCP connection being used to publish messages to the remote cluster. 如果没有连接上的本地发布者，连接将会在一分钟后关闭。</td></tr>
+<tr><td>inboundConnectedSince</td><td>The TCP connection being used to publish messages to the remote cluster. 如果没有连接到本地发布者，一分钟后连接将自动关闭。</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-6"></a><a href="#pulsar-admin-6" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
@@ -267,7 +267,7 @@ persistent://tenant/namespace/topic2
 <pre><code class="hljs css language-java">admin.persistentTopics().getStats(persistentTopic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="internal-stats"></a><a href="#internal-stats" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Internal stats</h3>
-<p>给出topic的详细统计信息</p>
+<p>获取 topic 的详细统计信息。</p>
 <table>
 <thead>
 <tr><th>统计信息</th><th>Description</th></tr>
@@ -343,7 +343,7 @@ persistent://tenant/namespace/topic2
 <h4><a class="anchor" aria-hidden="true" id="java-7"></a><a href="#java-7" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h4>
 <pre><code class="hljs css language-java">admin.persistentTopics().getInternalStats(persistentTopic);
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/admin-api-non-persistent-topics"><span class="arrow-prev">← </span><span>非持久topic</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/admin-api-non-partitioned-topics"><span>非分区主题</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#分区主题资源">分区主题资源</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#统计信息">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/admin-api-non-persistent-topics"><span class="arrow-prev">← </span><span>非持久 topic</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/admin-api-non-partitioned-topics"><span>非分区主题</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#分区主题资源">分区主题资源</a><ul class="toc-headings"><li><a href="#创建">创建</a></li><li><a href="#create-missed-partitions">Create missed partitions</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#更新">更新</a></li><li><a href="#删除">删除</a></li><li><a href="#获取资源列表">获取资源列表</a></li><li><a href="#统计信息">统计信息</a></li><li><a href="#internal-stats">Internal stats</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

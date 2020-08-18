@@ -28,15 +28,15 @@
 <tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>用逗号分隔的主机和港口对应列表来建立与 Kafka 集群的初始连接。</td></tr>
-<tr><td><code>groupId</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>一个独特的字符串来识别该消费者所属的消费者流程组。</td></tr>
+<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>用于创建与 Kafka 集群进行初始连接的主机和接口对列表（以逗号分隔）。</td></tr>
+<tr><td><code>groupId</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>一个独特的字符串来识别该消费者所属的消费者流程组。</td></tr>
 <tr><td><code>fetchMinBytes</code></td><td>long</td><td>false</td><td>1</td><td>每个获取响应的最小字节。</td></tr>
 <tr><td><code>autoCommitEnabled</code></td><td>boolean</td><td>false</td><td>true</td><td>如果设置为 true，消费者的偏移将在后台定期进行。<br /><br /> 当一个新消费者开始的位置进程失败时，这个承诺的偏移将被使用。</td></tr>
 <tr><td><code>autoCommitIntervalMs</code></td><td>long</td><td>false</td><td>5000</td><td>如果 <code>autoCommitEnabled</code> 设置为 true，消费者偏移量自动提交的频率，以毫秒为单位。</td></tr>
 <tr><td><code>heartbeatIntervalMs</code></td><td>long</td><td>false</td><td>3000</td><td>使用 Kafka 组管理设施时，心跳与消费者之间的时间间隔。 <br /><br /><strong>注意： <code>心谱面间隔</code> 必须小于 <code>sessionTimeoutMs</code></strong>。</td></tr>
 <tr><td><code>sessionTimeoutMs</code></td><td>long</td><td>false</td><td>30000</td><td>The timeout used to detect consumer failures when using Kafka's group management facility.</td></tr>
-<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>发送消息给 Pulsar 的 Kafka 主题。</td></tr>
-<tr><td><code>consumerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; (空字符串)</td><td>要传递给消费者的消费者配置属性。 <br /><br /><strong>注意：连接器配置文件中指定的其他属性优先于此配置</strong>。</td></tr>
+<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>发送消息给 Pulsar 的 Kafka 主题。</td></tr>
+<tr><td><code>consumerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>要传递给消费者的消费者配置属性。 <br /><br /><strong>注意：连接器配置文件中指定的其他属性优先于此配置</strong>。</td></tr>
 <tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>valueDeserializationClass</td><td>供Kafka使用者反序列化密钥的反序列化器类。<br />反序列化器由&lt;a href =“ https://github.com/apache/pulsar/blob/master的特定实现设置/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java“&gt; <code>KafkaAbstractSource</code> </a>。</td></tr>
 <tr><td><code>valueDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.ByteArrayDeserializer</td><td>Kafka 消费者反序列化价值。</td></tr>
 </tbody>

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing non-persistent topics · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="非持久topic可以用于仅想消费实时发布的消息，而不需要保证持久性的系统。使用非持久topic还可以减少消息发布的延迟，因为没有了持久化消息的开销。"/><meta name="docsearch:version" content="2.5.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Managing non-persistent topics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="非持久topic可以用于仅想消费实时发布的消息，而不需要保证持久性的系统。使用非持久topic还可以减少消息发布的延迟，因为没有了持久化消息的开销。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Managing non-persistent topics · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="在只消费实时发布的消息，而不需要保证持久性的应用程序中可以使用非持久化 topic。由于没有持久化消息的开销，使用非持久化 topic 可以减少消息发布的延迟。"/><meta name="docsearch:version" content="2.5.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Managing non-persistent topics · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="在只消费实时发布的消息，而不需要保证持久性的应用程序中可以使用非持久化 topic。由于没有持久化消息的开销，使用非持久化 topic 可以减少消息发布的延迟。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -74,13 +74,13 @@
                 };
               }
             });
-        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing non-persistent topics</h1></header><article><div><span><p>非持久topic可以用于仅想消费实时发布的消息，而不需要保证持久性的系统。使用非持久topic还可以减少消息发布的延迟，因为没有了持久化消息的开销。</p>
-<p>下面所有说明和命令中，topic名称的结构为：</p>
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing non-persistent topics</h1></header><article><div><span><p>在只消费实时发布的消息，而不需要保证持久性的应用程序中可以使用非持久化 topic。由于没有持久化消息的开销，使用非持久化 topic 可以减少消息发布的延迟。</p>
+<p>以下说明和命令中所使用 topic 的名称结构如下：</p>
 <pre><code class="hljs css language-shell">non-persistent://tenant/namespace/topic
 </code></pre>
-<h2><a class="anchor" aria-hidden="true" id="非持久化topic资源"></a><a href="#非持久化topic资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>非持久化topic资源</h2>
+<h2><a class="anchor" aria-hidden="true" id="非持久化-topic-资源"></a><a href="#非持久化-topic-资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>非持久化 topic 资源</h2>
 <h3><a class="anchor" aria-hidden="true" id="获取统计信息"></a><a href="#获取统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取统计信息</h3>
-<p>给出非持久化topic的统计数据</p>
+<p>获取非持久化 topic 的统计数据。</p>
 <ul>
 <li><p><strong>msgRateIn</strong>: The sum of all local and replication publishers' publish rates in messages per second</p></li>
 <li><p><strong>msgThroughputIn</strong>: Same as above, but in bytes per second instead of messages per second</p></li>
@@ -98,12 +98,12 @@
 <li><p><strong>type</strong>: This subscription type</p></li>
 <li><p><strong>consumers</strong>: The list of connected consumers for this subscription</p></li>
 <li><p><strong>consumerName</strong>: Internal identifier for this consumer, generated by the client library</p></li>
-<li><p><strong>availablePermits</strong>: The number of messages this consumer has space for in the client library's listen queue. 值小于1意味着客户端类库的队列已满，receive()不再被调用。 非负整数值意味着这个consumer准备好接收消息。</p></li>
+<li><p><strong>availablePermits</strong>: The number of messages this consumer has space for in the client library's listen queue. 值小于 1 意味着客户端库队列已满，不能继续调用 receive()。 非负整数值意味着 consumer 可以随时接收消息。</p></li>
 <li><p><strong>replication</strong>: This section gives the stats for cross-colo replication of this topic</p></li>
 <li><p><strong>connected</strong>: Whether the outbound replicator is connected</p></li>
 <li><p><strong>inboundConnection</strong>: The IP and port of the broker in the remote cluster's publisher connection to this broker</p></li>
-<li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. 如果没有连接上的本地发布者，连接将会在一分钟后关闭。</p></li>
-<li><p><strong>msgDropRate</strong>: for publisher: publish: broker only allows configured number of in flight per connection, and drops all other published messages above the threshold. 如果遇到不可用的限制或者连接不可写的情况，Broker也会丢弃订阅的消息。</p></li>
+<li><p><strong>inboundConnectedSince</strong>: The TCP connection being used to publish messages to the remote cluster. 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
+<li><p><strong>msgDropRate</strong>: for publisher: publish: broker only allows configured number of in flight per connection, and drops all other published messages above the threshold. 若限制不可用或连接不可写入，broker 也会丢弃订阅的消息。</p></li>
 </ul>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
@@ -152,7 +152,7 @@
 }
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin"></a><a href="#pulsar-admin" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="/docs/zh-CN/2.5.0/pulsar-admin#stats"><code>stats</code></a>命令来获取Topic的统计信息。</p>
+<p>可以使用 <a href="/docs/zh-CN/2.5.0/pulsar-admin#stats"><code>stats</code></a> 命令来获取 topic 的统计信息。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats \</span>
   non-persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -163,10 +163,10 @@
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getStats(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="获取内部统计"></a><a href="#获取内部统计" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计</h3>
-<p>给出topic的详细统计信息</p>
+<h3><a class="anchor" aria-hidden="true" id="获取内部统计信息"></a><a href="#获取内部统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计信息</h3>
+<p>获取 topic 的详细统计信息。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-1"></a><a href="#pulsar-admin-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用<a href="/docs/zh-CN/2.5.0/pulsar-admin#stats-internal"><code>stats-internal</code></a>命令来获取topic的内部统计信息</p>
+<p>可以使用 <a href="/docs/zh-CN/2.5.0/pulsar-admin#stats-internal"><code>stats-internal</code></a> 命令来获取 topic 的内部统计信息。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent stats-internal \</span>
   non-persistent://test-tenant/ns1/tp1 \
 
@@ -193,7 +193,7 @@ admin.nonPersistentTopics().getStats(topic);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getInternalStats(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="创建分区topic"></a><a href="#创建分区topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建分区topic</h3>
+<h3><a class="anchor" aria-hidden="true" id="创建分区-topic"></a><a href="#创建分区-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>创建分区 topic</h3>
 <p>Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.</p>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="note"></a><a href="#note" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
@@ -222,7 +222,7 @@ admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 <tr><th style="text-align:left">字段</th><th style="text-align:left">含义</th></tr>
 </thead>
 <tbody>
-<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">Topic划分的分区数量</td></tr>
+<tr><td style="text-align:left"><code>partitions</code></td><td style="text-align:left">Topic 分区的数量</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-3"></a><a href="#pulsar-admin-3" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
@@ -239,10 +239,10 @@ admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
 <pre><code class="hljs css language-java">String topicName = <span class="hljs-string">"non-persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="卸载topic"></a><a href="#卸载topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载topic</h3>
-<p>可以卸载topic</p>
+<h3><a class="anchor" aria-hidden="true" id="卸载-topic"></a><a href="#卸载-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载 topic</h3>
+<p>可以卸载 topic。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-4"></a><a href="#pulsar-admin-4" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
-<p>可以使用 <a href="/docs/zh-CN/2.5.0/pulsar-admin#unload"><code>unload</code></a> 命令卸载topic</p>
+<p>可以使用 <a href="/docs/zh-CN/2.5.0/pulsar-admin#unload"><code>unload</code></a> 命令卸载 topic。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin non-persistent unload \</span>
   non-persistent://test-tenant/ns1/tp1 \
 </code></pre>
@@ -253,7 +253,7 @@ admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"non-persistent://my-tenantmy-namespace/my-topic"</span>;
 admin.nonPersistentTopics().unload(topic);
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/admin-api-persistent-topics"><span class="arrow-prev">← </span><span>持久 topic</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/admin-api-partitioned-topics"><span>分区 topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#非持久化topic资源">非持久化topic资源</a><ul class="toc-headings"><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计">获取内部统计</a></li><li><a href="#创建分区topic">创建分区topic</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#卸载topic">卸载topic</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.5.0/admin-api-persistent-topics"><span class="arrow-prev">← </span><span>持久 topic</span></a><a class="docs-next button" href="/docs/zh-CN/2.5.0/admin-api-partitioned-topics"><span>分区 topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#非持久化-topic-资源">非持久化 topic 资源</a><ul class="toc-headings"><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计信息">获取内部统计信息</a></li><li><a href="#创建分区-topic">创建分区 topic</a></li><li><a href="#获取元数据">获取元数据</a></li><li><a href="#卸载-topic">卸载 topic</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

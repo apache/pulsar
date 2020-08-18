@@ -75,7 +75,7 @@
               }
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Managing persistent topics</h1></header><article><div><span><p>持久化有助于访问 topic，因为 topic 是发布和消费消息的逻辑端点。 Producer 发布消息到 topic，consumer 订阅 topic，并消费该 topic 上的消息。</p>
-<p>下面所有说明和命令中，topic名称的结构为：</p>
+<p>以下说明和命令中所使用 topic 的名称结构如下：</p>
 <pre><code class="hljs css language-shell">persistent://tenant/namespace/topic
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="持久-topic-资源"></a><a href="#持久-topic-资源" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>持久 topic 资源</h2>
@@ -168,8 +168,8 @@ admin.persistentTopics().revokePermissions(topic, role);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().delete(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="卸载topic"></a><a href="#卸载topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载topic</h3>
-<p>可以卸载topic</p>
+<h3><a class="anchor" aria-hidden="true" id="卸载-topic"></a><a href="#卸载-topic" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载 topic</h3>
+<p>可以卸载 topic。</p>
 <h4><a class="anchor" aria-hidden="true" id="pulsar-admin-5"></a><a href="#pulsar-admin-5" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>pulsar-admin</h4>
 <p>可以使用 <a href="../../reference/CliTools#unload"><code>unload</code></a> 命令卸载 topic。</p>
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> pulsar-admin persistent unload \</span>
@@ -183,34 +183,34 @@ admin.persistentTopics().delete(topic);
 admin.persistentTopics().unload(topic);
 </code></pre>
 <h3><a class="anchor" aria-hidden="true" id="获取统计信息"></a><a href="#获取统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取统计信息</h3>
-<p>给出非持久化topic的统计数据</p>
+<p>获取非持久化 topic 的统计数据。</p>
 <ul>
-<li><p>** msgRateIn **本地和复制的发布者每秒发布消息的速率</p></li>
-<li><p><strong>msgThroughputIn</strong>：同上，但不是每秒消息数，而是每秒发布消息的byte</p></li>
-<li><p>** msgRateOut **：本地和复制的消费者每秒分发消息的数量之和</p></li>
-<li><p><strong>msgThroughputOut</strong>：同上，但不是每秒的消息数量而是每秒消息的byte</p></li>
-<li><p>** averageMsgSize **：最后一次间隔内发布消息的平均byte大小</p></li>
+<li><p><strong>msgRateIn</strong>：本地发布者和副本发布者每秒发布消息速率和</p></li>
+<li><p><strong>msgThroughputIn</strong>：同上，但不是每秒发布消息数，而是每秒发布消息的字节数</p></li>
+<li><p><strong>msgRateOut</strong>：本地 consumer 和副本 consumer 每秒分发消息数量和</p></li>
+<li><p><strong>msgThroughputOut</strong>：同上，但不是每秒分发消息数，而是每秒分发消息的字节数</p></li>
+<li><p><strong>averageMsgSize</strong>：最后一次间隔内发布消息的平均字节大小</p></li>
 <li><p><strong>storageSize</strong>: 此topic在ledger中的存储总和。</p></li>
-<li><p><strong>publishers</strong>：所有本地发布者列表，可以是零个，也可以是上千个</p></li>
-<li><p><strong>averageMsgSize</strong>：此发布者在最后一个间隔内发布消息的平均byte大小</p></li>
-<li><p><strong>producerId</strong>：此topic的producer的内部标识</p></li>
-<li><p><strong>producerName</strong>：客户端类库生成的此producer的内部标识符</p></li>
-<li><p><strong>address</strong>：此生产者的连接ip和源端口</p></li>
-<li><p>** connectedSince **：创建或上次重新连接该生产者的时间戳</p></li>
-<li><p>** subscriptions **: 该主题所有本地订阅的列表</p></li>
-<li><p><strong>my-subscription</strong>: 此订阅的名称 (客户端定义)</p></li>
+<li><p><strong>publishers</strong>：Topic 所有本地发布者的列表，可能是零个，也可以是上千个</p></li>
+<li><p><strong>averageMsgSize</strong>：此发布者在最后一个间隔内发布消息的平均字节大小</p></li>
+<li><p><strong>producerId</strong>：此 topic 内 producer 的内部标识符</p></li>
+<li><p><strong>producerName</strong>：客户端库为 producer 生成的内部标识符</p></li>
+<li><p><strong>address</strong>：连接到 producer 的 IP 地址和 source 端口</p></li>
+<li><p><strong>connectedSince</strong>：Producer 创建时或上次连接到此 producer 时的时间戳</p></li>
+<li><p><strong>subscriptions</strong>：Topic 所有本地订阅的列表</p></li>
+<li><p><strong>my-subscription</strong>：订阅名称（客户端定义）</p></li>
 <li><p><strong>msgBacklog</strong>: 本订阅在backlog中的消息数量</p></li>
-<li><p><strong>type</strong>：此订阅的类型</p></li>
+<li><p><strong>type</strong>：订阅类型</p></li>
 <li><p><strong>msgRateExpired</strong>: 由于TTL，此订阅下没有被发送而是被丢弃的比例。</p></li>
-<li><p>** consumers **：此订阅连接的consumer列表</p></li>
-<li><p>** consumerName **：客户端类库生成的此consumer的内部标识符</p></li>
-<li><p><strong>availablePermits</strong>: 此consumer在客户端类库的监听队列中可以容纳的消息数量。 值为0意味着客户端类库的队列已经满了，receive()不再被调用。 非零值意味着 consumer 可以接收消息。</p></li>
-<li><p>** replication **: 该topic交叉复制的统计信息。</p></li>
+<li><p><strong>consumers</strong>：连接到此订阅的 consumer 列表</p></li>
+<li><p><strong>consumerName</strong>：客户端库为 consumer 生成的内部标识符</p></li>
+<li><p><strong>availablePermits</strong>：Consumer 在客户端库监听队列中可以容纳的消息数量。 值为0意味着客户端类库的队列已经满了，receive()不再被调用。 非零值意味着 consumer 可以接收消息。</p></li>
+<li><p><strong>replication</strong>：Topic 交叉副本的统计信息。</p></li>
 <li><p><strong>replicationBacklog</strong>: 消息对外复制的backlog</p></li>
-<li><p><strong>connected</strong>: 外部复制器是否已经连接</p></li>
+<li><p><strong>connected</strong>：外部复制器是否已经连接</p></li>
 <li><p><strong>replicationDelayInSeconds</strong>：如果已连接，最老的消息已经等待被发送的时长。</p></li>
-<li><p><strong>inboundConnection</strong>: 连接到此Broker的远程集群发布者broker的IP和端口。</p></li>
-<li><p><strong>inboundConnectedSince</strong>：正在被用来发布消息到远程集群的TCP连接。 如果没有连接上的本地发布者，连接将会在一分钟后关闭。</p></li>
+<li><p><strong>inboundConnection</strong>：连接到此 broker 的远程集群发布者 broker 的 IP 和端口。</p></li>
+<li><p><strong>inboundConnectedSince</strong>：正在发布消息到远程集群的 TCP 连接。 如果没有连接到本地发布者，一分钟后连接将自动关闭。</p></li>
 </ul>
 <pre><code class="hljs css language-json">{
   <span class="hljs-attr">"msgRateIn"</span>: <span class="hljs-number">4641.528542257553</span>,
@@ -255,8 +255,8 @@ admin.persistentTopics().unload(topic);
 <pre><code class="hljs css language-java">String topic = <span class="hljs-string">"persistent://my-tenant/my-namespace/my-topic"</span>;
 admin.persistentTopics().getStats(topic);
 </code></pre>
-<h3><a class="anchor" aria-hidden="true" id="获取内部统计"></a><a href="#获取内部统计" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计</h3>
-<p>给出topic的详细统计信息</p>
+<h3><a class="anchor" aria-hidden="true" id="获取内部统计信息"></a><a href="#获取内部统计信息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>获取内部统计信息</h3>
+<p>获取 topic 的详细统计信息。</p>
 <ul>
 <li><p><strong>entriesAddedCounter</strong>：加载自此 broker 起发布的消息到 topic</p></li>
 <li><p><strong>numberOfEntries</strong>：追踪消息总数</p></li>
@@ -457,7 +457,7 @@ admin.persistentTopics().getSubscriptions(topic);
 String subscriptionName = <span class="hljs-string">"my-subscription"</span>;
 admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.2.0/admin-api-permissions"><span class="arrow-prev">← </span><span>Permissions</span></a><a class="docs-next button" href="/docs/zh-CN/2.2.0/admin-api-non-persistent-topics"><span>非持久topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#持久-topic-资源">持久 topic 资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载topic">卸载topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计">获取内部统计</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#取消订阅">取消订阅</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.2.0/admin-api-permissions"><span class="arrow-prev">← </span><span>Permissions</span></a><a class="docs-next button" href="/docs/zh-CN/2.2.0/admin-api-non-persistent-topics"><span>非持久 topic</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#持久-topic-资源">持久 topic 资源</a><ul class="toc-headings"><li><a href="#列出-topic">列出 topic</a></li><li><a href="#授权">授权</a></li><li><a href="#获取权限">获取权限</a></li><li><a href="#取消权限">取消权限</a></li><li><a href="#删除-topic">删除 topic</a></li><li><a href="#卸载-topic">卸载 topic</a></li><li><a href="#获取统计信息">获取统计信息</a></li><li><a href="#获取内部统计信息">获取内部统计信息</a></li><li><a href="#查看消息">查看消息</a></li><li><a href="#跳过消息">跳过消息</a></li><li><a href="#跳过所有消息">跳过所有消息</a></li><li><a href="#重置cursor">重置cursor</a></li><li><a href="#查询topic">查询topic</a></li><li><a href="#获取bundle">获取bundle</a></li><li><a href="#获取订阅">获取订阅</a></li><li><a href="#取消订阅">取消订阅</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
