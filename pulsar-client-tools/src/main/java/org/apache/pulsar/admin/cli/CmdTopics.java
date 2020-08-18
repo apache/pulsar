@@ -28,17 +28,14 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -119,6 +116,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
         jcommander.addCommand("remove-persistence", new RemovePersistence());
+        jcommander.addCommand("get-maxProducers", new GetMaxProducers());
+        jcommander.addCommand("set-maxProducers", new SetMaxProducers());
+        jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1103,6 +1103,45 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removePersistence(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max number of producers for a topic")
+    private class GetMaxProducers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().getMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Set max number of producers for a topic")
+    private class SetMaxProducers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--max-producers", "-p"}, description = "Max producers for a topic", required = true)
+        private int maxProducers;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxProducers(persistentTopic, maxProducers);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max number of producers for a topic")
+    private class RemoveMaxProducers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxProducers(persistentTopic);
         }
     }
 }

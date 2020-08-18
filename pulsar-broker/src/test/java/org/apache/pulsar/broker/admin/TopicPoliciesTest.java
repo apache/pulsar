@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -334,6 +335,82 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
         getPersistencePolicies = admin.topics().getPersistence(testTopic);
         Assert.assertNull(getPersistencePolicies);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckMaxProducers() throws Exception {
+        Integer maxProducers = new Integer(-1);
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, testTopic);
+        try {
+            admin.topics().setMaxProducers(testTopic, maxProducers);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetMaxProducers() throws Exception {
+        Integer maxProducers = 2;
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
+        admin.topics().setMaxProducers(persistenceTopic, maxProducers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer1 = null;
+        Producer producer2 = null;
+        Producer producer3 = null;
+        try {
+            producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max producers limit");
+        }
+        Assert.assertNotNull(producer1);
+        Assert.assertNotNull(producer2);
+        Assert.assertNull(producer3);
+        producer1.close();
+        producer2.close();
+
+        Integer getMaxProducers = admin.topics().getMaxProducers(persistenceTopic);
+        log.info("MaxProducers {} get on topic: {}", getMaxProducers, persistenceTopic);
+        Assert.assertEquals(getMaxProducers, maxProducers);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveMaxProducers() throws Exception {
+        Integer maxProducers = 10;
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, testTopic);
+
+        admin.topics().setMaxProducers(testTopic, maxProducers);
+        Thread.sleep(3000);
+        Integer getMaxProducers = admin.topics().getMaxProducers(testTopic);
+
+        log.info("MaxProducers: {} get on topic: {}", getMaxProducers, testTopic);
+        Assert.assertEquals(getMaxProducers, maxProducers);
+
+        admin.topics().removeMaxProducers(testTopic);
+        Thread.sleep(3000);
+        getMaxProducers = admin.topics().getMaxProducers(testTopic);
+        log.info("MaxProducers: {} get on topic: {} after remove", getMaxProducers, testTopic);
+        Assert.assertNull(getMaxProducers);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
