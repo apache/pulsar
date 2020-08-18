@@ -1,5 +1,5 @@
 ---
-id: io-redis-sink
+id: version-2.6.1-io-redis-sink
 title: Redis sink connector
 sidebar_label: Redis sink connector
 ---

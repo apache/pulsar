@@ -1,5 +1,5 @@
 ---
-id: schema-evolution-compatibility
+id: version-2.6.1-schema-evolution-compatibility
 title: Schema evolution and compatibility
 sidebar_label: Schema evolution and compatibility
 ---

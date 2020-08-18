@@ -1,5 +1,5 @@
 ---
-id: adaptors-spark
+id: version-2.6.1-adaptors-spark
 title: Pulsar adaptor for Apache Spark
 sidebar_label: Apache Spark
 ---

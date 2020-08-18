@@ -1,5 +1,5 @@
 ---
-id: client-libraries-websocket
+id: version-2.6.1-client-libraries-websocket
 title: Pulsar's WebSocket API
 sidebar_label: WebSocket
 ---

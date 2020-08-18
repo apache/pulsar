@@ -1,5 +1,5 @@
 ---
-id: io-flume-source
+id: version-2.6.1-io-flume-source
 title: Flume source connector
 sidebar_label: Flume source connector
 ---

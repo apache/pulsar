@@ -1,5 +1,5 @@
 ---
-id: io-debug
+id: version-2.6.1-io-debug
 title: How to debug Pulsar connectors
 sidebar_label: Debug
 ---

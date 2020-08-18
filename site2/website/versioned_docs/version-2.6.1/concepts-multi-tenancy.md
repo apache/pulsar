@@ -1,5 +1,5 @@
 ---
-id: concepts-multi-tenancy
+id: version-2.6.1-concepts-multi-tenancy
 title: Multi Tenancy
 sidebar_label: Multi Tenancy
 ---

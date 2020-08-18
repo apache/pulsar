@@ -1,5 +1,5 @@
 ---
-id: sql-getting-started
+id: version-2.6.1-sql-getting-started
 title: Query data with Pulsar SQL
 sidebar_label: Query data
 ---

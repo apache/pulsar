@@ -1,5 +1,5 @@
 ---
-id: cookbooks-partitioned
+id: version-2.6.1-cookbooks-partitioned
 title: Partitioned topics
 sidebar_label: Partitioned Topics
 ---

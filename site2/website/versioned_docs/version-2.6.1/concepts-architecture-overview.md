@@ -1,5 +1,5 @@
 ---
-id: concepts-architecture-overview
+id: version-2.6.1-concepts-architecture-overview
 title: Architecture Overview
 sidebar_label: Architecture
 ---

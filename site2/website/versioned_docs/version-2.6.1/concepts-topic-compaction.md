@@ -1,5 +1,5 @@
 ---
-id: concepts-topic-compaction
+id: version-2.6.1-concepts-topic-compaction
 title: Topic Compaction
 sidebar_label: Topic Compaction
 ---

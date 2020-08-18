@@ -1,5 +1,5 @@
 ---
-id: io-develop
+id: version-2.6.1-io-develop
 title: How to develop Pulsar connectors
 sidebar_label: Develop
 ---

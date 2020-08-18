@@ -1,5 +1,5 @@
 ---
-id: io-kafka-source
+id: version-2.6.1-io-kafka-source
 title: Kafka source connector
 sidebar_label: Kafka source connector
 ---

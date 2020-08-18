@@ -1,5 +1,5 @@
 ---
-id: admin-api-functions
+id: version-2.6.1-admin-api-functions
 title: Manage Functions
 sidebar_label: Functions
 ---

@@ -1,5 +1,5 @@
 ---
-id: develop-load-manager
+id: version-2.6.1-develop-load-manager
 title: Modular load manager
 sidebar_label: Modular load manager
 ---

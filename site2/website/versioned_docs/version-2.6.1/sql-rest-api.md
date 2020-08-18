@@ -1,5 +1,5 @@
 ---
-id: sql-rest-api
+id: version-2.6.1-sql-rest-api
 title: Pulsar SQL REST APIs
 sidebar_label: REST APIs
 ---

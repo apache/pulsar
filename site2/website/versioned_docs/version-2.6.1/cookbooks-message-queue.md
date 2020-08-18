@@ -1,5 +1,5 @@
 ---
-id: cookbooks-message-queue
+id: version-2.6.1-cookbooks-message-queue
 title: Using Pulsar as a message queue
 sidebar_label: Message queue
 ---

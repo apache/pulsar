@@ -1,5 +1,5 @@
 ---
-id: develop-binary-protocol
+id: version-2.6.1-develop-binary-protocol
 title: Pulsar binary protocol specification
 sidebar_label: Binary protocol
 ---

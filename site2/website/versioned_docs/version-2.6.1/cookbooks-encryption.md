@@ -1,5 +1,5 @@
 ---
-id: cookbooks-encryption
+id: version-2.6.1-cookbooks-encryption
 title: Pulsar Encryption
 sidebar_label: Encryption 
 ---

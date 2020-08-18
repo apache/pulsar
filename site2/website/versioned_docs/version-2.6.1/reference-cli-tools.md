@@ -1,5 +1,5 @@
 ---
-id: reference-cli-tools
+id: version-2.6.1-reference-cli-tools
 title: Pulsar command-line tools
 sidebar_label: Pulsar CLI tools
 ---

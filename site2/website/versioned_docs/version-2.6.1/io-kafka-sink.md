@@ -1,5 +1,5 @@
 ---
-id: io-kafka-sink
+id: version-2.6.1-io-kafka-sink
 title: Kafka sink connector
 sidebar_label: Kafka sink connector
 ---

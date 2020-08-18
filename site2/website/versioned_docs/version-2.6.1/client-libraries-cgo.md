@@ -1,5 +1,5 @@
 ---
-id: client-libraries-cgo
+id: version-2.6.1-client-libraries-cgo
 title: Pulsar CGo client
 sidebar_label: CGo(deprecated)
 ---

@@ -1,5 +1,5 @@
 ---
-id: admin-api-persistent-topics
+id: version-2.6.1-admin-api-persistent-topics
 title: Managing persistent topics
 sidebar_label: Persistent topics
 ---

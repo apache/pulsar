@@ -1,5 +1,5 @@
 ---
-id: admin-api-brokers
+id: version-2.6.1-admin-api-brokers
 title: Managing Brokers
 sidebar_label: Brokers
 ---

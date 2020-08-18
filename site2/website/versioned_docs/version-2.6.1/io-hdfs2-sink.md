@@ -1,5 +1,5 @@
 ---
-id: io-hdfs2-sink
+id: version-2.6.1-io-hdfs2-sink
 title: HDFS2 sink connector
 sidebar_label: HDFS2 sink connector
 ---

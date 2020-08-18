@@ -1,5 +1,5 @@
 ---
-id: admin-api-namespaces
+id: version-2.6.1-admin-api-namespaces
 title: Managing Namespaces
 sidebar_label: Namespaces
 ---

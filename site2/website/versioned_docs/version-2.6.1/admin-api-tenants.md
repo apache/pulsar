@@ -1,5 +1,5 @@
 ---
-id: admin-api-tenants
+id: version-2.6.1-admin-api-tenants
 title: Managing Tenants
 sidebar_label: Tenants
 ---

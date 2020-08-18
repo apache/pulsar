@@ -1,5 +1,5 @@
 ---
-id: concepts-schema-registry
+id: version-2.6.1-concepts-schema-registry
 title: Schema Registry
 sidebar_label: Schema Registry
 ---

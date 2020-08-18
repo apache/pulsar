@@ -1,5 +1,5 @@
 ---
-id: administration-proxy
+id: version-2.6.1-administration-proxy
 title: The Pulsar proxy
 sidebar_label: Pulsar proxy
 ---

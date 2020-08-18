@@ -1,5 +1,5 @@
 ---
-id: administration-upgrade
+id: version-2.6.1-administration-upgrade
 title: Upgrade Guide
 sidebar_label: Upgrade
 ---

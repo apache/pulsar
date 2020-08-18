@@ -1,5 +1,5 @@
 ---
-id: helm-prepare
+id: version-2.6.1-helm-prepare
 title: Prepare Kubernetes resources
 sidebar_label: Prepare
 ---

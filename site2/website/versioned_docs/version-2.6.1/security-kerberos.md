@@ -1,5 +1,5 @@
 ---
-id: security-kerberos
+id: version-2.6.1-security-kerberos
 title: Authentication using Kerberos
 sidebar_label: Authentication using Kerberos
 ---

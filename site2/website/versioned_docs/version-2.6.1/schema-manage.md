@@ -1,5 +1,5 @@
 ---
-id: schema-manage
+id: version-2.6.1-schema-manage
 title: Manage schema
 sidebar_label: Manage schema
 ---

@@ -1,5 +1,5 @@
 ---
-id: io-twitter-source
+id: version-2.6.1-io-twitter-source
 title: Twitter Firehose source connector
 sidebar_label: Twitter Firehose source connector
 ---

@@ -1,5 +1,5 @@
 ---
-id: client-libraries-cpp
+id: version-2.6.1-client-libraries-cpp
 title: Pulsar C++ client
 sidebar_label: C++
 ---

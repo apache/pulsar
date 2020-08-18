@@ -1,5 +1,5 @@
 ---
-id: pulsar-admin
+id: version-2.6.1-pulsar-admin
 title: Pulsar admin CLI
 sidebar_label: Pulsar Admin CLI
 ---

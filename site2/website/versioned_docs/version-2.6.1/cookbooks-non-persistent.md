@@ -1,5 +1,5 @@
 ---
-id: cookbooks-non-persistent
+id: version-2.6.1-cookbooks-non-persistent
 title: Non-persistent messaging
 sidebar_label: Non-persistent messaging
 ---

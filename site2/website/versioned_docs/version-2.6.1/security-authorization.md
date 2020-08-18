@@ -1,5 +1,5 @@
 ---
-id: security-authorization
+id: version-2.6.1-security-authorization
 title: Authentication and authorization in Pulsar
 sidebar_label: Authorization and ACLs
 ---

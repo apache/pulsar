@@ -1,5 +1,5 @@
 ---
-id: io-aerospike-sink
+id: version-2.6.1-io-aerospike-sink
 title: Aerospike sink connector
 sidebar_label: Aerospike sink connector
 ---

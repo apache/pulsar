@@ -1,5 +1,5 @@
 ---
-id: cookbooks-retention-expiry
+id: version-2.6.1-cookbooks-retention-expiry
 title: Message retention and expiry
 sidebar_label: Message retention and expiry
 ---

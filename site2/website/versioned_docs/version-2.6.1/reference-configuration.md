@@ -1,5 +1,5 @@
 ---
-id: reference-configuration
+id: version-2.6.1-reference-configuration
 title: Pulsar configuration
 sidebar_label: Pulsar configuration
 ---

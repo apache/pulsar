@@ -1,5 +1,5 @@
 ---
-id: adaptors-storm
+id: version-2.6.1-adaptors-storm
 title: Pulsar adaptor for Apache Storm
 sidebar_label: Apache Storm
 ---

@@ -1,5 +1,5 @@
 ---
-id: helm-deploy
+id: version-2.6.1-helm-deploy
 title: Deploy Pulsar cluster using Helm
 sidebar_label: Deployment
 ---

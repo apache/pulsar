@@ -1,5 +1,5 @@
 ---
-id: security-athenz
+id: version-2.6.1-security-athenz
 title: Authentication using Athenz
 sidebar_label: Authentication using Athenz
 ---

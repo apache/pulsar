@@ -1,5 +1,5 @@
 ---
-id: security-token-admin
+id: version-2.6.1-security-token-admin
 title: Token authentication admin
 sidebar_label: Token authentication admin
 ---

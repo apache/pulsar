@@ -1,5 +1,5 @@
 ---
-id: client-libraries-go
+id: version-2.6.1-client-libraries-go
 title: Pulsar Go client
 sidebar_label: Go
 ---

@@ -1,5 +1,5 @@
 ---
-id: io-quickstart
+id: version-2.6.1-io-quickstart
 title: How to connect Pulsar to database
 sidebar_label: Get started
 ---

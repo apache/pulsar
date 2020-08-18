@@ -1,5 +1,5 @@
 ---
-id: io-flume-sink
+id: version-2.6.1-io-flume-sink
 title: Flume sink connector
 sidebar_label: Flume sink connector
 ---

@@ -1,5 +1,5 @@
 ---
-id: deploy-aws
+id: version-2.6.1-deploy-aws
 title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
 sidebar_label: Amazon Web Services
 ---

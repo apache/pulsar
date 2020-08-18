@@ -1,5 +1,5 @@
 ---
-id: admin-api-clusters
+id: version-2.6.1-admin-api-clusters
 title: Managing Clusters
 sidebar_label: Clusters
 ---

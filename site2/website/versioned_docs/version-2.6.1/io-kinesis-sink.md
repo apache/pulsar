@@ -1,5 +1,5 @@
 ---
-id: io-kinesis-sink
+id: version-2.6.1-io-kinesis-sink
 title: Kinesis sink connector
 sidebar_label: Kinesis sink connector
 ---

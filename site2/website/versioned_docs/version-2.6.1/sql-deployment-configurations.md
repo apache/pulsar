@@ -1,5 +1,5 @@
 ---
-id: sql-deployment-configurations
+id: version-2.6.1-sql-deployment-configurations
 title: Pulsar SQL configuration and deployment
 sidebar_label: Configuration and deployment
 ---

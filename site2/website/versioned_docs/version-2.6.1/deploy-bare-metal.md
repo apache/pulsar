@@ -1,5 +1,5 @@
 ---
-id: deploy-bare-metal
+id: version-2.6.1-deploy-bare-metal
 title: Deploy a cluster on bare metal
 sidebar_label: Bare metal
 ---

@@ -1,5 +1,5 @@
 ---
-id: io-hbase-sink
+id: version-2.6.1-io-hbase-sink
 title: HBase sink connector
 sidebar_label: HBase sink connector
 ---

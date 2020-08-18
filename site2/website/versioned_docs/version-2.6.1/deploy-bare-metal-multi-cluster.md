@@ -1,5 +1,5 @@
 ---
-id: deploy-bare-metal-multi-cluster
+id: version-2.6.1-deploy-bare-metal-multi-cluster
 title: Deploying a multi-cluster on bare metal
 sidebar_label: Bare metal multi-cluster
 ---

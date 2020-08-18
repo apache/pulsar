@@ -1,5 +1,5 @@
 ---
-id: concepts-tiered-storage
+id: version-2.6.1-concepts-tiered-storage
 title: Tiered Storage
 sidebar_label: Tiered Storage
 ---

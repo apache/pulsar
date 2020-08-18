@@ -1,5 +1,5 @@
 ---
-id: cookbooks-tiered-storage
+id: version-2.6.1-cookbooks-tiered-storage
 title: Tiered Storage
 sidebar_label: Tiered Storage
 ---

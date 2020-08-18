@@ -1,5 +1,5 @@
 ---
-id: io-cdc-debezium
+id: version-2.6.1-io-cdc-debezium
 title: Debezium source connector
 sidebar_label: Debezium source connector
 ---

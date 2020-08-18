@@ -1,5 +1,5 @@
 ---
-id: administration-stats
+id: version-2.6.1-administration-stats
 title: Pulsar stats
 sidebar_label: Pulsar statistics
 ---

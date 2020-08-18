@@ -1,5 +1,5 @@
 ---
-id: concepts-messaging
+id: version-2.6.1-concepts-messaging
 title: Messaging
 sidebar_label: Messaging
 ---

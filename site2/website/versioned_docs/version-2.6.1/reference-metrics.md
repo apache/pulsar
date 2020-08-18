@@ -1,5 +1,5 @@
 ---
-id: reference-metrics
+id: version-2.6.1-reference-metrics
 title: Pulsar Metrics
 sidebar_label: Pulsar Metrics
 ---

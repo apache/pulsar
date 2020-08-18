@@ -1,5 +1,5 @@
 ---
-id: io-jdbc-sink
+id: version-2.6.1-io-jdbc-sink
 title: JDBC sink connector
 sidebar_label: JDBC sink connector
 ---

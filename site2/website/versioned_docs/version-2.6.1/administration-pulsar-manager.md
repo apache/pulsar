@@ -1,5 +1,5 @@
 ---
-id: administration-pulsar-manager
+id: version-2.6.1-administration-pulsar-manager
 title: Pulsar Manager
 sidebar_label: Pulsar Manager
 ---

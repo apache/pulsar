@@ -1,5 +1,5 @@
 ---
-id: io-influxdb-sink
+id: version-2.6.1-io-influxdb-sink
 title: InfluxDB sink connector
 sidebar_label: InfluxDB sink connector
 ---

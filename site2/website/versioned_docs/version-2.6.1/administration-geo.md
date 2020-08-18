@@ -1,5 +1,5 @@
 ---
-id: administration-geo
+id: version-2.6.1-administration-geo
 title: Pulsar geo-replication
 sidebar_label: Geo-replication
 ---

@@ -1,5 +1,5 @@
 ---
-id: security-jwt
+id: version-2.6.1-security-jwt
 title: Client authentication using tokens based on JSON Web Tokens
 sidebar_label: Authentication using JWT
 ---

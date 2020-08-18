@@ -1,5 +1,5 @@
 ---
-id: performance-pulsar-perf
+id: version-2.6.1-performance-pulsar-perf
 title: Pulsar Perf
 sidebar_label: Pulsar Perf
 ---

@@ -1,5 +1,5 @@
 ---
-id: develop-cpp
+id: version-2.6.1-develop-cpp
 title: Building Pulsar C++ client
 sidebar_label: Building Pulsar C++ client
 ---

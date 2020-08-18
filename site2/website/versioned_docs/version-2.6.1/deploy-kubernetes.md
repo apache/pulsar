@@ -1,5 +1,5 @@
 ---
-id: deploy-kubernetes
+id: version-2.6.1-deploy-kubernetes
 title: Deploy Pulsar on Kubernetes
 sidebar_label: Kubernetes
 ---

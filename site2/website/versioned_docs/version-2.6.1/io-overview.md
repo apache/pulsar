@@ -1,5 +1,5 @@
 ---
-id: io-overview
+id: version-2.6.1-io-overview
 title: Pulsar connector overview
 sidebar_label: Overview
 ---
