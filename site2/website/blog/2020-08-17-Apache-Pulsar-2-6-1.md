@@ -21,7 +21,7 @@ Here is a selection of some of the most interesting and major features added to 
 For more information about implementation details, see [PR-6865](https://github.com/apache/pulsar/pull/6865).
 
 #### Fix hash range conflict issue in Key_Shared subscription with sticky hash range
-In `Key_Shared` subscription where the`stickyHashRange` is used, consumers are not allowed to use interleaving hashes.
+In `Key_Shared` subscription where the `stickyHashRange` is used, consumers are not allowed to use interleaving hashes.
 
 The pull request fixs hash range conflict issue in `Key_Shared` with sticky hash range.
 
