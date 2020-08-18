@@ -1068,7 +1068,8 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public synchronized long getNumberOfEntriesDelayed() {
+    public long getNumberOfEntriesDelayed() {
+        Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             return dispatcher.getNumberOfDelayedMessages();
         } else {
