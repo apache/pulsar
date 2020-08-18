@@ -21,24 +21,19 @@ package org.apache.pulsar.broker.admin;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class TopicBacklogQuotaDisableTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TopicBacklogQuotaDisableTest.class);
+public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
 
@@ -46,7 +41,7 @@ public class TopicBacklogQuotaDisableTest extends MockedPulsarServiceBaseTest {
 
     private final String myNamespace = testTenant + "/" + testNamespace;
 
-    private final String backlogQuotaTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
+    private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
     @BeforeMethod
     @Override
@@ -59,7 +54,7 @@ public class TopicBacklogQuotaDisableTest extends MockedPulsarServiceBaseTest {
         TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet("test"));
-        admin.topics().createPartitionedTopic(backlogQuotaTopic, 2);
+        admin.topics().createPartitionedTopic(testTopic, 2);
     }
 
     @AfterMethod
@@ -69,26 +64,66 @@ public class TopicBacklogQuotaDisableTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testBacklogQuotaDisabled() throws Exception {
+    public void testBacklogQuotaDisabled() {
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
-        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, backlogQuotaTopic);
+        log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         try {
-            admin.topics().setBacklogQuota(backlogQuotaTopic, backlogQuota);
+            admin.topics().setBacklogQuota(testTopic, backlogQuota);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);
         }
 
         try {
-            admin.topics().removeBacklogQuota(backlogQuotaTopic);
+            admin.topics().removeBacklogQuota(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);
         }
 
         try {
-            admin.topics().getBacklogQuotaMap(backlogQuotaTopic);
+            admin.topics().getBacklogQuotaMap(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testRetentionDisabled() {
+        RetentionPolicies retention = new RetentionPolicies();
+        log.info("Retention: {} will set to the topic: {}", retention, testTopic);
+
+        try {
+            admin.topics().setRetention(testTopic, retention);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getRetention(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testPersistenceDisabled() {
+        PersistencePolicies persistencePolicies = new PersistencePolicies();
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getPersistence(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);

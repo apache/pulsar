@@ -64,9 +64,11 @@ import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -266,7 +268,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
+    CompletableFuture<MessageId> internalSendAsync(Message<?> message, Transaction txn) {
 
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
@@ -341,6 +343,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 nextCallback = scb;
             }
         });
+        if (txn instanceof TransactionImpl) {
+            ((TransactionImpl) txn).registerProducedTopic(topic);
+        }
         return future;
     }
 

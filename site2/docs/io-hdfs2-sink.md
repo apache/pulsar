@@ -26,6 +26,7 @@ The configuration of the HDFS2 sink connector has the following properties.
 | `separator` | char|false |None |The character used to separate records in a text file. <br/><br/>If no value is provided, the contents from all records are concatenated together in one continuous byte array. |
 | `syncInterval` | long| false |0| The interval between calls to flush data to HDFS disk in milliseconds. |
 | `maxPendingRecords` |int| false|Integer.MAX_VALUE |  The maximum number of records that hold in memory before acking. <br/><br/>Setting this property to 1 makes every record send to disk before the record is acked.<br/><br/>Setting this property to a higher value allows buffering records before flushing them to disk. 
+| `subdirectoryPattern` | String | false | None | A subdirectory associated with the created time of the sink.<br/>The pattern is the formatted pattern of `directory`'s subdirectory.<br/><br/>See [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/java/time/format/DateTimeFormatter.html) for pattern's syntax. |
 
 ### Example
 
@@ -39,7 +40,8 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
         "directory": "/foo/bar",
         "filenamePrefix": "prefix",
         "fileExtension": ".log",
-        "compression": "SNAPPY"
+        "compression": "SNAPPY",
+        "subdirectoryPattern": "yyyy-MM-dd"
     }
     ```
 
@@ -52,4 +54,5 @@ Before using the HDFS2 sink connector, you need to create a configuration file t
         filenamePrefix: "prefix"
         fileExtension: ".log"
         compression: "SNAPPY"
+        subdirectoryPattern: "yyyy-MM-dd"
     ```

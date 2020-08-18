@@ -173,7 +173,11 @@ Remember to enter this command just only once. If you attempt to enter this comm
 
 ## Run the Pulsar playbook
 
-Once you have created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, enter this command:
+Once you have created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. 
+
+(Optional) If you want to use any [built-in IO connectors](io-connectors.md) , edit the `Download Pulsar IO packages` task in the `deploy-pulsar.yaml` file and uncomment the connectors you want to use. 
+
+To run the playbook, enter this command:
 
 ```bash
 $ ansible-playbook \
@@ -220,4 +224,3 @@ Once you are in the shell, enter the following command:
 ```
 
 If all of these commands are successful, Pulsar clients can now use your cluster!
-

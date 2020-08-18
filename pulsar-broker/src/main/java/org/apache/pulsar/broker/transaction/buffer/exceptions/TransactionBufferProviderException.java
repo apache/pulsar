@@ -16,17 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.transaction.buffer.exceptions;
 
-import org.testng.annotations.BeforeMethod;
+/**
+ * Transaction buffer provider exception.
+ */
+public class TransactionBufferProviderException extends TransactionBufferException {
 
-public class ConsumerPreciseDispatcherFlowControl extends SimpleProducerConsumerTest{
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup(true);
-        super.producerBaseSetup();
+    public TransactionBufferProviderException(String message) {
+        super(message);
     }
 
 }

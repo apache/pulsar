@@ -92,12 +92,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public CompletableFuture<MessageId> sendAsync() {
         long sequenceId = beforeSend();
-        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(getMessage());
+        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(getMessage(), txn);
         if (txn != null) {
-            // it is okay that we register produced topic after sending the messages. because
-            // the transactional messages will not be visible for consumers until the transaction
-            // is committed.
-            txn.registerProducedTopic(producer.getTopic());
             // register the sendFuture as part of the transaction
             return txn.registerSendOp(sequenceId, sendFuture);
         } else {
