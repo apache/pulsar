@@ -16,8 +16,9 @@ Here is a selection of some of the most interesting and major features added to 
 The Batch size is not limited to the minimum of the `maxNumberOfMessages` and `maxSizeOfMessages` from the `BatchReceive` policy.
 
 1. Batch size is not limited to the minimum of the maxNumberOfMessages and maxSizeOfMessages from the BatchReceive policy.
-2. When the batch size is greater than the receiveQ of the consumer (I used a batch size of 3000 and a receiveQ of 500) I notice the following issues:
-	a. In a multi-topic (pattern) consumer, the client stops receiving any messages. I think it gets paused and never resumed when setting a timeout in the batch policy. Only one batch is fetched and the client is never resumed.
+2. When the batch size is greater than the receiveQ of the consumer (I used a batch size of 3000 and a receiveQ of 500), I notice the following issues:
+	
+	In a multi-topic (pattern) consumer, the client stops receiving any messages. I think it gets paused and never resumed when setting a timeout in the batch policy. Only one batch is fetched and the client is never resumed.
 
 For more information about implementation details, see [PR-6865](https://github.com/apache/pulsar/pull/6865).
 
@@ -30,7 +31,7 @@ For more information about implementation details, see [PR-7231](https://github.
 
 - **Fix: get lookup permission error**
 
-Currently，when pulsar AuthorizationService check lookup permission, if the user has the role canProducer **or** canConsumer means it can perform canLookup operations, but actually in the code:
+Currently，when Pulsar AuthorizationService checks lookup permission, if the user has the role canProducer **or** canConsumer, it means that the user can perform canLookup operations, but actually in the code:
 
 ```java
 try {
@@ -38,7 +39,7 @@ try {
             .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
 }
 ```
-If the method `canProduce` or `canConsume` throw an exception,  the `canLookup` method will just throw the exception and will not check the other permission.
+If the method `canProduce` or `canConsume` throw an exception, the `canLookup` method will just throw the exception and will not check the other permission.
 
 The pull request will invoke `canLookupAsync` instead.
 
@@ -139,7 +140,7 @@ There are 2 problems:
  1. The IP won't match the hostname which is recorded in the `/bookies` z-node
  2. If there is an error in resolving the bookie hostname (eg: transient DNS error), an NPE exception will be triggered and the BK client will never realize that this bookie was ever seen as available in the cluster.
 
-The exception is thrown at 77, since `getAddress()` yealds a `null` given that the address is unresolved. 
+The exception is thrown at Line 77, since `getAddress()` returns a `null` given that the address is unresolved.  
 
 ```java
 74        if (dnsResolver.useHostName()) {
@@ -163,7 +164,7 @@ For more information about implementation details, see [PR-7311](https://github.
 
 - **Fix batch ack set recycled multiple times**
 
-Fix batch ackset recycled multiple times. The root cause is a race condition in group ack flush and cumulative Ack. So add recycled state check for the ackset.
+Fix batch ack set recycled multiple times. The root cause is a race condition in group ack flush and cumulative Ack. So add recycled state check for the ack set.
 
 For more information about implementation details, see [PR-7409](https://github.com/apache/pulsar/pull/7409).
 
@@ -220,7 +221,7 @@ In partitioned producer/consumer's close callback, the partition index is always
 
 For more information about implementation details, see [PR-7282](https://github.com/apache/pulsar/pull/7282).
 
-- **Fix segment crashes that caused by race condition of timer in cpp client**
+- **Fix segment crashes that caused by race condition of timer in CPP client**
 
 Segment crashes happens in a race condition:
     - The close operation calls the `keepAliveTimer_.reset()`.
