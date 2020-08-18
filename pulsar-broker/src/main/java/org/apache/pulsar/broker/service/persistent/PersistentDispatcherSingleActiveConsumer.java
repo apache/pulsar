@@ -86,7 +86,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader  = new TransactionReader(this);
+        this.transactionReader  = new TransactionReader(this, cursor);
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -187,6 +187,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
+            log.info("[readEntriesComplete] entries: {}", entries.size());
             internalReadEntriesComplete(entries, obj);
         }));
     }
@@ -457,10 +458,12 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             havePendingRead = true;
 
             if (havePendingTxnToRead()) {
+                log.info("[havePendingTxnToRead]");
                 transactionReader.read(messagesToRead, consumer, this);
             } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
+                log.info("[normal readMoreEntries]");
                 cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
             }
         } else {

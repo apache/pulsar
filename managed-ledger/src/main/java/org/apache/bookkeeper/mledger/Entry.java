@@ -65,4 +65,6 @@ public interface Entry {
      */
     boolean release();
 
+    int getStartBatchIndex();
+
 }

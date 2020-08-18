@@ -37,11 +37,12 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarMarkers.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
@@ -109,13 +110,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     @Override
-    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
+    public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
         return publishMessage(txnId, buffer, sequenceId)
-                .thenCompose(position -> appendBuffer(txnId, position, sequenceId));
+                .thenCompose(positionContext -> appendBuffer(txnId, positionContext, sequenceId, batchSize));
     }
 
-    private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId) {
-        return txnCursor.getTxnMeta(txnID, true).thenCompose(meta -> meta.appendEntry(sequenceId, position));
+    private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId, long batchSize) {
+        return txnCursor.getTxnMeta(txnID, true).thenCompose(meta ->
+                meta.appendEntry(sequenceId, position, (int) batchSize));
     }
 
     @Override
@@ -181,7 +183,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             } else if (!meta.status().equals(TxnStatus.OPEN)) {
                 // in normal, this condition should not happen
                 completableFuture.completeExceptionally(
-                        new UnexpectedTxnStatusException(txnID, TxnStatus.OPEN, meta.status()));
+                        new TransactionStatusException(txnID, TxnStatus.OPEN, meta.status()));
             }
 
             long sequenceId = meta.lastSequenceId() + 1;
@@ -296,6 +298,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             @Override
             public void completed(Exception e, long ledgerId, long entryId) {
                 if (e != null) {
+                    log.error("Publish transaction " + txnID.toString()
+                            + " message to topic " + originTopic.getName() + " failed.", e);
                     publishFuture.completeExceptionally(e);
                 } else {
                     publishFuture.complete(PositionImpl.get(ledgerId, entryId));

@@ -241,7 +241,7 @@ public interface Topic {
      * @param headersAndPayload Message data
      * @param publishContext Publish context
      */
-    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext);
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long numMessageInBatch, PublishContext publishContext);
 
     /**
      * End the transaction in this topic.

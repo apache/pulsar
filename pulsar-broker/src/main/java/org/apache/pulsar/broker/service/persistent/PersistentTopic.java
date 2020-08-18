@@ -2253,7 +2253,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long numMessageInBatch, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
@@ -2266,7 +2266,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             case NotDup:
                 getTransactionBuffer(true)
                         .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
-                                txnID, publishContext.getSequenceId(), headersAndPayload))
+                                txnID, publishContext.getSequenceId(), numMessageInBatch, headersAndPayload))
                         .thenAccept(position -> {
                             decrementPendingWriteOpsAndCheck();
                             publishContext.completed(null,

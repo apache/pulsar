@@ -111,6 +111,7 @@ public class TransactionTestBase {
             conf.setConfigurationStoreServers("localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
+            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
             Integer brokerServicePort = PortManager.nextFreePort();
             conf.setBrokerServicePort(Optional.of(brokerServicePort));

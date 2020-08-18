@@ -44,6 +44,8 @@ public interface TransactionEntry extends AutoCloseable {
      */
     long sequenceId();
 
+    int numMessageInTxn();
+
     /**
      * The ledger id that the transaction is committed to.
      *
@@ -59,12 +61,11 @@ public interface TransactionEntry extends AutoCloseable {
     long committedAtEntryId();
 
     /**
-     * Returns the entry saved in {@link TransactionBuffer}.
+     * Returns the entry buffer.
      *
-     * @return the {@link Entry}
+     * @return the entry buffer.
      */
-    Entry getEntry();
-
+    ByteBuf getEntryBuffer();
     /**
      * Close the entry to release the resource that it holds.
      */

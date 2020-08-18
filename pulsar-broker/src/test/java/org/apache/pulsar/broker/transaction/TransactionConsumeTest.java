@@ -147,7 +147,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         for (int i = 0; i < transactionMsgCnt; i++) {
             PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
             builder.setProducerName("producerName");
-            builder.setSequenceId(10L);
+            builder.setSequenceId(i);
             builder.setTxnidMostBits(txnID.getMostSigBits());
             builder.setTxnidLeastBits(txnID.getLeastSigBits());
             builder.setPublishTime(System.currentTimeMillis());
@@ -155,7 +155,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, builder.build(),
                     Unpooled.copiedBuffer((TXN_MSG_CONTENT + i).getBytes(UTF_8)));
-            tb.appendBufferToTxn(txnID, i, headerAndPayload);
+            tb.appendBufferToTxn(txnID, i, 1, headerAndPayload);
         }
         log.info("append messages to TB finish.");
     }

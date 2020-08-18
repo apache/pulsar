@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
@@ -33,18 +31,21 @@ public class TransactionEntryImpl implements TransactionEntry {
     private final long sequenceId;
     private final long committedAtLedgerId;
     private final long committedAtEntryId;
-    private final Entry entry;
+    private final ByteBuf entryBuf;
+    private final int numMessageInTxn;
 
     public TransactionEntryImpl(TxnID txnId,
                          long sequenceId,
-                         Entry entry,
+                         ByteBuf entryBuf,
                          long committedAtLedgerId,
-                         long committedAtEntryId) {
+                         long committedAtEntryId,
+                         int numMessageInTxn) {
         this.txnId = txnId;
         this.sequenceId = sequenceId;
-        this.entry = entry;
+        this.entryBuf = entryBuf;
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
+        this.numMessageInTxn = numMessageInTxn;
     }
 
     @Override
@@ -58,6 +59,11 @@ public class TransactionEntryImpl implements TransactionEntry {
     }
 
     @Override
+    public int numMessageInTxn() {
+        return numMessageInTxn;
+    }
+
+    @Override
     public long committedAtLedgerId() {
         return committedAtLedgerId;
     }
@@ -68,15 +74,14 @@ public class TransactionEntryImpl implements TransactionEntry {
     }
 
     @Override
-    public Entry getEntry() {
-        return entry;
+    public ByteBuf getEntryBuffer() {
+        return entryBuf;
     }
 
     @Override
     public void close() {
-        if (null != entry) {
-            entry.getDataBuffer().release();
-            entry.release();
+        if (null != entryBuf) {
+            entryBuf.release();
         }
     }
 }

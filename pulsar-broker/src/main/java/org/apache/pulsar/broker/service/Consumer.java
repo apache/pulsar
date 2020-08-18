@@ -30,7 +30,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.api.proto.PulsarApi.IntRange;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
@@ -282,6 +280,7 @@ public class Consumer {
                 }
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
+                messageIdBuilder.setBatchIndex(entry.getStartBatchIndex());
                 MessageIdData messageId = messageIdBuilder
                     .setLedgerId(entry.getLedgerId())
                     .setEntryId(entry.getEntryId())

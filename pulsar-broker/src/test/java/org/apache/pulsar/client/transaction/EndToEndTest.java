@@ -37,7 +37,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -54,7 +54,7 @@ public class EndToEndTest extends TransactionTestBase {
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
 
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
 
@@ -63,7 +63,7 @@ public class EndToEndTest extends TransactionTestBase {
         admin.tenants().createTenant(TENANT,
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, 3);
+        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -107,6 +107,7 @@ public class EndToEndTest extends TransactionTestBase {
                 .topic(TOPIC_OUTPUT)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("test")
+                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
@@ -115,12 +116,11 @@ public class EndToEndTest extends TransactionTestBase {
 
         txn.commit().get();
 
-        Thread.sleep(2000);
-
         int receiveCnt = 0;
         for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
+            log.info("receive msg: {}", new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt, receiveCnt);

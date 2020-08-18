@@ -25,25 +25,37 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
+import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * Used to read transaction messages for dispatcher.
+ * This TransactionReader read only one transaction data one time, and read transaction saved in the queue one by one.
  */
 @Slf4j
 public class TransactionReader {
 
     private final AbstractBaseDispatcher dispatcher;
+    private final ManagedCursor managedCursor;
+
     private volatile TransactionBuffer transactionBuffer;
     private volatile long startSequenceId = 0;
     private volatile CompletableFuture<TransactionBufferReader> transactionBufferReader;
+    private int startBatchIndex = 0;
 
-    public TransactionReader(AbstractBaseDispatcher abstractBaseDispatcher) {
+    public TransactionReader(AbstractBaseDispatcher abstractBaseDispatcher, ManagedCursor managedCursor) {
         this.dispatcher = abstractBaseDispatcher;
+        this.managedCursor = managedCursor;
     }
 
     /**
@@ -97,18 +109,47 @@ public class TransactionReader {
                             ManagedLedgerException.getManagedLedgerException(throwable), ctx);
                     return;
                 }
-                if (transactionEntries == null || transactionEntries.size() < readMessageNum) {
+                List<Entry> entryList = new ArrayList<>(transactionEntries.size());
+                long ledgerId = -1;
+                long entryId = -1;
+                int numMessageInTxn = -1;
+
+                if (transactionEntries.size() > 0) {
+                    ledgerId = transactionEntries.get(0).committedAtLedgerId();
+                    entryId = transactionEntries.get(0).committedAtEntryId();
+                    numMessageInTxn = transactionEntries.get(0).numMessageInTxn();
+                }
+                PositionImpl position = PositionImpl.get(ledgerId, entryId);
+                if (managedCursor instanceof ManagedCursorImpl &&
+                        !((ManagedCursorImpl) managedCursor).batchDeleteIndexExist(position)) {
+                    ((ManagedCursorImpl) managedCursor).internalInitBatchDeletedIndex(position, numMessageInTxn);
+                }
+
+                for (int i = 0; i < transactionEntries.size(); i++) {
+                    TransactionEntry txnEntry = transactionEntries.get(i);
+                    if (i == (transactionEntries.size() -1)) {
+                        startSequenceId = txnEntry.sequenceId();
+                    }
+                    EntryImpl entry = EntryImpl.create(ledgerId, entryId, transactionEntries.get(i).getEntryBuffer());
+
+                    int readerIndex = transactionEntries.get(i).getEntryBuffer().readerIndex();
+                    PulsarApi.MessageMetadata messageMetadata =
+                            Commands.parseMessageMetadata(transactionEntries.get(i).getEntryBuffer());
+                    int numMessagesInBatch = messageMetadata.getNumMessagesInBatch();
+                    transactionEntries.get(i).getEntryBuffer().readerIndex(readerIndex);
+                    messageMetadata.recycle();
+
+                    entry.setStartBatchIndex(startBatchIndex);
+                    startBatchIndex += numMessagesInBatch;
+                    entryList.add(entry);
+                }
+
+                if (transactionEntries.size() < readMessageNum) {
                     startSequenceId = 0;
                     dispatcher.getPendingTxnQueue().remove(txnID);
                     transactionBufferReader = null;
+                    startBatchIndex = 0;
                     reader.close();
-                }
-                List<Entry> entryList = new ArrayList<>(transactionEntries.size());
-                for (int i = 0; i < transactionEntries.size(); i++) {
-                    if (i == (transactionEntries.size() -1)) {
-                        startSequenceId = transactionEntries.get(i).sequenceId();
-                    }
-                    entryList.add(transactionEntries.get(i).getEntry());
                 }
                 readEntriesCallback.readEntriesComplete(entryList, ctx);
             });
