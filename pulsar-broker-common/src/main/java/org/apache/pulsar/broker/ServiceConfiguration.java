@@ -171,6 +171,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of threads to use for orderedExecutor."
+            + " The ordered executor is used to operate with zookeeper, such as init zookeeper client,"
+            + " get namespace policies from zookeeper etc. It also used to split bundle. Default is 8"
+    )
+    private int numOrderedExecutorThreads = 8;
+
+    @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Number of threads to use for HTTP requests processing"
                 + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
@@ -188,6 +196,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " do leader election etc. Default is set to 20 "
     )
     private int numExecutorThreadPoolSize = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Number of thread pool size to use for pulsar zookeeper callback service."
+            + "The cache executor thread pool is used for restarting global zookeeper session. "
+            + "Default is 10"
+    )
+    private int numCacheExecutorThreadPoolSize = 10;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;

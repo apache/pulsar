@@ -186,7 +186,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    public volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile int maxUnackedMessagesOnSubscription = -1;
     private volatile boolean isClosingOrDeleting = false;
 
     private static class TopicStatsHelper {
@@ -598,7 +598,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition, startMessageRollbackDurationSec);
 
         int maxUnackedMessages = isDurable
-                ? maxUnackedMessagesOnConsumer
+                ? getMaxUnackedMessagesOnConsumer()
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
@@ -2129,8 +2129,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return TopicPolicies is exist else return null.
      */
     private TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
         try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
@@ -2302,5 +2306,40 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return null;
         });
         return completableFuture;
+    }
+
+    public long getDelayedDeliveryTickTimeMillis() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+            return topicPolicies.getDelayedDeliveryTickTimeMillis();
+        }
+        return delayedDeliveryTickTimeMillis;
+    }
+
+    public int getMaxUnackedMessagesOnConsumer() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+            return topicPolicies.getMaxUnackedMessagesOnConsumer();
+        }
+        return maxUnackedMessagesOnConsumer;
+    }
+
+    public boolean isDelayedDeliveryEnabled() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryEnabledSet()) {
+            return topicPolicies.getDelayedDeliveryEnabled();
+        }
+        return delayedDeliveryEnabled;
+    }
+
+    public int getMaxUnackedMessagesOnSubscription() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            return topicPolicies.getMaxUnackedMessagesOnSubscription();
+        }
+        return maxUnackedMessagesOnSubscription;
     }
 }

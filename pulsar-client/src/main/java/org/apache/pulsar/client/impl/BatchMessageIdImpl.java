@@ -111,7 +111,15 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public String toString() {
-        return String.format("%d:%d:%d:%d", ledgerId, entryId, partitionIndex, batchIndex);
+        return new StringBuilder()
+          .append(ledgerId)
+          .append(':')
+          .append(entryId)
+          .append(':')
+          .append(partitionIndex)
+          .append(':')
+          .append(batchIndex)
+          .toString();
     }
 
     // Serialization

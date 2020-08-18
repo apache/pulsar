@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -162,6 +163,13 @@ public interface Consumer<T> extends Closeable {
      *              if the consumer was already closed
      */
     void acknowledge(Messages<?> messages) throws PulsarClientException;
+
+    /**
+     * Acknowledge the consumption of a list of message.
+     * @param messageIdList
+     * @throws PulsarClientException
+     */
+    void acknowledge(List<MessageId> messageIdList) throws PulsarClientException;
 
     /**
      * Acknowledge the failure to process a single message.
@@ -364,6 +372,13 @@ public interface Consumer<T> extends Closeable {
      * @return a future that can be used to track the completion of the operation
      */
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
+
+    /**
+     * Asynchronously acknowledge the consumption of a list of message.
+     * @param messageIdList
+     * @return
+     */
+    CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList);
 
     /**
      * Asynchronously reconsumeLater the consumption of a single message.

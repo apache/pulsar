@@ -556,6 +556,47 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return sendAcknowledge(messageId, ackType, properties, txnImpl);
     }
 
+    @Override
+    protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType, Map<String, Long> properties, TransactionImpl txn) {
+        if (AckType.Cumulative.equals(ackType)) {
+            List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
+            messageIdList.forEach(messageId -> completableFutures.add(doAcknowledge(messageId, ackType, properties, txn)));
+            return CompletableFuture.allOf(completableFutures.toArray(new CompletableFuture[0]));
+        }
+        if (getState() != State.Ready && getState() != State.Connecting) {
+            stats.incrementNumAcksFailed();
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            messageIdList.forEach(messageId -> onAcknowledge(messageId, exception));
+            return FutureUtil.failedFuture(exception);
+        }
+        List<MessageIdImpl> nonBatchMessageIds = new ArrayList<>();
+        for (MessageId messageId : messageIdList) {
+            MessageIdImpl messageIdImpl;
+            if (messageId instanceof BatchMessageIdImpl
+                    && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
+                        , batchMessageId.getPartitionIndex());
+                acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
+                        batchMessageId.getBatchSize(), ackType, properties);
+                stats.incrementNumAcksSent(batchMessageId.getBatchSize());
+            } else {
+                messageIdImpl = (MessageIdImpl) messageId;
+                stats.incrementNumAcksSent(1);
+                nonBatchMessageIds.add(messageIdImpl);
+            }
+            unAckedMessageTracker.remove(messageIdImpl);
+            if (possibleSendToDeadLetterTopicMessages != null) {
+                possibleSendToDeadLetterTopicMessages.remove(messageIdImpl);
+            }
+            onAcknowledge(messageId, null);
+        }
+        if (nonBatchMessageIds.size() > 0) {
+            acknowledgmentsGroupingTracker.addListAcknowledgment(nonBatchMessageIds, ackType, properties);
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     protected CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
