@@ -166,7 +166,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     }
 
     public void setAutoUpdatePartitionsIntervalMin(int interval, TimeUnit timeUnit) {
-        checkArgument(interval >= 0, "interval needs to be >= 0");
+        checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalMin = timeUnit.toMinutes(interval);
     }
 }
