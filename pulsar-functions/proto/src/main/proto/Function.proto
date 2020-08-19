@@ -104,7 +104,8 @@ message ConsumerSpec {
 message ProducerSpec {
     int32 maxPendingMessages = 1;
     int32 maxPendingMessagesAcrossPartitions = 2;
-    map<string, string> producerProperties = 3;
+    bool useThreadLocalProducers = 3;
+    map<string, string> producerProperties = 4;
 }
 
 message SourceSpec {
