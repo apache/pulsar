@@ -63,8 +63,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     @Test(timeOut = 10000)
     public void testDuplicationApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
-        admin.topics().createPartitionedTopic(topicName, 3);
         waitCacheInit(topicName);
+        admin.topics().createPartitionedTopic(topicName, 3);
         Boolean enabled = admin.topics().getDeduplicationEnabled(topicName);
         assertNull(enabled);
 
@@ -91,6 +91,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
         final int maxMsgNum = 100;
+        waitCacheInit(topicName);
         admin.topics().createPartitionedTopic(testTopic, 3);
         //1) Start up producer and send msg.We specified the max sequenceId
         @Cleanup
@@ -118,7 +119,6 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertEquals(messageDeduplication.highestSequencedPushed.get(producerName).longValue(), maxSeq);
         }).get();
         //3) disable the deduplication check
-        waitCacheInit(topicName);
         admin.topics().enableDeduplication(topicName, false);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getDeduplicationEnabled(topicName) != null) {
