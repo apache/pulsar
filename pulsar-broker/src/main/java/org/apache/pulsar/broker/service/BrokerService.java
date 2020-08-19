@@ -1070,6 +1070,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             PersistencePolicies persistencePolicies = null;
             RetentionPolicies retentionPolicies = null;
+            OffloadPolicies topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
                 TopicName cloneTopicName = topicName;
@@ -1081,6 +1082,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     if (topicPolicies != null) {
                         persistencePolicies = topicPolicies.getPersistence();
                         retentionPolicies = topicPolicies.getRetentionPolicies();
+                        topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                     }
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
                     log.warn("Topic {} policies cache have not init.", topicName);
@@ -1160,31 +1162,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
+            if (topicLevelOffloadPolicies != null) {
+                try {
+                    LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(topicLevelOffloadPolicies);
+                    managedLedgerConfig.setTopicLevelLedgerOffloader(topicLevelLedgerOffLoader);
+                } catch (PulsarServerException e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+            } else {
+                //null means remove
+                managedLedgerConfig.setTopicLevelLedgerOffloader(null);
+            }
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
             managedLedgerConfig.setNewEntriesCheckDelayInMillis(serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
-            // set topic level off load policy
-            if (topicName.isPersistent()) {
-                try {
-                    String topic = topicName.getPartitionedTopicName();
-                    TopicPolicies topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
-                    if (topicPolicies != null && topicPolicies.isOffloadPoliciesSet()) {
-                        LedgerOffloader topicLevelLedgerOffLoader = null;
-                        try {
-                            topicLevelLedgerOffLoader = pulsar()
-                                    .createManagedLedgerOffloader(topicPolicies.getOffloadPolicies());
-                        } catch (PulsarServerException e) {
-                            future.completeExceptionally(e);
-                            return;
-                        }
-                        managedLedgerConfig.setTopicLevelLedgerOffloader(topicLevelLedgerOffLoader);
-                    } else {
-                        managedLedgerConfig.setTopicLevelLedgerOffloader(null);
-                    }
-                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                    log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-                }
-            }
+
 
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));

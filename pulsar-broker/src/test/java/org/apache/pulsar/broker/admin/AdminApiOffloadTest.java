@@ -42,6 +42,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -199,8 +200,18 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicLevelOffload() throws Exception {
+        testOffload(true);
+        testOffload(false);
+    }
+
+    public void testOffload(boolean isPartitioned) throws Exception {
         String topicName = testTopic + UUID.randomUUID().toString();
-        pulsarClient.newProducer().topic(topicName).create().close();
+        int partitionNum = 3;
+        if (isPartitioned) {
+            admin.topics().createPartitionedTopic(topicName, partitionNum);
+        } else {
+            admin.topics().createNonPartitionedTopic(topicName);
+        }
         OffloadPolicies offloadPolicies = new OffloadPolicies();
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024);
@@ -213,12 +224,21 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             }
             Thread.sleep(500);
         }
-
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-        assertNotNull(topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
-        assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader()
-                , topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
-
+        if (isPartitioned) {
+            for (int i = 0; i < partitionNum; i++) {
+                PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                        .getTopic(TopicName.get(topicName).getPartition(i).toString(), false).get().get();
+                assertNotNull(topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+                assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader()
+                        , topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+            }
+        } else {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().get();
+            assertNotNull(topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+            assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader()
+                    , topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+        }
     }
 
 }
