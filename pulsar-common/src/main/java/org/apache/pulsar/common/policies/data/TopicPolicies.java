@@ -45,16 +45,22 @@ public class TopicPolicies {
     private Integer maxProducerPerTopic = null;
     private Integer maxConsumerPerTopic = null;
     private Integer maxConsumersPerSubscription = null;
+    private Integer maxUnackedMessagesOnConsumer = null;
+    private Integer maxUnackedMessagesOnSubscription = null;
     private Long delayedDeliveryTickTimeMillis = null;
     private Boolean delayedDeliveryEnabled = null;
+
+    public boolean isMaxUnackedMessagesOnConsumerSet() {
+        return maxUnackedMessagesOnConsumer != null;
+    }
 
     public boolean isDelayedDeliveryTickTimeMillisSet(){
         return delayedDeliveryTickTimeMillis != null;
     }
+
     public boolean isDelayedDeliveryEnabledSet(){
         return delayedDeliveryEnabled != null;
     }
-    private Integer maxUnackedMessagesOnSubscription = null;
 
     public boolean isMaxUnackedMessagesOnSubscriptionSet() {
         return maxUnackedMessagesOnSubscription != null;

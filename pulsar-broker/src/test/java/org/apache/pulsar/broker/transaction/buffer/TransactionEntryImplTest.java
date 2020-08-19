@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.testng.annotations.Test;
@@ -38,11 +39,11 @@ public class TransactionEntryImplTest {
         TransactionEntryImpl entry = new TransactionEntryImpl(
             new TxnID(1234L, 3456L),
             0L,
-            buffer,
+            EntryImpl.create(12L, 23L, buffer),
             33L,
             44L
         );
-        assertEquals(buffer.refCnt(), 1);
+        assertEquals(buffer.refCnt(), 2);
         entry.close();
         assertEquals(buffer.refCnt(), 0);
     }
