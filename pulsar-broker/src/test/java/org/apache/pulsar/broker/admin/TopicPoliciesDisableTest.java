@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -63,7 +64,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testBacklogQuotaDisabled() throws Exception {
+    public void testBacklogQuotaDisabled() {
         BacklogQuota backlogQuota = new BacklogQuota(1024, BacklogQuota.RetentionPolicy.consumer_backlog_eviction);
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
@@ -90,7 +91,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testRetentionDisabled() throws Exception {
+    public void testRetentionDisabled() {
         RetentionPolicies retention = new RetentionPolicies();
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
 
@@ -103,6 +104,26 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().getRetention(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testPersistenceDisabled() {
+        PersistencePolicies persistencePolicies = new PersistencePolicies();
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getPersistence(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);

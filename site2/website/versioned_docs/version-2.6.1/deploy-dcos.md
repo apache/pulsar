@@ -1,8 +1,8 @@
 ---
-id: version-2.6.1-deploy-dcos
+id: version-2.6.1-deploy-docs
 title: Deploy Pulsar on DC/OS
 sidebar_label: DC/OS
-original_id: deploy-dcos
+original_id: deploy-docs
 ---
 
 > ### Tips

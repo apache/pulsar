@@ -2005,24 +2005,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validatePersistencePolicies(PersistencePolicies persistence) {
-        checkNotNull(persistence, "persistence policies should not be null");
-        final ServiceConfiguration config = pulsar().getConfiguration();
-        checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
-                "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize());
-        checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
-                "Bookkeeper-WriteQuorum must be <= " + config.getManagedLedgerMaxWriteQuorum());
-        checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
-                "Bookkeeper-AckQuorum must be <= " + config.getManagedLedgerMaxAckQuorum());
-        checkArgument(
-                (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
-                        && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
-                String.format("Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)",
-                persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
-                persistence.getBookkeeperAckQuorum()));
-
-    }
-
     protected RetentionPolicies internalGetRetention() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
 

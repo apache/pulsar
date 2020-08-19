@@ -18,15 +18,21 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -44,6 +50,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     private final String myNamespace = testTenant + "/" + testNamespace;
 
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
+
+    private final String persistenceTopic = "persistent://" + myNamespace + "/test-set-persistence";
 
     @BeforeMethod
     @Override
@@ -234,6 +242,98 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Retention {} get on topic: {} after remove", getRetention, testTopic);
         getRetention = admin.topics().getRetention(testTopic);
         Assert.assertNull(getRetention);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckPersistence() throws Exception {
+        PersistencePolicies persistencePolicies = new PersistencePolicies(6, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(2, 6, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(2, 2, 6, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        persistencePolicies = new PersistencePolicies(1, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        try {
+            admin.topics().setPersistence(testTopic, persistencePolicies);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetPersistence() throws Exception {
+        PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
+
+        admin.topics().setPersistence(persistenceTopic, persistencePolicies);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer = pulsarClient.newProducer().topic(persistenceTopic).create();
+        producer.close();
+
+        admin.lookups().lookupTopic(persistenceTopic);
+        Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
+        PersistentTopic persistentTopic = (PersistentTopic) t;
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        assertEquals(managedLedgerConfig.getEnsembleSize(), 3);
+        assertEquals(managedLedgerConfig.getWriteQuorumSize(), 3);
+        assertEquals(managedLedgerConfig.getAckQuorumSize(), 3);
+        assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.1);
+
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(persistenceTopic);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
+        Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemovePersistence() throws Exception {
+
+        PersistencePolicies persistencePolicies = new PersistencePolicies(2, 2, 2, 0.0);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+
+        admin.topics().setPersistence(testTopic, persistencePolicies);
+        Thread.sleep(3000);
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(testTopic);
+
+        log.info("PersistencePolicies {} get on topic: {}", getPersistencePolicies, testTopic);
+        Assert.assertEquals(getPersistencePolicies, persistencePolicies);
+
+        admin.topics().removePersistence(testTopic);
+        Thread.sleep(3000);
+        log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
+        getPersistencePolicies = admin.topics().getPersistence(testTopic);
+        Assert.assertNull(getPersistencePolicies);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }

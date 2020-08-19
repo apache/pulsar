@@ -132,7 +132,7 @@ public class InMemTransactionBufferReaderTest {
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
                 assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntryBuffer()),
+                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
                     UTF_8
                 ), "message-" + i);
             }
