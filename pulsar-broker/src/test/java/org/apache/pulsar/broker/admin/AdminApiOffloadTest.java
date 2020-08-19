@@ -170,9 +170,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testOffloadPoliciesApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
-        admin.topics().createPartitionedTopic(topicName, 3);
         //wait for server init
         Thread.sleep(2000);
+        admin.topics().createPartitionedTopic(topicName, 3);
         OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPolicies offload = new OffloadPolicies();
