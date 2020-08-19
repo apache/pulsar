@@ -300,7 +300,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             grpcPort,
             metricsPort,
             narExtractionDirectory,
-            manifestCustomizer);
+            manifestCustomizer,
+            functionInstanceClassPath);
     }
 
     @Override
