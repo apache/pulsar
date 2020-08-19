@@ -48,7 +48,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -107,6 +110,15 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
         jcommander.addCommand("remove-message-ttl", new RemoveMessageTTL());
+        jcommander.addCommand("get-retention", new GetRetention());
+        jcommander.addCommand("set-retention", new SetRetention());
+        jcommander.addCommand("remove-retention", new RemoveRetention());
+        jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
+        jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
+        jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
+        jcommander.addCommand("get-persistence", new GetPersistence());
+        jcommander.addCommand("set-persistence", new SetPersistence());
+        jcommander.addCommand("remove-persistence", new RemovePersistence());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -884,6 +896,58 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the delayed delivery policy for a topic")
+    private class GetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            print(admin.topics().getDelayedDeliveryPolicy(topicName));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the delayed delivery policy on a topic")
+    private class SetDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable delayed delivery messages")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable delayed delivery messages")
+        private boolean disable = false;
+
+        @Parameter(names = { "--time", "-t" }, description = "The tick time for when retrying on delayed delivery messages, " +
+                "affecting the accuracy of the delivery time compared to the scheduled time. (eg: 1s, 10s, 1m, 5h, 3d)")
+        private String delayedDeliveryTimeStr = "1s";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            long delayedDeliveryTimeInMills = TimeUnit.SECONDS.toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(delayedDeliveryTimeStr));
+
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+
+            admin.topics().setDelayedDeliveryPolicy(topicName, new DelayedDeliveryPolicies(delayedDeliveryTimeInMills, enable));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the delayed delivery policy on a topic")
+    private class RemoveDelayedDelivery extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topicName = validateTopicName(params);
+            admin.topics().removeDelayedDeliveryPolicy(topicName);
+        }
+    }
+
     @Parameters(commandDescription = "Get the message TTL for a topic")
     private class GetMessageTTL extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -925,6 +989,120 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMessageTTL(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the retention policy for a topic")
+    private class GetRetention extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getRetention(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the retention policy for a topic")
+    private class SetRetention extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--time",
+                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
+                + "0 means no retention and -1 means infinite time retention", required = true)
+        private String retentionTimeStr;
+
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+                + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
+        private String limitStr;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            long sizeLimit = validateSizeString(limitStr);
+            long retentionTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(retentionTimeStr);
+
+            final int retentionTimeInMin;
+            if (retentionTimeInSec != -1) {
+                retentionTimeInMin = (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec);
+            } else {
+                retentionTimeInMin = -1;
+            }
+
+            final int retentionSizeInMB;
+            if (sizeLimit != -1) {
+                retentionSizeInMB = (int) (sizeLimit / (1024 * 1024));
+            } else {
+                retentionSizeInMB = -1;
+            }
+            admin.topics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the retention policy for a topic")
+    private class RemoveRetention extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeRetention(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the persistence policies for a topic")
+    private class GetPersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getPersistence(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the persistence policies for a topic")
+    private class SetPersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-e",
+                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
+        private int bookkeeperEnsemble;
+
+        @Parameter(names = { "-w",
+                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
+        private int bookkeeperWriteQuorum;
+
+        @Parameter(names = { "-a",
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (garanteed copies) to wait for each entry", required = true)
+        private int bookkeeperAckQuorum;
+
+        @Parameter(names = { "-r",
+                "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation (0 means no throttle)", required = true)
+        private double managedLedgerMaxMarkDeleteRate;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the persistence policy for a topic")
+    private class RemovePersistence extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removePersistence(persistentTopic);
         }
     }
 }

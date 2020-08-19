@@ -87,13 +87,16 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -183,7 +186,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private volatile double lastUpdatedAvgPublishRateInMsg = 0;
     private volatile double lastUpdatedAvgPublishRateInByte = 0;
 
-    public volatile int maxUnackedMessagesOnSubscription = -1;
+    private volatile int maxUnackedMessagesOnSubscription = -1;
     private volatile boolean isClosingOrDeleting = false;
 
     private static class TopicStatsHelper {
@@ -595,7 +598,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition, startMessageRollbackDurationSec);
 
         int maxUnackedMessages = isDurable
-                ? maxUnackedMessagesOnConsumer
+                ? getMaxUnackedMessagesOnConsumer()
                 : 0;
 
         subscriptionFuture.thenAccept(subscription -> {
@@ -1758,28 +1761,35 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     private boolean shouldTopicBeRetained() {
         TopicName name = TopicName.get(topic);
+        RetentionPolicies retentionPolicies = null;
         try {
-            Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, name.getNamespace()));
-            // If no policies, the default is to have no retention and delete the inactive topic
-            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
-                    () -> new RetentionPolicies(
-                            brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
-                            brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB())
-            );
-            long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
-
-            // Negative retention time means the topic should be retained indefinitely,
-            // because its own data has to be retained
-            return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
+            retentionPolicies = Optional.ofNullable(getTopicPolicies(name))
+                    .map(TopicPolicies::getRetentionPolicies)
+                    .orElse(null);
+            if (retentionPolicies == null){
+                retentionPolicies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, name.getNamespace()))
+                        .map(p -> p.retention_policies)
+                        .orElse(null);
+            }
+            if (retentionPolicies == null){
+                // If no policies, the default is to have no retention and delete the inactive topic
+                retentionPolicies = new RetentionPolicies(
+                        brokerService.pulsar().getConfiguration().getDefaultRetentionTimeInMinutes(),
+                        brokerService.pulsar().getConfiguration().getDefaultRetentionSizeInMB());
+            }
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
             }
-
             // Don't delete in case we cannot get the policies
             return true;
         }
+
+        long retentionTime = TimeUnit.MINUTES.toNanos(retentionPolicies.getRetentionTimeInMinutes());
+        // Negative retention time means the topic should be retained indefinitely,
+        // because its own data has to be retained
+        return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
     }
 
     @Override
@@ -2119,8 +2129,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return TopicPolicies is exist else return null.
      */
     private TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
         try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
             return null;
@@ -2220,5 +2234,112 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void unfenceTopicToResume() {
         isFenced = false;
         isClosingOrDeleting = false;
+    }
+
+    @Override
+    public CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing) {
+        if (transactionBuffer == null && createIfMissing) {
+            transactionBufferLock.lock();
+            try {
+                if (transactionBuffer == null) {
+                    transactionBuffer = brokerService.getPulsar().getTransactionBufferProvider()
+                            .newTransactionBuffer(this);
+                }
+            } finally {
+                transactionBufferLock.unlock();
+            }
+        }
+        return transactionBuffer;
+    }
+
+    @Override
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+        pendingWriteOps.incrementAndGet();
+        if (isFenced) {
+            publishContext.completed(new TopicFencedException("fenced"), -1, -1);
+            decrementPendingWriteOpsAndCheck();
+            return;
+        }
+
+        MessageDeduplication.MessageDupStatus status = messageDeduplication.isDuplicate(publishContext, headersAndPayload);
+        switch (status) {
+            case NotDup:
+                getTransactionBuffer(true)
+                        .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
+                                txnID, publishContext.getSequenceId(), headersAndPayload))
+                        .thenAccept(position -> {
+                            decrementPendingWriteOpsAndCheck();
+                            publishContext.completed(null,
+                                    ((PositionImpl)position).getLedgerId(), ((PositionImpl)position).getEntryId());
+                        })
+                        .exceptionally(throwable -> {
+                            decrementPendingWriteOpsAndCheck();
+                            publishContext.completed(new Exception(throwable), -1, -1);
+                            return null;
+                        });
+                break;
+            case Dup:
+                // Immediately acknowledge duplicated message
+                publishContext.completed(null, -1, -1);
+                decrementPendingWriteOpsAndCheck();
+                break;
+            default:
+                publishContext.completed(new MessageDeduplication.MessageDupUnknownException(), -1, -1);
+                decrementPendingWriteOpsAndCheck();
+
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> endTxn(TxnID txnID, int txnAction) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        getTransactionBuffer(false).thenAccept(tb -> {
+            tb.endTxnOnPartition(txnID, txnAction).whenComplete((ignored, throwable) -> {
+                if (throwable != null) {
+                    completableFuture.completeExceptionally(throwable);
+                    return;
+                }
+                completableFuture.complete(null);
+            });
+        }).exceptionally(tbThrowable -> {
+            completableFuture.completeExceptionally(tbThrowable);
+            return null;
+        });
+        return completableFuture;
+    }
+
+    public long getDelayedDeliveryTickTimeMillis() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryTickTimeMillisSet()) {
+            return topicPolicies.getDelayedDeliveryTickTimeMillis();
+        }
+        return delayedDeliveryTickTimeMillis;
+    }
+
+    public int getMaxUnackedMessagesOnConsumer() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnConsumerSet()) {
+            return topicPolicies.getMaxUnackedMessagesOnConsumer();
+        }
+        return maxUnackedMessagesOnConsumer;
+    }
+
+    public boolean isDelayedDeliveryEnabled() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isDelayedDeliveryEnabledSet()) {
+            return topicPolicies.getDelayedDeliveryEnabled();
+        }
+        return delayedDeliveryEnabled;
+    }
+
+    public int getMaxUnackedMessagesOnSubscription() {
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        //Topic level setting has higher priority than namespace level
+        if (topicPolicies != null && topicPolicies.isMaxUnackedMessagesOnSubscriptionSet()) {
+            return topicPolicies.getMaxUnackedMessagesOnSubscription();
+        }
+        return maxUnackedMessagesOnSubscription;
     }
 }

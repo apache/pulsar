@@ -36,8 +36,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @EqualsAndHashCode
 public class ProducerConfig {
-    private int maxPendingMessages;
-    private int maxPendingMessagesAcrossPartitions;
     @Builder.Default
     private Map<String, String> producerProperties = new HashMap<>();
+    private Integer maxPendingMessages;
+    private Integer maxPendingMessagesAcrossPartitions;
+    private Boolean useThreadLocalProducers;
 }

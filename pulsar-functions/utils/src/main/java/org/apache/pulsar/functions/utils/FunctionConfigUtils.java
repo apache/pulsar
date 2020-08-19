@@ -211,6 +211,9 @@ public class FunctionConfigUtils {
             if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != 0) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
+            if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {
+                pbldr.setUseThreadLocalProducers(functionConfig.getProducerConfig().getUseThreadLocalProducers());
+            }
             pbldr.putAllProducerProperties(functionConfig.getProducerConfig().getProducerProperties());
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -370,6 +373,7 @@ public class FunctionConfigUtils {
             if (functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions() != 0) {
                 producerConfig.setMaxPendingMessagesAcrossPartitions(functionDetails.getSink().getProducerSpec().getMaxPendingMessagesAcrossPartitions());
             }
+            producerConfig.setUseThreadLocalProducers(functionDetails.getSink().getProducerSpec().getUseThreadLocalProducers());
             producerConfig.setProducerProperties(functionDetails.getSink().getProducerSpec().getProducerPropertiesMap());
             functionConfig.setProducerConfig(producerConfig);
         }
