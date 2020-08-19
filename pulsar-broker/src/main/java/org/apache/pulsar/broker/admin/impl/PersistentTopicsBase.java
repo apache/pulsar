@@ -95,8 +95,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
-import org.apache.pulsar.common.policies.data.PolicyName;
-import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -798,6 +797,49 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         }
+    }
+
+    protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
+        TopicPolicies topicPolicies = null;
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.error("Topic {} policies cache have not init.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+        }
+        if (topicPolicies == null) {
+            topicPolicies = new TopicPolicies();
+        }
+        topicPolicies.setOffloadPolicies(offloadPolicies);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        // update topic policies and managed ledger config of topic
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .thenCompose((res) -> {
+                    if (topicName.isPersistent()) {
+                        return pulsar().getBrokerService().getTopic(topicName.toString(), false)
+                                .thenApply(Optional::get)
+                                .thenCompose(topic -> pulsar().getBrokerService().getManagedLedgerConfig(topicName)
+                                        .thenAccept(cfg -> {
+                                            //The policy update is asynchronous. Cache at this step may not be updated yet
+                                            // so we need to set up the loader
+                                            try {
+                                                cfg.setTopicLevelLedgerOffloader(pulsar().createManagedLedgerOffloader(offloadPolicies));
+                                            } catch (PulsarServerException e) {
+                                                throw new RestException(e);
+                                            }
+                                            ((PersistentTopic) topic).getManagedLedger().setConfig(cfg);
+                                        }));
+                    }
+                    return null;
+                })
+                .whenComplete((result, e) -> {
+                    if (e != null) {
+                        completableFuture.completeExceptionally(e);
+                    } else {
+                        completableFuture.complete(null);
+                    }
+                });
+        return completableFuture;
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {

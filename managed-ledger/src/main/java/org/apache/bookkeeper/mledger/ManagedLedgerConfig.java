@@ -70,6 +70,7 @@ public class ManagedLedgerConfig {
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
+    private LedgerOffloader topicLevelLedgerOffloader = null;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
 
@@ -469,7 +470,22 @@ public class ManagedLedgerConfig {
      * @return a ledger offloader
      */
     public LedgerOffloader getLedgerOffloader() {
+        if (topicLevelLedgerOffloader != null) {
+            return topicLevelLedgerOffloader;
+        }
         return ledgerOffloader;
+    }
+
+    /**
+     * topic level ledgerOffloader, it has higher priority than namespace level
+     * @param topicLevelLedgerOffloader
+     */
+    public void setTopicLevelLedgerOffloader(LedgerOffloader topicLevelLedgerOffloader) {
+        this.topicLevelLedgerOffloader = topicLevelLedgerOffloader;
+    }
+
+    public LedgerOffloader getTopicLevelLedgerOffloader() {
+        return topicLevelLedgerOffloader;
     }
 
     /**

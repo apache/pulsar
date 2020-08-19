@@ -79,6 +79,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -144,6 +145,7 @@ import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
@@ -1142,6 +1144,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
             managedLedgerConfig.setNewEntriesCheckDelayInMillis(serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+            // set topic level off load policy
+            if (topicName.isPersistent()) {
+                try {
+                    String topic = topicName.getPartitionedTopicName();
+                    TopicPolicies topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(TopicName.get(topic));
+                    if (topicPolicies != null && topicPolicies.isOffloadPoliciesSet()) {
+                        LedgerOffloader topicLevelLedgerOffLoader = null;
+                        try {
+                            topicLevelLedgerOffLoader = pulsar()
+                                    .createManagedLedgerOffloader(topicPolicies.getOffloadPolicies());
+                        } catch (PulsarServerException e) {
+                            future.completeExceptionally(e);
+                            return;
+                        }
+                        managedLedgerConfig.setTopicLevelLedgerOffloader(topicLevelLedgerOffLoader);
+                    } else {
+                        managedLedgerConfig.setTopicLevelLedgerOffloader(null);
+                    }
+                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+                    log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+                }
+            }
 
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));

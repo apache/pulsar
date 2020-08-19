@@ -47,6 +47,11 @@ public class TopicPolicies {
     private Integer maxConsumersPerSubscription = null;
     private Long delayedDeliveryTickTimeMillis = null;
     private Boolean delayedDeliveryEnabled = null;
+    private OffloadPolicies offloadPolicies;
+
+    public boolean isOffloadPoliciesSet() {
+        return offloadPolicies != null;
+    }
 
     public boolean isDelayedDeliveryTickTimeMillisSet(){
         return delayedDeliveryTickTimeMillis != null;

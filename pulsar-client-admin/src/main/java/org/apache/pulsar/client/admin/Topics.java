@@ -36,6 +36,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -1663,6 +1664,51 @@ public interface Topics {
      *            Topic name
      */
     CompletableFuture<Void> removeRetentionAsync(String topic);
+
+    /**
+     * get offload policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    OffloadPolicies getOffloadPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * get offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String topic);
+
+    /**
+     * set offload policies of a topic.
+     * @param topic
+     * @param offloadPolicies
+     * @throws PulsarAdminException
+     */
+    void setOffloadPolicies(String topic, OffloadPolicies offloadPolicies) throws PulsarAdminException;
+
+    /**
+     * set offload policies of a topic asynchronously.
+     * @param topic
+     * @param offloadPolicies
+     * @return
+     */
+    CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies);
+
+    /**
+     * remove offload policies of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeOffloadPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * remove offload policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeOffloadPoliciesAsync(String topic);
 
     /**
      * get max unacked messages on subscription of a topic.
