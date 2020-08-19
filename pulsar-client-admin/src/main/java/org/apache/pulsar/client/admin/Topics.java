@@ -1822,7 +1822,7 @@ public interface Topics {
      * @param enabled
      * @throws PulsarAdminException
      */
-    void setDeduplicationEnabled(String topic, boolean enabled) throws PulsarAdminException;
+    void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException;
 
     /**
      * set deduplication enabled of a topic asynchronously.
@@ -1830,19 +1830,19 @@ public interface Topics {
      * @param enabled
      * @return
      */
-    CompletableFuture<Void> setDeduplicationEnabledAsync(String topic, boolean enabled);
+    CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled);
 
     /**
      * remove deduplication enabled of a topic.
      * @param topic
      * @throws PulsarAdminException
      */
-    void removeDeduplicationEnabled(String topic) throws PulsarAdminException;
+    void disableDeduplication(String topic) throws PulsarAdminException;
 
     /**
      * remove deduplication enabled of a topic asynchronously.
      * @param topic
      * @return
      */
-    CompletableFuture<Void> removeDeduplicationEnabledAsync(String topic);
+    CompletableFuture<Void> disableDeduplicationAsync(String topic);
 }

@@ -68,7 +68,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Boolean enabled = admin.topics().getDeduplicationEnabled(topicName);
         assertNull(enabled);
 
-        admin.topics().setDeduplicationEnabled(topicName, true);
+        admin.topics().enableDeduplication(topicName, true);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) != null) {
                 break;
@@ -76,7 +76,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             Thread.sleep(100);
         }
         Assert.assertEquals(admin.topics().getDeduplicationEnabled(topicName), true);
-        admin.topics().removeDeduplicationEnabled(topicName);
+        admin.topics().disableDeduplication(topicName);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getDeduplicationEnabled(topicName) == null) {
                 break;
@@ -119,7 +119,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         }).get();
         //3) disable the deduplication check
         waitCacheInit(topicName);
-        admin.topics().setDeduplicationEnabled(topicName, false);
+        admin.topics().enableDeduplication(topicName, false);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getDeduplicationEnabled(topicName) != null) {
                 break;
@@ -144,7 +144,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
     private void waitCacheInit(String topicName) throws Exception {
         for (int i = 0; i < 50; i++) {
             //wait for server init
-            Thread.sleep(1000);
+            Thread.sleep(3000);
             try {
                 admin.topics().getDeduplicationEnabled(topicName);
                 break;

@@ -1619,9 +1619,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public void setDeduplicationEnabled(String topic, boolean enabled) throws PulsarAdminException {
+    public void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException {
         try {
-            setDeduplicationEnabledAsync(topic, enabled).
+            enableDeduplicationAsync(topic, enabled).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -1634,16 +1634,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> setDeduplicationEnabledAsync(String topic, boolean enabled) {
+    public CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
         return asyncPostRequest(path, Entity.entity(enabled, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void removeDeduplicationEnabled(String topic) throws PulsarAdminException {
+    public void disableDeduplication(String topic) throws PulsarAdminException {
         try {
-            removeDeduplicationEnabledAsync(topic).
+            disableDeduplicationAsync(topic).
                     get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
@@ -1656,7 +1656,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> removeDeduplicationEnabledAsync(String topic) {
+    public CompletableFuture<Void> disableDeduplicationAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "deduplicationEnabled");
         return asyncDeleteRequest(path);
