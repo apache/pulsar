@@ -48,7 +48,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class EndToEndTest extends TransactionTestBase {
 
-
     private final static int TOPIC_PARTITION = 3;
 
     private final static String CLUSTER_NAME = "test";

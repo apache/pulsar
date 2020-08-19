@@ -42,9 +42,9 @@ public class TransactionEntryImplTest {
             buffer,
             33L,
             44L,
-            -1
+            1
         );
-        assertEquals(buffer.refCnt(), 2);
+        assertEquals(buffer.refCnt(), 1);
         entry.close();
         assertEquals(buffer.refCnt(), 0);
     }

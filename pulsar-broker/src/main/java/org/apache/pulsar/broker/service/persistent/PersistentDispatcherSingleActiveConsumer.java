@@ -87,7 +87,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader  = new TransactionReader(subscription.getTopic(), cursor);
+        this.transactionReader  = new TransactionReader(topic, cursor);
     }
 
     protected void scheduleReadOnActiveConsumer() {
