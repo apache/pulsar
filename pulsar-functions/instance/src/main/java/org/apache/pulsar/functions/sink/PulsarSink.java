@@ -112,8 +112,6 @@ public class PulsarSink<T> implements Sink<T> {
                     builder.enableBatching(true);
                     if (pulsarSinkConfig.getProducerSpec().getBatchingMaxPublishDelay() > 0) {
                         builder.batchingMaxPublishDelay(pulsarSinkConfig.getProducerSpec().getBatchingMaxPublishDelay(), TimeUnit.MILLISECONDS);
-                    } else {
-                        builder.batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS); // for backwards compatibility
                     }
                     if (pulsarSinkConfig.getProducerSpec().getBatchingMaxMessages() > 0) {
                         builder.batchingMaxMessages(pulsarSinkConfig.getProducerSpec().getBatchingMaxMessages());
@@ -122,6 +120,10 @@ public class PulsarSink<T> implements Sink<T> {
                         builder.batchingMaxBytes(pulsarSinkConfig.getProducerSpec().getBatchingMaxBytes());
                     }
                 }
+            } else {
+                // backwards compatibility
+                builder.enableBatching(true);
+                builder.batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
             }
 
             return builder.properties(properties).create();
