@@ -826,7 +826,10 @@ public class PersistentTopicsBase extends AdminResource {
                                             //The policy update is asynchronous. Cache at this step may not be updated yet
                                             // so we need to set up the loader
                                             try {
-                                                cfg.setTopicLevelLedgerOffloader(pulsar().createManagedLedgerOffloader(offloadPolicies));
+                                                if (offloadPolicies != null) {
+                                                    cfg.setTopicLevelLedgerOffloader(offloadPolicies != null
+                                                            ? pulsar().createManagedLedgerOffloader(offloadPolicies) : null);
+                                                }
                                             } catch (PulsarServerException e) {
                                                 throw new RestException(e);
                                             }
