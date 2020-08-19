@@ -95,7 +95,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
-    private long autoUpdatePartitionsIntervalMin = 1;
+    private long autoUpdatePartitionsIntervalSeconds = 60;
 
     private boolean multiSchema = true;
 
@@ -165,8 +165,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
     }
 
-    public void setAutoUpdatePartitionsIntervalMin(int interval, TimeUnit timeUnit) {
+    public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
-        this.autoUpdatePartitionsIntervalMin = timeUnit.toMinutes(interval);
+        this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);
     }
 }

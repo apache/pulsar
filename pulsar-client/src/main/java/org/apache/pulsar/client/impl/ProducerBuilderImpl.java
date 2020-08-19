@@ -296,7 +296,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
-        conf.setAutoUpdatePartitionsIntervalMin(interval, unit);
+        conf.setAutoUpdatePartitionsIntervalSeconds(interval, unit);
         return this;
     }
 

@@ -385,7 +385,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
-        conf.setAutoUpdatePartitionsIntervalMin(interval, unit);
+        conf.setAutoUpdatePartitionsIntervalSeconds(interval, unit);
         return this;
     }
 
