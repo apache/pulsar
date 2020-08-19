@@ -172,7 +172,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
         //wait for server init
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         OffloadPolicies offloadPolicies = admin.topics().getOffloadPolicies(topicName);
         assertNull(offloadPolicies);
         OffloadPolicies offload = new OffloadPolicies();
