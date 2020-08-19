@@ -169,8 +169,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
                     ConcurrentBitSetRecyclable value = ConcurrentBitSetRecyclable.create();
-                    value.set(0, batchSize + 1);
-                    value.clear(batchIndex);
+                    value.set(0, batchSize);
                     return value;
                 });
             bitSet.clear(batchIndex);

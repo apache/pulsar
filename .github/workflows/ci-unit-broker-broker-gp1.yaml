@@ -65,9 +65,13 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
+      - name: run flaky test '**/TransactionProduceTest.java'
+        if: steps.docs.outputs.changed_only == 'no'
+        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/TransactionProduceTest.java' -DtestForkCount=1 -DtestReuseFork=true
+
       - name: run unit tests for pulsar-broker
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java'
+        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/**/*.java' -Dexclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java,**/AdminApiOffloadTest.java,**/TransactionProduceTest.java'
 
       - name: package surefire artifacts
         if: failure()

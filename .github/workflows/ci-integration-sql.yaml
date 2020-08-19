@@ -71,7 +71,7 @@ jobs:
 
       - name: run install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn -q -B -ntp clean install -DskipTests
 
 #      Flaky Test: https://github.com/apache/pulsar/issues/7750
 #      - name: build pulsar image
