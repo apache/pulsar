@@ -55,6 +55,9 @@ public class FunctionWorkerStarter {
             return;
         }
 
+        // Register basic JVM metrics
+        DefaultExports.initialize();
+        
         WorkerConfig workerConfig;
         if (isBlank(workerArguments.configFile)) {
             workerConfig = new WorkerConfig();
