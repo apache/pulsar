@@ -110,9 +110,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     continue;
                 }
 
-                if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
-                    startBatchIndexes.setStartBatchIndex(i,
-                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
+                if (startBatchIndexes != null) {
+                    if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
+                        startBatchIndexes.setStartBatchIndex(i,
+                                transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
+                    } else {
+                        startBatchIndexes.setStartBatchIndex(i, -1);
+                    }
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();
