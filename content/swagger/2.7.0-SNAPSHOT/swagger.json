@@ -12324,7 +12324,7 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
+        "overLoaded" : {
           "type" : "boolean"
         },
         "loadReportType" : {
@@ -12334,12 +12334,21 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "msgThroughputOut" : {
           "type" : "number",
           "format" : "double"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -12347,18 +12356,9 @@
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
         "lastUpdate" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
         }
       }
     },
@@ -12835,10 +12835,10 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "gcsDriver" : {
+        "s3Driver" : {
           "type" : "boolean"
         },
-        "s3Driver" : {
+        "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
@@ -13512,11 +13512,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

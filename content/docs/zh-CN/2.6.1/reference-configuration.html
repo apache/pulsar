@@ -1,0 +1,1421 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar configuration · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.6.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar configuration · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/2.6.1/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/2.6.1/reference-configuration">English</a></li><li><a href="/docs/ja/2.6.1/reference-configuration">日本語</a></li><li><a href="/docs/fr/2.6.1/reference-configuration">Français</a></li><li><a href="/docs/ko/2.6.1/reference-configuration">한국어</a></li><li><a href="/docs/zh-TW/2.6.1/reference-configuration">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>参考</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/2.6.1/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/2.6.1/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar configuration</h1></header><article><div><span><style type="text/css">
+  table{
+    font-size: 80%;
+  }
+</style>
+<p>Pulsar 配置可以通过 Pulsar <a href="/docs/zh-CN/2.6.1/standalone">安装</a> 目录下的 <a href="https://github.com/apache/pulsar/tree/master/conf"><code>conf</code></a> 文件夹里的一系列配置文件进行管理。</p>
+<ul>
+<li><a href="#bookkeeper">BookKeeper</a></li>
+<li><a href="#broker">Broker</a></li>
+<li><a href="#client">Client</a></li>
+<li><a href="#service-discovery">Service discovery</a></li>
+<li><a href="#log4j">Log4j</a></li>
+<li><a href="#log4j-shell">Log4j shell</a></li>
+<li><a href="#standalone">Standalone</a></li>
+<li><a href="#websocket">WebSocket</a></li>
+<li><a href="#pulsar-proxy">Pulsar proxy</a></li>
+<li><a href="#zookeeper">ZooKeeper</a></li>
+</ul>
+<h2><a class="anchor" aria-hidden="true" id="bookkeeper"></a><a href="#bookkeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>BookKeeper</h2>
+<p>BookKeeper 是一个冗余的日志存储系统，Pulsar 用它来持久化存储所有消息。</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>bookiePort</td><td>bookie 服务器监听的端口。</td><td>3181</td></tr>
+<tr><td>allowLoopback</td><td>是否允许 bookie 使用 loopback 接口作为它的主要接口（例如，用于确立身份的接口）。 默认情况下，loopback 接口不允许作为主接口。 使用 loopback 接口作为主接口通常意味着配置错误。 例如，在某些 VPS 设置中，通常不会配置主机名或使主机名解析为 <code>127.0.0.1</code>。 如果情况如此，那么集群中的所有 bookie 都会将其身份设置为 <code>127.0.0.1:3181</code> 并且只有一个能成功加入集群。 对于像这样配置的 VPS，你应该显性地设置监听接口。</td><td>false</td></tr>
+<tr><td>listeningInterface</td><td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.</td><td>eth0</td></tr>
+<tr><td>journalDirectory</td><td>BookKeeper 输出 write-ahead 日志（WAL）的目录</td><td>data/bookkeeper/journal</td></tr>
+<tr><td>ledgerDirectories</td><td>BookKeeper 输出 ledger 快照的目录。 这里可以定义多个目录来存储以逗号分隔的快照，比如 <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>。 最理想的情况是，ledger 目录和日志目录都是在不同的设备中，这减少了随机读写和顺序写入之间的争执。 可以用单个磁盘运行，但性能将显著降低。</td><td>data/bookkeeper/ledgers</td></tr>
+<tr><td>ledgerManagerType</td><td>用于管理 ledger 如何存储与管理，以及垃圾收集的 ledger 管理器类型。 查看 <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> 获取更多信息。</td><td>hierarchical</td></tr>
+<tr><td>zkLedgersRootPath</td><td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.</td><td>/ledgers</td></tr>
+<tr><td>ledgerStorageClass</td><td>Ledger 存储实现类</td><td>org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage</td></tr>
+<tr><td>entryLogFilePreallocationEnabled</td><td>启用或禁用条目日志记录器预分配</td><td>true</td></tr>
+<tr><td>logSizeLimit</td><td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.</td><td>2147483648</td></tr>
+<tr><td>minorCompactionThreshold</td><td>次级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在次级压缩中被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.2</td></tr>
+<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. 如果设置为零，次级压缩将被禁用。</td><td>3600</td></tr>
+<tr><td>majorCompactionThreshold</td><td>首级压缩的阈值。 其剩余大小百分比低于此阈值的条目日志文件将在首级压缩中被压缩。 剩余大小百分比仍高于阈值的条目日志文件永远不会被压缩。 如果设置为零，次级压缩将被禁用。</td><td>0.5</td></tr>
+<tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled.</td><td>86400</td></tr>
+<tr><td>compactionMaxOutstandingRequests</td><td>设置压缩过程中无需刷写的最大条目数。 在压缩时，条目被写入条目日志，新的偏移被缓存在内存中。 一旦条目日志被刷写，索引将被新的偏移量更新。 此参数控制在强制刷写之前添加到条目日志的条目数量。 此参数的值越狱高意味着将有更多内存用于偏移量。 每个偏移量由三个 long 型组成。 此参数不应被修改，除非你完全了解其后果。</td><td>100000</td></tr>
+<tr><td>compactionRate</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
+<tr><td>isThrottleByBytes</td><td>以字节或条目为单位进行阈值压缩</td><td>false</td></tr>
+<tr><td>compactionRateByEntries</td><td>压缩过程中读取条目的频率，以每秒添加数为单位。</td><td>1000</td></tr>
+<tr><td>compactionRateByBytes</td><td>Set the rate at which compaction will readd entries. The unit is bytes added per second.</td><td>1000000</td></tr>
+<tr><td>journalMaxSizeMB</td><td>Max file size of journal file, in megabytes. A new journal file will be created when the old one reaches the file size limitation.</td><td>2048</td></tr>
+<tr><td>journalMaxBackups</td><td>The max number of old journal filse to keep. Keeping a number of old journal files would help data recovery in special cases.</td><td>5</td></tr>
+<tr><td>journalPreAllocSizeMB</td><td>每次在日志中预分配的空间大小。</td><td>16</td></tr>
+<tr><td>journalWriteBufferSizeKB</td><td>日志使用的写缓冲区大小。</td><td>64</td></tr>
+<tr><td>journalRemoveFromPageCache</td><td>强制写入后，页是否应从页缓存中删除。</td><td>true</td></tr>
+<tr><td>journalAdaptiveGroupWrites</td><td>是否将日志的强制写入进行分组，这能优化分组提交获得更高吞吐量。</td><td>true</td></tr>
+<tr><td>journalMaxGroupWaitMSec</td><td>实现分组写入日志的最大延迟。</td><td>1</td></tr>
+<tr><td>journalAlignmentSize</td><td>所有日志的写入和提交应与给定的大小对齐</td><td>4096</td></tr>
+<tr><td>journalBufferedWritesThreshold</td><td>要实现分组的最大写入缓存</td><td>524288</td></tr>
+<tr><td>journalFlushWhenQueueEmpty</td><td>是否在日志队列为空时刷写日志</td><td>false</td></tr>
+<tr><td>numJournalCallbackThreads</td><td>处理日志回调的线程数</td><td>8</td></tr>
+<tr><td>rereplicationEntryBatchSize</td><td>重复制时在 fragment 中保存的最大条目数</td><td>5000</td></tr>
+<tr><td>gcWaitTime</td><td>触发下一次垃圾收集的时间间隔（毫秒）。 由于垃圾收集工作在后台进行，过于频繁的垃圾收集工作将降低性能。 如果磁盘容量足够，最好用更大的 gc 时间间隔。</td><td>900000</td></tr>
+<tr><td>gcOverreplicatedLedgerWaitTime</td><td>触发下一次垃圾收集器收集过度复制的 ledger 的时间间隔（毫秒）。 这种情况不应经常发生，因为我们从 zookeeper 的 bookie 上读取所有 ledger 的元数据。</td><td>86400000</td></tr>
+<tr><td>flushInterval</td><td>刷新 ledger 索引页到磁盘的间隔，以毫秒计。 刷新索引文件会引入大量随机磁盘 I/O。 如果在不同的设备上将日志目录和 ledger 目录分开，刷写就不会影响性能。 但是，如果在同一设备上放置日志目录和 ledger 目录，性能会在频繁刷写的情况下大幅下降。 你可以考虑增加刷写间隔来获得更好的性能，但你需要在 bookie 服务器失败重启后花更多时间。</td><td>60000</td></tr>
+<tr><td>bookieDeathWatchInterval</td><td>查看 bookie 是否已死亡的时间间隔，以毫秒为单位</td><td>1000</td></tr>
+<tr><td>zkServers</td><td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.</td><td>localhost:2181</td></tr>
+<tr><td>zkTimeout</td><td>ZooKeeper 客户端会话超时时间，以毫秒为单位。Bookie 服务器如果收到 SESSION_EXPIRED，将退出，因为它从 ZooKeeper 进行分区超过了会话超时时间。JVM 垃圾收集和磁盘 I/O 会导致 SESSION_EXPIRED。 增加这个值可以帮助避免这个问题</td><td>30000</td></tr>
+<tr><td>serverTcpNoDelay</td><td>此设置用于启用/禁用 Nagle 的算法，该算法能通过减少通过网络发送的数据包数量来提高 TCP/IP 网络效率。 如果你正在发送许多小消息，这样在单个 IP 数据包中就可以放入不止一个消息，设置 server.tcpnodelay 为 false 来启用 Nagle 算法可以提供更好的性能。</td><td>true</td></tr>
+<tr><td>openFileLimit</td><td>在 bookie 服务器上可以打开 ledger 索引文件的最大数量。如果 ledger 索引文件数量达到这个限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 过于频繁的交换会影响性能。 你可以根据你的要求调整这个数字以获得性能提升。</td><td>0</td></tr>
+<tr><td>pageSize</td><td>ledger 缓存中索引页的大小，以字节为单位。一个大的索引页可以改善将页写入磁盘的性能。当你有少量有 ledger 并且这些 ledger 有着相似数量的条目时，会很高效。 如果你有大量的 ledger，而每个 ledger 都有较少的条目，较小的索引页面将会提高内存使用率。</td><td>8192</td></tr>
+<tr><td>pageLimit</td><td>在 ledger 缓存中提供多少索引页面。如果索引页面数量达到此限制，bookie 服务器会开始将一些 ledger 从内存交换到磁盘。 当你发现交换变得更频繁时，可以增加这个值。 但请确认 pageLimit*page 的大小不应超过 JVM 最大内存限制，否则你将会得到 OutOfMemoryException。 总的来说，使用更小的索引页面可以在 ledger 量大而条目数量少的情况下获得更好的性能。如果 pageLimit 为 -1, bookie 服务器会使用 1/3 的 JVM 内存来计算索引页面的限制数量。</td><td>0</td></tr>
+<tr><td>readOnlyModeEnabled</td><td>如果所有已配置的 ledger 目录已满，则只支持客户的读取请求。 如果 “readOnlyModeEnabled=true” 那么当所有的 ledger 磁盘满时，bookie 会被转换为只读模式并只处理读请求。 否则 bookie 将被关闭。 默认情况下，这会被禁用。</td><td>true</td></tr>
+<tr><td>diskUsageThreshold</td><td>对于每个 ledger 目录，可使用的最大磁盘空间。 默认值为 0.95f。 比如，最多只能使用 95% 的磁盘，此后不会将任何内容写入该分区。 如果所有 ledger 目录分区已满，并且设置了“readOnlyModeEnabled=true”，那么 bookie 将会转为只读模式。 有效值应在 0 和 1 之间(不包含端点)。</td><td>0.95</td></tr>
+<tr><td>diskCheckInterval</td><td>磁盘检查间隔，以毫秒为单位，检查 ledger 目录使用情况的时间间隔。</td><td>10000</td></tr>
+<tr><td>auditorPeriodicCheckInterval</td><td>审查者对集群内所有 ledger 进行核对的时间间隔。 默认情况下，每周运行一次。 间隔以秒为单位。 要完全禁用定期检查，请将此设置为 0。 请注意，定期检查会给集群带来额外的负荷，因此每天的运行次数不应超过一次。</td><td>604800</td></tr>
+<tr><td>auditorPeriodicBookieCheckInterval</td><td>审查者 bookie 检查的时间间隔。 审查者 bookie 检查，检查 ledger 的元数据来查看哪些 bookie 应该包含各个 ledger 的条目。 如果本应包含条目的 bookie 不可用，包含该条目的 ledger 会被标记去做恢复。 设置为 0 会禁用定期检查。 当 bookie 失效时，bookie 检查仍然会进行。 间隔以秒为单位。</td><td>86400</td></tr>
+<tr><td>numAddWorkerThreads</td><td>number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
+<tr><td>numReadWorkerThreads</td><td>number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
+<tr><td>maxPendingReadRequestsPerThread</td><td>如果启用了读 worker 线程，限制待处理请求的数量，以避免执行器队列无止境增长。</td><td>2500</td></tr>
+<tr><td>readBufferSizeBytes</td><td>用作 BufferedReadChannel 容量的字节数量。</td><td>4096</td></tr>
+<tr><td>writeBufferSizeBytes</td><td>用作写缓存容量的字节数</td><td>65536</td></tr>
+<tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.</td><td>false</td></tr>
+<tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
+<tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% 的直接内存</td></tr>
+<tr><td>dbStorage_readAheadCacheBatchSize</td><td>当读缓存 miss 发生后预装填的条目数量</td><td>1000</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% 的直接内存</td></tr>
+<tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
+<tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
+<tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
+<tr><td>dbStorage_rocksDB_bloomFilterBitsPerKey</td><td></td><td>10</td></tr>
+<tr><td>dbStorage_rocksDB_numLevels</td><td></td><td>-1</td></tr>
+<tr><td>dbStorage_rocksDB_numFilesInLevel0</td><td></td><td>4</td></tr>
+<tr><td>dbStorage_rocksDB_maxSizeInLevel1MB</td><td></td><td>256</td></tr>
+<tr><td>nettyMaxFrameSizeBytes</td><td>Set the maximum netty frame size in bytes. If the size of a received message is larger than the configured value, the message is rejected.</td><td>1 GB</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="broker"></a><a href="#broker" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Broker</h2>
+<p>Pulsar broker 负责处理从生产者发出的消息、向消费者派发消息、在集群间复制数据，等等。</p>
+<table spaces-before="0" line-breaks-before="2">
+  <tr>
+    <th>
+      Name
+    </th>
+<pre><code class="hljs">&lt;th&gt;
+  Description
+&lt;/th&gt;
+
+&lt;th&gt;
+  默认值
+&lt;/th&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      enablePersistentTopics
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether persistent topics are enabled on the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      enableNonPersistentTopics
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether non-persistent topics are enabled on the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      functionsWorkerEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether the Pulsar Functions worker service is enabled in the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zookeeperServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper quorum connection string
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperCacheExpirySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  ZooKeeper 缓存过期时间（秒）
+&lt;/td&gt;
+
+&lt;td&gt;
+  300
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      configurationStoreServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  配置存储连接字符串（以逗号分隔的列表）
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port
+&lt;/td&gt;
+
+&lt;td&gt;
+  6650
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port for TLS
+&lt;/td&gt;
+
+&lt;td&gt;
+  6651
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTP request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8080
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTPS request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8443
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketServiceEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the WebSocket API service in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      bindAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service binds on, default is 0.0.0.0.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0.0.0.0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      advertisedAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service advertises to the outside world. If not set, the value of &lt;code&gt;InetAddress.getLocalHost().getHostName()&lt;/code&gt; is used.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clusterName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Name of the cluster to which this broker belongs to
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationMaxNumberOfProducers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum number of producers for which information will be stored for deduplication purposes.
+&lt;/td&gt;
+
+&lt;td&gt;
+  10000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEntriesInterval
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+&lt;/td&gt;
+
+&lt;td&gt;
+  1000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationProducerInactivityTimeoutMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
+&lt;/td&gt;
+
+&lt;td&gt;
+  360
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInMsg
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default messages per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInByte
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default bytes per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message-byte dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperSessionTimeoutMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper session timeout in milliseconds
+&lt;/td&gt;
+
+&lt;td&gt;
+  30000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerShutdownTimeoutMs
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Time to wait for broker graceful shutdown. After this time elapses, the process will be killed
+&lt;/td&gt;
+
+&lt;td&gt;
+  60000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      skipBrokerShutdownOnOOM
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Flag to skip broker shutdown when broker handles Out of memory error.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable backlog quota check. Enforces action on topic when the quota is reached
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for topics that have reached the quota
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaDefaultLimitGB
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default per-topic backlog quota limit
+&lt;/td&gt;
+
+&lt;td&gt;
+  -1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable topic auto creation if a new producer or consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreationType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The topic type (partitioned or non-partitioned) that is allowed to be automatically created.
+&lt;/td&gt;
+
+&lt;td&gt;
+  Partitioned
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoSubscriptionCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable subscription auto creation if a new consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      defaultNumPartitions
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of partitioned topics that is allowed to be automatically created if &lt;code&gt;allowAutoTopicCreationType&lt;/code&gt; is partitioned
+&lt;/td&gt;
+
+&lt;td&gt;
+  1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the deletion of inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsFrequencySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMode
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the mode to delete inactive topics. &lt;li&gt; &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;: 删除没有订阅或活动生产者的主题。 &lt;li&gt; &lt;code&gt;delete_when_subscriptions_caught_up&lt;/code&gt;: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers.
+&lt;/td&gt;
+
+&lt;td&gt;
+  &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMaxInactiveDurationSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the maximum duration for inactive topics. If it is not specified, the &lt;code&gt;brokerDeleteInactiveTopicsFrequencySeconds&lt;/code&gt; parameter is adopted.
+&lt;/td&gt;
+
+&lt;td&gt;
+  N/A
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      messageExpiryCheckIntervalInMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How frequently to proactively check and purge expired messages
+&lt;/td&gt;
+
+&lt;td&gt;
+  5
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServiceCompactionMonitorIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Interval between checks to see if topics with compaction policies need to be compacted
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      activeConsumerFailoverDelayTimeMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+&lt;/td&gt;
+
+&lt;td&gt;
+  1000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clientLibraryVersionCheckEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable check for minimum allowed client library version
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clientLibraryVersionCheckAllowUnversioned
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Allow client libraries with no version information
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      statusFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      preferLaterVersions
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxNumPartitionsPerPartitionedTopic
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of partitions per partitioned topic. Use 0 or negative number to disable the check
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable TLS
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsCertificateFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS证书文件的路径
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS私钥文件的路径
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsTrustCertsFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Path for the trusted TLS certificate file
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsAllowInsecureConnection
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Accept untrusted TLS certificate from client
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsProtocols
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- &lt;code&gt;TLSv1.2&lt;/code&gt;, &lt;code&gt;TLSv1.1&lt;/code&gt;, &lt;code&gt;TLSv1&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsCiphers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- &lt;code&gt;TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsEnabledWithKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable TLS with KeyStore type configuration in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsProvider
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS Provider for KeyStore type
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStoreType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  LS KeyStore type configuration in broker: JKS, PKCS12
+&lt;/td&gt;
+
+&lt;td&gt;
+  JKS
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS KeyStore path in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStorePassword
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS KeyStore password for broker
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsEnabledWithKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether internal client use KeyStore type to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientSslProvider
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The TLS Provider used by internal client to authenticate with other Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStoreType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore type configuration for internal client: JKS, PKCS12, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+  JKS
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStorePassword
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsCiphers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsProtocols
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls protocols the broker will use to negotiate during TLS handshake. (逗号分隔的协议名称列表)。 e.g.  [TLSv1.2, TLSv1.1, TLSv1]
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      ttlDurationDefaultInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default ttl for namespaces if ttl is not configured at namespace policies.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenSecretKey
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the secret key to be used to validate auth tokens. The key can be specified like: &lt;code&gt;tokenSecretKey=data:;base64,xxxxxxxxx&lt;/code&gt; or &lt;code&gt;tokenSecretKey=file:///my/secret.key&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenPublicKey
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the public key to be used to validate auth tokens. The key can be specified like: &lt;code&gt;tokenPublicKey=data:;base64,xxxxxxxxx&lt;/code&gt; or &lt;code&gt;tokenPublicKey=file:///my/secret.key&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenPublicAlg
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys)
+&lt;/td&gt;
+
+&lt;td&gt;
+  RS256
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAuthClaim
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify which of the token's claims will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The default &quot;sub&quot; claim will be used if this is left blank
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAudienceClaim
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;, that will be used to get the audience from token. If not set, audience will not be verified.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAudience
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The token audience stands for this broker. The field &lt;code&gt;tokenAudienceClaim&lt;/code&gt; of a valid token, need contains this.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxUnackedMessagesPerConsumer
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction
+&lt;/td&gt;
+
+&lt;td&gt;
+  50000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxUnackedMessagesPerSubscription
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction
+&lt;/td&gt;
+
+&lt;td&gt;
+  200000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      subscriptionRedeliveryTrackerEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable subscription message redelivery tracker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+</table> subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value 
+<p><strong>greater than 0</strong> deletes inactive subscriptions automatically.<br/>Setting this configuration to <strong>0</strong> does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each <strong>namespace</strong> using the <a href="http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-"><code>pulsar-admin namespaces set-subscription-expiration-time options</code> command</a>. | 0 | |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000| |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000| |authenticationEnabled| Enable authentication |false| |authenticationProviders| Autentication provider name list, which is comma separated list of class names  || |authorizationEnabled|  Enforce authorization |false| |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics || |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. 当 broker 连接到其它 broker 时使用，不管是相同集群还是其它集群中的  || |brokerClientAuthenticationParameters||| |athenzDomainNames| 用于认证的受支持的 Athenz 提供者域名(逗号分隔) || |exposePreciseBacklogInPrometheus| 暴露出精确的积压统计信息，设置为 false 来使用 published counter 和 consumed counter 来进行计算，这样更高效但可能会有误差。 |false| |bookkeeperMetadataServiceUri| bookkeeper 用来载入相应元数据驱动及解析其元数据服务位置的元数据服务 uri。 This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. 例如： <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>。 元数据服务 uri 列表也可以是一个分号间隔的值，如下所示： <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers || |bookkeeperClientAuthenticationPlugin| 连接到 bookies 时使用的认证插件 || |bookkeeperClientAuthenticationParametersName|  BookKeeper 认证插件的实现指定的名字与值  || |bookkeeperClientAuthenticationParameters||| |bookkeeperClientTimeoutInSeconds| BookKeeper 添加与读取操作的超时时间  |30| |bookkeeperClientSpeculativeReadTimeoutInMillis|  当一个读请求无法在一定时间内完成时启用 speculative 读取。采用 0 值时，禁用 speculative 读取。 |0| |bookkeeperClientHealthCheckEnabled| 启用 bookie 健康检查。 Bookies that have more than the configured number of failure within the interval will be quarantined for some time. 在此期间，这些 bookies 上不会创建新的 ledger  |true| |bookkeeperClientHealthCheckIntervalSeconds||60| |bookkeeperClientHealthCheckErrorThresholdPerInterval||5| |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800| |bookkeeperClientRackawarePolicyEnabled|  启用 rack-aware bookie 选择政策。 当生成新的 bookie ensemble 时 BK 会从不同的 rack 中选取 bookie |true| |bookkeeperClientRegionawarePolicyEnabled| 启用 region-aware bookie 选择政策。 BK will chose bookies from different regions and racks when forming a new bookie ensemble. 如果启用，bookkeeperClientRackawarePolicyEnabled 属性的值会被忽略  |false| |bookkeeperClientReorderReadSequenceEnabled| 启用/禁用读取条目的读取序列重排序。  |false| |bookkeeperClientIsolationGroups| 通过指定一个要选择的 bookie 组列表来启用 bookie 隔离。 指定组外的任何 bookie 都不会被 broker 使用 || |bookkeeperClientSecondaryIsolationGroups| 当 bookkeeperClientIsolationGroups 没有足够多的可用 bookie 时启用 bookie 的 secondary-isolation 组。  || |bookkeeperClientMinAvailableBookiesInIsolationGroups| bookkeeperClientIsolationGroups 中应可用的最少 bookie 数，否则 broker 会将 bookkeeperClientSecondaryIsolationGroups 的 bookie 囊括在隔离列表中。  || |bookkeeperClientGetBookieInfoIntervalSeconds| 设置定期查询 bookie 信息的间隔 |86400| |bookkeeperClientGetBookieInfoRetryIntervalSeconds| 设置当查询 bookie 信息失败后的重试间隔 |60| |bookkeeperEnableStickyReads | 启用/禁用 使对一个 ledger 的读请求变得与单个 broker 粘滞（sticky）。 If this flag is enabled, the client will use one single bookie (by preference) to read  all entries for a ledger. | true | |managedLedgerDefaultEnsembleSize| 当创建一个 ledger 时使用的 bookie 数量 |2| |managedLedgerDefaultWriteQuorum| 每个消息存储的拷贝数量 |2| |managedLedgerDefaultAckQuorum| 得到保证的拷贝数量 (写操作完成前需要等待的 ack) |2| |managedLedgerCacheSizeMB| 在托管的 ledger 中用于缓存数据负载的内存大小。 This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. 默认地，使用可用的直接内存的 1/5 || |managedLedgerCacheCopyEntries| 当插入缓存时是否应该创建条目负载的拷贝 | false| |managedLedgerCacheEvictionWatermark| 当驱逐触发时降低缓存等级的阈值 |0.9| |managedLedgerCacheEvictionFrequency| 为托管的 ledger 缓存配置缓存驱逐频率 (驱逐/秒) | 100.0 | |managedLedgerCacheEvictionTimeThresholdMillis| 所有在缓存中停留超过配置时长的条目会被驱逐 | 1000 | |managedLedgerCursorBackloggedThreshold| 设置当游标应被当作“积压的” 且应被设置为非活动的阈值 (以条目数为单位)。 | 1000| |managedLedgerDefaultMarkDeleteRateLimit| 限制由消费者确认消息产生的每秒写入频率  |1.0| |managedLedgerMaxEntriesPerLedger| 在触发倒转前追加至 ledger 的最大条目数。 A ledger rollover is triggered on these conditions: <ul><li>Either the max rollover time has been reached</li><li>or max entries have been written to the ledged and at least min-time has passed</li></ul>|50000| |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10| |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240| |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000| |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400| |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000| |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false| |loadBalancerEnabled| Enable load balancer  |true| |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection || |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10| |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15| |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1| |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30| |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30| |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000| |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1| |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85| |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15| |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65| |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false| |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100| |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128| |replicationMetricsEnabled| Enable replication metrics  |true| |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16| |replicationProducerQueueSize|  Replicator producer queue size  |1000| |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl|| |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false| |defaultRetentionTimeInMinutes| Default message retention time  || |defaultRetentionSizeInMB|  Default retention size  |0| |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30| |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl| |supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]| |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide| |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  || |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2| |managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true| |managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000| |managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)| |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  || |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into || |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) || |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (默认为 64MB，最小 5MB) |67108864| |s3ManagedLedgerOffloadReadBufferSizeInBytes| 对于 Amazon S3 ledger 卸载，以字节计的读缓存大小 (默认为 1MB)  |1048576| |s3ManagedLedgerOffloadRole| 对于 Amazon S3 ledger 卸载，在写入 s3 前提供一个假定角色 || |s3ManagedLedgerOffloadRoleSessionName| 对于 Amazon S3 ledger 卸载，当使用一个角色时提供一个角色会话名 |pulsar-s3-offload| | acknowledgmentAtBatchIndexLevelEnabled | 启用或禁用批量下标确认。 | false | | maxMessageSize | 设置消息的最大大小。 | 5 MB |</p>
+<h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
+<p>The <a href="/docs/zh-CN/2.6.1/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>webServiceUrl</td><td>群集的 web URL。</td><td><a href="http://localhost:8080/">http://localhost:8080/</a></td></tr>
+<tr><td>brokerServiceUrl</td><td>集群的Pulsar 协议地址。</td><td><a href="pulsar://localhost:6650/">pulsar://localhost:6650/</a></td></tr>
+<tr><td>authPlugin</td><td>身份认证插件。</td><td></td></tr>
+<tr><td>authParams</td><td>群集的身份认证参数, 逗号分隔的字符串。</td><td></td></tr>
+<tr><td>useTls</td><td>是否在群集中强制执行 TLS 验证。</td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td></td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="service-discovery"></a><a href="#service-discovery" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Service discovery</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>zookeeperServers</td><td>Zookeeper quorum connection string (comma-separated)</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper 缓存过期时间（秒）</td><td>300</td></tr>
+<tr><td>configurationStoreServers</td><td>配置存储连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout</td><td>30000</td></tr>
+<tr><td>servicePort</td><td>Port to use to server binary-proto request</td><td>6650</td></tr>
+<tr><td>servicePortTls</td><td>Port to use to server binary-proto-tls request</td><td>6651</td></tr>
+<tr><td>webServicePort</td><td>Port that discovery service listen on</td><td>8080</td></tr>
+<tr><td>webServicePortTls</td><td>Port to use to server HTTPS request</td><td>8443</td></tr>
+<tr><td>bindOnLocalhost</td><td>Control whether to bind directly on localhost rather than on normal hostname</td><td>false</td></tr>
+<tr><td>authenticationEnabled</td><td>Enable authentication</td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td>Authentication provider name list, which is comma separated list of class names (comma-separated)</td><td></td></tr>
+<tr><td>authorizationEnabled</td><td>Enforce authorization</td><td>false</td></tr>
+<tr><td>superUserRoles</td><td>Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics (comma-separated)</td><td></td></tr>
+<tr><td>tlsEnabled</td><td>Enable TLS</td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>TLS证书文件的路径</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>TLS私钥文件的路径</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="log4j"></a><a href="#log4j" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>pulsar.root.logger</td><td>WARN,CONSOLE</td></tr>
+<tr><td>pulsar.log.dir</td><td>logs</td></tr>
+<tr><td>pulsar.log.file</td><td>pulsar.log</td></tr>
+<tr><td>log4j.rootLogger</td><td>${pulsar.root.logger}</td></tr>
+<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
+<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE</td><td>org.apache.log4j.DailyRollingFileAppender</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.File</td><td>${pulsar.log.dir}/${pulsar.log.file}</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.ROLLINGFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L] - %m%n</td></tr>
+<tr><td>log4j.appender.TRACEFILE</td><td>org.apache.log4j.FileAppender</td></tr>
+<tr><td>log4j.appender.TRACEFILE.Threshold</td><td>TRACE</td></tr>
+<tr><td>log4j.appender.TRACEFILE.File</td><td>pulsar-trace.log</td></tr>
+<tr><td>log4j.appender.TRACEFILE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.TRACEFILE.layout.ConversionPattern</td><td>%d{ISO8601} - %-5p [%t:%C{1}@%L][%x] - %m%n</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="log4j-shell"></a><a href="#log4j-shell" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Log4j shell</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>bookkeeper.root.logger</td><td>ERROR,CONSOLE</td></tr>
+<tr><td>log4j.rootLogger</td><td>${bookkeeper.root.logger}</td></tr>
+<tr><td>log4j.appender.CONSOLE</td><td>org.apache.log4j.ConsoleAppender</td></tr>
+<tr><td>log4j.appender.CONSOLE.Threshold</td><td>DEBUG</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout</td><td>org.apache.log4j.PatternLayout</td></tr>
+<tr><td>log4j.appender.CONSOLE.layout.ConversionPattern</td><td>%d{ABSOLUTE} %-5p %m%n</td></tr>
+<tr><td>log4j.logger.org.apache.zookeeper</td><td>ERROR</td></tr>
+<tr><td>log4j.logger.org.apache.bookkeeper</td><td>ERROR</td></tr>
+<tr><td>log4j.logger.org.apache.bookkeeper.bookie.BookieShell</td><td>INFO</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="standalone"></a><a href="#standalone" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Standalone</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>zookeeperServers</td><td>The quorum connection string for local ZooKeeper</td><td></td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper 缓存过期时间（秒）</td><td>300</td></tr>
+<tr><td>configurationStoreServers</td><td>配置存储连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>brokerServicePort</td><td>The port on which the standalone broker listens for connections</td><td>6650</td></tr>
+<tr><td>webServicePort</td><td>THe port used by the standalone broker for HTTP requests</td><td>8080</td></tr>
+<tr><td>bindAddress</td><td>The hostname or IP address on which the standalone service binds</td><td>0.0.0.0</td></tr>
+<tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
+<tr><td>clusterName</td><td>The name of the cluster that this broker belongs to.</td><td>standalone</td></tr>
+<tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds.</td><td>30000</td></tr>
+<tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>60000</td></tr>
+<tr><td>skipBrokerShutdownOnOOM</td><td>Flag to skip broker shutdown when broker handles Out of memory error.</td><td>false</td></tr>
+<tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
+<tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
+<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
+<tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
+<tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
+<tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
+<tr><td>messageExpiryCheckIntervalInMinutes</td><td>How often to proactively check and purged expired messages.</td><td>5</td></tr>
+<tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
+<tr><td>clientLibraryVersionCheckEnabled</td><td>Enable checks for minimum allowed client library version.</td><td>false</td></tr>
+<tr><td>clientLibraryVersionCheckAllowUnversioned</td><td>Allow client libraries with no version information</td><td>true</td></tr>
+<tr><td>statusFilePath</td><td>The path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td>/usr/local/apache/htdocs</td></tr>
+<tr><td>maxUnackedMessagesPerConsumer</td><td>The maximum number of unacknowledged messages allowed to be received by consumers on a shared subscription. The broker will stop sending messages to a consumer once this limit is reached or until the consumer begins acknowledging messages. A value of 0 disables the unacked message limit check and thus allows consumers to receive messages without any restrictions.</td><td>50000</td></tr>
+<tr><td>maxUnackedMessagesPerSubscription</td><td>The same as above, except per subscription rather than per consumer.</td><td>200000</td></tr>
+<tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
+<tr><td>authenticationEnabled</td><td>Enable authentication for the broker.</td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td>A comma-separated list of class names for authentication providers.</td><td>false</td></tr>
+<tr><td>authorizationEnabled</td><td>Enforce authorization in brokers.</td><td>false</td></tr>
+<tr><td>superUserRoles</td><td>Role names that are treated as “superusers.” Superusers are authorized to perform all admin tasks.</td><td></td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td>The authentication settings of the broker itself. Used when the broker connects to other brokers either in the same cluster or from other clusters.</td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td>The parameters that go along with the plugin specified using brokerClientAuthenticationPlugin.</td><td></td></tr>
+<tr><td>athenzDomainNames</td><td>Supported Athenz authentication provider domain names as a comma-separated list.</td><td></td></tr>
+<tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
+<tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to be used when connecting to bookies (BookKeeper servers).</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper authentication plugin implementation parameters and values.</td><td></td></tr>
+<tr><td>bookkeeperClientAuthenticationParameters</td><td>Parameters associated with the bookkeeperClientAuthenticationParametersName</td><td></td></tr>
+<tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BookKeeper add and read operations.</td><td>30</td></tr>
+<tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.</td><td>0</td></tr>
+<tr><td>bookkeeperClientHealthCheckEnabled</td><td>Enable bookie health checks.</td><td>true</td></tr>
+<tr><td>bookkeeperClientHealthCheckIntervalSeconds</td><td>The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.</td><td>60</td></tr>
+<tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td>Error threshold for health checks.</td><td>5</td></tr>
+<tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td>If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds</td><td>1800</td></tr>
+<tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
+<tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientIsolationGroups</td><td></td><td></td></tr>
+<tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
+<tr><td>bookkeeperClientMinAvailableBookiesInIsolationGroups</td><td>Minimum bookies that should be available as part of bookkeeperClientIsolationGroups else broker will include bookkeeperClientSecondaryIsolationGroups bookies in isolated list.</td><td></td></tr>
+<tr><td>managedLedgerDefaultEnsembleSize</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerDefaultAckQuorum</td><td></td><td>1</td></tr>
+<tr><td>managedLedgerCacheSizeMB</td><td></td><td>1024</td></tr>
+<tr><td>managedLedgerCacheCopyEntries</td><td>Whether we should make a copy of the entry payloads when inserting in cache</td><td>false</td></tr>
+<tr><td>managedLedgerCacheEvictionWatermark</td><td></td><td>0.9</td></tr>
+<tr><td>managedLedgerCacheEvictionFrequency</td><td>Configure the cache eviction frequency for the managed ledger cache (evictions/sec)</td><td>100.0</td></tr>
+<tr><td>managedLedgerCacheEvictionTimeThresholdMillis</td><td>All entries that have stayed in cache for more than the configured time, will be evicted</td><td>1000</td></tr>
+<tr><td>managedLedgerCursorBackloggedThreshold</td><td>Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged' and thus should be set as inactive.</td><td>1000</td></tr>
+<tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>
+<tr><td>managedLedgerDefaultMarkDeleteRateLimit</td><td></td><td>0.1</td></tr>
+<tr><td>managedLedgerMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
+<tr><td>managedLedgerMinLedgerRolloverTimeMinutes</td><td></td><td>10</td></tr>
+<tr><td>managedLedgerMaxLedgerRolloverTimeMinutes</td><td></td><td>240</td></tr>
+<tr><td>managedLedgerCursorMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
+<tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td></td><td>14400</td></tr>
+<tr><td>autoSkipNonRecoverableData</td><td></td><td>false</td></tr>
+<tr><td>loadBalancerEnabled</td><td></td><td>false</td></tr>
+<tr><td>loadBalancerPlacementStrategy</td><td></td><td>weightedRandomSelection</td></tr>
+<tr><td>loadBalancerReportUpdateThresholdPercentage</td><td></td><td>10</td></tr>
+<tr><td>loadBalancerReportUpdateMaxIntervalMinutes</td><td></td><td>15</td></tr>
+<tr><td>loadBalancerHostUsageCheckIntervalMinutes</td><td></td><td>1</td></tr>
+<tr><td>loadBalancerSheddingIntervalMinutes</td><td></td><td>30</td></tr>
+<tr><td>loadBalancerSheddingGracePeriodMinutes</td><td></td><td>30</td></tr>
+<tr><td>loadBalancerBrokerMaxTopics</td><td></td><td>50000</td></tr>
+<tr><td>loadBalancerBrokerUnderloadedThresholdPercentage</td><td></td><td>1</td></tr>
+<tr><td>loadBalancerBrokerOverloadedThresholdPercentage</td><td></td><td>85</td></tr>
+<tr><td>loadBalancerResourceQuotaUpdateIntervalMinutes</td><td></td><td>15</td></tr>
+<tr><td>loadBalancerBrokerComfortLoadLevelPercentage</td><td></td><td>65</td></tr>
+<tr><td>loadBalancerAutoBundleSplitEnabled</td><td></td><td>false</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxTopics</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxSessions</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxMsgRate</td><td></td><td>1000</td></tr>
+<tr><td>loadBalancerNamespaceBundleMaxBandwidthMbytes</td><td></td><td>100</td></tr>
+<tr><td>loadBalancerNamespaceMaximumBundles</td><td></td><td>128</td></tr>
+<tr><td>replicationMetricsEnabled</td><td></td><td>true</td></tr>
+<tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
+<tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
+<tr><td>replicationPolicyCheckDurationSeconds</td><td>Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy.</td><td>600</td></tr>
+<tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
+<tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
+<tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="websocket"></a><a href="#websocket" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>WebSocket</h2>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>configurationStoreServers</td><td></td><td></td></tr>
+<tr><td>zooKeeperSessionTimeoutMillis</td><td></td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper 缓存过期时间（秒）</td><td>300</td></tr>
+<tr><td>serviceUrl</td><td></td><td></td></tr>
+<tr><td>serviceUrlTls</td><td></td><td></td></tr>
+<tr><td>brokerServiceUrl</td><td></td><td></td></tr>
+<tr><td>brokerServiceUrlTls</td><td></td><td></td></tr>
+<tr><td>webServicePort</td><td></td><td>8080</td></tr>
+<tr><td>webServicePortTls</td><td></td><td>8443</td></tr>
+<tr><td>bindAddress</td><td></td><td>0.0.0.0</td></tr>
+<tr><td>clusterName</td><td></td><td></td></tr>
+<tr><td>authenticationEnabled</td><td></td><td>false</td></tr>
+<tr><td>authenticationProviders</td><td></td><td></td></tr>
+<tr><td>authorizationEnabled</td><td></td><td>false</td></tr>
+<tr><td>superUserRoles</td><td></td><td></td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td></td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
+<tr><td>tlsEnabled</td><td></td><td>false</td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td></td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td></td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td></td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="pulsar-proxy"></a><a href="#pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar proxy</h2>
+<p>The <a href="/docs/zh-CN/2.6.1/concepts-architecture-overview#pulsar-proxy">Pulsar proxy</a> can be configured in the <code>conf/proxy.conf</code> file.</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>zookeeperServers</td><td>ZooKeeper quorum 连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>configurationStoreServers</td><td>配置存储连接字符串（以逗号分隔的列表）</td><td></td></tr>
+<tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper会话超时（以毫秒为单位）</td><td>30000</td></tr>
+<tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper 缓存过期时间（秒）</td><td>300</td></tr>
+<tr><td>servicePort</td><td>用于服务器二进制Protobuf请求的端口</td><td>6650</td></tr>
+<tr><td>servicePortTls</td><td>用于服务器二进制Protobuf TLS请求的端口</td><td>6651</td></tr>
+<tr><td>statusFilePath</td><td>在响应服务发现健康检查时，用于确定代理实例的轮换状态的文件的路径</td><td></td></tr>
+<tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world.</td><td><code>InetAddress.getLocalHost().getHostname()</code></td></tr>
+<tr><td>authenticationEnabled</td><td>是否为Pulsar代理启用身份验证</td><td>false</td></tr>
+<tr><td>authenticateMetricsEndpoint</td><td>Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect.</td><td>true</td></tr>
+<tr><td>authenticationProviders</td><td>身份验证提供者名称列表(以逗号分隔的类名列表)</td><td></td></tr>
+<tr><td>authorizationEnabled</td><td>是否由Pulsar代理强制执行授权</td><td>false</td></tr>
+<tr><td>authorizationProvider</td><td>授权提供程序的完全限定类名</td><td>org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider</td></tr>
+<tr><td>brokerClientAuthenticationPlugin</td><td>Pulsar代理使用的身份验证插件，用于对Pulsar brokers进行身份验证</td><td></td></tr>
+<tr><td>brokerClientAuthenticationParameters</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的参数</td><td></td></tr>
+<tr><td>brokerClientTrustCertsFilePath</td><td>Pulsar代理用于对Pulsar Brokers进行身份验证的可信证书的路径</td><td></td></tr>
+<tr><td>superUserRoles</td><td>“超级用户”的角色名，这意味着它们将能够执行所有管理</td><td></td></tr>
+<tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
+<tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
+<tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
+<tr><td>tlsEnabledInProxy</td><td>是否为代理启用TLS</td><td>false</td></tr>
+<tr><td>tlsEnabledWithBroker</td><td>与Pulsar Brokers通信时是否启用TLS</td><td>false</td></tr>
+<tr><td>tlsCertificateFilePath</td><td>TLS证书文件的路径</td><td></td></tr>
+<tr><td>tlsKeyFilePath</td><td>TLS私钥文件的路径</td><td></td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>受信任的TLS证书pem文件的路径</td><td></td></tr>
+<tr><td>tlsHostnameVerificationEnabled</td><td>当代理与brokers建立TLS连接时是否验证主机名</td><td>false</td></tr>
+<tr><td>tlsRequireTrustedClientCertOnConnect</td><td>Whether client certificates are required for TLS. Connections are rejected if the client certificate isn’t trusted.</td><td>false</td></tr>
+<tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code></td><td></td></tr>
+<tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
+<tr><td>tokenSecretKey</td><td>Configure the secret key to be used to validate auth tokens. The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
+<tr><td>tokenPublicAlg</td><td>Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>)</td><td>RS256</td></tr>
+<tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
+</tbody>
+</table>
+<h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
+<p>ZooKeeper handles a broad range of essential configuration- and coordination-related tasks for Pulsar. The default configuration file for ZooKeeper is in the <code>conf/zookeeper.conf</code> file in your Pulsar installation. The following parameters are available:</p>
+<table>
+<thead>
+<tr><th>Name</th><th>Description</th><th>默认值</th></tr>
+</thead>
+<tbody>
+<tr><td>tickTime</td><td>The tick is the basic unit of time in ZooKeeper, measured in milliseconds and used to regulate things like heartbeats and timeouts. tickTime is the length of a single tick.</td><td>2000</td></tr>
+<tr><td>initLimit</td><td>The maximum time, in ticks, that the leader ZooKeeper server allows follower ZooKeeper servers to successfully connect and sync. The tick time is set in milliseconds using the tickTime parameter.</td><td>10</td></tr>
+<tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
+<tr><td>dataDir</td><td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</td><td>data/zookeeper</td></tr>
+<tr><td>clientPort</td><td>The port on which the ZooKeeper server will listen for connections.</td><td>2181</td></tr>
+<tr><td>autopurge.snapRetainCount</td><td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).</td><td>3</td></tr>
+<tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.</td><td>1</td></tr>
+<tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
+</tbody>
+</table>
+<p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding a <code>server.N</code> line to the <code>conf/zookeeper.conf</code> file for each node in the ZooKeeper cluster, where <code>N</code> is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:</p>
+<pre><code class="hljs css language-properties"><span class="hljs-meta">server.1</span>=<span class="hljs-string">zk1.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.2</span>=<span class="hljs-string">zk2.us-west.example.com:2888:3888</span>
+<span class="hljs-meta">server.3</span>=<span class="hljs-string">zk3.us-west.example.com:2888:3888</span>
+</code></pre>
+<blockquote>
+<p>We strongly recommend consulting the <a href="https://zookeeper.apache.org/doc/current/zookeeperAdmin.html">ZooKeeper Administrator's Guide</a> for a more thorough and comprehensive introduction to ZooKeeper configuration</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/zh-CN/2.6.1/reference-cli-tools"><span class="arrow-prev">← </span><span>Pulsar CLI tools</span></a><a class="docs-next button" href="/docs/zh-CN/2.6.1/reference-metrics"><span>Pulsar Metrics</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#bookkeeper">BookKeeper</a></li><li><a href="#broker">Broker</a></li><li><a href="#client">Client</a></li><li><a href="#service-discovery">Service discovery</a></li><li><a href="#log4j">Log4j</a></li><li><a href="#log4j-shell">Log4j shell</a></li><li><a href="#standalone">Standalone</a></li><li><a href="#websocket">WebSocket</a></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#zookeeper">ZooKeeper</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.6.1"]}
+              });
+            </script></body></html>
