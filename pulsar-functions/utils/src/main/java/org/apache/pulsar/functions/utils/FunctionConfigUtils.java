@@ -205,10 +205,10 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getProducerConfig() != null) {
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (functionConfig.getProducerConfig().getMaxPendingMessages() != 0) {
+            if (functionConfig.getProducerConfig().getMaxPendingMessages() != null) {
                 pbldr.setMaxPendingMessages(functionConfig.getProducerConfig().getMaxPendingMessages());
             }
-            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != 0) {
+            if (functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(functionConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
             if (functionConfig.getProducerConfig().getUseThreadLocalProducers() != null) {

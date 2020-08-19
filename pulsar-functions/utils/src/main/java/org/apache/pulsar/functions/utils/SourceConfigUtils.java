@@ -149,10 +149,10 @@ public class SourceConfigUtils {
 
         if (sourceConfig.getProducerConfig() != null) {
             Function.ProducerSpec.Builder pbldr = Function.ProducerSpec.newBuilder();
-            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != 0) {
+            if (sourceConfig.getProducerConfig().getMaxPendingMessages() != null) {
                 pbldr.setMaxPendingMessages(sourceConfig.getProducerConfig().getMaxPendingMessages());
             }
-            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != 0) {
+            if (sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions() != null) {
                 pbldr.setMaxPendingMessagesAcrossPartitions(sourceConfig.getProducerConfig().getMaxPendingMessagesAcrossPartitions());
             }
             if (sourceConfig.getProducerConfig().getProducerProperties() != null) {
