@@ -227,6 +227,7 @@ enum ProtocolVersion {
     v14 = 14; // Add CommandAuthChallenge and CommandAuthResponse for mutual auth
               // Added Key_Shared subscription
     v15 = 15; // Add CommandGetOrCreateSchema and CommandGetOrCreateSchemaResponse
+    v16 = 16; // Add CommandGetNamespacesByRegex and CommandGetNamespacesByRegexResponse
 }
 
 message CommandConnect {
@@ -669,6 +670,16 @@ message CommandGetTopicsOfNamespaceResponse {
     repeated string topics         = 2;
 }
 
+message CommandGetNamespacesByRegex {
+    required uint64 request_id  = 1;
+    required string regex       = 2;
+}
+
+message CommandGetNamespacesByRegexResponse {
+    required uint64 request_id  = 1;
+    repeated string namespaces  = 2;
+}
+
 message CommandGetSchema {
     required uint64 request_id = 1;
     required string topic      = 2;
@@ -865,6 +876,9 @@ message BaseCommand {
         GET_OR_CREATE_SCHEMA = 39;
         GET_OR_CREATE_SCHEMA_RESPONSE = 40;
 
+        GET_NAMESPACES_BY_REGEX             = 41;
+        GET_NAMESPACES_BY_REGEX_RESPONSE     = 42;
+
         // transaction related
         NEW_TXN = 50;
         NEW_TXN_RESPONSE = 51;
@@ -944,6 +958,9 @@ message BaseCommand {
 
     optional CommandGetOrCreateSchema getOrCreateSchema = 39;
     optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
+
+    optional CommandGetNamespacesByRegex getNamespacesByRegex = 41;
+    optional CommandGetNamespacesByRegexResponse getNamespacesByRegexResponse = 42;
 
     // transaction related
     optional CommandNewTxn newTxn = 50;

@@ -70,6 +70,7 @@ import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1029,6 +1030,57 @@ public class NamespaceService {
             default:
                 return getListOfPersistentTopics(namespaceName);
         }
+    }
+
+    public List<String> getNamespacesByRegex(String regex) throws Exception{
+        ArrayList<String> result = new ArrayList<>();
+        Pattern p = Pattern.compile(regex);
+
+        ZooKeeper globalZk = pulsar.getGlobalZkCache().getZooKeeper();
+        try {
+            List<String> tenants = globalZk.getChildren(AdminResource.path(POLICIES), false);
+            for (String tenant : tenants) {
+                result.addAll(
+                        getListOfNamespaces(tenant).stream()
+                                .filter(namespace -> p.matcher(namespace).matches())
+                                .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            LOG.error("Failed to get tenants list", e);
+            throw new Exception(e);
+        }
+        return result;
+    }
+
+    private List<String> getListOfNamespaces(String property) throws Exception {
+        List<String> namespaces = Lists.newArrayList();
+
+        ZooKeeper globalZk = pulsar.getGlobalZkCache().getZooKeeper();
+        // this will return a cluster in v1 and a namespace in v2
+        for (String clusterOrNamespace : globalZk.getChildren(AdminResource.path(POLICIES, property), false)) {
+            // Then get the list of namespaces
+            try {
+                final List<String> children = globalZk.getChildren(AdminResource.path(POLICIES, property, clusterOrNamespace), false);
+                if (children == null || children.isEmpty()) {
+                    String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
+                    // if the length is 0 then this is probably a leftover cluster from namespace created
+                    // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
+                    if (globalZk.getData(AdminResource.path(POLICIES, namespace), false, null).length != 0) {
+                        namespaces.add(namespace);
+                    }
+                } else {
+                    children.forEach(ns -> {
+                        namespaces.add(NamespaceName.get(property, clusterOrNamespace, ns).toString());
+                    });
+                }
+            } catch (KeeperException.NoNodeException e) {
+                // A cluster was deleted between the 2 getChildren() calls, ignoring
+            }
+        }
+
+        namespaces.sort(null);
+        return namespaces;
     }
 
     public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {

@@ -99,4 +99,11 @@ public interface LookupService extends AutoCloseable {
 	 */
 	CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode);
 
+	/**
+	 * Returns the names of all namespaces for a given tenant.
+	 *
+	 * @return
+	 */
+	CompletableFuture<List<NamespaceName>> getNamespacesByRegex(String regex);
+
 }

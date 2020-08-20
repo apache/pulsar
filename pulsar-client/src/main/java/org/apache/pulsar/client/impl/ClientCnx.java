@@ -71,6 +71,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetNamespacesByRegexResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
@@ -708,6 +709,42 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<List<String>> requestFuture = pendingGetTopicsRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.complete(topics);
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
+        }
+    }
+
+    public CompletableFuture<List<String>> newGetNamespaceByRegex(ByteBuf request, long requestId) {
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+
+        pendingGetTopicsRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                        writeFuture.cause().getMessage());
+                pendingGetTopicsRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
+        return future;
+    }
+
+    @Override
+    protected void handleGetNamespaceByRegexSuccess(CommandGetNamespacesByRegexResponse success) {
+        checkArgument(state == State.Ready);
+
+        long requestId = success.getRequestId();
+        List<String> namespaces = success.getNamespacesList();
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received get namespaces by regex success response from server: {} - namespaces.size: {}",
+                    ctx.channel(), success.getRequestId(), namespaces.size());
+        }
+
+        CompletableFuture<List<String>> requestFuture = pendingGetTopicsRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(namespaces);
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }

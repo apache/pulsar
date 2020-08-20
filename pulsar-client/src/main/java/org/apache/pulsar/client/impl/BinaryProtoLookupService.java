@@ -312,6 +312,65 @@ public class BinaryProtoLookupService implements LookupService {
         });
     }
 
+    @Override
+    public CompletableFuture<List<NamespaceName>> getNamespacesByRegex(String regex) {
+        CompletableFuture<List<NamespaceName>> topicsFuture = new CompletableFuture<List<NamespaceName>>();
+
+        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        Backoff backoff = new BackoffBuilder()
+                .setInitialTime(100, TimeUnit.MILLISECONDS)
+                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
+                .setMax(1, TimeUnit.MINUTES)
+                .create();
+        getNamespacesByRegex(serviceNameResolver.resolveHost(), regex, backoff, opTimeoutMs, topicsFuture);
+        return topicsFuture;
+    }
+
+    private void getNamespacesByRegex(InetSocketAddress socketAddress,
+                                          String regex,
+                                          Backoff backoff,
+                                          AtomicLong remainingTime,
+                                          CompletableFuture<List<NamespaceName>> namespacesFuture) {
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newGetNamespacesByRegexRequest(regex, requestId);
+
+            clientCnx.newGetNamespaceByRegex(request, requestId).whenComplete((r, n) -> {
+                if (n != null) {
+                    namespacesFuture.completeExceptionally(n);
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[regex: {}] Success get topics list in request: {}", regex, requestId);
+                    }
+
+                    List<NamespaceName> result = Lists.newArrayList();
+                    r.forEach(topic -> {
+                        result.add(NamespaceName.get(topic));
+                    });
+
+                    namespacesFuture.complete(result);
+                }
+                client.getCnxPool().releaseConnection(clientCnx);
+            });
+        }).exceptionally((e) -> {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                namespacesFuture.completeExceptionally(
+                        new PulsarClientException.TimeoutException(
+                                format("Could not get namespaces for regex %s within configured timeout",
+                                        regex)));
+                return null;
+            }
+
+            ((ScheduledExecutorService) executor).schedule(() -> {
+                log.warn("[regex: {}] Could not get connection while getNamespacesByRegex -- Will try again in {} ms",
+                        regex, nextDelay);
+                remainingTime.addAndGet(-nextDelay);
+                getNamespacesByRegex(socketAddress, regex, backoff, remainingTime, namespacesFuture);
+            }, nextDelay, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
 
     @Override
     public void close() throws Exception {

@@ -81,6 +81,15 @@ import org.slf4j.LoggerFactory;
 public class Namespaces extends NamespacesBase {
 
     @GET
+    @Path("")
+    @ApiOperation(value = "Get all namespaces filtered by query params")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "No matching namespaces") })
+    public List<String> getNamespaces(@QueryParam("regex") @DefaultValue(".*") String regex) {
+        return internalGetNamespaces(regex);
+    }
+
+    @GET
     @Path("/{tenant}")
     @ApiOperation(value = "Get the list of all the namespaces for a certain tenant.", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),

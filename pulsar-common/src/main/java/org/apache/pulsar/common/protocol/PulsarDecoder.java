@@ -48,6 +48,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnOnSubscriptionR
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetNamespacesByRegex;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetNamespacesByRegexResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
@@ -305,6 +307,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 cmd.getGetTopicsOfNamespaceResponse().recycle();
                 break;
 
+            case GET_NAMESPACES_BY_REGEX:
+                checkArgument(cmd.hasGetNamespacesByRegex());
+                handleGetNamespaceByRegex(cmd.getGetNamespacesByRegex());
+                cmd.getGetNamespacesByRegex().recycle();
+                break;
+
+            case GET_NAMESPACES_BY_REGEX_RESPONSE:
+                checkArgument(cmd.hasGetNamespacesByRegexResponse());
+                handleGetNamespaceByRegexSuccess(cmd.getGetNamespacesByRegexResponse());
+                cmd.getGetNamespacesByRegexResponse().recycle();
+                break;
+
             case GET_SCHEMA:
                 checkArgument(cmd.hasGetSchema());
                 handleGetSchema(cmd.getGetSchema());
@@ -556,6 +570,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetNamespaceByRegex(CommandGetNamespacesByRegex commandGetNamespaceByRegex) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetNamespaceByRegexSuccess(CommandGetNamespacesByRegexResponse response) {
         throw new UnsupportedOperationException();
     }
 

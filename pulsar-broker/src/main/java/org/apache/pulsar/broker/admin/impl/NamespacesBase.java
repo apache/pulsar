@@ -30,17 +30,12 @@ import com.google.common.collect.Sets.SetView;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -104,6 +99,34 @@ import org.slf4j.LoggerFactory;
 public abstract class NamespacesBase extends AdminResource {
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;
+
+    protected List<String> internalGetNamespaces(String regex) {
+        ArrayList<String> result = new ArrayList<>();
+        Pattern p = Pattern.compile(regex);
+        try {
+            List<String> tenants = globalZk().getChildren(path(POLICIES), false);
+            for (String tenant : tenants) {
+                validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
+                result.addAll(
+                    getListOfNamespaces(tenant).stream()
+                        .filter(namespace -> {
+                            try {
+                                validateNamespaceOperation(NamespaceName.get(namespace), NamespaceOperation.GET_TOPICS);
+                                return true;
+                            } catch (Exception e){
+                                return false;
+                            }
+                        })
+                        .filter(namespace -> p.matcher(namespace).matches())
+                        .collect(Collectors.toList())
+                );
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to get tenants list", clientAppId(), e);
+            throw new RestException(e);
+        }
+        return result;
+    }
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
         checkNotNull(tenant, "Tenant should not be null");

@@ -92,6 +92,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetNamespacesByRegex;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandNewTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
@@ -1573,6 +1574,30 @@ public class ServerCnx extends PulsarHandler {
 
                     return null;
                 });
+    }
+
+    @Override
+    protected void handleGetNamespaceByRegex(CommandGetNamespacesByRegex commandGetNamespaceByRegex) {
+        final long requestId = commandGetNamespaceByRegex.getRequestId();
+        final String regex = commandGetNamespaceByRegex.getRegex();
+
+        try {
+            List<String> namespaces = getBrokerService().pulsar().getNamespaceService().getNamespacesByRegex(regex);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received CommandGetTopicsOfNamespace for regex [//{}] by {}, size:{}",
+                        remoteAddress, regex, requestId, namespaces.size());
+            }
+
+            ctx.writeAndFlush(Commands.newGetNamespacesByRegexResponse(namespaces, requestId));
+
+        } catch (Exception ex) {
+            log.warn("[{}] Error GetNamespaceByRegex for regex [//{}] by {}",
+                    remoteAddress, regex, requestId);
+            ctx.writeAndFlush(
+                    Commands.newError(requestId,
+                            BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                            ex.getMessage()));
+        }
     }
 
     @Override

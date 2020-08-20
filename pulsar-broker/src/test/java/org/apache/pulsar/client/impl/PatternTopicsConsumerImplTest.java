@@ -561,8 +561,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         String subscriptionName = "my-ex-subscription-" + key;
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
-        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
+        String topicName3 = "persistent://my-property/my-ns1/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns\\d*/pattern-topic.*");
 
         // 1. create partition
         TenantInfo tenantInfo = createDefaultTenantInfo();
@@ -665,13 +665,13 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
-    public void testAutoUnbubscribePatternConsumer() throws Exception {
+    public void testAutoUnsubscribePatternConsumer() throws Exception {
         String key = "AutoUnsubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1-" + key;
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2-" + key;
-        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
+        String topicName3 = "persistent://my-property/my-ns1/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://my-property/my-ns\\d*/pattern-topic.*");
 
         // 1. create partition
         TenantInfo tenantInfo = createDefaultTenantInfo();
@@ -737,6 +737,8 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         NamespaceService nss = pulsar.getNamespaceService();
         doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
                 .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns"));
+        doReturn(CompletableFuture.completedFuture(topicNames)).when(nss)
+                .getListOfPersistentTopics(NamespaceName.get("my-property/my-ns1"));
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");

@@ -137,6 +137,26 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
+    public CompletableFuture<List<NamespaceName>> getNamespacesByRegex(String regex) {
+        CompletableFuture<List<NamespaceName>> future = new CompletableFuture<>();
+
+        httpClient
+                .get(String.format("admin/v2/namespaces?regex=%s", regex), String[].class)
+                .thenAccept(namespaces -> {
+                    List<NamespaceName> result = Lists.newArrayList();
+                    Arrays.asList(namespaces).forEach(namespace -> {
+                        result.add(NamespaceName.get(namespace));
+                    });
+                    future.complete(result);})
+                .exceptionally(ex -> {
+                    log.warn("Failed to getNamespacesByRegex regex {} {} .", regex, ex.getMessage());
+                    future.completeExceptionally(ex);
+                    return null;
+                });
+        return future;
+    }
+
+    @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
         return getSchema(topicName, null);
     }

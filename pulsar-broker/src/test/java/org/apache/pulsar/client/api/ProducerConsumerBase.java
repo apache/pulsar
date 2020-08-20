@@ -43,6 +43,8 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
                 new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("my-property/my-ns1");
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns1", Sets.newHashSet("test"));
 
         // so that clients can test short names
         admin.tenants().createTenant("public",

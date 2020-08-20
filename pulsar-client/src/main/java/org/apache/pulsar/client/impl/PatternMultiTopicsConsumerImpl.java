@@ -46,7 +46,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
-    protected NamespaceName namespaceName;
     private volatile Timeout recheckPatternTimeout = null;
 
     public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
@@ -59,11 +58,6 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
         this.subscriptionMode = subscriptionMode;
-
-        if (this.namespaceName == null) {
-            this.namespaceName = getNameSpaceFromPattern(topicsPattern);
-        }
-        checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
         this.recheckPatternTimeout = client.timer().newTimeout(this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
@@ -83,26 +77,34 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(2);
 
-        client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode).thenAccept(topics -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
-                topics.forEach(topicName ->
-                    log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
-            }
+        LookupService lookup = client.getLookup();
+        String regex = PulsarClientImpl.getNamespaceOnlyPattern(Pattern.compile(topicsPattern.pattern())).toString();
+        List<String> newTopics = lookup.getNamespacesByRegex(regex).thenApply(namespaces ->
+            namespaces.stream().map(namespace -> lookup.getTopicsUnderNamespace(namespace, subscriptionMode)
+                 .thenApply(topics -> {
+                     if (log.isDebugEnabled()) {
+                         log.debug("Get topics under namespace {}, topics.size: {}", namespace, topics.size());
+                         topics.forEach(topicName ->
+                                 log.debug("Get topics under namespace {}, topic: {}", namespace, topicName));
+                     }
 
-            List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
-            List<String> oldTopics = PatternMultiTopicsConsumerImpl.this.getTopics();
+                     return PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
+                 }))
+                 .map(CompletableFuture::join)
+                 .flatMap(Collection::stream)
+                 .collect(Collectors.toList())).join();
 
-            futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
-            futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
-            FutureUtil.waitForAll(futures)
+        List<String> oldTopics = PatternMultiTopicsConsumerImpl.this.getTopics();
+        System.out.println();
+        futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
+        futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
+        FutureUtil.waitForAll(futures)
                 .thenAccept(finalFuture -> recheckFuture.complete(null))
                 .exceptionally(ex -> {
                     log.warn("[{}] Failed to recheck topics change: {}", topic, ex.getMessage());
                     recheckFuture.completeExceptionally(ex);
                     return null;
                 });
-        });
 
         // schedule the next re-check task
         this.recheckPatternTimeout = client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,

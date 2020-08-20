@@ -74,6 +74,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetNamespacesByRegex;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetSchema;
@@ -1090,6 +1091,35 @@ public class Commands {
 
         topicsResponseBuilder.recycle();
         topicsOfNamespaceResponse.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetNamespacesByRegexRequest(String regex, long requestId) {
+        CommandGetNamespacesByRegex.Builder namespacesBuilder = CommandGetNamespacesByRegex.newBuilder();
+        namespacesBuilder.setRegex(regex).setRequestId(requestId);
+
+        CommandGetNamespacesByRegex namespacesCommand = namespacesBuilder.build();
+        ByteBuf res = serializeWithSize(
+                BaseCommand.newBuilder().setType(Type.GET_NAMESPACES_BY_REGEX)
+                        .setGetNamespacesByRegex(namespacesCommand));
+        namespacesBuilder.recycle();
+        namespacesCommand.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetNamespacesByRegexResponse(List<String> namespaces, long requestId) {
+        PulsarApi.CommandGetNamespacesByRegexResponse.Builder namespacesResponseBuilder =
+                PulsarApi.CommandGetNamespacesByRegexResponse.newBuilder();
+
+        namespacesResponseBuilder.setRequestId(requestId).addAllNamespaces(namespaces);
+
+        PulsarApi.CommandGetNamespacesByRegexResponse namespacesByRegexResponse = namespacesResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+                .setType(Type.GET_NAMESPACES_BY_REGEX_RESPONSE)
+                .setGetNamespacesByRegexResponse(namespacesByRegexResponse));
+
+        namespacesResponseBuilder.recycle();
+        namespacesByRegexResponse.recycle();
         return res;
     }
 

@@ -50,6 +50,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import lombok.Getter;
+import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -419,36 +420,45 @@ public class PulsarClientImpl implements PulsarClient {
             Schema<T> schema, ConsumerInterceptors<T> interceptors) {
         String regex = conf.getTopicsPattern().pattern();
         Mode subscriptionMode = convertRegexSubscriptionMode(conf.getRegexSubscriptionMode());
-        TopicName destination = TopicName.get(regex);
-        NamespaceName namespaceName = destination.getNamespaceObject();
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode)
-            .thenAccept(topics -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
-                    topics.forEach(topicName ->
-                        log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
-                }
+        lookup.getNamespacesByRegex(getNamespaceOnlyPattern(Pattern.compile(regex)).toString()).thenAccept(namespaces -> {
+            namespaces.forEach(namespace -> {
+                lookup.getTopicsUnderNamespace(namespace, subscriptionMode)
+                        .thenAccept(topics -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Get topics under namespace {}, topics.size: {}", namespace.toString(), topics.size());
+                                topics.forEach(topicName ->
+                                        log.debug("Get topics under namespace {}, topic: {}", namespace.toString(), topicName));
+                            }
 
-                List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
-                conf.getTopicNames().addAll(topicsList);
-                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<T>(conf.getTopicsPattern(),
-                    PulsarClientImpl.this,
-                    conf,
-                    externalExecutorProvider.getExecutor(),
-                    consumerSubscribedFuture,
-                    schema, subscriptionMode, interceptors);
-
-                synchronized (consumers) {
-                    consumers.put(consumer, Boolean.TRUE);
-                }
-            })
-            .exceptionally(ex -> {
-                log.warn("[{}] Failed to get topics under namespace", namespaceName);
-                consumerSubscribedFuture.completeExceptionally(ex);
-                return null;
+                            List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
+                            conf.getTopicNames().addAll(topicsList);
+                        })
+                        .exceptionally(ex -> {
+                            log.warn("[{}] Failed to get topics under namespace", namespace);
+                            consumerSubscribedFuture.completeExceptionally(ex);
+                            return null;
+                        });
             });
+
+        })
+        .exceptionally(ex -> {
+            log.warn("[{}] Failed to get namespaces for regex {}", regex, ex);
+            consumerSubscribedFuture.completeExceptionally(ex);
+            return null;
+        });
+
+        ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<T>(conf.getTopicsPattern(),
+                PulsarClientImpl.this,
+                conf,
+                externalExecutorProvider.getExecutor(),
+                consumerSubscribedFuture,
+                schema, subscriptionMode, interceptors);
+
+        synchronized (consumers) {
+            consumers.put(consumer, Boolean.TRUE);
+        }
 
         return consumerSubscribedFuture;
     }
@@ -456,14 +466,24 @@ public class PulsarClientImpl implements PulsarClient {
     // get topics that match 'topicsPattern' from original topics list
     // return result should contain only topic names, without partition part
     public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
-        final Pattern shortenedTopicsPattern = topicsPattern.toString().contains("://")
-            ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
+        final Pattern shortenedTopicsPattern = getShortenedTopicsPattern(topicsPattern);
 
         return original.stream()
             .map(TopicName::get)
             .map(TopicName::toString)
             .filter(topic -> shortenedTopicsPattern.matcher(topic.split("\\:\\/\\/")[1]).matches())
             .collect(Collectors.toList());
+    }
+
+    private static Pattern getShortenedTopicsPattern(Pattern topicsPattern) {
+        return topicsPattern.toString().contains("://")
+                ? Pattern.compile(topicsPattern.toString().split("\\:\\/\\/")[1]) : topicsPattern;
+    }
+
+    public static Pattern getNamespaceOnlyPattern(Pattern topicsPattern) {
+        Pattern noMode = getShortenedTopicsPattern(topicsPattern);
+        String[] split = noMode.toString().split("/");
+        return Pattern.compile(split[0]+"/"+split[1]);
     }
 
     public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {
