@@ -148,6 +148,7 @@ void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) 
 }
 
 void UnAckedMessageTrackerEnabled::clear() {
+    std::lock_guard<std::mutex> acquire(lock_);
     messageIdPartitionMap.clear();
     for (auto it = timePartitions.begin(); it != timePartitions.end(); it++) {
         it->clear();
