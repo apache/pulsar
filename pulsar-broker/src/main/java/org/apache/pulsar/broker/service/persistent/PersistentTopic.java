@@ -2128,7 +2128,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @param topicName
      * @return TopicPolicies is exist else return null.
      */
-    private TopicPolicies getTopicPolicies(TopicName topicName) {
+    public TopicPolicies getTopicPolicies(TopicName topicName) {
         TopicName cloneTopicName = topicName;
         if (topicName.isPartitioned()) {
             cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
@@ -2341,5 +2341,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return topicPolicies.getMaxUnackedMessagesOnSubscription();
         }
         return maxUnackedMessagesOnSubscription;
+    }
+
+    @VisibleForTesting
+    public MessageDeduplication getMessageDeduplication() {
+        return messageDeduplication;
     }
 }
