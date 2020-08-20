@@ -5202,6 +5202,121 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/deduplicationEnabled" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get deduplication configuration of a topic.",
+        "description" : "",
+        "operationId" : "getDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Set deduplication enabled on a topic.",
+        "description" : "",
+        "operationId" : "setDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "DeduplicationEnabled policies for the specified topic",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Remove deduplication configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/delayedDelivery" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
@@ -8339,6 +8454,121 @@
           },
           "500" : {
             "description" : "Internal server error"
+          }
+        }
+      }
+    },
+    "/persistent/{tenant}/{namespace}/{topic}/deduplicationEnabled" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get deduplication configuration of a topic.",
+        "description" : "",
+        "operationId" : "getDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Set deduplication enabled on a topic.",
+        "description" : "",
+        "operationId" : "setDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "DeduplicationEnabled policies for the specified topic",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Remove deduplication configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeDeduplicationEnabled",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
           }
         }
       }
@@ -12324,11 +12554,21 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "loadReportType" : {
-          "type" : "string"
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -12338,27 +12578,17 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
+        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
           "type" : "boolean"
         },
-        "cpu" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
