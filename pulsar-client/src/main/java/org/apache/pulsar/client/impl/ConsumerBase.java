@@ -439,11 +439,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        if (txn != null) {
+        if (txn != null && (this instanceof ConsumerImpl)) {
             // it is okay that we register acked topic after sending the acknowledgements. because
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
-            txn.registerAckedTopic(getTopic());
+            txn.registerAckedTopic(getTopic(), subscription);
             // register the ackFuture as part of the transaction
             return txn.registerAckOp(ackFuture);
         } else {

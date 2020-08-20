@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,12 +34,22 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -50,6 +62,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -328,6 +341,88 @@ public class TransactionProduceTest extends TransactionTestBase {
             Assert.fail("Failed to get origin topic readonly cursor.");
             return null;
         }
+    }
+
+    @Test
+    public void ackCommitTest() throws Exception {
+        final String subscriptionName = "ackCommitTest";
+        Transaction txn = ((PulsarClientImpl) pulsarClient)
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        log.info("init transaction {}.", txn);
+
+        Producer<byte[]> incomingProducer = pulsarClient.newProducer()
+                .topic(TOPIC_OUTPUT)
+                .batchingMaxMessages(1)
+                .roundRobinRouterBatchingPartitionSwitchFrequency(1)
+                .create();
+        int incomingMessageCnt = 10;
+        for (int i = 0; i < incomingMessageCnt; i++) {
+            incomingProducer.newMessage().value("Hello Txn.".getBytes()).sendAsync();
+        }
+        log.info("prepare incoming messages finished.");
+
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(TOPIC_OUTPUT)
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < incomingMessageCnt; i++) {
+            Message<byte[]> message = consumer.receive();
+            log.info("receive messageId: {}", message.getMessageId());
+            consumer.acknowledgeAsync(message.getMessageId(), txn);
+        }
+
+        Thread.sleep(100);
+
+        int pendingAckCount = 0;
+        Class<PersistentSubscription> clazz = PersistentSubscription.class;
+        Field field = clazz.getDeclaredField("pendingAckMessages");
+        field.setAccessible(true);
+        for (PulsarService pulsarService : getPulsarServiceList()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+                if (key.startsWith("persistent://" + TOPIC_OUTPUT)) {
+                    PersistentSubscription subscription =
+                            (PersistentSubscription) pulsarService.getBrokerService()
+                                    .getTopics().get(key).get().get().getSubscription(subscriptionName);
+                    ConcurrentOpenHashSet<Position> set = (ConcurrentOpenHashSet<Position>) field.get(subscription);
+                    if (set != null) {
+                        pendingAckCount += set.size();
+                    }
+                }
+            }
+        }
+        System.out.println("pendingAckCount: " + pendingAckCount);
+
+        txn.commit().get();
+
+        Thread.sleep(3000);
+
+        pendingAckCount = 0;
+        for (PulsarService pulsarService : getPulsarServiceList()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+                if (key.startsWith("persistent://" + TOPIC_OUTPUT)) {
+                    PersistentSubscription subscription =
+                            (PersistentSubscription) pulsarService.getBrokerService()
+                                    .getTopics().get(key).get().get().getSubscription(subscriptionName);
+                    ConcurrentOpenHashSet<Position> set = (ConcurrentOpenHashSet<Position>) field.get(subscription);
+                    if (set != null) {
+                        pendingAckCount += set.size();
+                    }
+                }
+            }
+        }
+        System.out.println("after commit pendingAckCount: " + pendingAckCount);
+
+        for (int i = 0; i < incomingMessageCnt; i++) {
+            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNull(message);
+        }
+
+        log.info("finish test ackCommitTest");
     }
 
 }

@@ -1158,14 +1158,22 @@ public class PersistentSubscription implements Subscription {
         List<Position> positions = pendingAckMessagesMap != null ? this.pendingAckMessagesMap.remove(txnId).values() :
                                                                                              Collections.emptyList();
         // Materialize all single acks.
-        cursor.asyncDelete(positions, deleteCallback, positions);
-        if (pendingAckMessages != null) {
-            positions.forEach(position -> this.pendingAckMessages.remove(position));
+        if (positions != null) {
+            cursor.asyncDelete(positions, deleteCallback, positions);
+            if (pendingAckMessages != null) {
+                positions.forEach(position -> this.pendingAckMessages.remove(position));
+            }
+        } else {
+            deleteFuture.complete(null);
         }
 
         // Materialize cumulative ack.
-        cursor.asyncMarkDelete(this.pendingCumulativeAckMessage, (null == properties)?
-                Collections.emptyMap() : properties, markDeleteCallback, this.pendingCumulativeAckMessage);
+        if (this.pendingCumulativeAckMessage != null) {
+            cursor.asyncMarkDelete(this.pendingCumulativeAckMessage, (null == properties)?
+                    Collections.emptyMap() : properties, markDeleteCallback, this.pendingCumulativeAckMessage);
+        } else {
+            marketDeleteFuture.complete(null);
+        }
 
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
@@ -1203,8 +1211,8 @@ public class PersistentSubscription implements Subscription {
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
         POSITION_UPDATER.set(this, null);
-        dispatcher.redeliverUnacknowledgedMessages(consumer, (List<PositionImpl>)
-                                                                    (List<?>)pendingAckMessageForCurrentTxn.values());
+//        dispatcher.redeliverUnacknowledgedMessages(consumer, (List<PositionImpl>)
+//                                                                    (List<?>)pendingAckMessageForCurrentTxn.values());
         abortFuture.complete(null);
 
         return abortFuture;

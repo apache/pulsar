@@ -125,6 +125,11 @@ public interface TransactionCoordinatorClient extends Closeable {
      */
     CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions);
 
+    void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
+            throws TransactionCoordinatorClientException;
+
+    CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription);
+
     /**
      * Commit txn.
      * @param txnID txn id to commit.

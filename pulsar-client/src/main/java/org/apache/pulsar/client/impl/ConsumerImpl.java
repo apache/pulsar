@@ -537,7 +537,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
-            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
+            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties) && txnImpl == null) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] acknowledging message - {}, acktype {}", subscription, consumerName, messageId,
@@ -546,8 +546,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 if (conf.isBatchIndexAckEnabled()) {
                     BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-                    acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                            batchMessageId.getBatchSize(), ackType, properties);
+                    acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
+                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(), ackType, properties,
+                            txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
+                            txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
                 }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
@@ -751,7 +753,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties);
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties,
+                txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
+                txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
 
         // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
         // the messages will be re-delivered

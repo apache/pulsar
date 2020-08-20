@@ -207,12 +207,28 @@ public class TransactionMetadataStoreService {
 
     private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
+        List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
             if (throwable != null) {
                 resultFuture.completeExceptionally(throwable);
                 return;
             }
+
+            for (String ackedPartition : txnMeta.ackedPartitions()) {
+                String[] topicAndSub = ackedPartition.split("\\|");
+                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+                if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                    actionFuture = tbClient.commitTxnOnSubscription(
+                            topicAndSub[0], topicAndSub[1], txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                    actionFuture = tbClient.abortTxnOnSubscription(
+                            topicAndSub[0], topicAndSub[1], txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else {
+                    actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
+                }
+                completableFutureList.add(actionFuture);
+            }
+
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
@@ -222,10 +238,11 @@ public class TransactionMetadataStoreService {
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
-                commitFutureList.add(actionFuture);
+                completableFutureList.add(actionFuture);
             });
+
             try {
-                FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, waitThrowable) -> {
+                FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, waitThrowable) -> {
                     if (waitThrowable != null) {
                         resultFuture.completeExceptionally(waitThrowable);
                         return;

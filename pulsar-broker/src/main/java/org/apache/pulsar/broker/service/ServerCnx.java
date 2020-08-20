@@ -36,6 +36,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -69,6 +70,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -1740,7 +1742,53 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleEndTxnOnSubscription(PulsarApi.CommandEndTxnOnSubscription command) {
-        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+        final long requestId = command.getRequestId();
+        final long txnidMostBits = command.getTxnidMostBits();
+        final long txnidLeastBits = command.getTxnidLeastBits();
+        final String topic = command.getSubscription().getTopic();
+        final String subName = command.getSubscription().getSubscription();
+
+        service.getTopics().get(command.getSubscription().getTopic())
+            .thenAccept(optionalTopic -> {
+                if (!optionalTopic.isPresent()) {
+                    log.error("The topic {} is not exist in broker.", command.getSubscription().getTopic());
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "The topic " + topic + " is not exist in broker."));
+                    return;
+                }
+
+                Subscription subscription = optionalTopic.get().getSubscription(subName);
+                if (!(subscription instanceof PersistentSubscription)) {
+                    log.error("Transaction commit only support `PersistentSubscription`.");
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "Transaction commit only support `PersistentSubscription."));
+                    return;
+                }
+
+                TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                if (command.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
+                    completableFuture = ((PersistentSubscription) subscription).commitTxn(txnID, Collections.emptyMap());
+                } else {
+                    completableFuture = ((PersistentSubscription) subscription).abortTxn(txnID, null);
+                }
+                completableFuture.whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Handle end txn on subscription failed for request {}", requestId);
+                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                requestId, txnidLeastBits, txnidMostBits,
+                                ServerError.UnknownError,
+                                "Handle end txn on subscription failed."));
+                        return;
+                    }
+                    ctx.writeAndFlush(
+                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                });
+            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
@@ -1779,7 +1827,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response success for add published partition to txn request {}",
                                     command.getRequestId());
                         }
-                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         log.info("handle add partition to txn finish.");
                     } else {
@@ -1787,7 +1835,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response error for add published partition to txn request {}",
                                     command.getRequestId(), ex);
                         }
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                     }
