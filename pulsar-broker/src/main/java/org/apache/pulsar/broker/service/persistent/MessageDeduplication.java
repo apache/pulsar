@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -421,7 +422,11 @@ public class MessageDeduplication {
 
     private CompletableFuture<Boolean> isDeduplicationEnabled() {
         TopicName name = TopicName.get(topic.getName());
-
+        //Topic level setting has higher priority than namespace level
+        TopicPolicies topicPolicies = topic.getTopicPolicies(name);
+        if (topicPolicies != null && topicPolicies.isDeduplicationSet()) {
+            return CompletableFuture.completedFuture(topicPolicies.getDeduplicationEnabled());
+        }
         return pulsar.getConfigurationCache().policiesCache()
                 .getAsync(AdminResource.path(POLICIES, name.getNamespace())).thenApply(policies -> {
                     // If namespace policies have the field set, it will override the broker-level setting
