@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Kafka sink connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Kafka sink 连接器将消息从Pulsar主题中拖动，并保持消息 到 Kafka 。"/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Kafka sink connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Kafka sink 连接器将消息从Pulsar主题中拖动，并保持消息 到 Kafka 。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Kafka sink connector · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Kafka sink connector 从 Pulsar topic 中拉取消息，并将消息保存在 Kafka 中。"/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Kafka sink connector · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Kafka sink connector 从 Pulsar topic 中拉取消息，并将消息保存在 Kafka 中。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,28 +18,28 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Kafka sink connector</h1></header><article><div><span><p>Kafka sink 连接器将消息从Pulsar主题中拖动，并保持消息 到 Kafka 。</p>
-<p>本指南解释了如何配置和使用 Kafka sink 连接器。</p>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Kafka sink connector</h1></header><article><div><span><p>Kafka sink connector 从 Pulsar topic 中拉取消息，并将消息保存在 Kafka 中。</p>
+<p>本文将会介绍如何配置和使用 Kafka sink connector。</p>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
-<p>Kafka sink 连接器的配置有以下参数。</p>
+<p>可以为 Kafka sink connector 配置以下参数。</p>
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>类型</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>用逗号分隔的主机和港口对应列表来建立与 Kafka 集群的初始连接。</td></tr>
-<tr><td><code>acks</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>生产商要求领先在请求完成之前收到的确认书数目。 <br/>This controls the durability of the sent records.</td></tr>
-<tr><td><code>batchsize</code></td><td>long</td><td>false</td><td>16384L</td><td>Kafka 生产商试图将记录集中在一起，然后将记录发送给代理。</td></tr>
+<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>用于创建与 Kafka 集群进行初始连接的主机和接口对列表（以逗号分隔）。</td></tr>
+<tr><td><code>acks</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Producer 要求 leader 在请求完成前收到的确认数量。 <br/>This controls the durability of the sent records.</td></tr>
+<tr><td><code>batchsize</code></td><td>long</td><td>false</td><td>16384L</td><td>Kafka producer 将记录发送到 broker 前，整合批记录的批量大小。</td></tr>
 <tr><td><code>maxRequestSize</code></td><td>long</td><td>false</td><td>1048576L</td><td>Kafka 请求的最大字节大小。</td></tr>
-<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>Kafka 主题，它接收来自 Pulsar 的消息。</td></tr>
-<tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.StringSerializer</td><td>Kafka 生产者序列化密钥。</td></tr>
+<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>从 Pulsar 接收消息的 Kafka topic。</td></tr>
+<tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.StringSerializer</td><td>Kafka producer 用于序列化密钥的序列化器类。</td></tr>
 <tr><td><code>valueDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.ByteArraySerializer</td><td>The serializer class for Kafka producers to serialize values.<br/><br/>The serializer is set by a specific implementation of <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSink.java"><code>KafkaAbstractSink</code></a>.</td></tr>
-<tr><td><code>producerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; (空字符串)</td><td>要传递给生产者的生产者配置属性。 <br/><br/><strong>Note:  other properties specified in the connector configuration file take precedence over this configuration</strong>.</td></tr>
+<tr><td><code>producerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>要传递给 producer 的 producer 配置属性。 <br/><br/><strong>Note:  other properties specified in the connector configuration file take precedence over this configuration</strong>.</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
-<p>在使用 Kafka sink 连接器之前，需要通过以下方法之一创建一个配置文件。</p>
+<h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
+<p>使用 Kafka sink connector 前，需要先创建一个配置文件，创建方法有以下两种。</p>
 <ul>
 <li><p>JSON</p>
 <pre><code class="hljs css language-json">{
@@ -74,7 +74,7 @@
         <span class="hljs-attr">acks:</span> <span class="hljs-string">"all"</span>   
 </code></pre></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#example">Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#示例">示例</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -88,6 +88,7 @@
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

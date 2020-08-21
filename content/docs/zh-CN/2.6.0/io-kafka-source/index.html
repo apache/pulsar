@@ -25,23 +25,23 @@
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>类型</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>用逗号分隔的主机和港口对应列表来建立与 Kafka 集群的初始连接。</td></tr>
-<tr><td><code>groupId</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>一个独特的字符串来识别该消费者所属的消费者流程组。</td></tr>
+<tr><td><code>bootstrapServers</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>用于创建与 Kafka 集群进行初始连接的主机和接口对列表（以逗号分隔）。</td></tr>
+<tr><td><code>groupId</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>一个独特的字符串来识别该消费者所属的消费者流程组。</td></tr>
 <tr><td><code>fetchMinBytes</code></td><td>long</td><td>false</td><td>1</td><td>每个获取响应的最小字节。</td></tr>
 <tr><td><code>autoCommitEnabled</code></td><td>boolean</td><td>false</td><td>true</td><td>If set to true, the consumer's offset is periodically committed in the background.<br/><br/> This committed offset is used when the process fails as the position from which a new consumer begins.</td></tr>
 <tr><td><code>autoCommitIntervalMs</code></td><td>long</td><td>false</td><td>5000</td><td>如果 <code>autoCommitEnabled</code> 设置为 true，消费者偏移量自动提交的频率，以毫秒为单位。</td></tr>
 <tr><td><code>heartbeatIntervalMs</code></td><td>long</td><td>false</td><td>3000</td><td>使用 Kafka 组管理设施时，心跳与消费者之间的时间间隔。 <br/><br/><strong>Note: <code>heartbeatIntervalMs</code> must be smaller than <code>sessionTimeoutMs</code></strong>.</td></tr>
 <tr><td><code>sessionTimeoutMs</code></td><td>long</td><td>false</td><td>30000</td><td>The timeout used to detect consumer failures when using Kafka's group management facility.</td></tr>
-<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>发送消息给 Pulsar 的 Kafka 主题。</td></tr>
-<tr><td><code>consumerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; (空字符串)</td><td>要传递给消费者的消费者配置属性。 <br/><br/><strong>Note: other properties specified in the connector configuration file take precedence over this configuration</strong>.</td></tr>
-<tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>valueDeserializationClass</td><td>The deserializer class for Kafka consumers to deserialize keys.<br/> The deserializer is set by a specific implementation of <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaAbstractSource</code></a>.</td></tr>
+<tr><td><code>topic</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>发送消息给 Pulsar 的 Kafka 主题。</td></tr>
+<tr><td><code>consumerConfigProperties</code></td><td>Map</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>要传递给消费者的消费者配置属性。 <br/><br/><strong>Note: other properties specified in the connector configuration file take precedence over this configuration</strong>.</td></tr>
+<tr><td><code>keyDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.StringDeserializer</td><td>The deserializer class for Kafka consumers to deserialize keys.<br/> The deserializer is set by a specific implementation of <a href="https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java"><code>KafkaAbstractSource</code></a>.</td></tr>
 <tr><td><code>valueDeserializationClass</code></td><td>String</td><td>false</td><td>org.apache.kafka.common.serialization.ByteArrayDeserializer</td><td>Kafka 消费者反序列化价值。</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
 <p>在使用 Kafka 源连接器之前，您需要通过以下方法之一创建一个配置文件。</p>
 <ul>
 <li><p>JSON</p>
@@ -62,7 +62,7 @@
     <span class="hljs-attr">autoCommitEnabled:</span> <span class="hljs-literal">false</span>
 </code></pre></li>
 </ul>
-<h2><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h2>
+<h2><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h2>
 <p>下面是一个使用 Kafka 源连接器和前面显示的配置文件的例子。</p>
 <ol>
 <li><p>下载 Kafka 客户端和 Kafka 连接器。</p>
@@ -140,7 +140,7 @@ $ python3 kafka-producer.py
 <pre><code class="hljs css language-bash">Received message: <span class="hljs-string">'hello world'</span>
 </code></pre></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#example">Example</a></li></ul></li><li><a href="#usage">Usage</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#示例">示例</a></li></ul></li><li><a href="#用法">用法</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -154,6 +154,7 @@ $ python3 kafka-producer.py
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

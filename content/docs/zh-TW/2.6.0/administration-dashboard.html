@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar dashboard · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; Note Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](/docs/zh-TW/2.6.0/administration-pulsar-manager)."/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Pulsar dashboard · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&gt; Note Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](/docs/zh-TW/2.6.0/administration-pulsar-manager)."/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-TW"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar dashboard · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&gt; Note   "/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-TW"/><meta property="og:title" content="Pulsar dashboard · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&gt; Note   "/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -19,7 +19,8 @@
           }
         });
       </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-TW" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Pulsar dashboard</h1></header><article><div><span><blockquote>
-<p>Note Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use <a href="/docs/zh-TW/2.6.0/administration-pulsar-manager">Pulsar Manager</a>.</p>
+<p>Note<br>
+Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use <a href="/docs/zh-TW/2.6.0/administration-pulsar-manager">Pulsar Manager</a>.</p>
 </blockquote>
 <p>Pulsar dashboard is a web application that enables users to monitor current stats for all <a href="/docs/zh-TW/2.6.0/reference-terminology#topic">topics</a> in tabular form.</p>
 <p>The dashboard is a data collector that polls stats from all the brokers in a Pulsar instance (across multiple clusters) and stores all the information in a <a href="https://www.postgresql.org/">PostgreSQL</a> database.</p>
@@ -29,7 +30,7 @@
 <pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> SERVICE_URL=http://broker.example.com:8080/</span>
 <span class="hljs-meta">$</span><span class="bash"> docker run -p 80:80 \</span>
   -e SERVICE_URL=$SERVICE_URL \
-  apachepulsar/pulsar-dashboard:2.5.2
+  apachepulsar/pulsar-dashboard:2.6.1
 </code></pre>
 <p>You can find the <a href="https://github.com/apache/incubator-pulsar/tree/master//dashboard/Dockerfile"><code>Dockerfile</code></a>
  in the <code>dashboard</code> directory and build an image from scratch as well:</p>
@@ -71,6 +72,7 @@
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-TW/resources">Resources</a></li>' +
             '<li><a href="/zh-TW/team">Team</a></li>' +

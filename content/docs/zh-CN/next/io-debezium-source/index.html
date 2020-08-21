@@ -96,7 +96,7 @@
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mysql-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mysql-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.6.0</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -141,9 +141,9 @@
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>请确保 nar 文件可在 <code>connector/pulsar-io-debezium-mysql-2.6.0.nar</code> 上使用。</p>
+<p>请确保 nar 文件可在 <code>connector/pulsar-io-debezium-mysql-2.6.1.nar</code> 上使用。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mysql-2.6.0.nar \
+--archive connectors/pulsar-io-debezium-mysql-2.6.1.nar \
 --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
 --tenant public \
 --namespace default \
@@ -197,7 +197,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-postgres-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-postgres-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.6.0</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -228,9 +228,9 @@ $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.0.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-postgres-2.6.0.nar \
+--archive connectors/pulsar-io-debezium-postgres-2.6.1.nar \
 --name debezium-postgres-source \
 --destination-topic-name debezium-postgres-topic \
 --tenant public \
@@ -297,7 +297,7 @@ UPDATE 1
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mongodb-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mongodb-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.6.0</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -333,9 +333,9 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.6.0.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.6.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mongodb-2.6.0.nar \
+--archive connectors/pulsar-io-debezium-mongodb-2.6.1.nar \
 --name debezium-mongodb-source \
 --destination-topic-name debezium-mongodb-topic \
 --tenant public \

@@ -23,7 +23,7 @@
 <p>Debezium 源连接器的配置具有以下属性。</p>
 <table>
 <thead>
-<tr><th>Name</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
 <tr><td><code>task.class</code></td><td>true</td><td>null</td><td>A source task class that implemented in Debezium.</td></tr>
@@ -77,7 +77,7 @@
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mysql-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mysql-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.5.2</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -105,7 +105,7 @@
     <span class="hljs-attr">offset.storage.topic:</span> <span class="hljs-string">"offset-topic"</span>
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
+<h3><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 MySQL 的数据。</p>
 <ol>
 <li><p>以数据库启动 MySQL 服务器，Debezium 可以从数据库中捕获更改。</p>
@@ -122,9 +122,9 @@
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>请确保 nar 文件可在 <code>connector/pulsar-io-debezium-mysql-2.5.2.nar</code> 上使用。</p>
+<p>请确保 nar 文件可在 <code>connector/pulsar-io-debezium-mysql-2.6.1.nar</code> 上使用。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mysql-2.5.2.nar \
+--archive connectors/pulsar-io-debezium-mysql-2.6.1.nar \
 --name debezium-mysql-source --destination-topic-name debezium-mysql-topic \
 --tenant public \
 --namespace default \
@@ -178,7 +178,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-postgres-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-postgres-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.5.2</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -196,7 +196,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
     <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="usage-1"></a><a href="#usage-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
+<h3><a class="anchor" aria-hidden="true" id="用法-1"></a><a href="#用法-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>此示例显示如何使用 Pulsar Debezium 连接器更改 PostgreSQL 表的数据。</p>
 <ol>
 <li><p>以数据库启动一个 PostgreSQL 服务器，Debezium 可以从数据库捕获更改。</p>
@@ -209,9 +209,9 @@ $ docker run -d -it --rm --name pulsar-postgresql -p 5432:5432  debezium/example
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.5.2.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-postgres-2.5.2.nar \
+--archive connectors/pulsar-io-debezium-postgres-2.6.1.nar \
 --name debezium-postgres-source \
 --destination-topic-name debezium-postgres-topic \
 --tenant public \
@@ -278,7 +278,7 @@ UPDATE 1
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mongodb-source"</span>
 <span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mongodb-topic"</span>
-<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.5.2</span>.nar"</span>
+<span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.6.1</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
 <span class="hljs-attr">configs:</span>
@@ -295,7 +295,7 @@ UPDATE 1
     <span class="hljs-attr">pulsar.service.url:</span> <span class="hljs-string">"pulsar://127.0.0.1:6650"</span>
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="usage-2"></a><a href="#usage-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
+<h3><a class="anchor" aria-hidden="true" id="用法-2"></a><a href="#用法-2" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <p>This example shows how to change the data of a MongoDB table using the Pulsar Debezium connector.</p>
 <ol>
 <li><p>Start a MongoDB server with a database from which Debezium can capture changes.</p>
@@ -314,9 +314,9 @@ $ docker run -d -it --rm --name pulsar-mongodb -e MONGODB_USER=mongodb -e MONGOD
 <li><p>在本地运行模式中使用以下方法之一启动 Pulsar Debezium 连接器。</p>
 <ul>
 <li><p>使用前面显示的 <strong>JSON</strong> 配置文件。</p>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.5.2.nar</code>.</p>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-mongodb-2.6.1.nar</code>.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin <span class="hljs-built_in">source</span> localrun \
---archive connectors/pulsar-io-debezium-mongodb-2.5.2.nar \
+--archive connectors/pulsar-io-debezium-mongodb-2.6.1.nar \
 --name debezium-mongodb-source \
 --destination-topic-name debezium-mongodb-topic \
 --tenant public \
@@ -379,7 +379,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
 <p>If you encounter the above problems in synchronizing data, please refer to <a href="https://github.com/apache/pulsar/issues/4075">this</a> and add the following configuration to the configuration file:</p>
 <pre><code class="hljs css language-$xslt"><span class="hljs-built_in">max</span>.<span class="hljs-built_in">queue</span>.<span class="hljs-built_in">size</span>=
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#usage">Usage</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#usage-1">Usage</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#usage-2">Usage</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a></li><li><a href="#example-of-mysql">Example of MySQL</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li><li><a href="#postgresql-示例">PostgreSQL 示例</a><ul class="toc-headings"><li><a href="#configuration-2">Configuration</a></li><li><a href="#用法-1">用法</a></li></ul></li><li><a href="#example-of-mongodb">Example of MongoDB</a><ul class="toc-headings"><li><a href="#用法-2">用法</a></li></ul></li><li><a href="#faq">FAQ</a><ul class="toc-headings"><li><a href="#debezium-postgres-connector-will-hang-when-create-snap">Debezium postgres connector will hang when create snap</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -393,6 +393,7 @@ db.products.update({<span class="hljs-string">"_id"</span>:NumberLong(104)},{<sp
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

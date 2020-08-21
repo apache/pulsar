@@ -458,7 +458,7 @@ engine=innodb;
 <p>你可以使用 <a href="/docs/zh-TW/2.5.2/io-cli">Connector Admin CLI</a> 創建 sink 連接器並對其執行其它操作。</p>
 <p>This example creates a sink connector and specifies the desired information.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks create \
---archive ./connectors/pulsar-io-jdbc-2.6.0.nar \
+--archive ./connectors/pulsar-io-jdbc-2.6.1.nar \
 --inputs pulsar-mysql-jdbc-sink-topic \
 --name pulsar-mysql-jdbc-sink \
 --sink-config-file ./connectors/pulsar-mysql-jdbc-sink.yaml \
@@ -472,7 +472,7 @@ engine=innodb;
 <tr><th>Flag</th><th>Description</th><th>本範例</th></tr>
 </thead>
 <tbody>
-<tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.6.0.nar</em></td></tr>
+<tr><td><code>--archive</code></td><td>The path to the archive file for the sink.</td><td><em>pulsar-io-jdbc-2.6.1.nar</em></td></tr>
 <tr><td><code>--inputs</code></td><td>The input topic(s) of the sink. <br><br> Multiple topics can be specified as a comma-separated list.</td><td></td></tr>
 <tr><td><code>--name</code></td><td>sink 連結器的名稱。</td><td><em>pulsar-mysql-jdbc-sink</em></td></tr>
 <tr><td><code>--sink-config-file</code></td><td>指定配置 Pulsar Function 的 YAML 設定檔路徑。</td><td><em>pulsar-mysql-jdbc-sink.yaml</em></td></tr>

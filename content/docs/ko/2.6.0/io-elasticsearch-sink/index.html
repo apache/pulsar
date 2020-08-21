@@ -87,12 +87,12 @@
 <li><p>Start a Pulsar service locally in standalone mode.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.5.2.nar</code>.</p></li>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.6.1.nar</code>.</p></li>
 <li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
+    --archive connectors/pulsar-io-elastic-search-2.6.1.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -102,7 +102,7 @@
 </code></pre></li>
 <li><p>Use the <strong>YAML</strong> configuration file as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
+    --archive connectors/pulsar-io-elastic-search-2.6.1.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -141,6 +141,7 @@ You can see the record that published earlier has been successfully written into
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/ko/resources">Resources</a></li>' +
             '<li><a href="/ko/team">Team</a></li>' +

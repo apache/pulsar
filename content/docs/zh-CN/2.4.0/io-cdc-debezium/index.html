@@ -64,7 +64,7 @@
 }
 </code></pre>
 <p>另一个选择，你可以创建一个名为 <code>debezium-mysql-source-config.yaml</code>的文件，并复制如下的内容到<code>debezium-mysql-source-config.yaml</code>这个文件。</p></p>
-<pre><code class="hljs css language-$yaml tenant: &quot;public&quot; namespace: &quot;default&quot; name: &quot;debezium-mysql-source&quot; topicName: &quot;debezium-mysql-topic&quot; archive: &quot;connectors/pulsar-io-debezium-mysql-2.6.0.nar&quot;">
+<pre><code class="hljs css language-$yaml tenant: &quot;public&quot; namespace: &quot;default&quot; name: &quot;debezium-mysql-source&quot; topicName: &quot;debezium-mysql-topic&quot; archive: &quot;connectors/pulsar-io-debezium-mysql-2.6.1.nar&quot;">
 <span class="hljs-attribute">parallelism</span>: 1
 
 <span class="stata">configs: ## config <span class="hljs-keyword">for</span> mysql, docker image: debezium/example-mysql:0.8 database.hostname: <span class="hljs-string">"localhost"</span> database.port: <span class="hljs-string">"3306"</span> database.user: <span class="hljs-string">"debezium"</span> database.password: <span class="hljs-string">"dbz"</span> database.server.id: <span class="hljs-string">"184054"</span> database.server.name: <span class="hljs-string">"dbserver1"</span> database.whitelist: <span class="hljs-string">"inventory"</span>
@@ -150,7 +150,7 @@ tenant: <span class="hljs-string">"public"</span>
 namespace: <span class="hljs-string">"default"</span>
 name: <span class="hljs-string">"debezium-postgres-source"</span>
 topicName: <span class="hljs-string">"debezium-postgres-topic"</span>
-archive: <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-2.6.0.nar"</span>
+archive: <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-2.6.1.nar"</span>
 
 parallelism: 1
 
@@ -180,13 +180,13 @@ configs:
 ```
 </code></pre>
 <ol start="3">
-<li><p>Start the Pulsar Debezium connector in local run mode and use the JSON or YAML configuration file in the example above. Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.0.nar</code>.</p>
+<li><p>Start the Pulsar Debezium connector in local run mode and use the JSON or YAML configuration file in the example above. Make sure the nar file is available at <code>connectors/pulsar-io-debezium-postgres-2.6.1.nar</code>.</p>
 <pre><code class="hljs css language-$bash bin/pulsar-admin source localrun --source-config-file debezium-postgres-source-config.yaml">
 </code></pre></li>
 </ol>
 <p><br />Optionally, start Pulsar Debezium connector in local run mode and use the JSON config file in the example above.</p>
 <pre><code class="hljs">```$bash
-bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-postgres-2.6.0.nar --name debezium-postgres-source --destination-topic-name debezium-postgres-topic --tenant public --namespace default --source-config '{&quot;database.hostname&quot;: &quot;localhost&quot;,&quot;database.port&quot;: &quot;5432&quot;,&quot;database.user&quot;: &quot;postgres&quot;,&quot;database.password&quot;: &quot;postgres&quot;,&quot;database.dbname&quot;: &quot;postgres&quot;,&quot;database.server.name&quot;: &quot;dbserver1&quot;,&quot;schema.whitelist&quot;: &quot;inventory&quot;,&quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;}'
+bin/pulsar-admin source localrun --archive connectors/pulsar-io-debezium-postgres-2.6.1.nar --name debezium-postgres-source --destination-topic-name debezium-postgres-topic --tenant public --namespace default --source-config '{&quot;database.hostname&quot;: &quot;localhost&quot;,&quot;database.port&quot;: &quot;5432&quot;,&quot;database.user&quot;: &quot;postgres&quot;,&quot;database.password&quot;: &quot;postgres&quot;,&quot;database.dbname&quot;: &quot;postgres&quot;,&quot;database.server.name&quot;: &quot;dbserver1&quot;,&quot;schema.whitelist&quot;: &quot;inventory&quot;,&quot;pulsar.service.url&quot;: &quot;pulsar://127.0.0.1:6650&quot;}'
 ```
 </code></pre>
 <ol start="4">

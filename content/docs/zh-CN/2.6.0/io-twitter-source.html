@@ -24,13 +24,13 @@
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>类型</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>consumerKey</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>The twitter OAuth consumer key.<br><br>For more information, see <a href="https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens">Access tokens</a>.</td></tr>
-<tr><td><code>consumerSecret</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>Twitter OAuth 消费密钥。</td></tr>
-<tr><td><code>token</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>Twitter OAuth 令牌。</td></tr>
-<tr><td><code>tokenSecret</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>Twitter OAuth 密钥。</td></tr>
+<tr><td><code>consumerKey</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>The twitter OAuth consumer key.<br><br>For more information, see <a href="https://developer.twitter.com/en/docs/basics/authentication/guides/access-tokens">Access tokens</a>.</td></tr>
+<tr><td><code>consumerSecret</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Twitter OAuth 消费密钥。</td></tr>
+<tr><td><code>token</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Twitter OAuth 令牌。</td></tr>
+<tr><td><code>tokenSecret</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>Twitter OAuth 密钥。</td></tr>
 <tr><td><code>guestimateTweetTime</code></td><td>Boolean</td><td>false</td><td>false</td><td>Most firehose events have null createdAt time.<br><br>If <code>guestimateTweetTime</code> set to true, the connector estimates the createdTime of each firehose event to be current time.</td></tr>
 <tr><td><code>clientName</code></td><td>String</td><td>false</td><td>openconnector-twitter-source</td><td>Twitter firehose 客户端名称。</td></tr>
 <tr><td><code>clientHosts</code></td><td>String</td><td>false</td><td>Constants.STREAM_HOST</td><td>客户端连接的 twitter firehose 主机。</td></tr>
@@ -54,6 +54,7 @@
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

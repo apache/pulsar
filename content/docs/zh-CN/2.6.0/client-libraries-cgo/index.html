@@ -46,7 +46,7 @@
 <pre><code class="hljs css language-bash">$ go get -u github.com/apache/pulsar/pulsar-client-go/pulsar
 </code></pre>
 <p>Or you can use <a href="https://github.com/golang/dep">dep</a> for managing the dependencies.</p>
-<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.5.2
+<pre><code class="hljs css language-bash">$ dep ensure -add github.com/apache/pulsar/pulsar-client-go/pulsar@v2.6.1
 </code></pre>
 <p>Once installed locally, you can import it into your project:</p>
 <pre><code class="hljs css language-go"><span class="hljs-keyword">import</span> <span class="hljs-string">"github.com/apache/pulsar/pulsar-client-go/pulsar"</span>
@@ -86,7 +86,7 @@
 <p>The following configurable parameters are available for Pulsar clients:</p>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>URL</code></td><td style="text-align:left">The connection URL for the Pulsar cluster. See <a href="#urls">above</a> for more info</td><td style="text-align:left"></td></tr>
@@ -199,11 +199,11 @@ msg := pulsar.ProducerMessage{
 <h3><a class="anchor" aria-hidden="true" id="producer-配置"></a><a href="#producer-配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producer 配置</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#topic">topic</a> to which the producer will publish messages</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method.  如果明确指定了一个名称，那么它必须是在 <em>所有</em> Pulsar 集群中唯一的，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Name</code></td><td style="text-align:left">A name for the producer. If you don't explicitly assign a name, Pulsar will automatically generate a globally unique name that you can access later using the <code>Name()</code> method.  如果指定名称，则指定的名称必须在<em>所有</em> Pulsar 集群中唯一，否则创建操作将会抛出异常。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>属性</code></td><td style="text-align:left">Attach a set of application defined properties to the producer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SendTimeout</code></td><td style="text-align:left">When publishing a message to a topic, the producer will wait for an acknowledgment from the responsible Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#broker">broker</a>. If a message is not acknowledged within the threshold set by this parameter, an error will be thrown. If you set <code>SendTimeout</code> to -1, the timeout will be set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's <a href="/docs/zh-CN/2.6.0/cookbooks-deduplication">message de-duplication</a> feature.</td><td style="text-align:left">30 seconds</td></tr>
 <tr><td style="text-align:left"><code>MaxPendingMessages</code></td><td style="text-align:left">The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the <a href="/docs/zh-CN/2.6.0/reference-terminology#broker">broker</a>). By default, when the queue is full all calls to the <code>Send</code> and <code>SendAsync</code> methods will fail <em>unless</em> <code>BlockIfQueueFull</code> is set to <code>true</code>.</td><td style="text-align:left"></td></tr>
@@ -213,7 +213,7 @@ msg := pulsar.ProducerMessage{
 <tr><td style="text-align:left"><code>HashingScheme</code></td><td style="text-align:left">The hashing function that determines the partition on which a particular message is published (partitioned topics only). The available options are: <code>pulsar.JavaStringHash</code> (the equivalent of <code>String.hashCode()</code> in Java), <code>pulsar.Murmur3_32Hash</code> (applies the <a href="https://en.wikipedia.org/wiki/MurmurHash">Murmur3</a> hashing function), or <code>pulsar.BoostHash</code> (applies the hashing function from C++'s <a href="https://www.boost.org/doc/libs/1_62_0/doc/html/hash.html">Boost</a> library)</td><td style="text-align:left"><code>pulsar.JavaStringHash</code></td></tr>
 <tr><td style="text-align:left"><code>CompressionType</code></td><td style="text-align:left">The message data compression type used by the producer. The available options are <a href="https://github.com/lz4/lz4"><code>LZ4</code></a>, <a href="https://zlib.net/"><code>ZLIB</code></a>, <a href="https://facebook.github.io/zstd/"><code>ZSTD</code></a> and <a href="https://google.github.io/snappy/"><code>SNAPPY</code></a>.</td><td style="text-align:left">No compression</td></tr>
 <tr><td style="text-align:left"><code>MessageRouter</code></td><td style="text-align:left">By default, Pulsar uses a round-robin routing scheme for <a href="/docs/zh-CN/2.6.0/cookbooks-partitioned">partitioned topics</a>. The <code>MessageRouter</code> parameter enables you to specify custom routing logic via a function that takes the Pulsar message and topic metadata as an argument and returns an integer (where the ), i.e. a function signature of <code>func(Message, TopicMetadata) int</code>.</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>批处理</code></td><td style="text-align:left">是否允许自动批量接收消息。</td><td style="text-align:left">false</td></tr>
+<tr><td style="text-align:left"><code>批量处理</code></td><td style="text-align:left">是否允许自动批量接收消息。</td><td style="text-align:left">false</td></tr>
 <tr><td style="text-align:left"><code>BatchingMaxPublishDelay</code></td><td style="text-align:left">Set the time period within which the messages sent will be batched (default: 10ms) if batch messages are enabled. If set to a non zero value, messages will be queued until this time interval or until</td><td style="text-align:left">10ms</td></tr>
 <tr><td style="text-align:left"><code>BatchingMaxMessages</code></td><td style="text-align:left">Set the maximum number of messages permitted in a batch. (default: 1000) If set to a value greater than 1, messages will be queued until this threshold is reached or batch interval has elapsed</td><td style="text-align:left">1000</td></tr>
 </tbody>
@@ -263,7 +263,7 @@ consumer, err := client.Subscribe(consumerOpts)
 <tr><td style="text-align:left"><code>Receive(context.Context)</code></td><td style="text-align:left">Receives a single message from the topic. This method blocks until a message is available.</td><td style="text-align:left"><code>(Message, error)</code></td></tr>
 <tr><td style="text-align:left"><code>Ack(Message)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.6.0/reference-terminology#acknowledgment-ack">Acknowledges</a> a message to the Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#broker">broker</a></td><td style="text-align:left"><code>error</code></td></tr>
 <tr><td style="text-align:left"><code>AckID(MessageID)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.6.0/reference-terminology#acknowledgment-ack">Acknowledges</a> a message to the Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#broker">broker</a> by message ID</td><td style="text-align:left"><code>error</code></td></tr>
-<tr><td style="text-align:left"><code>AckCumulative(Message)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.6.0/reference-terminology#acknowledgment-ack">确认收到</a> 流中的 <em>所有</em> 消息，直到（包括）指定的消息为止。 The <code>AckCumulative</code> method will block until the ack has been sent to the broker. 然后，消息 <em>不会</em> 重新发送给消费者。 Cumulative acking can only be used with a <a href="/docs/zh-CN/2.6.0/concepts-messaging#shared">shared</a> subscription type.</td><td style="text-align:left"><code>error</code></td></tr>
+<tr><td style="text-align:left"><code>AckCumulative(Message)</code></td><td style="text-align:left"><a href="/docs/zh-CN/2.6.0/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止的<em>所有</em>消息，包括指定消息。 The <code>AckCumulative</code> method will block until the ack has been sent to the broker. 消息将<em>不会</em>重新发送给 consumer。 Cumulative acking can only be used with a <a href="/docs/zh-CN/2.6.0/concepts-messaging#shared">shared</a> subscription type.</td><td style="text-align:left"><code>error</code></td></tr>
 <tr><td style="text-align:left"><code>AckCumulativeID(MessageID)</code></td><td style="text-align:left">Ack the reception of all the messages in the stream up to (and including) the provided message. This method will block until the acknowledge has been sent to the broker. After that, the messages will not be re-delivered to this consumer.</td><td style="text-align:left">error</td></tr>
 <tr><td style="text-align:left"><code>Nack(Message)</code></td><td style="text-align:left">Acknowledge the failure to process a single message.</td><td style="text-align:left"><code>error</code></td></tr>
 <tr><td style="text-align:left"><code>NackID(MessageID)</code></td><td style="text-align:left">Acknowledge the failure to process a single message.</td><td style="text-align:left"><code>error</code></td></tr>
@@ -323,11 +323,11 @@ consumer, err := client.Subscribe(consumerOpts)
 <h3><a class="anchor" aria-hidden="true" id="consumer-configuration"></a><a href="#consumer-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#topic">topic</a> on which the consumer will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
-<tr><td style="text-align:left"><code>主题</code></td><td style="text-align:left">Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">Specify a list of topics this consumer will subscribe on. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>TopicsPattern</code></td><td style="text-align:left">Specify a regular expression to subscribe to multiple topics under the same namespace. Either a topic, a list of topics or a topics pattern are required when subscribing</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>SubscriptionName</code></td><td style="text-align:left">The subscription name for this consumer</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>属性</code></td><td style="text-align:left">Attach a set of application defined properties to the consumer. This properties will be visible in the topic stats</td><td style="text-align:left"></td></tr>
@@ -415,7 +415,7 @@ reader, err := client.CreateReader(pulsar.ReaderOptions{
 <h3><a class="anchor" aria-hidden="true" id="reader-configuration"></a><a href="#reader-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader configuration</h3>
 <table>
 <thead>
-<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">Default</th></tr>
+<tr><th style="text-align:left">Parameter</th><th style="text-align:left">Description</th><th style="text-align:left">默认值</th></tr>
 </thead>
 <tbody>
 <tr><td style="text-align:left"><code>Topic</code></td><td style="text-align:left">The Pulsar <a href="/docs/zh-CN/2.6.0/reference-terminology#topic">topic</a> on which the reader will establish a subscription and listen for messages</td><td style="text-align:left"></td></tr>
@@ -527,6 +527,7 @@ fmt.Println(s.Name) <span class="hljs-comment">// output: pulsar</span>
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

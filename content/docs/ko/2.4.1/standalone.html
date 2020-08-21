@@ -90,16 +90,16 @@
 <h3><a class="anchor" aria-hidden="true" id="binary-release를-이용한-pulsar-설치"></a><a href="#binary-release를-이용한-pulsar-설치" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Binary release를 이용한 Pulsar 설치</h3>
 <p>Pulsar를 시작하려면 다음 방법 중 하나로 바이너리 tarball 릴리스를 다운로드하십시오.</p>
 <ul>
-<li><p>apache mirror 에서 다운로드 (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz" download>Pulsar 2.6.0 binary release</a>)</p></li>
+<li><p>apache mirror 에서 다운로드 (<a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-2.6.1-bin.tar.gz" download>Pulsar 2.6.1 binary release</a>)</p></li>
 <li><p>pulsar <a href="/download">다운로드 페이지</a>에서 다운로드</p></li>
 <li><p>pulsar <a href="https://github.com/apache/pulsar/releases/latest">릴리스 페이지</a>에서 다운로드</p></li>
 <li><p><a href="https://www.gnu.org/software/wget">wget</a> 사용:</p></li>
 </ul>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-2.6.1-bin.tar.gz</span>
 </code></pre>
 <p>After you download the tarball, untar it and use the <code>cd</code> command to navigate to the resulting directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.6.0-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.6.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="what-your-package-contains"></a><a href="#what-your-package-contains" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>What your package contains</h4>
 <p>The Pulsar binary package initially contains the following directories:</p>
@@ -138,20 +138,20 @@ $ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
 <h3><a class="anchor" aria-hidden="true" id="빌트인-커넥터-설치-optional"></a><a href="#빌트인-커넥터-설치-optional" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>빌트인 커넥터 설치 (optional)</h3>
 <p>Pulsar는 <code>2.1.0-incubating</code> 릴리즈 이후, 모든 <code>builtin</code> 커넥터를 포함하는 별도의 바이너리 배포를 릴리즈합니다. 이러한 <code>빌트인</code> 커넥터를 활성화 하려면, 다음 방법 중 하나로 커넥터 tarball 릴리즈를 다운로드 할 수 있습니다.</p>
 <ul>
-<li><p>apache 미러 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors" download>Pulsar IO Connectors 2.6.0 release</a></p></li>
+<li><p>apache 미러 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.1/connectors" download>Pulsar IO Connectors 2.6.1 release</a></p></li>
 <li><p>pulsar <a href="/download">다운로드 페이지</a>에서 다운로드</p></li>
 <li><p>pulsar <a href="https://github.com/apache/pulsar/releases/latest">릴리스 페이지</a>에서 다운로드</p></li>
 <li><p><a href="https://www.gnu.org/software/wget">wget</a> 사용:</p></li>
 </ul>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors/{connector}-2.6.0.nar</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.1/connectors/{connector}-2.6.1.nar</span>
 </code></pre>
 <p>After you download the nar file, copy the file to the <code>connectors</code> directory in the pulsar directory.
-For example, if you download the <code>pulsar-io-aerospike-2.6.0.nar</code> connector file, enter the following commands:</p>
+For example, if you download the <code>pulsar-io-aerospike-2.6.1.nar</code> connector file, enter the following commands:</p>
 <pre><code class="hljs css language-bash">$ mkdir connectors
-$ mv pulsar-io-aerospike-2.6.0.nar connectors
+$ mv pulsar-io-aerospike-2.6.1.nar connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.6.0.nar
+pulsar-io-aerospike-2.6.1.nar
 ...
 </code></pre>
 <blockquote>
@@ -168,24 +168,24 @@ pulsar-io-aerospike-2.6.0.nar
 </blockquote>
 <p><a href="/docs/ko/2.4.1/concepts-tiered-storage">계층적 스토리지 오프로더</a>를 시작하려면, 다음중 한 방법으로 모든 브로커 노드에 오프로더 tarball 릴리즈를 다운로드 해야합니다:</p>
 <ul>
-<li><p>Apache 미러 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-offloaders-2.6.0-bin.tar.gz" download>Pulsar 계층적 스토리지 오프로더2.6.0 release</a></p></li>
+<li><p>Apache 미러 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-offloaders-2.6.1-bin.tar.gz" download>Pulsar 계층적 스토리지 오프로더2.6.1 release</a></p></li>
 <li><p>pulsar <a href="/download">다운로드 페이지</a>에서 다운로드</p></li>
 <li><p>pulsar <a href="https://github.com/apache/pulsar/releases/latest">릴리스 페이지</a>에서 다운로드</p></li>
 <li><p><a href="https://www.gnu.org/software/wget">wget</a> 사용:</p></li>
 </ul>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-offloaders-2.6.0-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">  $</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-offloaders-2.6.1-bin.tar.gz</span>
 </code></pre>
 <p>After you download the tarball, untar the offloaders package and copy the offloaders as <code>offloaders</code>
 in the pulsar directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.6.0-bin.tar.gz
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.6.1-bin.tar.gz
 
-// you will find a directory named `apache-pulsar-offloaders-2.6.0` <span class="hljs-keyword">in</span> the pulsar directory
+// you will find a directory named `apache-pulsar-offloaders-2.6.1` <span class="hljs-keyword">in</span> the pulsar directory
 // <span class="hljs-keyword">then</span> copy the offloaders
 
-$ mv apache-pulsar-offloaders-2.6.0/offloaders offloaders
+$ mv apache-pulsar-offloaders-2.6.1/offloaders offloaders
 
 $ ls offloaders
-tiered-storage-jcloud-2.6.0.nar
+tiered-storage-jcloud-2.6.1.nar
 </code></pre>
 <p>계층적 저장소 구성에 관한 자세한 정보는 <a href="/docs/ko/2.4.1/cookbooks-tiered-storage">Tiered storage cookbook</a>를 참고하십시오.</p>
 <blockquote>

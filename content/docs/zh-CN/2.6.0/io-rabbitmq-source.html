@@ -24,16 +24,16 @@
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>类型</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>connectionName</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>连接名称。</td></tr>
-<tr><td><code>host</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>RabbitMQ 主机。</td></tr>
+<tr><td><code>connectionName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接名称。</td></tr>
+<tr><td><code>host</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>RabbitMQ 主机。</td></tr>
 <tr><td><code>port</code></td><td>int</td><td>true</td><td>5672</td><td>RabbitMQ 港。</td></tr>
 <tr><td><code>virtualHost</code></td><td>String</td><td>true</td><td>/</td><td>虚拟主机用于连接到 RabbitMQ。</td></tr>
 <tr><td><code>username</code></td><td>String</td><td>false</td><td>guest</td><td>The username used to authenticate to RabbitMQ.</td></tr>
 <tr><td><code>password</code></td><td>String</td><td>false</td><td>guest</td><td>The password used to authenticate to RabbitMQ.</td></tr>
-<tr><td><code>queueName</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>消息应该读取或写到的 RabbitMQ 队列。</td></tr>
+<tr><td><code>queueName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>消息应该读取或写到的 RabbitMQ 队列。</td></tr>
 <tr><td><code>requestedChannelMax</code></td><td>int</td><td>false</td><td>0</td><td>初始请求的最大频道号码。 <br><br>0 意味着无限制。</td></tr>
 <tr><td><code>requestedFrameMax</code></td><td>int</td><td>false</td><td>0</td><td>最初请求的最大帧大小，以十点计。 <br><br>0 意味着无限制。</td></tr>
 <tr><td><code>connectionTimeout</code></td><td>int</td><td>false</td><td>60000</td><td>TCP 连接的超时时间（毫秒）。 <br><br>0 意味着无限值。</td></tr>
@@ -43,7 +43,7 @@
 <tr><td><code>prefetchGlobal</code></td><td>boolean</td><td>false</td><td>false</td><td>设置是否应用于整个频道而不是每个消费者。</td></tr>
 </tbody>
 </table>
-<h3><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h3>
+<h3><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h3>
 <p>在使用 RabbitMQ 源连接器之前，你需要通过以下方法之一创建一个配置文件。</p>
 <ul>
 <li><p>JSON</p>
@@ -82,7 +82,7 @@
     <span class="hljs-attr">prefetchGlobal:</span> <span class="hljs-string">"false"</span>
 </code></pre></li>
 </ul>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#example">Example</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li><li><a href="#示例">示例</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -96,6 +96,7 @@
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

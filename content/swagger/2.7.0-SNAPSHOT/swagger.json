@@ -6958,7 +6958,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -12554,9 +12554,6 @@
           "type" : "number",
           "format" : "double"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -12579,6 +12576,9 @@
           "format" : "double"
         },
         "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "underLoaded" : {
@@ -13742,11 +13742,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },

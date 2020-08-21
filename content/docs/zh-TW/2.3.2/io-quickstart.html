@@ -90,39 +90,39 @@
 <ul>
 <li><p>by clicking the link below and downloading the release from an Apache mirror:</p>
 <ul>
-<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz" download>Pulsar 2.6.0 binary release</a></li>
+<li><a href="https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-2.6.1-bin.tar.gz" download>Pulsar 2.6.1 binary release</a></li>
 </ul></li>
 <li><p>from the Pulsar <a href="/download">downloads page</a></p></li>
 <li><p>from the Pulsar <a href="https://github.com/apache/pulsar/releases/latest">releases page</a></p></li>
 <li><p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
-<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz</span>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.6.1/apache-pulsar-2.6.1-bin.tar.gz</span>
 </code></pre></li>
 </ul>
 <p>Once the tarball is downloaded, untar it and <code>cd</code> into the resulting directory:</p>
-<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.6.0-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.6.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="installing-builtin-connectors"></a><a href="#installing-builtin-connectors" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Installing Builtin Connectors</h2>
 <p>Since release <code>2.3.0</code>, Pulsar releases all the <code>builtin</code> connectors as individual archives. If you would like to enable those <code>builtin</code> connectors, you can download the connectors &quot;NAR&quot; archives and from the Pulsar <a href="/download">downloads page</a>.</p>
 <p>After downloading the desired builtin connectors, these archives should be places under the <code>connectors</code> directory where you have unpacked the Pulsar distribution.</p>
 <pre><code class="hljs css language-bash"><span class="hljs-comment"># Unpack regular Pulsar tarball and copy connectors NAR archives</span>
-$ tar xvfz /path/to/apache-pulsar-2.6.0-bin.tar.gz
-$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.0
+$ tar xvfz /path/to/apache-pulsar-2.6.1-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.6.1
 $ mkdir connectors
 $ cp -r /path/to/downloaded/connectors/*.nar ./connectors
 
 $ ls connectors
-pulsar-io-aerospike-2.6.0.nar
-pulsar-io-cassandra-2.6.0.nar
-pulsar-io-kafka-2.6.0.nar
-pulsar-io-kinesis-2.6.0.nar
-pulsar-io-rabbitmq-2.6.0.nar
-pulsar-io-twitter-2.6.0.nar
+pulsar-io-aerospike-2.6.1.nar
+pulsar-io-cassandra-2.6.1.nar
+pulsar-io-kafka-2.6.1.nar
+pulsar-io-kinesis-2.6.1.nar
+pulsar-io-rabbitmq-2.6.1.nar
+pulsar-io-twitter-2.6.1.nar
 ...
 </code></pre>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="提示-1"></a><a href="#提示-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>提示</h4>
-<p>You can also use the Docker image <code>apachepulsar/pulsar-all:2.6.0</code> which already comes with all the available builtin connectors.</p>
+<p>You can also use the Docker image <code>apachepulsar/pulsar-all:2.6.1</code> which already comes with all the available builtin connectors.</p>
 </blockquote>
 <h2><a class="anchor" aria-hidden="true" id="start-pulsar-service"></a><a href="#start-pulsar-service" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Start Pulsar Service</h2>
 <pre><code class="hljs css language-bash">bin/pulsar standalone

@@ -24,19 +24,19 @@
 <h3><a class="anchor" aria-hidden="true" id="属性"></a><a href="#属性" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>属性</h3>
 <table>
 <thead>
-<tr><th>Name</th><th>类型</th><th>Required</th><th>Default</th><th>Description</th></tr>
+<tr><th>Name</th><th>类型</th><th>Required</th><th>默认值</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>连接器要连接的elastic search集群的URL</td></tr>
-<tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; (空字符串)</td><td>连机器要写入消息的索引名</td></tr>
+<tr><td><code>elasticSearchUrl</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连接器要连接的elastic search集群的URL</td></tr>
+<tr><td><code>indexName</code></td><td>String</td><td>true</td><td>&quot; &quot;（空字符串）</td><td>连机器要写入消息的索引名</td></tr>
 <tr><td><code>typeName</code></td><td>String</td><td>false</td><td>&quot;_doc&quot;</td><td>The type name to which the connector writes messages to. <br><br> The value should be set explicitly to a valid type name other than &quot;_doc&quot; for Elasticsearch version before 6.2, and left to default otherwise.</td></tr>
 <tr><td><code>indexNumberOfShards</code></td><td>int</td><td>false</td><td>1</td><td>索引的分片数.</td></tr>
 <tr><td><code>indexNumberOfReplicas</code></td><td>int</td><td>false</td><td>1</td><td>索引的副本数.</td></tr>
-<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; (空字符串)</td><td>The username used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
-<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; (空字符串)</td><td>The password used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
+<tr><td><code>username</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The username used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
+<tr><td><code>password</code></td><td>String</td><td>false</td><td>&quot; &quot;（空字符串）</td><td>The password used by the connector to connect to the elastic search cluster. <br><br>If <code>username</code> is set, then <code>password</code> should also be provided.</td></tr>
 </tbody>
 </table>
-<h2><a class="anchor" aria-hidden="true" id="example"></a><a href="#example" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Example</h2>
+<h2><a class="anchor" aria-hidden="true" id="示例"></a><a href="#示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>示例</h2>
 <p>再使用ElasticSearch sink 连接器之前，您需要通过以下方法之一创建一个配置文件。</p>
 <h3><a class="anchor" aria-hidden="true" id="configuration-1"></a><a href="#configuration-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h3>
 <h4><a class="anchor" aria-hidden="true" id="for-elasticsearch-after-62"></a><a href="#for-elasticsearch-after-62" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>For Elasticsearch After 6.2</h4>
@@ -77,7 +77,7 @@
     <span class="hljs-attr">password:</span> <span class="hljs-string">"doobie"</span>
 </code></pre></li>
 </ul>
-<h3><a class="anchor" aria-hidden="true" id="usage"></a><a href="#usage" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Usage</h3>
+<h3><a class="anchor" aria-hidden="true" id="用法"></a><a href="#用法" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>用法</h3>
 <ol>
 <li><p>Start a single node Elasticsearch cluster.</p>
 <pre><code class="hljs css language-bash">$ docker run -p 9200:9200 -p 9300:9300 \
@@ -87,12 +87,12 @@
 <li><p>以独立模式启动本地的 Pulsar 服务。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar standalone
 </code></pre>
-<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.5.2.nar</code>.</p></li>
+<p>Make sure the nar file is available at <code>connectors/pulsar-io-elastic-search-2.6.1.nar</code>.</p></li>
 <li><p>Start the Pulsar Elasticsearch connector in local run mode using one of the following methods.</p>
 <ul>
 <li><p>Use the <strong>JSON</strong> configuration as shown previously.</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
+    --archive connectors/pulsar-io-elastic-search-2.6.1.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -102,7 +102,7 @@
 </code></pre></li>
 <li><p>使用前面显示的 <strong>YAML</strong> 配置文件。</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-admin sinks localrun \
-    --archive connectors/pulsar-io-elastic-search-2.5.2.nar \
+    --archive connectors/pulsar-io-elastic-search-2.6.1.nar \
     --tenant public \
     --namespace default \
     --name elasticsearch-test-sink \
@@ -127,7 +127,7 @@ You can see the record that published earlier has been successfully written into
 </code></pre></li>
 </ul></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li></ul></li><li><a href="#example">Example</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#usage">Usage</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#属性">属性</a></li></ul></li><li><a href="#示例">示例</a><ul class="toc-headings"><li><a href="#configuration-1">Configuration</a></li><li><a href="#用法">用法</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
@@ -141,6 +141,7 @@ You can see the record that published earlier has been successfully written into
             '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
             '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
             '<li>&nbsp;</li>' +
             '<li><a href="/zh-CN/resources">Resources</a></li>' +
             '<li><a href="/zh-CN/team">Team</a></li>' +

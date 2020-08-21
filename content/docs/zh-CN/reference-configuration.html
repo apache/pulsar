@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar configuration · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.6.0"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar configuration · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Pulsar configuration · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="docsearch:version" content="2.6.1"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Pulsar configuration · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="&lt;style type=&quot;text/css&quot;&gt;"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -6,7 +6,7 @@
 
               ga('create', 'UA-102219959-1', 'auto');
               ga('send', 'pageview');
-            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.0</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-configuration">English</a></li><li><a href="/docs/ja/reference-configuration">日本語</a></li><li><a href="/docs/fr/reference-configuration">Français</a></li><li><a href="/docs/ko/reference-configuration">한국어</a></li><li><a href="/docs/zh-TW/reference-configuration">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>2.6.1</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive"><a href="/docs/zh-CN/standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">Cli</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/reference-configuration">English</a></li><li><a href="/docs/ja/reference-configuration">日本語</a></li><li><a href="/docs/fr/reference-configuration">Français</a></li><li><a href="/docs/ko/reference-configuration">한국어</a></li><li><a href="/docs/zh-TW/reference-configuration">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
         const languagesMenuItem = document.getElementById("languages-menu");
         const languagesDropDown = document.getElementById("languages-dropdown");
         languagesMenuItem.addEventListener("click", function(event) {
@@ -18,7 +18,7 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>参考</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-tiered-storage">Tiered Storage</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>参考</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get started</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/pulsar-2.0">Pulsar 2.0</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/standalone-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/kubernetes-helm">Run Pulsar in Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries">Use Pulsar with client libraries</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-messaging">Messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-architecture-overview">Architecture</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-clients">Clients</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-replication">Geo Replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-multi-tenancy">Multi Tenancy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-authentication">Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-topic-compaction">Topic Compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/concepts-proxy-sni-routing">Proxy support with SNI routing</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-get-started">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-understand">Understand schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-evolution-compatibility">Schema evolution and compatibility</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/schema-manage">Manage schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-worker">Setup: Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-runtime">Setup: Configure Functions runtime</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-develop">How-to: Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-debug">How-to: Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-deploy">How-to: Deploy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/functions-cli">Reference: CLI</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/window-functions-context">Window Functions: Context</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-quickstart">Get started</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-use">Use</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-debug">Debug</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-connectors">Built-in connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-develop">Develop</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-getting-started">Query data</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-deployment-configurations">Configuration and deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/sql-rest-api">REST APIs</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-prepare">Prepare</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-install">Install</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-deploy">Deployment</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-upgrade">Upgrade</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/helm-tools">Required Tools</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-aws">Amazon Web Services</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal">Bare metal</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-bare-metal-multi-cluster">Bare metal multi-cluster</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-dcos">DC/OS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/deploy-monitoring">Monitoring</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-zk-bk">ZooKeeper and BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-geo">Geo-replication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-stats">Pulsar statistics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-load-balance">Load balance</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-proxy">Pulsar proxy</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/administration-upgrade">Upgrade</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-transport">Transport Encryption using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-authentication">Authentication using TLS</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-tls-keystore">Using TLS with KeyStore configure</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-jwt">Authentication using JWT</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-athenz">Authentication using Athenz</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-kerberos">Authentication using Kerberos</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-oauth2">Authentication using OAuth 2.0 access tokens</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-authorization">Authorization and ACLs</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-encryption">End-to-End Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-extending">Extending</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/performance-pulsar-perf">Pulsar Perf</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-node">Node.js</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/client-libraries-dotnet">C#</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-overview">Overview</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-clusters">Clusters</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-tenants">Tenants</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-namespaces">Namespaces</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-permissions">Permissions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-persistent-topics">Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-non-persistent-topics">Non-Persistent topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-partitioned-topics">Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-non-partitioned-topics">Non-Partitioned topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-schemas">Schemas</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/admin-api-functions">Functions</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-kafka">Kafka client wrapper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-tiered-storage">Tiered Storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-deduplication">Message deduplication</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-non-persistent">Non-persistent messaging</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-partitioned">Partitioned Topics</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-retention-expiry">Message retention and expiry</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-encryption">Encryption</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-message-queue">Message queue</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/cookbooks-bookkeepermetadata">BookKeeper Ledger Metadata</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-tools">Simulation tools</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-schema">Custom schema storage</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-load-manager">Modular load manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/develop-cpp">Building Pulsar C++ client</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-terminology">Terminology</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-cli-tools">Pulsar CLI tools</a></li><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
             var coll = document.getElementsByClassName('collapsible');
             var checkActiveCategory = true;
             for (var i = 0; i < coll.length; i++) {
@@ -185,19 +185,906 @@
   </tr>
   <tr>
     <td>
-      advertisedListeners
+      enablePersistentTopics
     </td>
 <pre><code class="hljs">&lt;td&gt;
-  Specify multiple advertised listeners for the broker.&lt;br&gt;&lt;br&gt;The format is &lt;code&gt;&amp;lt;listener_name&amp;gt;:pulsar://&amp;lt;host&amp;gt;:&amp;lt;port&amp;gt;&lt;/code&gt;.&lt;br&gt;&lt;br&gt;If there are multiple listeners, separate them with commas.&lt;br&gt;&lt;br&gt;&lt;strong x-id=&quot;1&quot;&gt;Note&lt;/strong&gt;: do not use this configuration with &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;. If the value of this configuration is empty, the broker uses &lt;code&gt;advertisedAddress&lt;/code&gt; and &lt;code&gt;brokerServicePort&lt;/code&gt;
+  Whether persistent topics are enabled on the broker
 &lt;/td&gt;
 
 &lt;td&gt;
-  /
+  true
 &lt;/td&gt;
 </code></pre>
   </tr>
-</table> internalListenerName|Specify the internal listener name for the broker.<br><br>
-<p><strong>Note</strong>: the listener name must be contained in <code>advertisedListeners</code>.<br><br> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/| |enablePersistentTopics|  Whether persistent topics are enabled on the broker |true| |enableNonPersistentTopics| Whether non-persistent topics are enabled on the broker |true| |functionsWorkerEnabled|  Whether the Pulsar Functions worker service is enabled in the broker  |false| |zookeeperServers|  Zookeeper quorum connection string  || |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300 |configurationStoreServers| Configuration store connection string (as a comma-separated list) || |brokerServicePort| Broker data port  |6650| |brokerServicePortTls|  Broker data port for TLS  |6651| |webServicePort|  Port to use to server HTTP request  |8080| |webServicePortTls| Port to use to server HTTPS request |8443| |webSocketServiceEnabled| Enable the WebSocket API service in broker  |false| |bindAddress| Hostname or IP address the service binds on, default is 0.0.0.0.  |0.0.0.0| |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.  || |clusterName| Name of the cluster to which this broker belongs to || |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false| |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000| |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000| |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360| |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message dispatch-throttling| 0 | |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of <code>0</code> means disabling replication message-byte dispatch-throttling| 0 | |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000| |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000| |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false| |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true| |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60| |backlogQuotaDefaultLimitGB| The default per-topic backlog quota limit | -1 | |allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true| |allowAutoTopicCreationType| The topic type (partitioned or non-partitioned) that is allowed to be automatically created. |Partitioned| |allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true| |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if <code>allowAutoTopicCreationType</code> is partitioned |1| |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics  |true| |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60| | brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> <code>delete_when_no_subscriptions</code>: 删除没有订阅或活动生产者的主题。 <li> <code>delete_when_subscriptions_caught_up</code>: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. | <code>delete_when_no_subscriptions</code> | | brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the <code>brokerDeleteInactiveTopicsFrequencySeconds</code> parameter is adopted. | N/A | |messageExpiryCheckIntervalInMinutes| 主动检查与清除过期消息的频率  |5| |brokerServiceCompactionMonitorIntervalInSeconds| 检查带压缩策略的主题是否需要压缩的时间间隔  |60| |activeConsumerFailoverDelayTimeMillis| 当活动消费者更换时，执行游标倒转和消息派发的延迟时间。  |1000| |clientLibraryVersionCheckEnabled| 启用客户端库版本最低要求检查 |false| |clientLibraryVersionCheckAllowUnversioned| 允许无版本信息的客户端库 |true| |statusFilePath| broker 响应发现服务健康检查时用于决定 rotation 状态的文件路径 || |preferLaterVersions| 如果为 true，(且启用了 ModularLoadManagerImpl)，载入管理器会尝试仅使用运行最新软件版本的 broker（来最小化对 bundle 的影响） |false| |maxNumPartitionsPerPartitionedTopic| 每个分区主题的最大分区数。 使用 0 或负数来禁用检查 |0| |tlsEnabled| 启用 TLS |false| |tlsCertificateFilePath| TLS 证书文件路径 || |tlsKeyFilePath|  TLS 私钥文件路径 || |tlsTrustCertsFilePath| 信任的 TLS 证书文件路径 || |tlsAllowInsecureConnection| 接受来自客户端的不信任 TLS 证书 |false| |tlsProtocols| 指定 broker 在 TLS 握手时使用的协议。 Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code> || |tlsCiphers|Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code>|| |tlsEnabledWithKeyStore| Enable TLS with KeyStore type configuration in broker |false| |tlsProvider| TLS Provider for KeyStore type || |tlsKeyStoreType| LS KeyStore type configuration in broker: JKS, PKCS12 |JKS| |tlsKeyStore| TLS KeyStore path in broker || |tlsKeyStorePassword| TLS KeyStore password for broker || |brokerClientTlsEnabledWithKeyStore| Whether internal client use KeyStore type to authenticate with Pulsar brokers |false| |brokerClientSslProvider| The TLS Provider used by internal client to authenticate with other Pulsar brokers || |brokerClientTlsTrustStoreType| TLS TrustStore type configuration for internal client: JKS, PKCS12, used by the internal client to authenticate with Pulsar brokers |JKS| |brokerClientTlsTrustStore| TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers || |brokerClientTlsTrustStorePassword| TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers || |brokerClientTlsCiphers| Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (一个逗号分隔的密码列表) 例如：[TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]|| |brokerClientTlsProtocols| 指定 TLS 握手期间 broker 使用的 tls 协议。 (逗号分隔的协议名称列表)。 例如：[TLSv1.2, TLSv1.1, TLSv1] || |ttlDurationDefaultInSeconds| 命名空间的默认 ttl（当命名空间策略中未配置 ttl 时）。  |0| |tokenSecretKey| 配置用于验证认证令牌的密钥。 The key can be specified like: <code>tokenSecretKey=data:;base64,xxxxxxxxx</code> or <code>tokenSecretKey=file:///my/secret.key</code>|| |tokenPublicKey| Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code>|| |tokenPublicAlg| Configure the algorithm to be used to validate auth tokens. 这可以是Java JWT 支持的任意一种非对称算法 (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>) |RS256| |tokenAuthClaim| Specify which of the token's claims will be used as the authentication &quot;principal&quot; or &quot;role&quot;. 如果这里留空，则默认的&quot;sub&quot; claim 会被使用 || |tokenAudienceClaim| 令牌受众的 &quot;claim&quot; 名称，比如&quot;aud&quot;会用于从令牌获取受众。 If not set, audience will not be verified. || |tokenAudience| 该 broker 的令牌受众。 The field <code>tokenAudienceClaim</code> of a valid token, need contains this. || |maxUnackedMessagesPerConsumer| 消费者在共享订阅上接收消息时允许的未确认消息最大数量。 Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. 使用 0 值，禁用 unackeMessage 限制检查，消费者可以不受任何限制地接收消息 |50000| |maxUnackedMessagesPersubscription| 每个共享订阅允许的未确认消息的最大数量。 Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. 使用 0 值，禁用 unackedMessage-limit 检查且调度器可以不受任何限制地发送消息 |200000| |subscriptionRedeliveryTrackerEnabled| 启用订阅消息重送跟踪 |true| subscriptionExpirationTimeMinutes | 删除上次消费后非活动订阅的时间。 <br/><br/>Setting this configuration to a value <strong>greater than 0</strong> deletes inactive subscriptions automatically.<br/>Setting this configuration to <strong>0</strong> does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each <strong>namespace</strong> using the <a href="http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-"><code>pulsar-admin namespaces set-subscription-expiration-time options</code> command</a>. | 0 | |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000| |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000| |authenticationEnabled| Enable authentication |false| |authenticationProviders| Autentication provider name list, which is comma separated list of class names  || |authorizationEnabled|  Enforce authorization |false| |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics || |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. 当 broker 连接到其它 broker 时使用，不管是相同集群还是其它集群中的  || |brokerClientAuthenticationParameters||| |athenzDomainNames| 用于认证的受支持的 Athenz 提供者域名(逗号分隔) || |exposePreciseBacklogInPrometheus| 暴露出精确的积压统计信息，设置为 false 来使用 published counter 和 consumed counter 来进行计算，这样更高效但可能会有误差。 |false| |bookkeeperMetadataServiceUri| bookkeeper 用来载入相应元数据驱动及解析其元数据服务位置的元数据服务 uri。 This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. 例如： <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>。 元数据服务 uri 列表也可以是一个分号间隔的值，如下所示： <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers || |bookkeeperClientAuthenticationPlugin| 连接到 bookies 时使用的认证插件 || |bookkeeperClientAuthenticationParametersName|  BookKeeper 认证插件的实现指定的名字与值  || |bookkeeperClientAuthenticationParameters||| |bookkeeperClientTimeoutInSeconds| BookKeeper 添加与读取操作的超时时间  |30| |bookkeeperClientSpeculativeReadTimeoutInMillis|  当一个读请求无法在一定时间内完成时启用 speculative 读取。采用 0 值时，禁用 speculative 读取。 |0| |bookkeeperClientHealthCheckEnabled| 启用 bookie 健康检查。 Bookies that have more than the configured number of failure within the interval will be quarantined for some time. 在此期间，这些 bookies 上不会创建新的 ledger  |true| |bookkeeperClientHealthCheckIntervalSeconds||60| |bookkeeperClientHealthCheckErrorThresholdPerInterval||5| |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800| |bookkeeperClientRackawarePolicyEnabled|  启用 rack-aware bookie 选择政策。 当生成新的 bookie ensemble 时 BK 会从不同的 rack 中选取 bookie |true| |bookkeeperClientRegionawarePolicyEnabled| 启用 region-aware bookie 选择政策。 BK will chose bookies from different regions and racks when forming a new bookie ensemble. 如果启用，bookkeeperClientRackawarePolicyEnabled 属性的值会被忽略  |false| |bookkeeperClientReorderReadSequenceEnabled| 启用/禁用读取条目的读取序列重排序。  |false| |bookkeeperClientIsolationGroups| 通过指定一个要选择的 bookie 组列表来启用 bookie 隔离。 指定组外的任何 bookie 都不会被 broker 使用 || |bookkeeperClientSecondaryIsolationGroups| 当 bookkeeperClientIsolationGroups 没有足够多的可用 bookie 时启用 bookie 的 secondary-isolation 组。  || |bookkeeperClientMinAvailableBookiesInIsolationGroups| bookkeeperClientIsolationGroups 中应可用的最少 bookie 数，否则 broker 会将 bookkeeperClientSecondaryIsolationGroups 的 bookie 囊括在隔离列表中。  || |bookkeeperClientGetBookieInfoIntervalSeconds| 设置定期查询 bookie 信息的间隔 |86400| |bookkeeperClientGetBookieInfoRetryIntervalSeconds| 设置当查询 bookie 信息失败后的重试间隔 |60| |bookkeeperEnableStickyReads | 启用/禁用 使对一个 ledger 的读请求变得与单个 broker 粘滞（sticky）。 If this flag is enabled, the client will use one single bookie (by preference) to read  all entries for a ledger. | true | |managedLedgerDefaultEnsembleSize| 当创建一个 ledger 时使用的 bookie 数量 |2| |managedLedgerDefaultWriteQuorum| 每个消息存储的拷贝数量 |2| |managedLedgerDefaultAckQuorum| 得到保证的拷贝数量 (写操作完成前需要等待的 ack) |2| |managedLedgerCacheSizeMB| 在托管的 ledger 中用于缓存数据负载的内存大小。 This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. 默认地，使用可用的直接内存的 1/5 || |managedLedgerCacheCopyEntries| 当插入缓存时是否应该创建条目负载的拷贝 | false| |managedLedgerCacheEvictionWatermark| 当驱逐触发时降低缓存等级的阈值 |0.9| |managedLedgerCacheEvictionFrequency| 为托管的 ledger 缓存配置缓存驱逐频率 (驱逐/秒) | 100.0 | |managedLedgerCacheEvictionTimeThresholdMillis| 所有在缓存中停留超过配置时长的条目会被驱逐 | 1000 | |managedLedgerCursorBackloggedThreshold| 设置当游标应被当作“积压的” 且应被设置为非活动的阈值 (以条目数为单位)。 | 1000| |managedLedgerDefaultMarkDeleteRateLimit| 限制由消费者确认消息产生的每秒写入频率  |1.0| |managedLedgerMaxEntriesPerLedger| 在触发倒转前追加至 ledger 的最大条目数。 A ledger rollover is triggered on these conditions: <ul><li>Either the max rollover time has been reached</li><li>or max entries have been written to the ledged and at least min-time has passed</li></ul>|50000| |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10| |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240| |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000| |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400| |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000| |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false| |loadBalancerEnabled| Enable load balancer  |true| |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection || |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10| |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15| |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1| |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30| |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30| |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000| |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1| |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85| |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15| |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65| |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false| |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100| |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128| |replicationMetricsEnabled| Enable replication metrics  |true| |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16| |replicationProducerQueueSize|  Replicator producer queue size  |1000| |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl|| |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false| |defaultRetentionTimeInMinutes| Default message retention time  || |defaultRetentionSizeInMB|  Default retention size  |0| |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30| |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl| |supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]| |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide| |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  || |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2| |managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true| |managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000| |managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)| |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  || |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into || |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) || |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (默认为 64MB，最小 5MB) |67108864| |s3ManagedLedgerOffloadReadBufferSizeInBytes| 对于 Amazon S3 ledger 卸载，以字节计的读缓存大小 (默认为 1MB)  |1048576| |s3ManagedLedgerOffloadRole| 对于 Amazon S3 ledger 卸载，在写入 s3 前提供一个假定角色 || |s3ManagedLedgerOffloadRoleSessionName| 对于 Amazon S3 ledger 卸载，当使用一个角色时提供一个角色会话名 |pulsar-s3-offload| | acknowledgmentAtBatchIndexLevelEnabled | 启用或禁用批量下标确认。 | false | | maxMessageSize | 设置消息的最大大小。 | 5 MB | | preciseTopicPublishRateLimiterEnable | 启用精确主题发布率限制。 | false |</p>
+  <tr>
+    <td>
+      enableNonPersistentTopics
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether non-persistent topics are enabled on the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      functionsWorkerEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether the Pulsar Functions worker service is enabled in the broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zookeeperServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper quorum connection string
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperCacheExpirySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  ZooKeeper 缓存过期时间（秒）
+&lt;/td&gt;
+
+&lt;td&gt;
+  300
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      configurationStoreServers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  配置存储连接字符串（以逗号分隔的列表）
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port
+&lt;/td&gt;
+
+&lt;td&gt;
+  6650
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Broker data port for TLS
+&lt;/td&gt;
+
+&lt;td&gt;
+  6651
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePort
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTP request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8080
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webServicePortTls
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Port to use to server HTTPS request
+&lt;/td&gt;
+
+&lt;td&gt;
+  8443
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      webSocketServiceEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the WebSocket API service in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      bindAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service binds on, default is 0.0.0.0.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0.0.0.0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      advertisedAddress
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Hostname or IP address the service advertises to the outside world. If not set, the value of &lt;code&gt;InetAddress.getLocalHost().getHostName()&lt;/code&gt; is used.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clusterName
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Name of the cluster to which this broker belongs to
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationMaxNumberOfProducers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The maximum number of producers for which information will be stored for deduplication purposes.
+&lt;/td&gt;
+
+&lt;td&gt;
+  10000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationEntriesInterval
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+&lt;/td&gt;
+
+&lt;td&gt;
+  1000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeduplicationProducerInactivityTimeoutMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
+&lt;/td&gt;
+
+&lt;td&gt;
+  360
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInMsg
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default messages per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      dispatchThrottlingRatePerReplicatorInByte
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default bytes per second dispatch throttling-limit for every replicator in replication. The value of &lt;code&gt;0&lt;/code&gt; means disabling replication message-byte dispatch-throttling
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      zooKeeperSessionTimeoutMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Zookeeper session timeout in milliseconds
+&lt;/td&gt;
+
+&lt;td&gt;
+  30000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerShutdownTimeoutMs
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Time to wait for broker graceful shutdown. After this time elapses, the process will be killed
+&lt;/td&gt;
+
+&lt;td&gt;
+  60000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      skipBrokerShutdownOnOOM
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Flag to skip broker shutdown when broker handles Out of memory error.
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable backlog quota check. Enforces action on topic when the quota is reached
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaCheckIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for topics that have reached the quota
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      backlogQuotaDefaultLimitGB
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default per-topic backlog quota limit
+&lt;/td&gt;
+
+&lt;td&gt;
+  -1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable topic auto creation if a new producer or consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoTopicCreationType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The topic type (partitioned or non-partitioned) that is allowed to be automatically created.
+&lt;/td&gt;
+
+&lt;td&gt;
+  Partitioned
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      allowAutoSubscriptionCreation
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable subscription auto creation if a new consumer connected
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      defaultNumPartitions
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The number of partitioned topics that is allowed to be automatically created if &lt;code&gt;allowAutoTopicCreationType&lt;/code&gt; is partitioned
+&lt;/td&gt;
+
+&lt;td&gt;
+  1
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable the deletion of inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsFrequencySeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How often to check for inactive topics
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMode
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the mode to delete inactive topics. &lt;li&gt; &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;: 删除没有订阅或活动生产者的主题。 &lt;li&gt; &lt;code&gt;delete_when_subscriptions_caught_up&lt;/code&gt;: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers.
+&lt;/td&gt;
+
+&lt;td&gt;
+  &lt;code&gt;delete_when_no_subscriptions&lt;/code&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerDeleteInactiveTopicsMaxInactiveDurationSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Set the maximum duration for inactive topics. If it is not specified, the &lt;code&gt;brokerDeleteInactiveTopicsFrequencySeconds&lt;/code&gt; parameter is adopted.
+&lt;/td&gt;
+
+&lt;td&gt;
+  N/A
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      messageExpiryCheckIntervalInMinutes
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How frequently to proactively check and purge expired messages
+&lt;/td&gt;
+
+&lt;td&gt;
+  5
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerServiceCompactionMonitorIntervalInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Interval between checks to see if topics with compaction policies need to be compacted
+&lt;/td&gt;
+
+&lt;td&gt;
+  60
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      activeConsumerFailoverDelayTimeMillis
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  How long to delay rewinding cursor and dispatching messages when active consumer is changed.
+&lt;/td&gt;
+
+&lt;td&gt;
+  1000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clientLibraryVersionCheckEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable check for minimum allowed client library version
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      clientLibraryVersionCheckAllowUnversioned
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Allow client libraries with no version information
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      statusFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      preferLaterVersions
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxNumPartitionsPerPartitionedTopic
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of partitions per partitioned topic. Use 0 or negative number to disable the check
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable TLS
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsCertificateFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS证书文件的路径
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS私钥文件的路径
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsTrustCertsFilePath
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Path for the trusted TLS certificate file
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsAllowInsecureConnection
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Accept untrusted TLS certificate from client
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsProtocols
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- &lt;code&gt;TLSv1.2&lt;/code&gt;, &lt;code&gt;TLSv1.1&lt;/code&gt;, &lt;code&gt;TLSv1&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsCiphers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- &lt;code&gt;TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsEnabledWithKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable TLS with KeyStore type configuration in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsProvider
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS Provider for KeyStore type
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStoreType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  LS KeyStore type configuration in broker: JKS, PKCS12
+&lt;/td&gt;
+
+&lt;td&gt;
+  JKS
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS KeyStore path in broker
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tlsKeyStorePassword
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS KeyStore password for broker
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsEnabledWithKeyStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Whether internal client use KeyStore type to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+  false
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientSslProvider
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The TLS Provider used by internal client to authenticate with other Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStoreType
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore type configuration for internal client: JKS, PKCS12, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+  JKS
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStore
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore path for internal client, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsTrustStorePassword
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  TLS TrustStore password for internal client, used by the internal client to authenticate with Pulsar brokers
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsCiphers
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls cipher the internal client will use to negotiate during TLS Handshake. (a comma-separated list of ciphers) e.g.  [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      brokerClientTlsProtocols
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify the tls protocols the broker will use to negotiate during TLS handshake. (逗号分隔的协议名称列表)。 e.g.  [TLSv1.2, TLSv1.1, TLSv1]
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      ttlDurationDefaultInSeconds
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The default ttl for namespaces if ttl is not configured at namespace policies.
+&lt;/td&gt;
+
+&lt;td&gt;
+  0
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenSecretKey
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the secret key to be used to validate auth tokens. The key can be specified like: &lt;code&gt;tokenSecretKey=data:;base64,xxxxxxxxx&lt;/code&gt; or &lt;code&gt;tokenSecretKey=file:///my/secret.key&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenPublicKey
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the public key to be used to validate auth tokens. The key can be specified like: &lt;code&gt;tokenPublicKey=data:;base64,xxxxxxxxx&lt;/code&gt; or &lt;code&gt;tokenPublicKey=file:///my/secret.key&lt;/code&gt;
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenPublicAlg
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (https://github.com/jwtk/jjwt#signature-algorithms-keys)
+&lt;/td&gt;
+
+&lt;td&gt;
+  RS256
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAuthClaim
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Specify which of the token's claims will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The default &quot;sub&quot; claim will be used if this is left blank
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAudienceClaim
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;, that will be used to get the audience from token. If not set, audience will not be verified.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      tokenAudience
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  The token audience stands for this broker. The field &lt;code&gt;tokenAudienceClaim&lt;/code&gt; of a valid token, need contains this.
+&lt;/td&gt;
+
+&lt;td&gt;
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxUnackedMessagesPerConsumer
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction
+&lt;/td&gt;
+
+&lt;td&gt;
+  50000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      maxUnackedMessagesPerSubscription
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction
+&lt;/td&gt;
+
+&lt;td&gt;
+  200000
+&lt;/td&gt;
+</code></pre>
+  </tr>
+  <tr>
+    <td>
+      subscriptionRedeliveryTrackerEnabled
+    </td>
+<pre><code class="hljs">&lt;td&gt;
+  Enable subscription message redelivery tracker
+&lt;/td&gt;
+
+&lt;td&gt;
+  true
+&lt;/td&gt;
+</code></pre>
+  </tr>
+</table> subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br/><br/>Setting this configuration to a value 
+<p><strong>greater than 0</strong> deletes inactive subscriptions automatically.<br/>Setting this configuration to <strong>0</strong> does not delete inactive subscriptions automatically. <br/><br/> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br/>Instead, you can set a subscription expiration time for each <strong>namespace</strong> using the <a href="http://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-"><code>pulsar-admin namespaces set-subscription-expiration-time options</code> command</a>. | 0 | |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000| |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000| |authenticationEnabled| Enable authentication |false| |authenticationProviders| Autentication provider name list, which is comma separated list of class names  || |authorizationEnabled|  Enforce authorization |false| |superUserRoles|  Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics || |brokerClientAuthenticationPlugin|  Authentication settings of the broker itself. 当 broker 连接到其它 broker 时使用，不管是相同集群还是其它集群中的  || |brokerClientAuthenticationParameters||| |athenzDomainNames| 用于认证的受支持的 Athenz 提供者域名(逗号分隔) || |exposePreciseBacklogInPrometheus| 暴露出精确的积压统计信息，设置为 false 来使用 published counter 和 consumed counter 来进行计算，这样更高效但可能会有误差。 |false| |bookkeeperMetadataServiceUri| bookkeeper 用来载入相应元数据驱动及解析其元数据服务位置的元数据服务 uri。 This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. 例如： <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>。 元数据服务 uri 列表也可以是一个分号间隔的值，如下所示： <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers || |bookkeeperClientAuthenticationPlugin| 连接到 bookies 时使用的认证插件 || |bookkeeperClientAuthenticationParametersName|  BookKeeper 认证插件的实现指定的名字与值  || |bookkeeperClientAuthenticationParameters||| |bookkeeperClientTimeoutInSeconds| BookKeeper 添加与读取操作的超时时间  |30| |bookkeeperClientSpeculativeReadTimeoutInMillis|  当一个读请求无法在一定时间内完成时启用 speculative 读取。采用 0 值时，禁用 speculative 读取。 |0| |bookkeeperClientHealthCheckEnabled| 启用 bookie 健康检查。 Bookies that have more than the configured number of failure within the interval will be quarantined for some time. 在此期间，这些 bookies 上不会创建新的 ledger  |true| |bookkeeperClientHealthCheckIntervalSeconds||60| |bookkeeperClientHealthCheckErrorThresholdPerInterval||5| |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800| |bookkeeperClientRackawarePolicyEnabled|  启用 rack-aware bookie 选择政策。 当生成新的 bookie ensemble 时 BK 会从不同的 rack 中选取 bookie |true| |bookkeeperClientRegionawarePolicyEnabled| 启用 region-aware bookie 选择政策。 BK will chose bookies from different regions and racks when forming a new bookie ensemble. 如果启用，bookkeeperClientRackawarePolicyEnabled 属性的值会被忽略  |false| |bookkeeperClientReorderReadSequenceEnabled| 启用/禁用读取条目的读取序列重排序。  |false| |bookkeeperClientIsolationGroups| 通过指定一个要选择的 bookie 组列表来启用 bookie 隔离。 指定组外的任何 bookie 都不会被 broker 使用 || |bookkeeperClientSecondaryIsolationGroups| 当 bookkeeperClientIsolationGroups 没有足够多的可用 bookie 时启用 bookie 的 secondary-isolation 组。  || |bookkeeperClientMinAvailableBookiesInIsolationGroups| bookkeeperClientIsolationGroups 中应可用的最少 bookie 数，否则 broker 会将 bookkeeperClientSecondaryIsolationGroups 的 bookie 囊括在隔离列表中。  || |bookkeeperClientGetBookieInfoIntervalSeconds| 设置定期查询 bookie 信息的间隔 |86400| |bookkeeperClientGetBookieInfoRetryIntervalSeconds| 设置当查询 bookie 信息失败后的重试间隔 |60| |bookkeeperEnableStickyReads | 启用/禁用 使对一个 ledger 的读请求变得与单个 broker 粘滞（sticky）。 If this flag is enabled, the client will use one single bookie (by preference) to read  all entries for a ledger. | true | |managedLedgerDefaultEnsembleSize| 当创建一个 ledger 时使用的 bookie 数量 |2| |managedLedgerDefaultWriteQuorum| 每个消息存储的拷贝数量 |2| |managedLedgerDefaultAckQuorum| 得到保证的拷贝数量 (写操作完成前需要等待的 ack) |2| |managedLedgerCacheSizeMB| 在托管的 ledger 中用于缓存数据负载的内存大小。 This memory is allocated from JVM direct memory and it’s shared across all the topics running in the same broker. 默认地，使用可用的直接内存的 1/5 || |managedLedgerCacheCopyEntries| 当插入缓存时是否应该创建条目负载的拷贝 | false| |managedLedgerCacheEvictionWatermark| 当驱逐触发时降低缓存等级的阈值 |0.9| |managedLedgerCacheEvictionFrequency| 为托管的 ledger 缓存配置缓存驱逐频率 (驱逐/秒) | 100.0 | |managedLedgerCacheEvictionTimeThresholdMillis| 所有在缓存中停留超过配置时长的条目会被驱逐 | 1000 | |managedLedgerCursorBackloggedThreshold| 设置当游标应被当作“积压的” 且应被设置为非活动的阈值 (以条目数为单位)。 | 1000| |managedLedgerDefaultMarkDeleteRateLimit| 限制由消费者确认消息产生的每秒写入频率  |1.0| |managedLedgerMaxEntriesPerLedger| 在触发倒转前追加至 ledger 的最大条目数。 A ledger rollover is triggered on these conditions: <ul><li>Either the max rollover time has been reached</li><li>or max entries have been written to the ledged and at least min-time has passed</li></ul>|50000| |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10| |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240| |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000| |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400| |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000| |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false| |loadBalancerEnabled| Enable load balancer  |true| |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection || |loadBalancerReportUpdateThresholdPercentage| Percentage of change to trigger load report update  |10| |loadBalancerReportUpdateMaxIntervalMinutes|  maximum interval to update load report  |15| |loadBalancerHostUsageCheckIntervalMinutes| Frequency of report to collect  |1| |loadBalancerSheddingIntervalMinutes| Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded broker to other under-loaded brokers  |30| |loadBalancerSheddingGracePeriodMinutes|  Prevent the same topics to be shed and moved to other broker more that once within this timeframe |30| |loadBalancerBrokerMaxTopics| Usage threshold to allocate max number of topics to broker  |50000| |loadBalancerBrokerUnderloadedThresholdPercentage|  Usage threshold to determine a broker as under-loaded |1| |loadBalancerBrokerOverloadedThresholdPercentage| Usage threshold to determine a broker as over-loaded  |85| |loadBalancerResourceQuotaUpdateIntervalMinutes|  Interval to update namespace bundle resource quotat |15| |loadBalancerBrokerComfortLoadLevelPercentage|  Usage threshold to determine a broker is having just right level of load  |65| |loadBalancerAutoBundleSplitEnabled|  enable/disable namespace bundle auto split  |false| |loadBalancerNamespaceBundleMaxTopics|  maximum topics in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxSessions|  maximum sessions (producers + consumers) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000| |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100| |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128| |replicationMetricsEnabled| Enable replication metrics  |true| |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16| |replicationProducerQueueSize|  Replicator producer queue size  |1000| |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl|| |replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false| |defaultRetentionTimeInMinutes| Default message retention time  || |defaultRetentionSizeInMB|  Default retention size  |0| |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30| |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl| |supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]| |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide| |managedLedgerOffloadDriver|  Driver to use to offload old data to long term storage (Possible values: S3)  || |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2| |managedLedgerUnackedRangesOpenCacheSetEnabled|  Use Open Range-Set to cache unacknowledged messages |true| |managedLedgerOffloadDeletionLagMs|Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper | 14400000| |managedLedgerOffloadAutoTriggerSizeThresholdBytes|The number of bytes before triggering automatic offload to long term storage |-1 (disabled)| |s3ManagedLedgerOffloadRegion|  For Amazon S3 ledger offload, AWS region  || |s3ManagedLedgerOffloadBucket|  For Amazon S3 ledger offload, Bucket to place offloaded ledger into || |s3ManagedLedgerOffloadServiceEndpoint| For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing) || |s3ManagedLedgerOffloadMaxBlockSizeInBytes| For Amazon S3 ledger offload, Max block size in bytes. (默认为 64MB，最小 5MB) |67108864| |s3ManagedLedgerOffloadReadBufferSizeInBytes| 对于 Amazon S3 ledger 卸载，以字节计的读缓存大小 (默认为 1MB)  |1048576| |s3ManagedLedgerOffloadRole| 对于 Amazon S3 ledger 卸载，在写入 s3 前提供一个假定角色 || |s3ManagedLedgerOffloadRoleSessionName| 对于 Amazon S3 ledger 卸载，当使用一个角色时提供一个角色会话名 |pulsar-s3-offload| | acknowledgmentAtBatchIndexLevelEnabled | 启用或禁用批量下标确认。 | false | | maxMessageSize | 设置消息的最大大小。 | 5 MB |</p>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
 <p>The <a href="/docs/zh-CN/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.</p>
 <table>
@@ -373,6 +1260,7 @@
 <tr><td>replicationMetricsEnabled</td><td></td><td>true</td></tr>
 <tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
 <tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
+<tr><td>replicationPolicyCheckDurationSeconds</td><td>Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy.</td><td>600</td></tr>
 <tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
 <tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
@@ -448,7 +1336,6 @@
 <tr><td>tokenPublicKey</td><td>Configure the public key to be used to validate auth tokens. The key can be specified like: <code>tokenPublicKey=data:;base64,xxxxxxxxx</code> or <code>tokenPublicKey=file:///my/secret.key</code></td><td></td></tr>
 <tr><td>tokenPublicAlg</td><td>Configure the algorithm to be used to validate auth tokens. This can be any of the asymettric algorithms supported by Java JWT (<a href="https://github.com/jwtk/jjwt#signature-algorithms-keys">https://github.com/jwtk/jjwt#signature-algorithms-keys</a>)</td><td>RS256</td></tr>
 <tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
-<tr><td>proxyLogLevel</td><td>Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged.</td><td>0</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="zookeeper"></a><a href="#zookeeper" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>ZooKeeper</h2>
@@ -529,6 +1416,6 @@
                 apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
                 indexName: 'apache_pulsar',
                 inputSelector: '#search_input_react',
-                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.6.0"]}
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:2.6.1"]}
               });
             </script></body></html>
