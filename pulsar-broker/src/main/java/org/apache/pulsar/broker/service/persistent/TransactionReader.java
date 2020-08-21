@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -50,10 +51,7 @@ public class TransactionReader {
     private final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
 
     private TransactionBuffer transactionBuffer;
-    private long startSequenceId = 0;
     private CompletableFuture<TransactionBufferReader> transactionBufferReader;
-    private volatile TxnID currentReadTxnID;
-
     private int startBatchIndex = 0;
 
     public TransactionReader(Topic topic, ManagedCursor managedCursor) {
@@ -109,9 +107,8 @@ public class TransactionReader {
                     ManagedLedgerException.getManagedLedgerException(new Exception("No valid txn to read.")), ctx);
             return;
         }
-        if (currentReadTxnID == null) {
-            transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, startSequenceId);
-            currentReadTxnID = txnID;
+        if (transactionBufferReader == null) {
+            transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, -1);
         }
         transactionBufferReader.thenAccept(reader -> {
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
@@ -121,40 +118,23 @@ public class TransactionReader {
                             ManagedLedgerException.getManagedLedgerException(throwable), ctx);
                     return;
                 }
-                List<Entry> entryList = new ArrayList<>(transactionEntries.size());
-                long ledgerId = -1;
-                long entryId = -1;
-                int numMessageInTxn = -1;
 
-                if (transactionEntries.size() > 0) {
-                    ledgerId = transactionEntries.get(0).committedAtLedgerId();
-                    entryId = transactionEntries.get(0).committedAtEntryId();
-                    numMessageInTxn = transactionEntries.get(0).numMessageInTxn();
-                }
-                PositionImpl position = PositionImpl.get(ledgerId, entryId);
-                if (managedCursor instanceof ManagedCursorImpl &&
-                        !((ManagedCursorImpl) managedCursor).batchDeleteIndexExist(position)) {
-                    ((ManagedCursorImpl) managedCursor).internalInitBatchDeletedIndex(position, numMessageInTxn);
+                if (transactionEntries == null || transactionEntries.size() == 0) {
+                    resetReader(txnID, reader);
+                    readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
+                    return;
                 }
 
-                for (int i = 0; i < transactionEntries.size(); i++) {
-                    TransactionEntry txnEntry = transactionEntries.get(i);
-                    if (i == (transactionEntries.size() -1)) {
-                        startSequenceId = txnEntry.sequenceId();
-                    }
-                    EntryImpl entry = EntryImpl.create(ledgerId, entryId, transactionEntries.get(i).getEntryBuffer());
-                    entryList.add(entry);
-                }
+                ((ManagedCursorImpl) managedCursor).internalInitBatchDeletedIndex(
+                        PositionImpl.get(
+                                transactionEntries.get(0).committedAtLedgerId(),
+                                transactionEntries.get(0).committedAtEntryId()),
+                        transactionEntries.get(0).numMessageInTxn());
 
                 if (transactionEntries.size() < readMessageNum) {
-                    startSequenceId = 0;
-                    startBatchIndex = 0;
-                    pendingTxnQueue.remove(txnID);
-                    transactionBufferReader = null;
-                    currentReadTxnID = null;
-                    reader.close();
+                    resetReader(txnID, reader);
                 }
-                readEntriesCallback.readEntriesComplete(entryList, ctx);
+                readEntriesCallback.readEntriesComplete(new ArrayList<>(transactionEntries), ctx);
             });
         }).exceptionally(throwable -> {
             log.error("Open transactionBufferReader failed.", throwable);
@@ -162,6 +142,13 @@ public class TransactionReader {
                     ManagedLedgerException.getManagedLedgerException(throwable), ctx);
             return null;
         });
+    }
+
+    private void resetReader(TxnID txnID, TransactionBufferReader reader) {
+        startBatchIndex = 0;
+        pendingTxnQueue.remove(txnID);
+        transactionBufferReader = null;
+        reader.close();
     }
 
     private TxnID getValidTxn() {

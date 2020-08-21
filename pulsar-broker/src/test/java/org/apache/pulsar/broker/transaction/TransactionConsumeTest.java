@@ -20,15 +20,14 @@ package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,28 +39,36 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * Test for consuming transaction messages.
  */
 @Slf4j
-public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
+public class TransactionConsumeTest extends TransactionTestBase {
 
     private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
     private final static String NORMAL_MSG_CONTENT = "Normal - ";
     private final static String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeClass
-    public void init() throws Exception {
-        BROKER_COUNT = 1;
-        super.setup();
+    @BeforeMethod
+    public void setup() throws Exception {
+        setBrokerCount(1);
+        super.internalSetup();
 
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        pulsarAdmins[0].tenants().createTenant("public", new TenantInfo(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
-        pulsarAdmins[0].namespaces().createNamespace("public/txn", 10);
-        pulsarAdmins[0].topics().createNonPartitionedTopic(CONSUME_TOPIC);
+        int webServicePort = getServiceConfigurationList().get(0).getWebServicePort().get();
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.tenants().createTenant("public",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("public/txn", 10);
+        admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
     }
 
     @Test
@@ -71,15 +78,18 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         int messageCntAfterTxn = 10;
         int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(CONSUME_TOPIC)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
+        @Cleanup
         Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("shared-test")
@@ -90,7 +100,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         long leastSigBits = 5L;
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
-        PersistentTopic persistentTopic = (PersistentTopic) pulsarServices[0].getBrokerService()
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(CONSUME_TOPIC, false).get().get();
         TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
         log.info("transactionBuffer init finish.");
@@ -123,6 +133,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         Thread.sleep(1000);
         log.info("Commit txn.");
 
+        // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
             Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
@@ -131,9 +142,6 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
             Assert.assertNotNull(message);
             log.info("Receive txn shared msg: {}", new String(message.getData(), UTF_8));
         }
-
-        exclusiveConsumer.close();
-        sharedConsumer.close();
     }
 
     private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt, int messageCnt)

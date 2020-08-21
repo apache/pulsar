@@ -60,7 +60,7 @@ import org.apache.zookeeper.data.ACL;
 @Slf4j
 public class TransactionTestBase {
 
-    private final static String CLUSTER_NAME = "test";
+    public final static String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;

@@ -29,6 +29,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.persistent.TransactionReader;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -68,8 +69,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public void filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
                                          SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-                                         ManagedCursor cursor, EntryStartBatchIndexes startBatchIndexes,
-                                         TransactionReader transactionReader) {
+                                         ManagedCursor cursor, TransactionReader transactionReader) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
@@ -110,13 +110,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     continue;
                 }
 
-                if (startBatchIndexes != null) {
-                    if (msgMetadata.hasTxnidMostBits() && msgMetadata.hasTxnidLeastBits()) {
-                        startBatchIndexes.setStartBatchIndex(i,
-                                transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
-                    } else {
-                        startBatchIndexes.setStartBatchIndex(i, -1);
-                    }
+                if (entry instanceof TransactionEntryImpl) {
+                    ((TransactionEntryImpl) entry).setStartBatchIndex(
+                            transactionReader.calculateStartBatchIndex(msgMetadata.getNumMessagesInBatch()));
                 }
 
                 int batchSize = msgMetadata.getNumMessagesInBatch();

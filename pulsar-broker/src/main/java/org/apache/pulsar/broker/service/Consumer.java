@@ -45,6 +45,7 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -216,14 +217,6 @@ public class Consumer {
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
                                    EntryBatchIndexesAcks batchIndexesAcks, int totalMessages,
                                    long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
-        return sendMessages(entries, batchSizes, batchIndexesAcks, null,
-                totalMessages, totalBytes, totalChunkedMessages, redeliveryTracker);
-    }
-
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
-                               EntryBatchIndexesAcks batchIndexesAcks, EntryStartBatchIndexes startBatchIndexes,
-                               int totalMessages, long totalBytes, long totalChunkedMessages,
-                               RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -237,9 +230,6 @@ public class Consumer {
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
-            }
-            if (startBatchIndexes != null) {
-                startBatchIndexes.recycle();
             }
             return writePromise;
         }
@@ -292,8 +282,8 @@ public class Consumer {
                 }
 
                 MessageIdData.Builder messageIdBuilder = MessageIdData.newBuilder();
-                if (startBatchIndexes != null) {
-                    messageIdBuilder.setBatchIndex(startBatchIndexes.getStartBatchIndex(i));
+                if (entry instanceof TransactionEntryImpl) {
+                    messageIdBuilder.setBatchIndex(((TransactionEntryImpl) entry).getStartBatchIndex());
                 }
                 MessageIdData messageId = messageIdBuilder
                     .setLedgerId(entry.getLedgerId())
@@ -331,9 +321,6 @@ public class Consumer {
             batchSizes.recyle();
             if (batchIndexesAcks != null) {
                 batchIndexesAcks.recycle();
-            }
-            if (startBatchIndexes != null) {
-                startBatchIndexes.recycle();
             }
         });
 

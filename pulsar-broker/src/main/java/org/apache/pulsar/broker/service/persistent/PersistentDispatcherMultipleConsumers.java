@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.EntryStartBatchIndexes;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -536,11 +535,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                EntryStartBatchIndexes startBatchIndexes = EntryStartBatchIndexes.get(entriesForThisConsumer.size());
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        startBatchIndexes, transactionReader);
+                        transactionReader);
 
-                c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, startBatchIndexes,
+                c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks,
                         sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                         sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 

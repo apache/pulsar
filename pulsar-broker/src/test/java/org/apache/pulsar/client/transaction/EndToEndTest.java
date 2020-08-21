@@ -39,7 +39,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -50,12 +52,11 @@ public class EndToEndTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
 
-    private final static String CLUSTER_NAME = "test";
     private final static String TENANT = "tnx";
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
 
-    @BeforeClass
+    @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
 
@@ -79,6 +80,11 @@ public class EndToEndTest extends TransactionTestBase {
                 .build();
 
         Thread.sleep(1000 * 3);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
     }
 
     @Test
@@ -111,8 +117,8 @@ public class EndToEndTest extends TransactionTestBase {
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         // Can't receive transaction messages before commit.
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         txn.commit().get();

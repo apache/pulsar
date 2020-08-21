@@ -44,7 +44,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.EntryStartBatchIndexes;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
@@ -243,15 +242,13 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-            EntryStartBatchIndexes startBatchIndexes = EntryStartBatchIndexes.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                    startBatchIndexes, transactionReader);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, transactionReader);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
 
             currentConsumer
-                    .sendMessages(entries, batchSizes, batchIndexesAcks, startBatchIndexes,
+                    .sendMessages(entries, batchSizes, batchIndexesAcks,
                             sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
                             sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker)
                     .addListener(future -> {
