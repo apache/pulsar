@@ -25,9 +25,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchPushSource;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -69,28 +67,9 @@ public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implem
   @Override
   public void run() {
     try {
-      ByteBuffer val = sourceContext.getState("count");
-      String currCount;
-      if (val == null) {
-        currCount = "0";
-      } else {
-        currCount = new String(val.array());
-      }
-
       for (int i = 0; i < maxRecordsPerCycle; i++) {
-        sourceContext.putState("count", ByteBuffer.wrap(String.valueOf(Integer.parseInt(currCount) + 1).getBytes()));
         Thread.sleep(50);
-        Record<Person> record = new Record<Person>() {
-          @Override
-          public Optional<String> getKey() {
-            return Optional.of(currCount);
-          }
-
-          @Override
-          public Person getValue() {
-            return new Person(fairy.person());
-          }
-        };
+        Record<Person> record = () -> new Person(fairy.person());
         consume(record);
       }
       // this task is completed
