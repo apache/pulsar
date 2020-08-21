@@ -55,6 +55,11 @@ public class TopicMessageIdImpl implements MessageId {
     }
 
     @Override
+    public String toString() {
+        return messageId.toString();
+    }
+
+    @Override
     public byte[] toByteArray() {
         return messageId.toByteArray();
     }

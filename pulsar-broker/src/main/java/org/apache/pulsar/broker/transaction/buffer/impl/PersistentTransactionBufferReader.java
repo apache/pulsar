@@ -83,9 +83,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
                     tmpFuture.completeExceptionally(throwable);
                 } else {
                     TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
-                                                                         entry.getDataBuffer(),
-                                                                         meta.committedAtLedgerId(),
-                                                                         meta.committedAtEntryId());
+                            entry, meta.committedAtLedgerId(), meta.committedAtEntryId());
                     synchronized (txnEntries) {
                         txnEntries.add(txnEntry);
                     }

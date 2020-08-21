@@ -19,10 +19,13 @@
 package org.apache.pulsar.io.hdfs2.sink;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -39,6 +42,7 @@ import org.apache.pulsar.io.hdfs2.HdfsResources;
  * A Simple abstract class for HDFS sink.
  * Users need to implement extractKeyValue function to use this sink.
  */
+@Slf4j
 public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector implements Sink<V> {
 
     protected HdfsSinkConfig hdfsSinkConfig;
@@ -46,6 +50,7 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
     protected HdfsSyncThread<V> syncThread;
     private Path path;
     private FSDataOutputStream hdfsStream;
+    private DateTimeFormatter subdirectoryFormatter;
 
     public abstract KeyValue<K, V> extractKeyValue(Record<V> record);
     protected abstract void createWriter() throws IOException;
@@ -56,6 +61,9 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
        hdfsSinkConfig.validate();
        connectorConfig = hdfsSinkConfig;
        unackedRecords = new LinkedBlockingQueue<Record<V>> (hdfsSinkConfig.getMaxPendingRecords());
+       if (hdfsSinkConfig.getSubdirectoryPattern() != null) {
+           subdirectoryFormatter = DateTimeFormatter.ofPattern(hdfsSinkConfig.getSubdirectoryPattern());
+       }
        connectToHdfs();
        createWriter();
        launchSyncThread();
@@ -99,8 +107,13 @@ public abstract class HdfsAbstractSink<K, V> extends AbstractHdfsConnector imple
                 ext = getCompressionCodec().getDefaultExtension();
             }
 
-            path = new Path(FilenameUtils.concat(hdfsSinkConfig.getDirectory(),
+            String directory = hdfsSinkConfig.getDirectory();
+            if (subdirectoryFormatter != null) {
+                directory = FilenameUtils.concat(directory, LocalDateTime.now().format(subdirectoryFormatter));
+            }
+            path = new Path(FilenameUtils.concat(directory,
                     hdfsSinkConfig.getFilenamePrefix() + "-" + System.currentTimeMillis() + ext));
+            log.info("Create path: {}", path);
         }
         return path;
     }

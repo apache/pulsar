@@ -130,7 +130,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 1. Enter the `toolset` container.
 
     ```bash
-    kubectl exec -it -n pulsar pulsar-mini-toolset-0 -- /bin/bash
+    kubectl exec -it -n pulsar pulsar-mini-toolset-0 /bin/bash
     ```
 
 2. In the `toolset` container, create a tenant named `apache`.
@@ -193,7 +193,7 @@ We use [Minikube](https://kubernetes.io/docs/getting-started-guides/minikube/) i
 
 You can use the Pulsar client to create producers and consumers to produce and consume messages.
 
-By default, the Pulsar Helm chart exposes the Pulsar cluster through a Kubernetes `LoadBalancer`. In Minikube, you can use the following command to get the IP address of the proxy service.
+By default, the Pulsar Helm chart exposes the Pulsar cluster through a Kubernetes `LoadBalancer`. In Minikube, you can use the following command to check the proxy service.
 
 ```bash
 kubectl get services -n pulsar | grep pulsar-mini-proxy
@@ -205,19 +205,36 @@ You will see a similar output as below.
 pulsar-mini-proxy            LoadBalancer   10.97.240.109    <pending>     80:32305/TCP,6650:31816/TCP   28m
 ```
 
-This output tells what are the node ports that Pulsar cluster's binary port and HTTP port are exposed to. The port after `80:` is the HTTP port while the port after `6650:` is the binary port.
+This output tells what are the node ports that Pulsar cluster's binary port and HTTP port are mapped to. The port after `80:` is the HTTP port while the port after `6650:` is the binary port.
 
-Then you can find the IP address of your Minikube server by running the following command.
+Then you can find the IP address and exposed ports of your Minikube server by running the following command.
 
 ```bash
-minikube ip
+minikube service pulsar-mini-proxy -n pulsar
 ```
 
-At this point, you can get the service URLs to connect to your Pulsar client.
+**Output**
 
+```bash
+|-----------|-------------------|-------------|-------------------------|
+| NAMESPACE |       NAME        | TARGET PORT |           URL           |
+|-----------|-------------------|-------------|-------------------------|
+| pulsar    | pulsar-mini-proxy | http/80     | http://172.17.0.4:32305 |
+|           |                   | pulsar/6650 | http://172.17.0.4:31816 |
+|-----------|-------------------|-------------|-------------------------|
+🏃  Starting tunnel for service pulsar-mini-proxy.
+|-----------|-------------------|-------------|------------------------|
+| NAMESPACE |       NAME        | TARGET PORT |          URL           |
+|-----------|-------------------|-------------|------------------------|
+| pulsar    | pulsar-mini-proxy |             | http://127.0.0.1:61853 |
+|           |                   |             | http://127.0.0.1:61854 |
+|-----------|-------------------|-------------|------------------------|
 ```
-webServiceUrl=http://$(minikube ip):<exposed-http-port>/
-brokerServiceUrl=pulsar://$(minikube ip):<exposed-binary-port>/
+
+At this point, you can get the service URLs to connect to your Pulsar client. Here are URL examples:
+```
+webServiceUrl=http://127.0.0.1:61853/
+brokerServiceUrl=pulsar://127.0.0.1:61854/
 ```
 
 Then you can proceed with the following steps:

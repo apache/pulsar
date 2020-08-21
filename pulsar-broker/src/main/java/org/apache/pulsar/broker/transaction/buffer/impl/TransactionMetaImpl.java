@@ -92,7 +92,7 @@ public class TransactionMetaImpl implements TransactionMeta {
 
         SortedMap<Long, Position> readEntries = entries;
         if (startSequenceId != PersistentTransactionBufferReader.DEFAULT_START_SEQUENCE_ID) {
-            readEntries = entries.tailMap(startSequenceId);
+            readEntries = entries.tailMap(startSequenceId + 1);
         }
 
         if (readEntries.isEmpty()) {

@@ -38,7 +38,7 @@ def get_version():
     root = ET.XML(open(POM_PATH).read())
     version = root.find('{http://maven.apache.org/POM/4.0.0}version').text.strip()
 
-    if use_full_pom_name:    
+    if use_full_pom_name:
         return version
     else:
         # Strip the '-incubating' suffix, since it prevents the packages
@@ -78,7 +78,7 @@ class my_build_ext(build_ext.build_ext):
 
 
 dependencies = [
-    'fastavro',
+    'fastavro==0.24.0',
     'grpcio',
     'protobuf>=3.6.1',
     'six',
