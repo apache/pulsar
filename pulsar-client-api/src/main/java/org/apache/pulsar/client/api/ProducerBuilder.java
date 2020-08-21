@@ -504,6 +504,18 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate);
 
     /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the producer builder instance
+     */
+    ProducerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
      * Control whether enable the multiple schema mode for producer.
      * If enabled, producer can send a message with different schema from that specified just when it is created,
      * otherwise a invalid message exception would be threw
