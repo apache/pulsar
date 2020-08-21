@@ -21,6 +21,7 @@ package org.apache.pulsar.io.core;
 import org.apache.pulsar.functions.api.Record;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
@@ -37,9 +38,26 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
         }
     }
 
+    private static class ErrorNotifierRecord implements Record {
+        private Exception e;
+        public ErrorNotifierRecord(Exception e) {
+            this.e = e;
+        }
+        @Override
+        public Object getValue() {
+            return null;
+        }
+
+        public Exception getException() {
+            return e;
+        }
+    }
+
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
     private final NullRecord nullRecord = new NullRecord();
+
+    AtomicReference<Exception> currentError = new AtomicReference<>();
 
     public BatchPushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
@@ -48,6 +66,9 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
     @Override
     public Record<T> readNext() throws Exception {
         Record<T> record = queue.take();
+        if (record instanceof ErrorNotifierRecord) {
+            throw ((ErrorNotifierRecord) record).getException();
+        }
         if (record instanceof NullRecord) {
             return null;
         } else {
@@ -79,5 +100,13 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
      */
     public int getQueueLength() {
         return DEFAULT_QUEUE_LENGTH;
+    }
+
+    /**
+     * Allows the source to notify errors asynchronously
+     * @param ex
+     */
+    public void notifyError(Exception ex) {
+        consume(new ErrorNotifierRecord(ex));
     }
 }

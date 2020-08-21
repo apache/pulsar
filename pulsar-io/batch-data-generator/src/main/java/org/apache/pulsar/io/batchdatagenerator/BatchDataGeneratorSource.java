@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.SourceContext;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -61,12 +62,21 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
 
     @Override
     public Record<Person> readNext() throws Exception {
+        ByteBuffer val = sourceContext.getState("count");
+        String currCount;
+        if (val == null) {
+            currCount = "0";
+        } else {
+            currCount = new String(val.array());
+        }
+
         if (iteration++ < maxRecordsPerCycle) {
+            sourceContext.putState("count", ByteBuffer.wrap(String.valueOf(Integer.parseInt(currCount) + 1).getBytes()));
             Thread.sleep(50);
             return new Record<Person>() {
                 @Override
                 public Optional<String> getKey() {
-                    return Optional.empty();
+                    return Optional.of(String.valueOf(currCount));
                 }
 
                 @Override
