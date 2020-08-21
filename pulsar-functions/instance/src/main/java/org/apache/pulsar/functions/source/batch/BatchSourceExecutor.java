@@ -183,6 +183,9 @@ public class BatchSourceExecutor<T> implements Source<T> {
       intermediateTopicConsumer.close();
       intermediateTopicConsumer = null;
     }
+    if (batchSource != null) {
+      batchSource.close();
+    }
   }
 
   private void setupInstanceSubscription() {
