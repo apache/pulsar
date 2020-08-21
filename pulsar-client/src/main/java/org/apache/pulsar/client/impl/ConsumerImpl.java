@@ -580,7 +580,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
                 acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                        batchMessageId.getBatchSize(), ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
+                        batchMessageId.getBatchSize(), ackType, properties,
+                        txn == null ? -1 : txn.getTxnIdMostBits(),
+                        txn == null ? -1 : txn.getTxnIdLeastBits());
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
