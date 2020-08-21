@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.batchdatagenerator;
+package org.apache.pulsar.io.core;
 
 import org.apache.pulsar.io.core.BatchPushSource;
 import org.apache.pulsar.io.core.SourceContext;
