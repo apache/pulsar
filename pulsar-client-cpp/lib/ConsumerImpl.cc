@@ -125,7 +125,20 @@ ConsumerImpl::~ConsumerImpl() {
     LOG_DEBUG(getName() << "~ConsumerImpl");
     incomingMessages_.clear();
     if (state_ == Ready) {
+        // this could happen at least in this condition:
+        //      consumer seek, caused reconnection, if consumer close happened before connection ready,
+        //      then consumer will not send closeConsumer to Broker side, and caused a leak of consumer in
+        //      broker.
         LOG_WARN(getName() << "Destroyed consumer which was not properly closed");
+
+        ClientConnectionPtr cnx = getCnx().lock();
+        ClientImplPtr client = client_.lock();
+        int requestId = client->newRequestId();
+        if (cnx) {
+            cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
+            cnx->removeConsumer(consumerId_);
+            LOG_INFO(getName() << "Closed consumer for race condition: " << consumerId_);
+        }
     }
 }
 
