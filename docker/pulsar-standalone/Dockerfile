@@ -29,7 +29,7 @@ FROM openjdk:8-jdk
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update
-RUN apt-get -y install python2.7 python-pip postgresql sudo nginx supervisor libpq-dev
+RUN apt-get -y install python2.7 python2.7-dev python-pip postgresql sudo nginx supervisor libpq-dev
 
 # Postgres configuration
 COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
