@@ -68,7 +68,7 @@ Additionally, the NPE leads to the topic usage count increasing to 1. When delet
 
 For more information about implementation, see [PR-7355](https://github.com/apache/pulsar/pull/7355).
 
-### Avoid  an NPE occurs in the `ManagedLedgerImpl.isOffloadedNeedsDelete` method
+### Avoid an NPE occurs in the `ManagedLedgerImpl.isOffloadedNeedsDelete` method
 
 When the default value of the `offload-deletion-lag` is set to `null`, an NPE occurs. To fix the bug, null check is added in the `ManagedLedgerImpl.isOffloadedNeedsDelete` method.
                                                                                          
@@ -111,7 +111,7 @@ Previously, the code does not include a return statement. If the entry is set to
 16:34:25.779 [pulsar-client-io-82-1:org.apache.pulsar.client.impl.ClientCnx@612] WARN  org.apache.pulsar.client.impl.ClientCnx - [id: 0xc78f4a0e, L:/127.0.0.1:55657 - R:localhost/127.0.0.1:55615] Received unknown request id from server: 10
 ```
 
-PR-7495 adds a return statement to code, so GetLastEntry()  reads the last entry, instead of `-1`.  
+PR-7495 adds a return statement to code, so GetLastEntry() reads the last entry, instead of `-1`.  
 
 For more information about implementation, see [PR-7495](https://github.com/apache/pulsar/pull/7495).
 
@@ -155,7 +155,7 @@ For more information about implementation, see [PR-7311](https://github.com/apac
 
 ### Fix the issue that batch ack set is recycled multiple times
 
-The batch ack sets are recycled multiple times, due to race condition in group ack flush and cumulative Ack. So we add a recycled state check for the ack set in PR-7409,  and fix the recycle issue.
+The batch ack sets are recycled multiple times, due to race condition in group ack flush and cumulative Ack. So we add a recycled state check for the ack set in PR-7409, and fix the recycle issue.
 
 For more information about implementation, see [PR-7409](https://github.com/apache/pulsar/pull/7409).
 
@@ -198,7 +198,7 @@ For more information about implementation, see [PR-7467](https://github.com/apac
 
 ### Fix partition index error in close callback
 
-In partitioned producer/consumer's close callback, the partition index is always `0`. The `ProducerImpl/ConsumerImpl`'s internal partition index field should be passed to `PartitionedProducerImpl/PartitionedConsumerImpl`'s close callback.
+In partitioned producer/consumer's close callback, the partition index is always `0`. The `ProducerImpl/ConsumerImpl` internal partition index field should be passed to `PartitionedProducerImpl/PartitionedConsumerImpl` close callback.
 
 For more information about implementation, see [PR-7282](https://github.com/apache/pulsar/pull/7282).
 
@@ -260,7 +260,7 @@ For more information about implementation, see [PR-7300](https://github.com/apac
 ## More information
 
 - To download Apache Pulsar 2.6.1, click [download](https://pulsar.apache.org/en/download/).
-- For more information about Apache Pulsar 2.6.1, see [2.6.1 release notes](https://pulsar.apache.org/release-notes/#2.6.1 and [2.6.1 PR list](https://github.com/apache/pulsar/pulls?q=is%3Apr+label%3Arelease%2F2.6.1+is%3Aclosed).
+- For more information about Apache Pulsar 2.6.1, see [2.6.1 release notes](https://pulsar.apache.org/release-notes/#2.6.1) and [2.6.1 PR list](https://github.com/apache/pulsar/pulls?q=is%3Apr+label%3Arelease%2F2.6.1+is%3Aclosed).
 
 If you have any questions or suggestions, contact us with mailing lists or slack.
 
