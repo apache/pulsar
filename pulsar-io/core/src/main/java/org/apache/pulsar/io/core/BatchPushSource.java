@@ -21,7 +21,6 @@ package org.apache.pulsar.io.core;
 import org.apache.pulsar.functions.api.Record;
 
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Pulsar's Batch Push Source interface. Batch Push Sources have the same lifecycle
@@ -56,8 +55,6 @@ public abstract class BatchPushSource<T> implements BatchSource<T> {
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
     private final NullRecord nullRecord = new NullRecord();
-
-    AtomicReference<Exception> currentError = new AtomicReference<>();
 
     public BatchPushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());
