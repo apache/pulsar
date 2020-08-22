@@ -1959,11 +1959,11 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected void internalGetMessageById(AsyncResponse asyncResponse, long ledgerId, long entryId,
                                               boolean authoritative) {
-        verifyReadOperation(authoritative);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
         try {
+            // will redirect if the topic not owned by current broker
+            validateReadOperationOnTopic(authoritative);
+            PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
             ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
                 public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
@@ -2187,6 +2187,21 @@ public class PersistentTopicsBase extends AdminResource {
                         asyncResponse.resume(Response.noContent().build());
                     }
                 });
+    }
+
+    protected CompletableFuture<Void> internalSetDeduplicationEnabled(Boolean enabled) {
+        TopicPolicies topicPolicies = null;
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.error("Topic {} policies cache have not init.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+        }
+        if (topicPolicies == null) {
+            topicPolicies = new TopicPolicies();
+        }
+        topicPolicies.setDeduplicationEnabled(enabled);
+        return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
     }
 
     protected void internalSetMessageTTL(AsyncResponse asyncResponse, Integer ttlInSecond) {

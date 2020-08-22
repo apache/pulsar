@@ -249,6 +249,7 @@ typedef std::shared_ptr<CachedToken> CachedTokenPtr;
  *   "client_secret": "on1uJ...k6F6R",
  *   "audience": "https://broker.example.com"
  *  ```
+ *  If passed in as std::string, it should be in Json format.
  */
 class PULSAR_PUBLIC AuthOauth2 : public Authentication {
    public:
