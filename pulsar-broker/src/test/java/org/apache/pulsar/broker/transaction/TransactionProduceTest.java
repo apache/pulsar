@@ -70,7 +70,8 @@ public class TransactionProduceTest extends TransactionTestBase {
     protected void setup() throws Exception {
         internalSetup();
 
-        int webServicePort = getServiceConfigurationList().get(0).getWebServicePort().get();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
         admin.tenants().createTenant(TENANT,
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -82,9 +83,8 @@ public class TransactionProduceTest extends TransactionTestBase {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
-        int brokerPort = getServiceConfigurationList().get(0).getBrokerServicePort().get();
         pulsarClient = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:" + brokerPort)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();

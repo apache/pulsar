@@ -58,7 +58,8 @@ public class TransactionConsumeTest extends TransactionTestBase {
         setBrokerCount(1);
         super.internalSetup();
 
-        int webServicePort = getServiceConfigurationList().get(0).getWebServicePort().get();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
         admin.tenants().createTenant("public",
                 new TenantInfo(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));

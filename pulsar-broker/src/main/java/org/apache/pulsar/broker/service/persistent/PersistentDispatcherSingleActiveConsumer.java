@@ -187,7 +187,6 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     @Override
     public void readEntriesComplete(final List<Entry> entries, Object obj) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
-            log.info("[readEntriesComplete] entries: {}", entries.size());
             internalReadEntriesComplete(entries, obj);
         }));
     }
@@ -458,12 +457,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             havePendingRead = true;
 
             if (transactionReader.havePendingTxnToRead()) {
-                log.info("[havePendingTxnToRead]");
                 transactionReader.read(messagesToRead, consumer, this);
             } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
             } else {
-                log.info("[normal readMoreEntries]");
                 cursor.asyncReadEntriesOrWait(messagesToRead, serviceConfig.getDispatcherMaxReadSizeBytes(), this, consumer);
             }
         } else {

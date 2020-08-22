@@ -65,7 +65,7 @@ public class TransactionMetaImpl implements TransactionMeta {
 
     @Override
     public int numMessageInTxn() throws TransactionStatusException {
-        if (!checkStatus(TxnStatus.COMMITTED, null)) {
+        if (!checkStatus(TxnStatus.COMMITTING, null) && !checkStatus(TxnStatus.COMMITTED, null)) {
             throw new TransactionStatusException(txnID, TxnStatus.COMMITTED, txnStatus);
         }
         return numMessageInTxn;
@@ -158,7 +158,6 @@ public class TransactionMetaImpl implements TransactionMeta {
         this.txnStatus = TxnStatus.COMMITTED;
         TransactionMeta meta = this;
         commitFuture.complete(meta);
-        System.out.println("totalBatchSize: " + this.numMessageInTxn);
         return commitFuture;
     }
 
@@ -177,7 +176,9 @@ public class TransactionMetaImpl implements TransactionMeta {
 
     private boolean checkStatus(TxnStatus expectedStatus, CompletableFuture<TransactionMeta> future) {
         if (!txnStatus.equals(expectedStatus)) {
-            future.completeExceptionally(new TransactionStatusException(txnID, expectedStatus, txnStatus));
+            if (future != null) {
+                future.completeExceptionally(new TransactionStatusException(txnID, expectedStatus, txnStatus));
+            }
             return false;
         }
         return true;
