@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -112,8 +113,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             });
                     })
                 );
+                if (listeners.get(topicName) != null) {
+                    for (TopicPolicyListener<TopicPolicies> listener : listeners.get(topicName)) {
+                        listener.onUpdate(policies);
+                    }
+                }
             }
         });
+
+
         return result;
     }
 
@@ -327,6 +335,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     @VisibleForTesting
     Boolean getPoliciesCacheInit(NamespaceName namespaceName) {
         return policyCacheInitMap.get(namespaceName);
+    }
+
+    @Override
+    public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).add(listener);
+    }
+
+    @Override
+    public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList());
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
