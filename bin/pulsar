@@ -176,10 +176,7 @@ EOF
 }
 
 add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-	    MVN=${MAVEN_HOME}/bin/mvn
-    fi
+    MVN="${PULSAR_HOME}/mvnw"
 
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get

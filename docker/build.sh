@@ -21,5 +21,5 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/docker
 
-mvn -f ../dashboard/pom.xml package -Pdocker
-mvn package -Pdocker 
+$ROOT_DIR/mvnw -f ../dashboard/pom.xml package -Pdocker
+$ROOT_DIR/mvnw package -Pdocker

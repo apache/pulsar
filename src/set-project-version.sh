@@ -35,9 +35,9 @@ pushd ${ROOT_DIR}
 # Get the current version
 OLD_VERSION=`python ${ROOT_DIR}/src/get-project-version.py`
 
-mvn versions:set -DnewVersion=$NEW_VERSION
-mvn versions:set -DnewVersion=$NEW_VERSION -pl buildtools
-mvn versions:set -DnewVersion=$NEW_VERSION -pl pulsar-sql/presto-distribution
+./mvnw versions:set -DnewVersion=$NEW_VERSION
+./mvnw versions:set -DnewVersion=$NEW_VERSION -pl buildtools
+./mvnw versions:set -DnewVersion=$NEW_VERSION -pl pulsar-sql/presto-distribution
 # install the new version of root pom local, so `update-parent` can update the right parent version
 sed -i -e "s/${OLD_VERSION}/${NEW_VERSION}/g" protobuf-shaded/pom.xml
 

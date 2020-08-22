@@ -95,7 +95,7 @@ dependencies.
 To build the C++ library packages, build the Java packages first.
 
 ```shell
-mvn install -DskipTests
+./mvnw install -DskipTests
 ```
 
 #### RPM

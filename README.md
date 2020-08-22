@@ -92,32 +92,32 @@ Requirements:
 Compile and install:
 
 ```bash
-$ mvn install -DskipTests
+$ ./mvnw install -DskipTests
 ```
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
 ```
-mvn install -Pcore-modules
+./mvnw install -Pcore-modules
 ```
 
 Run Unit Tests:
 
 ```bash
-$ mvn test
+$ ./mvnw test
 ```
 
 Run Individual Unit Test:
 
 ```bash
 $ cd module-name (e.g: pulsar-client)
-$ mvn test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
+$ ./mvnw test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
 ```
 
 Run Selected Test packages:
 
 ```bash
 $ cd module-name (e.g: pulsar-broker)
-$ mvn test -pl module-name -Dinclude=org/apache/pulsar/**/*.java
+$ ./mvnw test -pl module-name -Dinclude=org/apache/pulsar/**/*.java
 ```
 
 Start standalone Pulsar service:

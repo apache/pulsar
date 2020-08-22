@@ -425,7 +425,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jetty-util</artifactId>
         <version>${jetty.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
@@ -1009,37 +1009,37 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>opencensus-api</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.opencensus</groupId>
         <artifactId>opencensus-contrib-grpc-metrics</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.elasticsearch.client</groupId>
         <artifactId>elasticsearch-rest-high-level-client</artifactId>
         <version>${elasticsearch.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>joda-time</groupId>
         <artifactId>joda-time</artifactId>
         <version>${joda.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.javassist</groupId>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>net.jcip</groupId>
         <artifactId>jcip-annotations</artifactId>
         <version>${jcip.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>io.airlift</groupId>
         <artifactId>aircompressor</artifactId>
@@ -1051,13 +1051,13 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
         <groupId>org.objenesis</groupId>
         <artifactId>objenesis</artifactId>
         <version>${objenesis.version}</version>
       </dependency>
-    
+
     </dependencies>
   </dependencyManagement>
 
@@ -1245,6 +1245,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/.idea/**</exclude>
             <exclude>**/generated/**</exclude>
             <exclude>**/zk-3.5-test-data/*</exclude>
+            <exclude>.mvn/**</exclude>
+            <exclude>mvnw</exclude>
+            <exclude>mvnw.cmd</exclude>
           </excludes>
           <mapping>
             <proto>JAVADOC_STYLE</proto>
@@ -1786,6 +1789,6 @@ flexible messaging model and an intuitive client API.</description>
       <url>http://packages.confluent.io/maven/</url>
     </repository>
   </repositories>
-  
+
 </project>
 

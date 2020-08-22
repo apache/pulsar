@@ -137,7 +137,7 @@ Now, change the message number from 10 to 10000000 in main method of [`ProducerT
 Now compile the project code using the command below:
 
 ```bash
-$ mvn clean package
+$ ./mvnw clean package
 ```
 
 ### Run the consumer and producer
@@ -145,7 +145,7 @@ $ mvn clean package
 Execute this command to run the consumer:
 
 ```bash
-$ mvn exec:java -Dexec.mainClass="tutorial.ConsumerTutorial"
+$ ./mvnw exec:java -Dexec.mainClass="tutorial.ConsumerTutorial"
 ```
 
 Execute this command to run the producer:

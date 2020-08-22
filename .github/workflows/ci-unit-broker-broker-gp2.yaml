@@ -58,27 +58,27 @@ jobs:
 
       - name: build modules
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
+        run: ./mvnw -B -ntp -q clean install -Pcore-modules -DskipTests
 
       - name: run flaky test
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/MessagePublishBufferThrottleTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh ./mvnw -B -ntp test -pl pulsar-broker -Dinclude='**/MessagePublishBufferThrottleTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/ReplicatorTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh ./mvnw -B -ntp test -pl pulsar-broker -Dinclude='**/ReplicatorTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/TopicOwnerTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh ./mvnw -B -ntp test -pl pulsar-broker -Dinclude='**/TopicOwnerTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run flaky test
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AntiAffinityNamespaceGroupTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh ./mvnw -B -ntp test -pl pulsar-broker -Dinclude='**/AntiAffinityNamespaceGroupTest.java' -DtestForkCount=1 -DtestReuseFork=true
 
       - name: run unit tests for pulsar-broker "org/apache/pulsar/broker/"
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn ${MAVEN_CLI_OPTS} test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java' -Dexclude='**/ReplicatorTest.java,**/MessagePublishBufferThrottleTest.java,**/TopicOwnerTest.java,**/AntiAffinityNamespaceGroupTest.java'
+        run: ./build/retry.sh ./mvnw ${MAVEN_CLI_OPTS} test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/zookeeper/**/*.java,org/apache/pulsar/broker/loadbalance/**/*.java,org/apache/pulsar/broker/service/**/*.java' -Dexclude='**/ReplicatorTest.java,**/MessagePublishBufferThrottleTest.java,**/TopicOwnerTest.java,**/AntiAffinityNamespaceGroupTest.java'
 
       - name: package surefire artifacts
         if: failure()

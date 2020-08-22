@@ -71,12 +71,12 @@ jobs:
 
       - name: run install by skip tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -q -B -ntp clean install -DskipTests
+        run: ./mvnw -q -B -ntp clean install -DskipTests
 
       - name: build artifacts and docker image
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
+        run: ./mvnw -B -f tests/docker-images/pom.xml install -am -Pdocker -DskipTests
 
       - name: run integration tests
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests -DredirectTestOutputToFile=false
+        run: ./mvnw -B -f tests/pom.xml test -DintegrationTestSuiteFile=pulsar-function-state.xml -DintegrationTests -DredirectTestOutputToFile=false

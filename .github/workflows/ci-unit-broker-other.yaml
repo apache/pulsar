@@ -58,11 +58,11 @@ jobs:
 
       - name: build modules
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
+        run: ./mvnw -B -ntp -q clean install -Pcore-modules -DskipTests
 
       - name: run unit tests for pulsar-broker exlcude "org/apache/pulsar/broker", "org/apache/pulsar/client"
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'
+        run: ./mvnw -B -ntp test -pl pulsar-broker -Dexclude='org/apache/pulsar/broker/**/*.java,org/apache/pulsar/client/**/*.java'
 
       - name: package surefire artifacts
         if: failure()

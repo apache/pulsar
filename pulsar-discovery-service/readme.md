@@ -28,7 +28,7 @@ It keeps list of active available brokers and redirects all incoming requests to
 Discovery service module contains embedded jetty server and service can be started on it using following script:
 
 ```
-mvn exec:java -Dexec.mainClass=org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter -Dexec.args=$CONF_FILE
+./mvnw exec:java -Dexec.mainClass=org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter -Dexec.args=$CONF_FILE
 ```
 
 CONF_FILE should have following property

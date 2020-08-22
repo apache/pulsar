@@ -55,7 +55,7 @@ The steps to run the example:
 
     ```shell
     $ cd ${PULSAR_HOME}
-    $ mvn clean install -DskipTests
+    $ ./mvnw clean install -DskipTests
     ```
 
 4. Run the word count example to print results to stdout.

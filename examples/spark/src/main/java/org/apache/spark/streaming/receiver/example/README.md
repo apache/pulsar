@@ -83,7 +83,7 @@ If you choose spark_submit to run, the steps to run the example:
 
     ```shell
     $ cd ${PULSAR_HOME}
-    $ mvn clean install -DskipTests
+    $ ./mvnw clean install -DskipTests
     ```
 
 3. Spark Run the word count example to print results to stdout.
@@ -104,4 +104,3 @@ If you choose spark_submit to run, the steps to run the example:
     (spark,100)
     (msg,100)
     ```
-    

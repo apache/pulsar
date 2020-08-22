@@ -28,25 +28,25 @@ DEST_DIR=$ROOT_DIR/generated-site
 
   # Java client
   mkdir -p $DEST_DIR/api/client/${VERSION}
-  mvn -pl pulsar-client-api javadoc:javadoc
+  ./mvnw -pl pulsar-client-api javadoc:javadoc
   cp -r pulsar-client-api/target/site/apidocs/* $DEST_DIR/api/client/${VERSION}/
 
 
   # Java admin
   mkdir -p $DEST_DIR/api/admin/${VERSION}
-  mvn -pl pulsar-client-admin javadoc:javadoc
+  ./mvnw -pl pulsar-client-admin javadoc:javadoc
   cp -r pulsar-client-admin/target/site/apidocs/* $DEST_DIR/api/admin/${VERSION}/
 
   # Pulsar Functions Java SDK
   mkdir -p $DEST_DIR/api/pulsar-functions/${VERSION}
   cd pulsar-functions
-  mvn -pl api-java javadoc:javadoc
+  ./mvnw -pl api-java javadoc:javadoc
   cd ..
   cp -r pulsar-functions/api-java/target/site/apidocs/* $DEST_DIR/api/pulsar-functions/${VERSION}/
 
   # Broker
   mkdir -p $DEST_DIR/api/pulsar-broker/${VERSION}
-  mvn -pl pulsar-broker javadoc:javadoc
+  ./mvnw -pl pulsar-broker javadoc:javadoc
   cp -r pulsar-broker/target/site/apidocs/* $DEST_DIR/api/pulsar-broker/${VERSION}/
 
 ) || true
