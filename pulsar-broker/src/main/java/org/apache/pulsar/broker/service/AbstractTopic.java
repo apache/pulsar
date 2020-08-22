@@ -153,7 +153,7 @@ public abstract class AbstractTopic implements Topic {
      * @param topicName
      * @return TopicPolicies is exist else return null.
      */
-    protected TopicPolicies getTopicPolicies(TopicName topicName) {
+    public TopicPolicies getTopicPolicies(TopicName topicName) {
         TopicName cloneTopicName = topicName;
         if (topicName.isPartitioned()) {
             cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());

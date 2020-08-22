@@ -2331,6 +2331,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         Optional<PersistencePolicies> persistencePolicies = getTopicPolicies(topicName)
                 .map(TopicPolicies::getPersistence);
         if (!persistencePolicies.isPresent()) {
@@ -2346,6 +2347,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         validatePersistencePolicies(persistencePolicies);
 
         TopicPolicies topicPolicies = getTopicPolicies(topicName).orElseGet(TopicPolicies::new);
@@ -2359,6 +2361,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
@@ -2367,17 +2370,18 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected void internalGetMaxProducers(AsyncResponse asyncResponse){
+    protected void internalGetMaxProducers(AsyncResponse asyncResponse) {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         Optional<Integer> maxProducers = getTopicPolicies(topicName)
-                .map(TopicPolicies::getMaxProducerPerTopic);
+            .map(TopicPolicies::getMaxProducerPerTopic);
         if (!maxProducers.isPresent()) {
             asyncResponse.resume(Response.noContent().build());
-        }else {
+        } else {
             asyncResponse.resume(maxProducers.get());
         }
     }
@@ -2388,6 +2392,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         if (maxProducers < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
                     "maxProducers must be 0 or more");
@@ -2403,6 +2408,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
+        checkTopicLevelPolicyEnable();
         Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
         if (!topicPolicies.isPresent()) {
             return CompletableFuture.completedFuture(null);
