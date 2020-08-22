@@ -235,6 +235,10 @@ public class TransactionTestBase {
                 for (PulsarService pulsarService : pulsarServiceList) {
                     pulsarService.close();
                 }
+                pulsarServiceList.clear();
+            }
+            if (serviceConfigurationList.size() > 0) {
+                serviceConfigurationList.clear();
             }
             if (mockBookKeeper != null) {
                 mockBookKeeper.reallyShutdown();
