@@ -39,7 +39,7 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
 }
 
 void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
-    std::lock_guard<std::mutex> acquire(lock_);
+    std::unique_lock<std::mutex> acquire(lock_);
     LOG_DEBUG("UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ "
               << consumerReference_.getName().c_str());
 
@@ -60,6 +60,9 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
     timePartitions.push_back(headPartition);
 
     if (msgIdsToRedeliver.size() > 0) {
+        // redeliverUnacknowledgedMessages() may call clear() that acquire the lock again, so we should unlock
+        // here to avoid deadlock
+        acquire.unlock();
         consumerReference_.redeliverUnacknowledgedMessages(msgIdsToRedeliver);
     }
 }
@@ -148,6 +151,7 @@ void UnAckedMessageTrackerEnabled::removeTopicMessage(const std::string& topic) 
 }
 
 void UnAckedMessageTrackerEnabled::clear() {
+    std::lock_guard<std::mutex> acquire(lock_);
     messageIdPartitionMap.clear();
     for (auto it = timePartitions.begin(); it != timePartitions.end(); it++) {
         it->clear();
