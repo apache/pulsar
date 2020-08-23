@@ -16,7 +16,7 @@ As many of you know, Apache Pulsar is a cloud-native messaging and event streami
 The influx of developers joining the Pulsar community is in large part due to the high market demand for next-generation messaging technologies, big-data insights, and real-time streaming. Top developers and industry leaders are joining the Pulsar community for the opportunity to help shape the future of this technology. 
 
 ## Community Events
-To meet the high demand for education and training in the Pulsar community, the community has launched some key initiatives this year. We host weekly TGIP(Thank God It's Pulsar) training, which features Pulsar thought-leaders and Pulsar PMC Members. To meet global demand, we currently host two different weekly trainings. The [first TGIP training](https://www.youtube.com/watch?v=Vc_a2ppRzlI&list=PLqRma1oIkcWhWAhKgImEeRiQi5vMlqTc-) runs on Pacific Time, and the [second TGIP training](https://github.com/streamnative/tgip-cn) runs on Beijing Time. 
+To meet the high demand for education and training in the Pulsar community, the community has launched some key initiatives this year. We host weekly TGIP(Thank God It's Pulsar) training, which features Pulsar thought-leaders and Pulsar PMC Members. To meet global demand, we currently host two different weekly trainings. One [TGIP training](https://www.youtube.com/watch?v=Vc_a2ppRzlI&list=PLqRma1oIkcWhWAhKgImEeRiQi5vMlqTc-) runs on Pacific Time, and the other [TGIP-CN training](https://github.com/streamnative/tgip-cn) runs on Beijing Time. 
 
 We also host monthly [webinars](https://www.youtube.com/watch?v=mncXc_T6JkU&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev) to bring together Pulsar and messaging community thought-leaders to share best practices, insights and product news. Thank [Matteo Merli](https://twitter.com/merlimat), [Addison Higham](https://twitter.com/addisonjh), Joe Francis, [Shivji Kumar Jha](https://twitter.com/ShivjiJha), [Devin Bost](https://twitter.com/DevinBost), [Pierre Zemb](https://twitter.com/PierreZ), [Jesse Anderson](https://twitter.com/jessetanderson), [Sijie Guo](https://twitter.com/sijieg) and other speakers for contributing so much valuable knowledge.
 
@@ -38,7 +38,7 @@ Committed community partners have also contributed to key project advancements. 
 In March 2020, [OVHCloud and StreamNative launched Kafka-on-Pulsar (KoP)](https://streamnative.io/blog/tech/2020-03-24-bring-native-kafka-protocol-support-to-apache-pulsar), the result of the two companies working closely in partnership. [KoP](https://github.com/streamnative/kop) enables Kafka users to migrate their existing Kafka applications and services to Pulsar without modifying the code. Although only recently released, KoP has already been adopted by several organizations and is being used in production environments. Moreover, KoP's availability is helping to expand Pulsar's adoption.
 
 ### China Mobile Helps Companies Move from RabbitMQ to Pulsar
-In June 2020, [China Mobile and StreamNative announced the launch of another major platform upgrade, AMQP on Pulsar (AoP)](https://streamnative.io/blog/tech/2020-06-15-announcing-aop-on-pulsar). Similar to KoP, [AoP](https://github.com/streamnative/aop) allows organizations currently using RabbitMQ (or other AMQP message brokers) to migrate existing applications and services to Pulsar without code modification. Again, this is a key initiative that will help drive the adoption and usage of Pulsar.
+In June 2020, [China Mobile and StreamNative announced the launch of another major platform upgrade, AMQP-on-Pulsar (AoP)](https://streamnative.io/blog/tech/2020-06-15-announcing-aop-on-pulsar). Similar to KoP, [AoP](https://github.com/streamnative/aop) allows organizations currently using RabbitMQ (or other AMQP message brokers) to migrate existing applications and services to Pulsar without code modification. Again, this is a key initiative that will help drive the adoption and usage of Pulsar.
 
 You can find a number of other connections and integrations, such as MQTT-on-Pulsar for building IoT applications, in the [StreamNative Hub](https://hub.streamnative.io/).
 
@@ -55,7 +55,7 @@ We would like to thank the Pulsar community, contributors and committers, who ha
 - [Penghui Li](https://github.com/codelipenghui) from [Zhaopin.com](http://www.zhaopin.com/)
 - [Jia Zhai](https://github.com/jiazhai) from [StreamNative](https://streamnative.io/)
 
-To view other contributors, visit [Pulsar contributor list](https://github.com/apache/pulsar/graphs/contributors).
+To view other contributors, see [Pulsar contributor list](https://github.com/apache/pulsar/graphs/contributors).
 
 ## Get Involved
 We invite you to join this fast-growing community. Together, we will continue to develop technology to meet today’s most innovative messaging and event-streaming use cases and to help companies unlock the value of real-time data. 
