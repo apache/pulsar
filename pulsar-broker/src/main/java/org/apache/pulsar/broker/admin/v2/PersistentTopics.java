@@ -30,6 +30,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -1709,7 +1710,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetDispatchRate(asyncResponse);
+            Optional<DispatchRate> dispatchRate = internalGetDispatchRate();
+            if (!dispatchRate.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(dispatchRate.get());
+            }
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {

@@ -3058,20 +3058,14 @@ public class PersistentTopicsBase extends AdminResource {
 
     }
 
-    protected void internalGetDispatchRate(AsyncResponse asyncResponse) {
+    protected Optional<DispatchRate> internalGetDispatchRate() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        Optional<DispatchRate> dispatchRate = getTopicPolicies(topicName)
-            .map(TopicPolicies::getDispatchRate);
-        if (!dispatchRate.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        } else {
-            asyncResponse.resume(dispatchRate.get());
-        }
+        return getTopicPolicies(topicName).map(TopicPolicies::getDispatchRate);
     }
 
     protected CompletableFuture<Void> internalSetDispatchRate(DispatchRate dispatchRate) {
