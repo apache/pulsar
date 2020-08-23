@@ -200,6 +200,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicLevelOffload() throws Exception {
+        //wait for cache init
+        Thread.sleep(2000);
         testOffload(true);
         testOffload(false);
     }
@@ -207,16 +209,41 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     public void testOffload(boolean isPartitioned) throws Exception {
         String topicName = testTopic + UUID.randomUUID().toString();
         int partitionNum = 3;
+        //1 create topic
         if (isPartitioned) {
             admin.topics().createPartitionedTopic(topicName, partitionNum);
         } else {
             admin.topics().createNonPartitionedTopic(topicName);
         }
+        pulsarClient.newProducer().topic(topicName).enableBatching(false).create().close();
+        //2 namespace level policy should use NullLedgerOffloader by default
+        if (isPartitioned) {
+            for (int i = 0; i < partitionNum; i++) {
+                PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                        .getTopicIfExists(TopicName.get(topicName).getPartition(i).toString()).get().get();
+                assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+                assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                        , "NullLedgerOffloader");
+            }
+        } else {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().get();
+            assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+            assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                    , "NullLedgerOffloader");
+        }
+        //3 construct a topic level offloadPolicies
         OffloadPolicies offloadPolicies = new OffloadPolicies();
+        offloadPolicies.setOffloadersDirectory(".");
+        offloadPolicies.setManagedLedgerOffloadDriver("mock");
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024);
-        //wait for cache init
-        Thread.sleep(1000);
+
+        LedgerOffloader ledgerOffloader = mock(LedgerOffloader.class);
+        when(ledgerOffloader.getOffloadDriverName()).thenReturn("mock");
+        doReturn(ledgerOffloader).when(pulsar).createManagedLedgerOffloader(any());
+
+        //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getOffloadPolicies(topicName) != null) {
@@ -224,20 +251,21 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             }
             Thread.sleep(500);
         }
+        //5 name of offload should become "mock"
         if (isPartitioned) {
             for (int i = 0; i < partitionNum; i++) {
                 PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
                         .getTopic(TopicName.get(topicName).getPartition(i).toString(), false).get().get();
-                assertNotNull(topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
-                assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader()
-                        , topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+                assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+                assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                        , "mock");
             }
         } else {
             PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topicName, false).get().get();
-            assertNotNull(topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
-            assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader()
-                    , topic.getManagedLedger().getConfig().getTopicLevelLedgerOffloader());
+            assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+            assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                    , "mock");
         }
     }
 

@@ -849,8 +849,9 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 PersistentTopic persistentTopic = (PersistentTopic) optionalTopic.get();
                 ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-                managedLedgerConfig.setTopicLevelLedgerOffloader(offloadPolicies != null
-                        ? pulsar().createManagedLedgerOffloader(offloadPolicies) : null);
+                managedLedgerConfig.setLedgerOffloader(offloadPolicies != null
+                        ? pulsar().createManagedLedgerOffloader(offloadPolicies)
+                        : pulsar().getLedgerOffloaderMap().get(topicName.getNamespaceObject()));
                 persistentTopic.getManagedLedger().setConfig(managedLedgerConfig);
             } catch (PulsarServerException e) {
                 throw new RestException(e);
