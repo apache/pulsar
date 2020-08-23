@@ -20,7 +20,7 @@ To meet the high demand for education and training in the Pulsar community, the 
 
 We also host monthly [webinars](https://www.youtube.com/watch?v=mncXc_T6JkU&list=PLqRma1oIkcWhfmUuJrMM5YIG8hjju62Ev) to bring together Pulsar and messaging community thought-leaders to share best practices, insights and product news. Thank [Matteo Merli](https://twitter.com/merlimat), [Addison Higham](https://twitter.com/addisonjh), Joe Francis, [Shivji Kumar Jha](https://twitter.com/ShivjiJha), [Devin Bost](https://twitter.com/DevinBost), [Pierre Zemb](https://twitter.com/PierreZ), [Jesse Anderson](https://twitter.com/jessetanderson), [Sijie Guo](https://twitter.com/sijieg) and other speakers for contributing so much valuable knowledge.
 
-This year also marked our first global summit, held in June 2020. Hosted by StreamNative and Splunk, the first-ever [Pulsar Summit Virtual Conference](https://pulsar-summit.org/) featured 30+ talks from 20+ organizations. Thank all speakers for sharing your stories around Pulsar, and thank you to all of the attendees for joining the event.
+This year also marked our first global summit, held in June 2020. Hosted by StreamNative and Splunk, the first-ever [Pulsar Summit Virtual Conference](https://pulsar-summit.org/) featured 30+ talks from 20+ organizations. Thank all speakers for sharing your stories about Pulsar, and thank you to all of the attendees for joining the event.
 
 We are excited to announce that we will be hosting Pulsar Summit Asia 2020 on November 28 and 29, and the call for presentations for this event will be coming soon.
 
