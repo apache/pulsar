@@ -344,7 +344,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList());
+        listeners.computeIfAbsent(topicName, k -> Lists.newCopyOnWriteArrayList()).remove(listener);
     }
 
     private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);

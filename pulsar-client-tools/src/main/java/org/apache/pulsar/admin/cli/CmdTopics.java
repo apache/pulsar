@@ -1151,7 +1151,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Remove message dispatch reate for a topic")
+    @Parameters(commandDescription = "Remove message dispatch rate for a topic")
     private class RemoveDispatchRate extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
