@@ -20,6 +20,7 @@
 
 #include <curl/curl.h>
 #include <sstream>
+#include <stdexcept>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -102,7 +103,7 @@ Oauth2CachedToken::Oauth2CachedToken(Oauth2TokenResultPtr token) {
     if (expiredIn > 0) {
         expiresAt_ = expiredIn + currentTimeMillis();
     } else {
-        throw "ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn;
+        throw std::runtime_error("ExpiresIn in Oauth2TokenResult invalid value: " + expiredIn);
     }
     authData_ = AuthenticationDataPtr(new AuthDataOauth2(token->getAccessToken()));
 }
