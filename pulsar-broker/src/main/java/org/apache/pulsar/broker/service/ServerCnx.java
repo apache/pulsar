@@ -127,6 +127,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1817,8 +1818,11 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     command.getRequestId(), remoteAddress, txnID);
         }
-        List<String> subscriptionList = command.getSubscriptionList().stream()
-                .map(subscription -> subscription.getTopic() + "|" + subscription.getSubscription())
+        List<TransactionSubscription> subscriptionList = command.getSubscriptionList().stream()
+                .map(subscription -> TransactionSubscription.builder()
+                        .topic(subscription.getTopic())
+                        .subscription(subscription.getSubscription())
+                        .build())
                 .collect(Collectors.toList());
         service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID, subscriptionList)
                 .whenComplete(((v, ex) -> {

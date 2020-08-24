@@ -31,6 +31,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
@@ -148,7 +149,7 @@ public class TransactionMetadataStoreService {
         return store.addProducedPartitionToTxn(txnId, partitions);
     }
 
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<String> partitions) {
+    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<TransactionSubscription> partitions) {
         TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
@@ -214,15 +215,14 @@ public class TransactionMetadataStoreService {
                 return;
             }
 
-            for (String ackedPartition : txnMeta.ackedPartitions()) {
-                String[] topicAndSub = ackedPartition.split("\\|");
+            for (TransactionSubscription tbSub : txnMeta.ackedPartitions()) {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnSubscription(
-                            topicAndSub[0], topicAndSub[1], txnID.getMostSigBits(), txnID.getLeastSigBits());
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
                 } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
                     actionFuture = tbClient.abortTxnOnSubscription(
-                            topicAndSub[0], topicAndSub[1], txnID.getMostSigBits(), txnID.getLeastSigBits());
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
