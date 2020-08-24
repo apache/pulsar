@@ -11,7 +11,7 @@ Over the last few years, the shift to real-time streaming technologies has bolst
 
 This community growth has contributed to a new milestone for Pulsar - our [300th contributor](https://github.com/apache/pulsar/graphs/contributors) to the Pulsar repository. This milestone is even more exciting given that we added 100 contributors in the last 8 months alone!
 
-As many of you know, Apache Pulsar is a cloud-native messaging and event streaming platform that has experienced rapid growth since it was committed to open source in 2016. Pulsar graduated as a Top-Level Project (TLP) in September 2018, has launched 92 releases, attracted 5100+ commits from 300 contributors, received 6.4k+ stars, 1.6k+ forks, and 2.2k+ Slack users. 
+As many of you know, Apache Pulsar is a cloud-native messaging and event streaming platform that has experienced rapid growth since it was committed to open source in 2016. Pulsar graduated as a Top-Level Project (TLP) in September 2018, has launched 92 releases, attracted 5100+ commits from 300 contributors, received 6.5k+ stars, 1.6k+ forks, and 2.2k+ Slack users. 
 
 The influx of developers joining the Pulsar community is in large part due to the high market demand for next-generation messaging technologies, big-data insights, and real-time streaming. Top developers and industry leaders are joining the Pulsar community for the opportunity to help shape the future of this technology. 
 
