@@ -78,7 +78,7 @@ TEST(BatchMessageTest, testProducerConfig) {
     try {
         conf.setBatchingMaxMessages(1);
         FAIL();
-    } catch (const char* ex) {
+    } catch (const std::exception&) {
         // Ok
     }
 }
