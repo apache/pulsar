@@ -231,6 +231,9 @@ The Apache Software License, Version 2.0
     - commons-beanutils-core-1.8.3.jar
     - commons-compress-1.19.jar
     - commons-lang3-3.6.jar
+ * Http
+    - httpcore-4.4.9.jar
+    - httpclient-4.5.5.jar
  * Netty
     - netty-3.10.6.Final.jar
     - netty-buffer-4.1.48.Final.jar
@@ -246,7 +249,6 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-4.1.48.Final.jar
     - netty-tcnative-boringssl-static-2.0.30.Final.jar
     - netty-transport-4.1.48.Final.jar
-    - netty-transport-native-epoll-4.1.48.Final.jar
     - netty-transport-native-epoll-4.1.48.Final-linux-x86_64.jar
     - netty-transport-native-kqueue-4.1.48.Final-osx-x86_64.jar
     - netty-transport-native-unix-common-4.1.48.Final.jar
@@ -433,7 +435,7 @@ The Apache Software License, Version 2.0
     - commons-configuration-1.10.jar
     - commons-io-2.5.jar
     - commons-lang-2.6.jar
-    - commons-logging-1.1.1.jar
+    - commons-logging-1.2.jar
   * GSON
     - gson-2.8.2.jar
   * Jackson
@@ -567,5 +569,9 @@ Creative Commons Attribution License
     - jcip-annotations-1.0.jar
 
 Bouncy Castle License
+ * Bouncy Castle
+    - bcprov-jdk15on-1.60.jar
+    - bcprov-ext-jdk15on-1.60.jar
+    - bcpkix-jdk15on-1.60.jar
  * Bouncy Castle -- licenses/LICENSE-bouncycastle.txt
     - bouncy-castle-bc-shaded-2.7.0-SNAPSHOT.jar
