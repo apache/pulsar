@@ -130,6 +130,8 @@ public abstract class AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
+            log.warn("[{}] Failed to get namespace policies that include max number of producers: {}", topic,
+                    e.getMessage());
             policies = new Policies();
         }
         final int maxProducers = policies.max_producers_per_topic > 0 ?
@@ -152,6 +154,8 @@ public abstract class AbstractTopic implements Topic {
                 policies = new Policies();
             }
         } catch (Exception e) {
+            log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
+                    e.getMessage());
             policies = new Policies();
         }
         final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?  policies.max_consumers_per_topic
