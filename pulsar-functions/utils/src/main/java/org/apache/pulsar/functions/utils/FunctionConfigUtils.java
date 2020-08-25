@@ -147,9 +147,20 @@ public class FunctionConfigUtils {
         }
         sourceSpecBuilder.setSubscriptionType(subType);
 
+        // Set subscription name
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
         }
+
+        // Set subscription position
+        Function.SubscriptionPosition subPosition;
+        if (functionConfig.getRetainEarliestPosition() != null && functionConfig.getRetainEarliestPosition()) {
+            subPosition = Function.SubscriptionPosition.EARLIEST;
+        } else {
+            subPosition = Function.SubscriptionPosition.LATEST;
+        }
+
+        sourceSpecBuilder.setSubscriptionPosition(subPosition);
 
         if (typeArgs != null) {
             sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
@@ -338,6 +349,7 @@ public class FunctionConfigUtils {
         }
         functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
         functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());
+        functionConfig.setRetainEarliestPosition(functionDetails.getRetainEarliestPosition());
 
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());

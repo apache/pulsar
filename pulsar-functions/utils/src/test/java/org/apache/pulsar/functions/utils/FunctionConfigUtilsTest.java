@@ -58,6 +58,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
+        functionConfig.setRetainEarliestPosition(false);
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
@@ -98,6 +99,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
+        functionConfig.setRetainEarliestPosition(false);
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
@@ -440,6 +442,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
+        functionConfig.setRetainEarliestPosition(false);
         functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
