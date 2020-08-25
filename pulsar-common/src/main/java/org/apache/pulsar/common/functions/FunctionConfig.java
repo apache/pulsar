@@ -27,7 +27,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 /**
  * Configuration of Pulsar Function.
