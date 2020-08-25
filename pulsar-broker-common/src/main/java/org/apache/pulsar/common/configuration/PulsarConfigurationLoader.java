@@ -173,8 +173,7 @@ public class PulsarConfigurationLoader {
      *             if conf has the field whose name is not contained in ServiceConfiguration and ignoreNonExistMember is false.
      * @throws RuntimeException
      */
-    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember,
-                                                   String clusterName) throws RuntimeException {
+    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember) throws RuntimeException {
         try {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class.newInstance();
             Field[] confFields = conf.getClass().getDeclaredFields();
@@ -194,19 +193,12 @@ public class PulsarConfigurationLoader {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
                 }
             });
-            if (clusterName != null && !clusterName.isEmpty()) {
-                convertedConf.setClusterName(clusterName);
-            }
             return convertedConf;
         } catch (InstantiationException e) {
             throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
         } catch (IllegalAccessException e) {
             throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
         }
-    }
-
-    public static ServiceConfiguration convertFrom(PulsarConfiguration conf, boolean ignoreNonExistMember) throws RuntimeException {
-        return convertFrom(conf, ignoreNonExistMember, null);
     }
 
     public static ServiceConfiguration convertFrom(PulsarConfiguration conf) throws RuntimeException {
