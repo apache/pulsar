@@ -884,7 +884,7 @@ public abstract class TestPulsarConnector {
                                     count++;
                                 }
 
-                                callback.readEntriesComplete(entries, ctx);
+                                callback.readEntriesComplete(entries, ctx, null);
                             }
                         }).start();
 

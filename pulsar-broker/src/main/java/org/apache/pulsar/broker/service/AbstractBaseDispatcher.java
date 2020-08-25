@@ -24,6 +24,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+<<<<<<< HEAD
+=======
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+
+>>>>>>> add cache hit ratio metrics for topic subscription
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -45,9 +51,26 @@ import org.apache.pulsar.common.protocol.Markers;
 public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected final Subscription subscription;
+<<<<<<< HEAD
 
     protected AbstractBaseDispatcher(Subscription subscription) {
         this.subscription = subscription;
+=======
+    protected final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
+    private long lastStatTimestamp = System.nanoTime();
+    protected DispatcherMXBeanImpl bean;
+
+    protected AbstractBaseDispatcher(Subscription subscription) {
+        this.subscription = subscription;
+        this.pendingTxnQueue = Queues.newConcurrentLinkedQueue();
+        this.bean = new DispatcherMXBeanImpl(this);
+    }
+
+    public synchronized void refreshStats() {
+        long now = System.nanoTime();
+        long period = now - lastStatTimestamp;
+        bean.refreshStats(period, TimeUnit.NANOSECONDS);
+>>>>>>> add cache hit ratio metrics for topic subscription
     }
 
     /**
@@ -233,4 +256,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         });
     }
 
+<<<<<<< HEAD
+=======
+    public DispatcherMXBeanImpl getBean() {
+        return bean;
+    }
+>>>>>>> add cache hit ratio metrics for topic subscription
 }

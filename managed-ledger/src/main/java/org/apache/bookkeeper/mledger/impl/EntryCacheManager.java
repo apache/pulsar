@@ -216,7 +216,12 @@ public class EntryCacheManager {
                         mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
                         ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
-                        callback.readEntriesComplete(entries, ctx);
+                        EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                                .getBuilder()
+                                .setCacheMissCount(entries.size())
+                                .setCacheMissSize(totalSize)
+                                .build();
+                        callback.readEntriesComplete(entries, ctx, entryCacheCounter);
                     }).exceptionally(exception -> {
                     	callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
                     	return null;
@@ -242,7 +247,12 @@ public class EntryCacheManager {
 
                                 mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMBean().addReadEntriesSample(1, returnEntry.getLength());
-                                callback.readEntryComplete(returnEntry, ctx);
+                                EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                                        .getBuilder()
+                                        .setCacheMissCount(1)
+                                        .setCacheMissSize(returnEntry.getLength())
+                                        .build();
+                                callback.readEntryComplete(returnEntry, ctx, entryCacheCounter);
                             } else {
                                 callback.readEntryFailed(new ManagedLedgerException("Could not read given position"), ctx);
                             }

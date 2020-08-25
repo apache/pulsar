@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -316,7 +317,7 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+    public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{} -> {}] Read entries complete of {} messages", topicName, localCluster, remoteCluster,
                     entries.size());
@@ -654,7 +655,7 @@ public class PersistentReplicator extends AbstractReplicator
             }
 
             @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 future.complete(entry);
             }
         }, null);

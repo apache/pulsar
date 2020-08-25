@@ -50,6 +50,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
@@ -1584,7 +1585,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
         ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 entryFuture.complete(entry);
             }
 

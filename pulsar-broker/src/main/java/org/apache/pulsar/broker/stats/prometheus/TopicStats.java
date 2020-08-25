@@ -190,6 +190,17 @@ class TopicStats {
                     subsStats.msgRateExpired);
             metric(stream, cluster, namespace, topic, n, "pulsar_subscription_total_msg_expired",
                     subsStats.totalMsgExpired);
+
+            // subscription cache stats
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_cache_hits_rate",
+                subsStats.cacheHitsRate);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_cache_hits_throughput",
+                subsStats.cacheHitsThroughput);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_cache_misses_rate",
+                subsStats.cacheMissesRate);
+            metric(stream, cluster, namespace, topic, n, "pulsar_subscription_cache_misses_throughput",
+                subsStats.cacheMissesThroughput);
+
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 metric(stream, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
                         "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver);

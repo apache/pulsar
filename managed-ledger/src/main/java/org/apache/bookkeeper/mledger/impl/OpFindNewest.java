@@ -62,7 +62,7 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     @Override
-    public void readEntryComplete(Entry entry, Object ctx) {
+    public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
         final Position position = entry.getPosition();
         switch (state) {
         case checkFirst:

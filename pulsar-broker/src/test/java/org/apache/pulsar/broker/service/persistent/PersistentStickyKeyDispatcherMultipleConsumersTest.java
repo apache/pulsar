@@ -146,7 +146,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal, null);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }

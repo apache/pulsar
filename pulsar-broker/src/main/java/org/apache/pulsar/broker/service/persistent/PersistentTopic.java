@@ -60,6 +60,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -2277,7 +2278,7 @@ public class PersistentTopic extends AbstractTopic
         }
         ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 PulsarApi.MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                 if (metadata.hasNumMessagesInBatch()) {
                     completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),

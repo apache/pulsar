@@ -366,7 +366,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertNull(ctx);
                 assertEquals(entries.size(), 1);
                 entries.forEach(e -> e.release());
@@ -396,7 +396,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 entries.forEach(e -> e.release());
                 counter.countDown();
             }
@@ -419,7 +419,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.asyncReadEntries(100, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 fail("async-call should have failed");
             }
 
@@ -446,7 +446,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.asyncReadEntries(0, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 fail("async-call should have failed");
             }
 
@@ -1662,7 +1662,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
             c.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
                 @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                     assertEquals(entries.size(), 1);
                     entries.forEach(e -> e.release());
                     counter.countDown();
@@ -2503,7 +2503,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         c1.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 counter.countDown();
             }
 
@@ -2519,7 +2519,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         c1.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 counter2.countDown();
             }
 

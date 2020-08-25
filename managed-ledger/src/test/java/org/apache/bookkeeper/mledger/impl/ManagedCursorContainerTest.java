@@ -78,7 +78,7 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx) {
-            callback.readEntriesComplete(null, ctx);
+            callback.readEntriesComplete(null, ctx, EntryCacheCounter.EntryCacheCounterBuilder.getBuilder().build());
         }
 
         @Override

@@ -331,7 +331,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
         final CountDownLatch counter = new CountDownLatch(1);
         entryCache.asyncReadEntry(lh, new PositionImpl(1L ,1L), new AsyncCallbacks.ReadEntryCallback() {
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 Assert.assertNotEquals(entry, null);
                 entry.release();
                 counter.countDown();

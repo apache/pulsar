@@ -308,7 +308,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
                                 cursor.asyncReadEntries(2, new ReadEntriesCallback() {
                                     @Override
-                                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                                    public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                                         ManagedCursor cursor = (ManagedCursor) ctx;
 
                                         assertEquals(entries.size(), 1);
@@ -2493,7 +2493,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // (1) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.earliest, new ReadEntryCallback() {
             @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 responseException1.set(null);
             }
 
@@ -2515,7 +2515,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
 
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
             }
 
             @Override

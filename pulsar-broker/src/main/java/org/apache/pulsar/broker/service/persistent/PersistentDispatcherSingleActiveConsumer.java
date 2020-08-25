@@ -34,6 +34,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -181,10 +182,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     @Override
-    public void readEntriesComplete(final List<Entry> entries, Object obj) {
+    public void readEntriesComplete(final List<Entry> entries, Object obj, EntryCacheCounter entryCacheCounter) {
         topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topicName, SafeRun.safeRun(() -> {
             internalReadEntriesComplete(entries, obj);
         }));
+        bean.recordCacheState(entryCacheCounter);
     }
 
     public synchronized void internalReadEntriesComplete(final List<Entry> entries, Object obj) {
@@ -597,6 +599,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     public CompletableFuture<Void> close() {
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+        super.close();
         return disconnectAllConsumers();
     }
 

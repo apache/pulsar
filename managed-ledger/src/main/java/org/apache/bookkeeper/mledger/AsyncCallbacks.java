@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -76,13 +78,13 @@ public interface AsyncCallbacks {
     }
 
     interface ReadEntriesCallback {
-        void readEntriesComplete(List<Entry> entries, Object ctx);
+        void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter);
 
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
     interface ReadEntryCallback {
-        void readEntryComplete(Entry entry, Object ctx);
+        void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter);
 
         void readEntryFailed(ManagedLedgerException exception, Object ctx);
     }

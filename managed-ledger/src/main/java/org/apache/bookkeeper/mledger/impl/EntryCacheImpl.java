@@ -206,7 +206,12 @@ public class EntryCacheImpl implements EntryCache {
             EntryImpl cachedEntry = EntryImpl.create(entry);
             entry.release();
             manager.mlFactoryMBean.recordCacheHit(cachedEntry.getLength());
-            callback.readEntryComplete(cachedEntry, ctx);
+            EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                    .getBuilder()
+                    .setCacheHitCount(1)
+                    .setCacheHitSize(cachedEntry.getLength())
+                    .build();
+            callback.readEntryComplete(cachedEntry, ctx, entryCacheCounter);
         } else {
             lh.readAsync(position.getEntryId(), position.getEntryId()).whenCompleteAsync(
                     (ledgerEntries, exception) -> {
@@ -224,7 +229,12 @@ public class EntryCacheImpl implements EntryCache {
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
-                                callback.readEntryComplete(returnEntry, ctx);
+                                EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                                        .getBuilder()
+                                        .setCacheMissCount(1)
+                                        .setCacheMissSize(returnEntry.getLength())
+                                        .build();
+                                callback.readEntryComplete(returnEntry, ctx, entryCacheCounter);
                             } else {
                                 // got an empty sequence
                                 callback.readEntryFailed(new ManagedLedgerException("Could not read given position"),
@@ -288,8 +298,11 @@ public class EntryCacheImpl implements EntryCache {
                         lastEntry);
             }
 
-            callback.readEntriesComplete((List) entriesToReturn, ctx);
-
+            EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                    .getBuilder()
+                    .setCacheHitCount(entriesToReturn.size())
+                    .setCacheHitSize(totalCachedSize).build();
+            callback.readEntriesComplete((List) entriesToReturn, ctx, entryCacheCounter);
         } else {
             if (!cachedEntries.isEmpty()) {
                 cachedEntries.forEach(entry -> entry.release());
@@ -328,7 +341,12 @@ public class EntryCacheImpl implements EntryCache {
                             manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
                             ml.getMBean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
-                            callback.readEntriesComplete((List) entriesToReturn, ctx);
+                            EntryCacheCounter entryCacheCounter = EntryCacheCounter.EntryCacheCounterBuilder
+                                    .getBuilder()
+                                    .setCacheMissCount(entriesToReturn.size())
+                                    .setCacheMissSize(totalSize)
+                                    .build();
+                            callback.readEntriesComplete((List) entriesToReturn, ctx, entryCacheCounter);
                         } finally {
                             ledgerEntries.close();
                         }

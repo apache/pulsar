@@ -421,7 +421,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
             try {
                 cursor.asyncGetNthEntry(i, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
                     @Override
-                    public void readEntryComplete(Entry entry, Object ctx) {
+                    public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                         successReadEntries.getAndIncrement();
                         entry.release();
                         readCounter.countDown();

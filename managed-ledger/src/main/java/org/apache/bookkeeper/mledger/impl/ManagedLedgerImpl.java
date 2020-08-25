@@ -1718,12 +1718,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         @Override
-        public void readEntryComplete(Entry entry, Object ctx) {
+        public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
             long reOpCount = reOpCount(ctx);
             ReadEntryCallback callback = this.readEntryCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
-                callback.readEntryComplete(entry, cbCtx);
+                callback.readEntryComplete(entry, cbCtx, entryCacheCounter);
                 return;
             } else {
                 if (log.isDebugEnabled()) {
@@ -1750,12 +1750,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
+        public void readEntriesComplete(List<Entry> returnedEntries, Object ctx, EntryCacheCounter entryCacheCounter) {
             long reOpCount = reOpCount(ctx);
             ReadEntriesCallback callback = this.readEntriesCallback;
             Object cbCtx = this.cntx;
             if (recycle(reOpCount)) {
-                callback.readEntriesComplete(returnedEntries, cbCtx);
+                callback.readEntriesComplete(returnedEntries, cbCtx, entryCacheCounter);
                 return;
             } else {
                 if (log.isDebugEnabled()) {

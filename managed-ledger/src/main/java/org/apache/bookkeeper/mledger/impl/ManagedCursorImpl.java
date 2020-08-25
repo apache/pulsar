@@ -536,7 +536,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         asyncReadEntries(numberOfEntriesToRead, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 result.entries = entries;
                 counter.countDown();
             }
@@ -593,7 +593,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             @Override
-            public void readEntryComplete(Entry entry, Object ctx) {
+            public void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 result.entry = entry;
                 counter.countDown();
             }
@@ -630,10 +630,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                         PositionBound.startExcluded);
                 ledger.asyncReadEntry(positionAfterN, callback, ctx);
             } else {
-                callback.readEntryComplete(null, ctx);
+                callback.readEntryComplete(null, ctx, null);
             }
         } else {
-            callback.readEntryComplete(null, ctx);
+            callback.readEntryComplete(null, ctx, null);
         }
     }
 
@@ -658,7 +658,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         asyncReadEntriesOrWait(numberOfEntriesToRead, maxSizeBytes, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 result.entries = entries;
                 counter.countDown();
             }
@@ -1133,7 +1133,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         asyncReplayEntries(positions, new ReadEntriesCallback() {
             @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 result.entries = entries;
                 counter.countDown();
             }
@@ -1172,7 +1172,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             ReadEntriesCallback callback, Object ctx, boolean sortEntries) {
         List<Entry> entries = Lists.newArrayListWithExpectedSize(positions.size());
         if (positions.isEmpty()) {
-            callback.readEntriesComplete(entries, ctx);
+            callback.readEntriesComplete(entries, ctx, null);
             return Collections.emptySet();
         }
 
@@ -1195,7 +1195,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             int pendingCallbacks = totalValidPositions;
 
             @Override
-            public synchronized void readEntryComplete(Entry entry, Object ctx) {
+            public synchronized void readEntryComplete(Entry entry, Object ctx, EntryCacheCounter entryCacheCounter) {
                 if (exception.get() != null) {
                     // if there is already a failure for a different position, we should release the entry straight away
                     // and not add it to the list
@@ -1211,7 +1211,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                                     .compare(e1.getLedgerId(), e2.getLedgerId())
                                     .compare(e1.getEntryId(), e2.getEntryId()).result());
                         }
-                        callback.readEntriesComplete(entries, ctx);
+                        callback.readEntriesComplete(entries, ctx, entryCacheCounter);
                     }
                 }
             }

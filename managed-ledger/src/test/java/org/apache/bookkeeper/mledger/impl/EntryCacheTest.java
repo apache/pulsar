@@ -77,7 +77,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertEquals(entries.size(), 10);
                 entries.forEach(e -> e.release());
                 counter.countDown();
@@ -109,7 +109,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertEquals(entries.size(), 10);
                 counter.countDown();
             }
@@ -137,7 +137,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertEquals(entries.size(), 10);
                 counter.countDown();
             }
@@ -166,7 +166,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertEquals(entries.size(), 10);
                 counter.countDown();
             }
@@ -195,7 +195,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 assertEquals(entries.size(), 10);
                 counter.countDown();
             }
@@ -227,7 +227,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(1);
 
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
                 Assert.fail("should not complete");
             }
 

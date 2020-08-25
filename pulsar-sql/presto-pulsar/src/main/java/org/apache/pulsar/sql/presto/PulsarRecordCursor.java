@@ -52,6 +52,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.EntryCacheCounter;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.common.api.raw.MessageParser;
@@ -339,7 +340,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         @Override
-        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+        public void readEntriesComplete(List<Entry> entries, Object ctx, EntryCacheCounter entryCacheCounter) {
 
             entryQueue.fill(new MessagePassingQueue.Supplier<Entry>() {
                 private int i = 0;
