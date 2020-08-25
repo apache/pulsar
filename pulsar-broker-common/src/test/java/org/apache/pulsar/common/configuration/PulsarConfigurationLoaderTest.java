@@ -49,6 +49,7 @@ public class PulsarConfigurationLoaderTest {
         private Optional<Integer> webServicePort = Optional.of(9080);
         private Optional<Integer> webServicePortTls = Optional.of(9443);
         private int notExistFieldInServiceConfig = 0;
+        private String clusterName = "testCluster";
 
         @Override
         public Properties getProperties() {
@@ -73,6 +74,19 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
         assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
         assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
+        assertEquals(serviceConfiguration.getClusterName(), "testCluster");
+
+        // cluster name is supplied
+        serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration, true, "differentCluster");
+
+        // check whether converting correctly
+        assertEquals(serviceConfiguration.getZookeeperServers(), "localhost:2181");
+        assertEquals(serviceConfiguration.getConfigurationStoreServers(), "localhost:2184");
+        assertEquals(serviceConfiguration.getBrokerServicePort().get(), new Integer(7650));
+        assertEquals(serviceConfiguration.getBrokerServicePortTls().get(), new Integer(7651));
+        assertEquals(serviceConfiguration.getWebServicePort().get(), new Integer(9080));
+        assertEquals(serviceConfiguration.getWebServicePortTls().get(), new Integer(9443));
+        assertEquals(serviceConfiguration.getClusterName(), "differentCluster");
 
         // check whether exception causes
         try {

@@ -179,13 +179,16 @@ public class Worker {
             }
 
             this.configurationCacheService = new ConfigurationCacheService(this.globalZkCache, this.workerConfig.getPulsarFunctionsCluster());
-                return new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig), this.configurationCacheService);
+                return new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig,
+                        true, workerConfig.getPulsarFunctionsCluster()),
+                        this.configurationCacheService);
             }
         return null;
     }
 
     private AuthenticationService getAuthenticationService() throws PulsarServerException {
-        return new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+        return new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig, true,
+                workerConfig.getPulsarFunctionsCluster()));
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
