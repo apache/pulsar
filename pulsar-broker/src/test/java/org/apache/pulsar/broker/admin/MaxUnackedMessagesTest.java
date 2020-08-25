@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -25,8 +26,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.Maps;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -34,10 +37,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -46,12 +50,12 @@ import static org.junit.Assert.assertNull;
 import static org.testng.Assert.fail;
 
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
-    private final String testTenant = "public";
-    private final String testNamespace = "default";
+    private final String testTenant = "my-property";
+    private final String testNamespace = "my-ns";
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/max-unacked-";
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         this.conf.setSystemTopicEnabled(true);
@@ -60,7 +64,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod
+    @AfterClass
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -188,14 +192,126 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         });
     }
 
+    @Test(timeOut = 20000)
+    public void testMaxUnackedMessagesOnConsumerApi() throws Exception {
+        final String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+        waitCacheInit(topicName);
+        Integer max = admin.topics().getMaxUnackedMessagesOnConsumer(topicName);
+        assertNull(max);
+
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, 2048);
+        for (int i = 0; i < 50; i++) {
+            if (admin.topics().getMaxUnackedMessagesOnConsumer(topicName) != null) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), 2048);
+        admin.topics().removeMaxUnackedMessagesOnConsumer(topicName);
+        for (int i = 0; i < 50; i++) {
+            if (admin.topics().getMaxUnackedMessagesOnConsumer(topicName) == null) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
+    }
+
+    @Test(timeOut = 30000)
+    public void testMaxUnackedMessagesOnConsumer() throws Exception {
+        final String topicName = testTopic + System.currentTimeMillis();
+        final String subscriberName = "test-sub" + System.currentTimeMillis();
+        final int unackMsgAllowed = 100;
+        final int receiverQueueSize = 10;
+        final int totalProducedMsgs = 300;
+
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subscriberName).receiverQueueSize(receiverQueueSize)
+                .ackTimeout(1, TimeUnit.MINUTES)
+                .subscriptionType(SubscriptionType.Shared);
+        @Cleanup
+        Consumer<String> consumer1 = consumerBuilder.subscribe();
+        // 1) Produced Messages
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        // 2) Unlimited, so all messages can be consumed
+        int count = 0;
+        List<Message<String>> list = new ArrayList<>(totalProducedMsgs);
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            Message<String> message = consumer1.receive(1, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            count++;
+            list.add(message);
+        }
+        assertEquals(count, totalProducedMsgs);
+        list.forEach(message -> {
+            try {
+                consumer1.acknowledge(message);
+            } catch (PulsarClientException e) {
+            }
+        });
+        // 3) Set restrictions, so only part of the data can be consumed
+        waitCacheInit(topicName);
+        admin.topics().setMaxUnackedMessagesOnConsumer(topicName, unackMsgAllowed);
+        for (int i = 0; i < 50; i++) {
+            if (admin.topics().getMaxUnackedMessagesOnConsumer(topicName) != null) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertEquals(admin.topics().getMaxUnackedMessagesOnConsumer(topicName).intValue(), unackMsgAllowed);
+        // 4) Start 2 consumer, each consumer can only consume 100 messages
+        @Cleanup
+        Consumer<String> consumer2 = consumerBuilder.subscribe();
+        @Cleanup
+        Consumer<String> consumer3 = consumerBuilder.subscribe();
+        for (int i = 0; i < totalProducedMsgs; i++) {
+            String message = "my-message-" + i;
+            producer.send(message);
+        }
+        AtomicInteger consumer2Counter = new AtomicInteger(0);
+        AtomicInteger consumer3Counter = new AtomicInteger(0);
+        CountDownLatch countDownLatch = new CountDownLatch(2);
+        startConsumer(consumer2, consumer2Counter, countDownLatch);
+        startConsumer(consumer3, consumer3Counter, countDownLatch);
+        countDownLatch.await(10, TimeUnit.SECONDS);
+        assertEquals(consumer2Counter.get(), unackMsgAllowed);
+        assertEquals(consumer3Counter.get(), unackMsgAllowed);
+    }
+
+    private void startConsumer(Consumer<String> consumer, AtomicInteger consumerCounter, CountDownLatch countDownLatch) {
+        new Thread(() -> {
+            while (true) {
+                try {
+                    Message<String> message = consumer.receive(500, TimeUnit.MILLISECONDS);
+                    if (message == null) {
+                        countDownLatch.countDown();
+                        break;
+                    }
+                    consumerCounter.incrementAndGet();
+                } catch (PulsarClientException e) {
+                    break;
+                }
+            }
+        }).start();
+    }
+
     private void waitCacheInit(String topicName) throws Exception {
         for (int i = 0; i < 50; i++) {
+            //wait for server init
+            Thread.sleep(1000);
             try {
                 admin.topics().getMaxUnackedMessagesOnSubscription(topicName);
                 break;
             } catch (Exception e) {
                 //ignore
-                Thread.sleep(100);
             }
             if (i == 49) {
                 throw new RuntimeException("Waiting for cache initialization has timed out");

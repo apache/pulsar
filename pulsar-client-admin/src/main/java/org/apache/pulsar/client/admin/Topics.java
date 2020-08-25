@@ -19,12 +19,10 @@
 package org.apache.pulsar.client.admin;
 
 import com.google.gson.JsonObject;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -38,6 +36,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -1665,6 +1664,51 @@ public interface Topics {
     CompletableFuture<Void> removeRetentionAsync(String topic);
 
     /**
+     * get max unacked messages on consumer of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Integer getMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException;
+
+    /**
+     * get max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Integer> getMaxUnackedMessagesOnConsumerAsync(String topic);
+
+    /**
+     * set max unacked messages on consumer of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setMaxUnackedMessagesOnConsumer(String topic, int maxNum) throws PulsarAdminException;
+
+    /**
+     * set max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setMaxUnackedMessagesOnConsumerAsync(String topic, int maxNum);
+
+    /**
+     * remove max unacked messages on consumer of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException;
+
+    /**
+     * remove max unacked messages on consumer of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
+
+    /**
      * get max unacked messages on subscription of a topic.
      * @param topic
      * @return
@@ -1708,4 +1752,97 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic);
+
+    /**
+     * Set the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setPersistence(String topic, PersistencePolicies persistencePolicies) throws PulsarAdminException;
+
+    /**
+     * Set the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param persistencePolicies Configuration of bookkeeper persistence policies
+     */
+    CompletableFuture<Void> setPersistenceAsync(String topic, PersistencePolicies persistencePolicies);
+
+    /**
+     * Get the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    PersistencePolicies getPersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<PersistencePolicies> getPersistenceAsync(String topic);
+
+    /**
+     * Remove the configuration of persistence policies for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removePersistence(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the configuration of persistence policies for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removePersistenceAsync(String topic);
+
+    /**
+     * get deduplication enabled of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    Boolean getDeduplicationEnabled(String topic) throws PulsarAdminException;
+
+    /**
+     * get deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Boolean> getDeduplicationEnabledAsync(String topic);
+
+    /**
+     * set deduplication enabled of a topic.
+     * @param topic
+     * @param enabled
+     * @throws PulsarAdminException
+     */
+    void enableDeduplication(String topic, boolean enabled) throws PulsarAdminException;
+
+    /**
+     * set deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @param enabled
+     * @return
+     */
+    CompletableFuture<Void> enableDeduplicationAsync(String topic, boolean enabled);
+
+    /**
+     * remove deduplication enabled of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void disableDeduplication(String topic) throws PulsarAdminException;
+
+    /**
+     * remove deduplication enabled of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> disableDeduplicationAsync(String topic);
 }

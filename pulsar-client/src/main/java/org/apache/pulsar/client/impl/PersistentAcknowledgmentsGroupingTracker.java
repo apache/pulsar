@@ -99,6 +99,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      * Since the ack are delayed, we need to do some best-effort duplicate check to discard messages that are being
      * resent after a disconnection and for which the user has already sent an acknowledgement.
      */
+    @Override
     public boolean isDuplicate(MessageId messageId) {
         if (messageId.compareTo(lastCumulativeAck) <= 0) {
             // Already included in a cumulative ack
@@ -108,6 +109,31 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
+    @Override
+    public void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties) {
+        if (ackType == AckType.Cumulative) {
+            messageIds.forEach(messageId -> doCumulativeAck(messageId, null));
+            return;
+        }
+        messageIds.forEach(messageId -> {
+            if (messageId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                pendingIndividualAcks.add(new MessageIdImpl(batchMessageId.getLedgerId(),
+                        batchMessageId.getEntryId(), batchMessageId.getPartitionIndex()));
+            } else {
+                pendingIndividualAcks.add(messageId);
+            }
+            pendingIndividualBatchIndexAcks.remove(messageId);
+            if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                flush();
+            }
+        });
+        if (acknowledgementGroupTimeMicros == 0) {
+            flush();
+        }
+    }
+
+    @Override
     public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
@@ -143,8 +169,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
                     ConcurrentBitSetRecyclable value = ConcurrentBitSetRecyclable.create();
-                    value.set(0, batchSize + 1);
-                    value.clear(batchIndex);
+                    value.set(0, batchSize);
                     return value;
                 });
             bitSet.clear(batchIndex);
@@ -213,6 +238,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     /**
      * Flush all the pending acks and send them to the broker
      */
+    @Override
     public void flush() {
         ClientCnx cnx = consumer.getClientCnx();
 
