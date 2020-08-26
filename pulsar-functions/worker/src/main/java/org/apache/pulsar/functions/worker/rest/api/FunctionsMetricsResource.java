@@ -56,6 +56,8 @@ public class FunctionsMetricsResource extends FunctionApiResource {
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
             FunctionsStatsGenerator.generate(workerService,"default", stream);
+            // append functions-worker metrics
+            generateFunctionsWorkerStats(stream);
             byte[] payload = buf.array();
             int arrayOffset = buf.arrayOffset();
             int readableBytes = buf.readableBytes();
@@ -69,6 +71,39 @@ public class FunctionsMetricsResource extends FunctionApiResource {
                 .build();
         } finally {
             buf.release();
+        }
+    }
+
+    private void generateFunctionsWorkerStats(SimpleTextOutputStream stream) {
+        Enumeration<Collector.MetricFamilySamples> metricFamilySamples = CollectorRegistry.defaultRegistry.metricFamilySamples();
+        while (metricFamilySamples.hasMoreElements()) {
+            Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
+
+            // Write type of metric
+            stream.write("# TYPE ").write(metricFamily.name).write(' ')
+                    .write("gauge").write('\n');
+
+            for (int i = 0; i < metricFamily.samples.size(); i++) {
+                Collector.MetricFamilySamples.Sample sample = metricFamily.samples.get(i);
+                stream.write(sample.name);
+                stream.write("{type=\"").write("functions-worker").write('"');
+                for (int j = 0; j < sample.labelNames.size(); j++) {
+                    String labelValue = sample.labelValues.get(j);
+                    if (labelValue != null) {
+                        labelValue = labelValue.replace("\"", "\\\"");
+                    }
+
+                    stream.write(",");
+                    stream.write(sample.labelNames.get(j));
+                    stream.write("=\"");
+                    stream.write(labelValue);
+                    stream.write('"');
+                }
+
+                stream.write("} ");
+                stream.write(Collector.doubleToGoString(sample.value));
+                stream.write('\n');
+            }
         }
     }
 
