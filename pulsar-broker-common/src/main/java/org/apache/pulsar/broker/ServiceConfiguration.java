@@ -914,6 +914,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long httpMaxRequestSize = -1;
 
     @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If true, the broker will reject all HTTP requests using the TRACE verb.\n"
+        + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
+        + " scanning and flags web servers allowing the TRACE method as insecure."
+    )
+    private boolean disableHttpTraceMethod = false;
+
+    @FieldContext(
+        category =  CATEGORY_HTTP,
+        doc = "If true, the broker will reject all HTTP requests using the TRACK verb.\n"
+        + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
+        + " scanning and flags web servers allowing the TRACK method as insecure."
+    )
+    private boolean disableHttpTrackMethod = false;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
             + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
