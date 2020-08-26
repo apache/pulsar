@@ -167,4 +167,10 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
         this.requestTimeoutUnit = requestTimeoutUnit;
         return this;
     }
+
+    @Override
+    public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
+        this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
 }
