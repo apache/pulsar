@@ -25,17 +25,22 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.gson.JsonObject;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -59,6 +64,36 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testMetricsTopicCount() throws Exception{
+        String ns1 = "prop/ns-abc1";
+        String ns2 = "prop/ns-abc2";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        String baseTopic1 = "persistent://" + ns1 + "/testMetricsTopicCount";
+        String baseTopic2 = "persistent://" + ns2 + "/testMetricsTopicCount";
+        for (int i = 0; i < 6; i++) {
+            admin.topics().createNonPartitionedTopic(baseTopic1 + UUID.randomUUID().toString());
+        }
+        for (int i = 0; i < 3; i++) {
+            admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID().toString());
+        }
+        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, statsOut);
+        String metricsStr = new String(statsOut.toByteArray());
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Collection<Metric> metric = metrics.get("pulsar_topics_count");
+        metric.stream().forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 6.0);
+            }
+            if (ns2.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 3.0);
+            }
+        });
     }
 
     @Test
