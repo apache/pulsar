@@ -39,12 +39,13 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     private TimeUnit connectTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit readTimeoutUnit = TimeUnit.SECONDS;
     private TimeUnit requestTimeoutUnit = TimeUnit.SECONDS;
+    private ClassLoader clientBuilderClassLoader = null;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
         return new PulsarAdmin(conf.getServiceUrl(),
                 conf, connectTimeout, connectTimeoutUnit, readTimeout, readTimeoutUnit,
-                requestTimeout, requestTimeoutUnit);
+                requestTimeout, requestTimeoutUnit, clientBuilderClassLoader);
     }
 
     public PulsarAdminBuilderImpl() {
