@@ -18,6 +18,8 @@
  */
 #include <lib/ProducerConfigurationImpl.h>
 
+#include <stdexcept>
+
 namespace pulsar {
 
 const static std::string emptyString;
@@ -67,7 +69,7 @@ CompressionType ProducerConfiguration::getCompressionType() const { return impl_
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendingMessages) {
     if (maxPendingMessages <= 0) {
-        throw "maxPendingMessages needs to be greater than 0";
+        throw std::invalid_argument("maxPendingMessages needs to be greater than 0");
     }
     impl_->maxPendingMessages = maxPendingMessages;
     return *this;
@@ -77,7 +79,7 @@ int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPend
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessagesAcrossPartitions(int maxPendingMessages) {
     if (maxPendingMessages <= 0) {
-        throw "maxPendingMessages needs to be greater than 0";
+        throw std::invalid_argument("maxPendingMessages needs to be greater than 0");
     }
     impl_->maxPendingMessagesAcrossPartitions = maxPendingMessages;
     return *this;
@@ -131,7 +133,7 @@ const bool& ProducerConfiguration::getBatchingEnabled() const { return impl_->ba
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxMessages(
     const unsigned int& batchingMaxMessages) {
     if (batchingMaxMessages <= 1) {
-        throw "batchingMaxMessages needs to be greater than 1";
+        throw std::invalid_argument("batchingMaxMessages needs to be greater than 1");
     }
     impl_->batchingMaxMessages = batchingMaxMessages;
     return *this;
