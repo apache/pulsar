@@ -1356,16 +1356,21 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // create ack tracker for entry aka batch
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
-        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         List<MessageImpl<T>> possibleToDeadLetter = null;
         if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
             possibleToDeadLetter = new ArrayList<>();
         }
-        int skippedMessages = 0;
+
+        BatchMessageAcker acker;
         BitSetRecyclable ackBitSet = null;
         if (ackSet != null && ackSet.size() > 0) {
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+            acker = BatchMessageAcker.newAcker(BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)));
+        } else {
+            acker = BatchMessageAcker.newAcker(batchSize);
         }
+
+        int skippedMessages = 0;
         try {
             int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
             for (int i = startBatchIndex; i < batchSize; ++i) {
