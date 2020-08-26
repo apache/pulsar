@@ -30,6 +30,7 @@ import java.util.Enumeration;
 
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 
@@ -73,6 +74,16 @@ public class PrometheusMetricsGenerator {
                 return PlatformDependent.maxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
+
+        // metric to export pulsar version info
+        Gauge.build("pulsar_version_info", "-")
+            .labelNames("version", "commit").create()
+            .setChild(new Child() {
+                @Override
+                public double get() {
+                    return 1.0;
+                }}, PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+            .register(CollectorRegistry.defaultRegistry);
     }
 
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics, OutputStream out) throws IOException {
