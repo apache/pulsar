@@ -172,6 +172,12 @@ public class PulsarAdmin implements Closeable {
         httpConfig.register(MultiPartFeature.class);
         httpConfig.connectorProvider(asyncConnectorProvider);
 
+        ClassLoader originalCtxLoader = null;
+        if (clientBuilderClassLoader != null) {
+            originalCtxLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(clientBuilderClassLoader);
+        }
+
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
                 .connectTimeout(this.connectTimeout, this.connectTimeoutUnit)
@@ -208,6 +214,10 @@ public class PulsarAdmin implements Closeable {
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
+
+        if (originalCtxLoader != null) {
+            Thread.currentThread().setContextClassLoader(originalCtxLoader);
+        }
     }
 
     /**
