@@ -915,19 +915,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category =  CATEGORY_HTTP,
-        doc = "If true, the broker will reject all HTTP requests using the TRACE verb.\n"
+        doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
         + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
         + " scanning and flags web servers allowing the TRACE method as insecure."
     )
-    private boolean disableHttpTraceMethod = false;
-
-    @FieldContext(
-        category =  CATEGORY_HTTP,
-        doc = "If true, the broker will reject all HTTP requests using the TRACK verb.\n"
-        + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"
-        + " scanning and flags web servers allowing the TRACK method as insecure."
-    )
-    private boolean disableHttpTrackMethod = false;
+    private boolean disableHttpDebugMethods = false;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,

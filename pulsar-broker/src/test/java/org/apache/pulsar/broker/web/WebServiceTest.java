@@ -97,7 +97,7 @@ public class WebServiceTest {
      */
     @Test
     public void testDefaultClientVersion() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, false, false);
+        setupEnv(true, "1.0", true, false, false, false, false);
 
         try {
             // Make an HTTP request to lookup a namespace. The request should
@@ -115,7 +115,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsEnabled() throws Exception {
-        setupEnv(false, "1.0", false, true, false, false, false, false);
+        setupEnv(false, "1.0", false, true, false, false, false);
 
         // Make requests both HTTP and HTTPS. The requests should succeed
         try {
@@ -137,7 +137,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsDisabled() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false, false, false);
+        setupEnv(false, "1.0", false, false, false, false, false);
 
         // Make requests both HTTP and HTTPS. Only the HTTP request should succeed
         try {
@@ -161,7 +161,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, true, false, false);
+        setupEnv(false, "1.0", false, true, true, true, false);
 
         // Only the request with client certificate should succeed
         try {
@@ -184,7 +184,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthDisallowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, false, false, false);
+        setupEnv(false, "1.0", false, true, true, false, false);
 
         // Only the request with trusted client certificate should succeed
         try {
@@ -208,7 +208,7 @@ public class WebServiceTest {
 
     @Test
     public void testDisableHttpTraceAndTrackMethods() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, true, true);
+        setupEnv(true, "1.0", true, false, false, false, true);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -232,7 +232,7 @@ public class WebServiceTest {
 
     @Test
     public void testMaxRequestSize() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, false, false);
+        setupEnv(true, "1.0", true, false, false, false, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -310,8 +310,7 @@ public class WebServiceTest {
     MockedZooKeeperClientFactoryImpl zkFactory = new MockedZooKeeperClientFactoryImpl();
 
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
-            boolean enableTls, boolean enableAuth, boolean allowInsecure, boolean disableTrace,
-            boolean disableTrack) throws Exception {
+            boolean enableTls, boolean enableAuth, boolean allowInsecure, boolean disableTrace) throws Exception {
         Set<String> providers = new HashSet<>();
         providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
 
@@ -338,8 +337,7 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setZookeeperServers("localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
-        config.setDisableHttpTraceMethod(disableTrace);
-        config.setDisableHttpTrackMethod(disableTrack);
+        config.setDisableHttpDebugMethods(disableTrace);
         pulsar = spy(new PulsarService(config));
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();

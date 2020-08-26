@@ -164,7 +164,7 @@ public class WebService implements AutoCloseable {
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
-        if (pulsar.getConfig().isDisableHttpTraceMethod() || pulsar.getConfig().isDisableHttpTrackMethod()) {
+        if (pulsar.getConfig().isDisableHttpDebugMethods()) {
             FilterHolder filter = new FilterHolder(new DisableDebugHttpMethodFilter(
                                                            pulsar.getConfig()));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));

@@ -51,20 +51,20 @@ public class DisableDebugHttpMethodFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        if (this.serviceConfiguration.isDisableHttpTraceMethod()
-            && "TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
-            // TRACE is not allowed
-            httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        if (this.serviceConfiguration.isDisableHttpDebugMethods() ) {
+            if("TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
+                // TRACE is not allowed
+                httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-            log.info("[{}] Rejected HTTP request using TRACE Method", request.getRemoteAddr());
-            return;
-        } else if (this.serviceConfiguration.isDisableHttpTrackMethod()
-            && "TRACK".equalsIgnoreCase(httpRequest.getMethod())) {
-            // TRACK is not allowed
-            httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+                log.info("[{}] Rejected HTTP request using TRACE Method", request.getRemoteAddr());
+                return;
+            } else if ("TRACK".equalsIgnoreCase(httpRequest.getMethod())) {
+                // TRACK is not allowed
+                httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-            log.info("[{}] Rejected HTTP request using TRACK Method", request.getRemoteAddr());
-            return;
+                log.info("[{}] Rejected HTTP request using TRACK Method", request.getRemoteAddr());
+                return;
+            }
         }
 
         chain.doFilter(request, response);
