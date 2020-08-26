@@ -3,9 +3,9 @@ author: XiaoLong Ran
 authorURL: https://twitter.com/wolf4j1
 title: Apache Pulsar 2.6.1
 ---
-We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.6.1 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of huge efforts from the community, with over 90 commits and a long list of improvements and bug fixes.
+We are excited to see that the Apache Pulsar community has successfully released 2.6.1 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.1 is the result of a big effort from the community, with over 90 commits and a long list of improvements and bug fixes.
 
-Here is a selection of some of the most interesting and major features added to Pulsar 2.6.1.
+Here are some highlights and major features added in Pulsar 2.6.1.
 
 <!--truncate-->
 
