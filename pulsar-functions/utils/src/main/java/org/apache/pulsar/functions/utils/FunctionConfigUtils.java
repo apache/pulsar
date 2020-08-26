@@ -433,7 +433,8 @@ public class FunctionConfigUtils {
         return functionConfig;
     }
 
-    public static void inferMissingArguments(FunctionConfig functionConfig) {
+    public static void inferMissingArguments(FunctionConfig functionConfig,
+                                             boolean forwardSourceMessagePropertyDefault) {
         if (StringUtils.isEmpty(functionConfig.getName())) {
             org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
         }
@@ -452,7 +453,9 @@ public class FunctionConfigUtils {
         	functionConfig.setMaxPendingAsyncRequests(MAX_PENDING_ASYNC_REQUESTS_DEFAULT);
         }
 
-        if (functionConfig.getForwardSourceMessageProperty() == null) {
+        if (functionConfig.getForwardSourceMessageProperty() == null
+            // if worker disables forward source message property, we don't need to set the default value.
+            && forwardSourceMessagePropertyDefault) {
         	functionConfig.setForwardSourceMessageProperty(FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT);
         }
 
