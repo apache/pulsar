@@ -36,7 +36,6 @@
         <dep.airlift.version>0.199</dep.airlift.version>
         <jctools.version>2.1.2</jctools.version>
         <dslJson.verson>1.8.4</dslJson.verson>
-        <dep.joda-time.version>2.10.5</dep.joda-time.version>
     </properties>
 
     <dependencies>
@@ -99,7 +98,7 @@
         <dependency>
           <groupId>joda-time</groupId>
           <artifactId>joda-time</artifactId>
-          <version>${dep.joda-time.version}</version>
+          <version>${joda.version}</version>
         </dependency>
 
     </dependencies>
