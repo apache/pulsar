@@ -29,7 +29,7 @@ FROM openjdk:8-jdk
 # Note that the libpq-dev package is needed here in order to install
 # the required python psycopg2 package (for postgresql) later
 RUN apt-get update \
-    && apt-get -y install python2.7 python2.7-dev python-pip postgresql sudo nginx supervisor libpq-dev
+    && apt-get -y install python3.7 python3.7-dev python3-pip postgresql sudo nginx supervisor libpq-dev
 
 # Postgres configuration
 COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
@@ -60,7 +60,7 @@ COPY --from=dashboard /pulsar/requirements.txt /pulsar/django
 COPY --from=dashboard /pulsar/conf/* /pulsar/conf/
 
 # Python dependencies
-RUN pip2 install -r /pulsar/django/requirements.txt
+RUN pip3 install -r /pulsar/django/requirements.txt
 
 # Copy web-app sources
 # Setup database and create tables
