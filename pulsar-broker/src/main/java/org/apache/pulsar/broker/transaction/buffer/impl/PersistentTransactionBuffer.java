@@ -112,7 +112,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer) {
         return publishMessage(txnId, buffer, sequenceId)
-                .thenCompose(positionContext -> appendBuffer(txnId, positionContext, sequenceId, batchSize));
+                .thenCompose(position -> appendBuffer(txnId, position, sequenceId, batchSize));
     }
 
     private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId, long batchSize) {
