@@ -129,4 +129,22 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getStatusCode(), 405);
         }
     }
+
+    @Test
+    public void testMaxProducersDisabled() {
+        log.info("MaxProducers will set to the topic: {}", testTopic);
+        try {
+            admin.topics().setMaxProducers(testTopic, 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getMaxProducers(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
 }
