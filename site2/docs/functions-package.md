@@ -16,6 +16,8 @@ This section provides step-by-step instructions to package Pulsar functions in J
 
 Before running a Pulsar function, you need to start up Pulsar.
 
+## Run Pulsar cluster in Docker
+
 This example uses Docker to run a standalone Pulsar.
 
 ```bash
@@ -33,13 +35,18 @@ docker run -it \
 >
 > - To check whether the image starts up or not, use the command `docker ps`.
 
+## Run Pulsar cluster in k8s
+
+For how to deploy Pulsar cluster in the k8s environment, please refer to [here](https://pulsar.apache.org/docs/en/helm-overview/).
+
+
 # Java 
 
 This example demonstrates how to package a function in Java.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#prerequisite) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
 
 
 1. Create a new maven project with a pom file.
@@ -219,7 +226,7 @@ This example demonstrates how to package a function by **one python file** in Py
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#prerequisite) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
 
 1. Write a Python function.
 
@@ -298,7 +305,7 @@ This example demonstrates how to package a function by **ZIP file** in Python.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#prerequisite) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
 
 1. Prepare the ZIP file
 
@@ -359,6 +366,58 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
     >   ```text
     >   "Created successfully"
     >   ```
+
+## PIP
+
+This example demonstrates how to package a function by **PIP** in Python.
+
+> **Note**
+>
+> The PIP method is only supported in the runtime of kubernetes.
+> This example assumes that you have [run a Pulsar cluster in k8s](#Run Pulsar cluster in k8s) successfully.
+
+1. Config `functions_worker.yml`:
+
+```text
+#### Kubernetes Runtime ####
+installUserCodeDependencies: true
+```
+
+2. Write your Python Function
+
+```
+from pulsar import Function
+import js2xml
+
+# The classic ExclamationFunction that appends an exclamation at the end
+# of the input
+class ExclamationFunction(Function):
+  def __init__(self):
+    pass
+
+  def process(self, input, context):
+    // add your logic
+    return input + '!'
+```
+
+Here we can introduce additional dependencies. When Python Function detects that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system will execute `pip install` to install the dependencies required in Python Function.
+
+3. Generate the `whl` file
+
+```shell script
+$ cd $PULSAR_HOME/pulsar-functions/scripts/python
+$ chmod +x generate.sh
+$ ./generate.sh <path of your Python Function> <path of the whl output dir> <the version of whl>
+# e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
+```
+
+Output in `/path/to/python/output`:
+
+```text
+-rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
+-rw-r--r--  1 root  staff   1.4K  8 27 14:29 pulsarfunction-1.0.0.tar.gz
+-rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
+```
 
 # Go 
 
