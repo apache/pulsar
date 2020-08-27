@@ -23,6 +23,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -134,15 +137,23 @@ public class TransactionConsumeTest extends TransactionTestBase {
         Thread.sleep(1000);
         log.info("Commit txn.");
 
+        Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();
+        Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
         // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
             Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn exclusive msg: {}", new String(message.getData()));
+            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+            checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
+            log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+
             message = sharedConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn shared msg: {}", new String(message.getData(), UTF_8));
+            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+            checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
+            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
         }
+        log.info("TransactionConsumeTest noSortedTest finish.");
     }
 
     private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt, int messageCnt)
@@ -167,6 +178,19 @@ public class TransactionConsumeTest extends TransactionTestBase {
             tb.appendBufferToTxn(txnID, i, 1, headerAndPayload);
         }
         log.info("append messages to TB finish.");
+    }
+
+    private void checkBatchIndex(Map<String, Integer> batchIndexMap, BatchMessageIdImpl messageId) {
+        batchIndexMap.compute(messageId.getLedgerId() + ":" + messageId.getEntryId(),
+            (key, value) -> {
+                if (value == null) {
+                    Assert.assertEquals(messageId.getBatchIndex(), 0);
+                    return messageId.getBatchIndex();
+                } else {
+                    Assert.assertEquals(messageId.getBatchIndex(), value + 1);
+                    return value + 1;
+                }
+            });
     }
 
 }

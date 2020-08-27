@@ -2859,11 +2859,11 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     public void internalInitBatchDeletedIndex(PositionImpl position, int totalNumMessageInBatch) {
-        if (!batchDeletedIndexes.containsKey(position)) {
+        batchDeletedIndexes.computeIfAbsent(position, key -> {
             BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
             bitSetRecyclable.set(0, totalNumMessageInBatch);
-            batchDeletedIndexes.put(position, bitSetRecyclable);
-        }
+            return bitSetRecyclable;
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
