@@ -207,7 +207,15 @@ This example demonstrates how to package a function in Java.
 
 # Python 
 
-This example demonstrates how to package a function in Python.
+Python Function supports the following three forms:
+
+- One python file
+- ZIP file
+- PIP
+
+## One python file
+
+This example demonstrates how to package a function by **one python file** in Python.
 
 > **Note**
 >
@@ -244,7 +252,7 @@ This example demonstrates how to package a function in Python.
     pip install python-client==2.6.0
     ```
 
-3. Run the Python function.
+3. Run the Python Function.
 
     (1) Copy the Python function file to the Pulsar image.
 
@@ -261,6 +269,74 @@ This example demonstrates how to package a function in Python.
     --py <path of Python Function file> \
     --inputs persistent://public/default/my-topic-1 \
     --output persistent://public/default/test-1 \
+    --tenant public \
+    --namespace default \
+    --name PythonFunction
+    ```
+
+    The following log indicates that the Python function starts up successfully.
+
+    ```text
+    ...
+    07:55:03.724 [main] INFO  org.apache.pulsar.functions.runtime.ProcessRuntime - Started process successfully
+    ...
+    ```
+
+    > **Tip**
+    >
+    >  - For the descriptions about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
+    > 
+    > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Python function starts up successfully.
+    >
+    >   ```text
+    >   "Created successfully"
+    >   ```
+
+## ZIP file
+
+This example demonstrates how to package a function by **ZIP file** in Python.
+
+> **Note**
+>
+> This example assumes that you have [run a standalone Pulsar in Docker](#prerequisite) successfully.
+
+1. Prepare the ZIP file
+
+When packaging the ZIP file of the Python Function, the following requirements need to be met:
+
+```text
+Assuming zip file with format `func.zip`, extract to folder function and internal dir format:
+    "func/src"
+    "func/requirements.txt"
+    "func/deps"
+```
+Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples) as an example, its internal structure is as follows:
+
+```text
+.
+├── deps
+│   └── sh-1.12.14-py2.py3-none-any.whl
+└── src
+    └── exclamation.py
+```
+
+2. Run the Python Function
+
+    (1) Copy the ZIP file to the Pulsar image.
+
+    ```bash
+    docker exec -it [CONTAINER ID] /bin/bash
+    docker cp <path of ZIP file>  CONTAINER ID:/pulsar
+    ```
+
+    (2) Run the Python function using the following command.
+
+    ```bash
+    ./bin/pulsar-admin functions localrun \
+    --classname exclamation \
+    --py <path of ZIP file> \
+    --inputs persistent://public/default/in-topic \
+    --output persistent://public/default/out-topic \
     --tenant public \
     --namespace default \
     --name PythonFunction
