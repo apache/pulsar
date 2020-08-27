@@ -294,7 +294,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0,
                     cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-            subscription.addConsumer(consumer);
+            addConsumerToSubscription(subscription, consumer);
             if (!cnx.isActive()) {
                 consumer.close();
                 if (log.isDebugEnabled()) {
@@ -604,6 +604,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         // No-op
     }
 
+    @Override
     public int getNumberOfConsumers() {
         int count = 0;
         for (NonPersistentSubscription subscription : subscriptions.values()) {
