@@ -143,11 +143,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             messagesToRedeliver.clear();
         }
 
-        if (isConsumersExceededOnTopic()) {
-            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", name);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
-        }
-
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
@@ -156,28 +151,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         consumerList.add(consumer);
         consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
         consumerSet.add(consumer);
-    }
-
-    private boolean isConsumersExceededOnTopic() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
-                policies.max_consumers_per_topic :
-                serviceConfig.getMaxConsumersPerTopic();
-        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
-            return true;
-        }
-        return false;
     }
 
     private boolean isConsumersExceededOnSubscription() {
