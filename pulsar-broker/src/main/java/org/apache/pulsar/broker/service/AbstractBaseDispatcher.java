@@ -171,7 +171,4 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return key;
     }
 
-    public Subscription getSubscription() {
-        return this.subscription;
-    }
 }
