@@ -600,7 +600,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                                                  maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition, keySharedMeta);
-                subscription.addConsumer(consumer);
+                addConsumerToSubscription(subscription, consumer);
 
                 checkBackloggedCursors();
 
@@ -1257,6 +1257,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return messageDeduplication.isEnabled();
     }
 
+    @Override
     public int getNumberOfConsumers() {
         int count = 0;
         for (PersistentSubscription subscription : subscriptions.values()) {
