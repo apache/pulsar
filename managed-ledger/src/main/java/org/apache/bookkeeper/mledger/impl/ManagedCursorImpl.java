@@ -91,6 +91,7 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.commons.lang3.tuple.Pair;
@@ -414,10 +415,34 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.writeLock().lock();
         try {
             individualDeletedMessages.clear();
-            individualDeletedMessagesList.forEach(messageRange -> individualDeletedMessages
-                    .addOpenClosed(messageRange.getLowerEndpoint().getLedgerId(),
-                            messageRange.getLowerEndpoint().getEntryId(), messageRange.getUpperEndpoint().getLedgerId(),
-                            messageRange.getUpperEndpoint().getEntryId()));
+            individualDeletedMessagesList.forEach(messageRange -> {
+                MLDataFormats.NestedPositionInfo lowerEndpoint = messageRange.getLowerEndpoint();
+                MLDataFormats.NestedPositionInfo upperEndpoint = messageRange.getUpperEndpoint();
+
+                if (lowerEndpoint.getLedgerId() == upperEndpoint.getLedgerId()) {
+                    individualDeletedMessages.addOpenClosed(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
+                            upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
+                } else {
+                    // Store message ranges after splitting them by ledger ID
+                    LedgerInfo lowerEndpointLedgerInfo = ledger.getLedgersInfo().get(lowerEndpoint.getLedgerId());
+                    if (lowerEndpointLedgerInfo != null) {
+                        individualDeletedMessages.addOpenClosed(lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId(),
+                                lowerEndpoint.getLedgerId(), lowerEndpointLedgerInfo.getEntries() - 1);
+                    } else {
+                        log.warn("[{}][{}] No ledger info of lower endpoint {}:{}", ledger.getName(), name,
+                                lowerEndpoint.getLedgerId(), lowerEndpoint.getEntryId());
+                    }
+
+                    for (LedgerInfo li : ledger.getLedgersInfo()
+                            .subMap(lowerEndpoint.getLedgerId(), false, upperEndpoint.getLedgerId(), false).values()) {
+                        individualDeletedMessages.addOpenClosed(li.getLedgerId(), -1, li.getLedgerId(),
+                                li.getEntries() - 1);
+                    }
+
+                    individualDeletedMessages.addOpenClosed(upperEndpoint.getLedgerId(), -1,
+                            upperEndpoint.getLedgerId(), upperEndpoint.getEntryId());
+                }
+            });
         } finally {
             lock.writeLock().unlock();
         }
