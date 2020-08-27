@@ -214,9 +214,8 @@ public class Consumer {
      * @return a SendMessageInfo object that contains the detail of what was sent to consumer
      */
 
-    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes,
-                                   EntryBatchIndexesAcks batchIndexesAcks, int totalMessages,
-                                   long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+    public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
+               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();

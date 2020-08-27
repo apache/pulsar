@@ -538,9 +538,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                         transactionReader);
 
-                c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks,
-                        sendMessageInfo.getTotalMessages(), sendMessageInfo.getTotalBytes(),
-                        sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
+                c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
+                        sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
 
                 int msgSent = sendMessageInfo.getTotalMessages();
                 start += messagesForC;

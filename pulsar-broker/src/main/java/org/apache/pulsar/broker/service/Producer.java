@@ -617,14 +617,7 @@ public class Producer {
     public void publishTxnMessage(TxnID txnID, long producerId, long sequenceId, long highSequenceId,
                                   ByteBuf headersAndPayload, long batchSize, boolean isChunked) {
         beforePublish(producerId, sequenceId, headersAndPayload, batchSize);
-
-        int readerIndex = headersAndPayload.readerIndex();
-        MessageMetadata messageMetadata = Commands.parseMessageMetadata(headersAndPayload);
-        int numMessagesInBatch = messageMetadata.getNumMessagesInBatch();
-        headersAndPayload.readerIndex(readerIndex);
-        messageMetadata.recycle();
-
-        topic.publishTxnMessage(txnID, headersAndPayload, numMessagesInBatch,
+        topic.publishTxnMessage(txnID, headersAndPayload, batchSize,
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime()));
     }

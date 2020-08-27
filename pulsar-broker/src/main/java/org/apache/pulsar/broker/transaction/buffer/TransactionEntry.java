@@ -61,7 +61,7 @@ public interface TransactionEntry extends Entry, AutoCloseable {
     /**
      * Returns the entry saved in the {@link TransactionBuffer}.
      *
-     * @return the Entry {@link Entry}.
+     * @return the {@link Entry}.
      */
     Entry getEntry();
 
