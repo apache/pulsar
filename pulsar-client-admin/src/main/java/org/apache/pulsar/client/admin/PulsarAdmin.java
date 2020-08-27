@@ -132,7 +132,7 @@ public class PulsarAdmin implements Closeable {
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
         this(serviceUrl, clientConfigData, DEFAULT_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS,
                 DEFAULT_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS,
-                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                DEFAULT_REQUEST_TIMEOUT_SECONDS, TimeUnit.SECONDS, null);
 
     }
 
@@ -143,7 +143,8 @@ public class PulsarAdmin implements Closeable {
                        int readTimeout,
                        TimeUnit readTimeoutUnit,
                        int requestTimeout,
-                       TimeUnit requestTimeoutUnit) throws PulsarClientException {
+                       TimeUnit requestTimeoutUnit,
+                       ClassLoader clientBuilderClassLoader) throws PulsarClientException {
         this.connectTimeout = connectTimeout;
         this.connectTimeoutUnit = connectTimeoutUnit;
         this.readTimeout = readTimeout;
@@ -170,6 +171,12 @@ public class PulsarAdmin implements Closeable {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
         httpConfig.connectorProvider(asyncConnectorProvider);
+
+        ClassLoader originalCtxLoader = null;
+        if (clientBuilderClassLoader != null) {
+            originalCtxLoader = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(clientBuilderClassLoader);
+        }
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder()
                 .withConfig(httpConfig)
@@ -207,6 +214,10 @@ public class PulsarAdmin implements Closeable {
         this.worker = new WorkerImpl(root, auth, readTimeoutMs);
         this.schemas = new SchemasImpl(root, auth, readTimeoutMs);
         this.bookies = new BookiesImpl(root, auth, readTimeoutMs);
+
+        if (originalCtxLoader != null) {
+            Thread.currentThread().setContextClassLoader(originalCtxLoader);
+        }
     }
 
     /**
