@@ -18,26 +18,22 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.options.DeleteOption;
-import org.apache.bookkeeper.api.kv.options.Option;
 import org.apache.bookkeeper.api.kv.options.Options;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * This class accumulates the state updates from one function.
  *
  * <p>currently it exposes incr operations. but we can expose other key/values operations if needed.
  */
-@Slf4j
 public class StateContextImpl implements StateContext {
 
     private final Table<ByteBuf, ByteBuf> table;
