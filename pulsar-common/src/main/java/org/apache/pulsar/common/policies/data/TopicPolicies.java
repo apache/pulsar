@@ -49,6 +49,7 @@ public class TopicPolicies {
     private Integer maxUnackedMessagesOnSubscription = null;
     private Long delayedDeliveryTickTimeMillis = null;
     private Boolean delayedDeliveryEnabled = null;
+    private DispatchRate dispatchRate = null;
 
     public boolean isMaxUnackedMessagesOnConsumerSet() {
         return maxUnackedMessagesOnConsumer != null;
@@ -96,5 +97,9 @@ public class TopicPolicies {
 
     public boolean isMaxConsumersPerSubscriptionSet() {
         return maxConsumersPerSubscription != null;
+    }
+
+    public boolean isDispatchRateSet() {
+        return dispatchRate != null;
     }
 }
