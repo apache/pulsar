@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.instance.state;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.options.DeleteOption;
 import org.apache.bookkeeper.api.kv.options.Option;
@@ -36,6 +37,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *
  * <p>currently it exposes incr operations. but we can expose other key/values operations if needed.
  */
+@Slf4j
 public class StateContextImpl implements StateContext {
 
     private final Table<ByteBuf, ByteBuf> table;
@@ -55,6 +57,10 @@ public class StateContextImpl implements StateContext {
     @Override
     public CompletableFuture<Void> put(String key, ByteBuffer value) {
         if(value != null) {
+            // Set position to off the buffer to the beginning.
+            // If a user used an operation like ByteBuffer.allocate(4).putInt(count) to create a ByteBuffer to store to the state store
+            // the position of the buffer will be at the end and nothing will be written to table service
+            value.position(0);
             return table.put(
                     Unpooled.wrappedBuffer(key.getBytes(UTF_8)),
                     Unpooled.wrappedBuffer(value));
@@ -81,6 +87,10 @@ public class StateContextImpl implements StateContext {
                         if (data != null) {
                             ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
                             data.readBytes(result);
+                            // Set position to off the buffer to the beginning, since the position after the read is going to be end of the buffer
+                            // If we do not rewind to the begining here, users will have to explicitly do this in their function code
+                            // in order to use any of the ByteBuffer operations
+                            result.position(0);
                             return result;
                         }
                         return null;
