@@ -193,7 +193,6 @@ public class CmdSources extends CmdBase {
                     localRunArgs.add(value.toString());
                 }
             }
-
             ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
             Process process = processBuilder.start();
             process.waitFor();
