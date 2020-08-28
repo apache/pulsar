@@ -128,6 +128,8 @@ public class CmdSources extends CmdBase {
     @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
     protected class LocalSourceRunner extends CreateSource {
 
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        protected String stateStorageServiceUrl;
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
         protected String DEPRECATED_brokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
@@ -191,6 +193,7 @@ public class CmdSources extends CmdBase {
                     localRunArgs.add(value.toString());
                 }
             }
+
             ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
             Process process = processBuilder.start();
             process.waitFor();

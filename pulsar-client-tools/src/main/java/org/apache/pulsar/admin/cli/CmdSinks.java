@@ -127,6 +127,8 @@ public class CmdSinks extends CmdBase {
     @Parameters(commandDescription = "Run a Pulsar IO sink connector locally (rather than deploying it to the Pulsar cluster)")
     protected class LocalSinkRunner extends CreateSink {
 
+        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        protected String stateStorageServiceUrl;
         @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
         protected String DEPRECATED_brokerServiceUrl;
         @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
