@@ -12,11 +12,11 @@ This section provides step-by-step instructions to package Pulsar functions in J
 >
 > - Currently, the window function is not available in Python and Go.
 
-# Prerequisite
+## Prerequisite
 
-Before running a Pulsar function, you need to start up Pulsar.
+Before running a Pulsar function, you need to start Pulsar.
 
-## Run Pulsar cluster in Docker
+### Run a standalone Pulsar in Docker
 
 This example uses Docker to run a standalone Pulsar.
 
@@ -35,18 +35,18 @@ docker run -it \
 >
 > - To check whether the image starts up or not, use the command `docker ps`.
 
-## Run Pulsar cluster in k8s
+### Run Pulsar cluster in k8s
 
-For how to deploy Pulsar cluster in the k8s environment, please refer to [here](https://pulsar.apache.org/docs/en/helm-overview/).
+For how to deploy Pulsar cluster in the k8s environment, For details, refer to [here](https://pulsar.apache.org/docs/en/helm-overview/).
 
 
-# Java 
+## Java 
 
 This example demonstrates how to package a function in Java.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run a standalone Pulsar in Docker) successfully.
 
 
 1. Create a new maven project with a pom file.
@@ -204,7 +204,7 @@ This example demonstrates how to package a function in Java.
 
     > **Tip**
     >
-    >  - For the descriptions about the parameters (for example, `--classname`, `--jar`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
+    >  - For the description about the parameters (for example, `--classname`, `--jar`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
     > 
     > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Java function starts up successfully.
     >
@@ -212,7 +212,7 @@ This example demonstrates how to package a function in Java.
     >   "Created successfully"
     >   ```
 
-# Python 
+## Python 
 
 Python Function supports the following three forms:
 
@@ -220,13 +220,13 @@ Python Function supports the following three forms:
 - ZIP file
 - PIP
 
-## One python file
+### One python file
 
 This example demonstrates how to package a function by **one python file** in Python.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run a standalone Pulsar in Docker) successfully.
 
 1. Write a Python function.
 
@@ -291,7 +291,7 @@ This example demonstrates how to package a function by **one python file** in Py
 
     > **Tip**
     >
-    >  - For the descriptions about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
+    >  - For the description about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
     > 
     > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Python function starts up successfully.
     >
@@ -299,13 +299,13 @@ This example demonstrates how to package a function by **one python file** in Py
     >   "Created successfully"
     >   ```
 
-## ZIP file
+### ZIP file
 
 This example demonstrates how to package a function by **ZIP file** in Python.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#Run Pulsar cluster in Docker) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run a standalone Pulsar in Docker) successfully.
 
 1. Prepare the ZIP file
 
@@ -359,7 +359,7 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
 
     > **Tip**
     >
-    >  - For the descriptions about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
+    >  - For the description about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
     > 
     > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Python function starts up successfully.
     >
@@ -367,7 +367,7 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
     >   "Created successfully"
     >   ```
 
-## PIP
+### PIP
 
 This example demonstrates how to package a function by **PIP** in Python.
 
@@ -419,13 +419,13 @@ Output in `/path/to/python/output`:
 -rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
 ```
 
-# Go 
+## Go 
 
 This example demonstrates how to package a function in Go.
 
 > **Note**
 >
-> This example assumes that you have [run a standalone Pulsar in Docker](#prerequisite) successfully.
+> This example assumes that you have [run a standalone Pulsar in Docker](#Run a standalone Pulsar in Docker) successfully.
 
 1. Write a Go function.
 
@@ -515,7 +515,7 @@ This example demonstrates how to package a function in Go.
 
     > **Tip**
     >
-    >  - For the descriptions about the parameters (for example, `--classname`, `--go`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
+    >  - For the description about the parameters (for example, `--classname`, `--go`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` to get more information or see [here](http://pulsar.apache.org/docs/en/pulsar-admin/#functions).
     > 
     > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Go function starts up successfully.
     >
