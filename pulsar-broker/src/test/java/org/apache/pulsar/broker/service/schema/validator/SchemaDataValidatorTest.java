@@ -50,6 +50,10 @@ public class SchemaDataValidatorTest {
             { SchemaType.DATE },
             { SchemaType.TIME },
             { SchemaType.TIMESTAMP },
+            { SchemaType.INSTANT },
+            { SchemaType.LOCAL_DATE },
+            { SchemaType.LOCAL_TIME },
+            { SchemaType.LOCAL_DATE_TIME },
         };
     }
 
