@@ -1787,6 +1787,15 @@ Subcommands
 * `reset-cursor`
 * `get-message-by-id`
 * `last-message-id`
+* `get-backlog-quotas`
+* `set-backlog-quota`
+* `remove-backlog-quota`
+* `get-persistence`
+* `set-persistence`
+* `remove-persistence`
+* `get-message-ttl`
+* `set-message-ttl`
+* `remove-message-ttl`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
