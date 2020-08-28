@@ -24,7 +24,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Topic policies service
@@ -32,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 public interface TopicPoliciesService {
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
+    Map<TopicName, List<TopicPolicyListener<TopicPolicies>>> listeners = new ConcurrentHashMap<>();
 
     /**
      * Update policies for a topic async
@@ -73,6 +77,10 @@ public interface TopicPoliciesService {
      */
     void start();
 
+    void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+
+    void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
@@ -104,6 +112,16 @@ public interface TopicPoliciesService {
 
         @Override
         public void start() {
+            //No-op
+        }
+
+        @Override
+        public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
+            //No-op
+        }
+
+        @Override
+        public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
             //No-op
         }
     }
