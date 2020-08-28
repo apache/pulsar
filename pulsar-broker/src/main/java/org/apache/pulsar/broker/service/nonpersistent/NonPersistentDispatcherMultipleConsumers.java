@@ -77,11 +77,6 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             return;
         }
 
-        if (isConsumersExceededOnTopic()) {
-            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", name);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
-        }
-
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
@@ -89,14 +84,6 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
 
         consumerList.add(consumer);
         consumerSet.add(consumer);
-    }
-
-    private boolean isConsumersExceededOnTopic() {
-        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
-        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
-            return true;
-        }
-        return false;
     }
 
     private boolean isConsumersExceededOnSubscription() {
