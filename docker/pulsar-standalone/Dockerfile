@@ -31,6 +31,8 @@ FROM openjdk:8-jdk
 RUN apt-get update \
     && apt-get -y install python3.7 python3.7-dev python3-pip postgresql sudo nginx supervisor libpq-dev
 
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+
 # Postgres configuration
 COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
 
@@ -67,7 +69,7 @@ RUN pip3 install -r /pulsar/django/requirements.txt
 COPY --from=dashboard /pulsar/init-postgres.sh /pulsar/django/init-postgres.sh
 RUN mkdir /data
 RUN /pulsar/django/init-postgres.sh
-RUN sudo -u postgres /etc/init.d/postgresql stop
+RUN sudo -u postgres /etc/init.d/postgresql stop 
 # Add postgresql to supervisord. Redirect logs to stdout
 RUN echo "\n[program:postgresql]\n\
 command = /etc/init.d/postgresql start\n\
@@ -78,7 +80,8 @@ redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf
 # Collect all static files needed by Django in a
 # single place. Needed to run the app outside the
 # Django test web server
-RUN cd /pulsar/django && ./manage.py collectstatic --no-input
+RUN python --version
+RUN cd /pulsar/django && python3 manage.py collectstatic --no-input
 
 ENV SERVICE_URL http://127.0.0.1:8080
 EXPOSE 80 8080 6650

@@ -25,7 +25,7 @@ RUN bash -c "echo deb http://apt.postgresql.org/pub/repos/apt/ stretch-pgdg main
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 
 RUN apt-get update
-RUN apt-get -y install postgresql-11 postgresql-contrib libpq-dev python3.7 sudo nginx supervisor
+RUN apt-get -y install postgresql-11 postgresql-contrib libpq-dev sudo nginx supervisor
 
 # Postgres configuration
 COPY conf/postgresql.conf /etc/postgresql/11/main/
