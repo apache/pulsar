@@ -1155,12 +1155,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void checkCompaction() {
         TopicName name = TopicName.get(topic);
         try {
-            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, name.getNamespace()))
-                .orElseThrow(() -> new KeeperException.NoNodeException());
+            Long compactionThreshold = Optional.ofNullable(getTopicPolicies(name))
+                .map(TopicPolicies::getCompactionThreshold)
+                .orElse(null);
+            if (compactionThreshold == null) {
+                Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+                compactionThreshold = policies.compaction_threshold;
+            }
 
 
-            if (isSystemTopic() || policies.compaction_threshold != 0
+            if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
@@ -1173,13 +1179,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     backlogEstimate = ledger.getEstimatedBacklogSize();
                 }
 
-                if (backlogEstimate > policies.compaction_threshold) {
+                if (backlogEstimate > compactionThreshold) {
                     try {
                         triggerCompaction();
                     } catch (AlreadyRunningException are) {
                         log.debug("[{}] Compaction already running, so don't trigger again, "
                                   + "even though backlog({}) is over threshold({})",
-                                  name, backlogEstimate, policies.compaction_threshold);
+                                  name, backlogEstimate, compactionThreshold);
                     }
                 }
             }
