@@ -33,6 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -129,6 +130,8 @@ public abstract class AbstractTopic implements Topic {
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
+            log.warn("[{}] Failed to get namespace policies that include max number of producers: {}", topic,
+                    e.getMessage());
             policies = new Policies();
         }
         final int maxProducers = policies.max_producers_per_topic > 0 ?
@@ -138,6 +141,40 @@ public abstract class AbstractTopic implements Topic {
             return true;
         }
         return false;
+    }
+
+    protected boolean isConsumersExceededOnTopic() {
+        Policies policies;
+        try {
+            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
+            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+
+            if (policies == null) {
+                policies = new Policies();
+            }
+        } catch (Exception e) {
+            log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
+                    e.getMessage());
+            policies = new Policies();
+        }
+        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?  policies.max_consumers_per_topic
+                : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    public abstract int getNumberOfConsumers();
+
+    protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
+            throws BrokerServiceException {
+        if (isConsumersExceededOnTopic()) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
+            throw new ConsumerBusyException("Topic reached max consumers limit");
+        }
+        subscription.addConsumer(consumer);
     }
 
     @Override
