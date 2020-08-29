@@ -90,7 +90,7 @@ public class AuthenticationService implements Closeable {
             try {
                 return provider.authenticate(authData);
             } catch (AuthenticationException e) {
-                if(LOG.isDebugEnabled()) {
+                if (LOG.isDebugEnabled()) {
                     LOG.info("Authentication failed for provider " + provider.getAuthMethodName() + ": " + e.getMessage(), e);
                 }
                 // Store the exception so we can throw it later instead of a generic one
