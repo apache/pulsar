@@ -108,43 +108,43 @@ const features_lang = language => {
   return {
     row1: [
       {
-        content: 'Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine',
+        content: 'Easy to deploy, lightweight compute process, developer-friendly APIs, no need to run your own stream processing engine.',
         title: `[Pulsar Functions](${docUrl('functions-overview', language)})`,
       },
       {
-        content: 'Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics',
+        content: 'Run in production at Yahoo! scale for over 5 years, with millions of messages per second across millions of topics.',
         title: `[Proven in production](${docUrl('concepts-architecture-overview', language)})`,
       },
       {
-        content: 'Seamlessly expand capacity to hundreds of nodes',
+        content: 'Expand capacity seamlessly to hundreds of nodes.',
         title: `[Horizontally scalable](${docUrl('concepts-architecture-overview', language)})`,
       }
     ],
     row2: [
       {
-        content: 'Designed for low publish latency (< 5ms) at scale with strong durabilty guarantees',
+        content: 'Low publish latency (< 5ms) at scale with strong durability guarantees.',
         title: `[Low latency with durability](${docUrl('concepts-architecture-overview', language)})`,
       },
       {
-        content: 'Designed for configurable replication between data centers across multiple geographic regions',
+        content: 'Configurable replication between data centers across multiple geographic regions.',
         title: `[Geo-replication](${docUrl('administration-geo', language)})`,
       },
       {
-        content: 'Built from the ground up as a multi-tenant system. Supports Isolation, Authentication, Authorization and Quotas',
+        content: 'Built from the ground up as a multi-tenant system. Supports isolation, authentication, authorization and quotas.',
         title: `[Multi-tenancy](${docUrl('concepts-multi-tenancy', language)})`,
       }
     ],
     row3: [
       {
-        content: 'Persistent message storage based on Apache BookKeeper. Provides IO-level isolation between write and read operations',
+        content: 'Persistent message storage based on Apache BookKeeper. IO-level isolation between write and read operations.',
         title: `[Persistent storage](${docUrl('concepts-architecture-overview#persistent-storage', language)})`,
       },
       {
-        content: 'Flexible messaging models with high-level APIs for Java, C++, Python and GO',
+        content: 'Flexible messaging models with high-level APIs for Java, Go, Python, C++, Node.js, WebSocket and C#.',
         title: `[Client libraries](${docUrl('client-libraries', language)})`,
       },
       {
-        content: 'REST Admin API for provisioning, administration, tools and monitoring. Deploy on bare metal or Kubernetes.',
+        content: 'REST Admin API for provisioning, administration, tools and monitoring. Can be deployed on bare metal, Kubernetes, Amazon Web Services(AWS), and DataCenter Operating System(DC/OS).',
         title: `[Operability](${docUrl('admin-api-overview', language)})`,
       }
     ]
