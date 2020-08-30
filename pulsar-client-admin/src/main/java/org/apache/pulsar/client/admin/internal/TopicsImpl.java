@@ -2003,6 +2003,81 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public Long getCompactionThreshold(String topic) throws PulsarAdminException {
+        try {
+            return getCompactionThresholdAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
+    @Override
+    public CompletableFuture<Long> getCompactionThresholdAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "compactionThreshold");
+        final CompletableFuture<Long> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+            new InvocationCallback<Long>() {
+                @Override
+                public void completed(Long compactionThreshold) {
+                  future.complete(compactionThreshold);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                  future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+            });
+        return future;
+    }
+
+    @Override
+    public void setCompactionThreshold(String topic, long compactionThreshold) throws PulsarAdminException {
+        try {
+            setCompactionThresholdAsync(topic, compactionThreshold).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setCompactionThresholdAsync(String topic, long compactionThreshold) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "compactionThreshold");
+        return asyncPostRequest(path, Entity.entity(compactionThreshold, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeCompactionThreshold(String topic) throws PulsarAdminException {
+        try {
+            removeCompactionThresholdAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeCompactionThresholdAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "compactionThreshold");
+        return asyncDeleteRequest(path);
+    }
+
+  private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

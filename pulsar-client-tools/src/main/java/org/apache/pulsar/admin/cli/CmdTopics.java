@@ -123,6 +123,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
+        jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
+        jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
+        jcommander.addCommand("remove-compaction-threshold", new RemoveCompactionThreshold());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -259,17 +262,17 @@ public class CmdTopics extends CmdBase {
 
     @Parameters(commandDescription = "Create a non-partitioned topic.")
     private class CreateNonPartitionedCmd extends CliCommand {
-    	
+
     	@Parameter(description = "persistent://tenant/namespace/topic\n", required = true)
     	private java.util.List<String> params;
-    	
+
     	@Override
     	void run() throws Exception {
     		String topic = validateTopicName(params);
     		topics.createNonPartitionedTopic(topic);
     	}
     }
-    
+
     @Parameters(commandDescription = "Update existing non-global partitioned topic. \n"
             + "\t\tNew updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
@@ -1160,6 +1163,48 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeDispatchRate(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get compaction threshold for a topic")
+    private class GetCompactionThreshold extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getCompactionThreshold(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set compaction threshold for a topic")
+    private class SetCompactionThreshold extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--threshold", "-t" },
+            description = "Maximum number of bytes in a topic backlog before compaction is triggered "
+                + "(eg: 10M, 16G, 3T). 0 disables automatic compaction",
+            required = true)
+        private String threshold = "0";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setCompactionThreshold(persistentTopic, validateSizeString(threshold));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove compaction threshold for a topic")
+    private class RemoveCompactionThreshold extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeCompactionThreshold(persistentTopic);
         }
     }
 }

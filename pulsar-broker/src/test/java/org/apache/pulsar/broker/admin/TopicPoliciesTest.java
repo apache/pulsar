@@ -377,4 +377,42 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
+
+    @Test
+    public void testGetSetCompactionThreshold() throws Exception {
+        long compactionThreshold = 100000;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveCompactionThreshold() throws Exception {
+        Long compactionThreshold = 100000L;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        Long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().removeCompactionThreshold(testTopic);
+        Thread.sleep(3000);
+        log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
+        getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        Assert.assertNull(getCompactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
 }
