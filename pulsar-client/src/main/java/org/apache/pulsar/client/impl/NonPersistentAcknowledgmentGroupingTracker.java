@@ -43,7 +43,7 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
 
     @Override
     public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                  long txnidMostSets, long txnidLeastSets) {
+                                  long txnidMostBits, long txnidLeastBits) {
         // no-op
     }
 

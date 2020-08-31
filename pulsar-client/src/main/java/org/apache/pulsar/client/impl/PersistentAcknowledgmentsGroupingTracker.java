@@ -135,9 +135,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @Override
     public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                  long txnidMostSets, long txnidLeastSets) {
-        if (txnidMostSets != -1 && txnidLeastSets != -1) {
-            doImmediateAck(msgId, ackType, properties, txnidMostSets, txnidLeastSets);
+                                  long txnidMostBits, long txnidLeastBits) {
+        if (txnidMostBits != -1 && txnidLeastBits != -1) {
+            doImmediateAck(msgId, ackType, properties, txnidMostBits, txnidLeastBits);
         } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
@@ -161,9 +161,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @Override
     public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
-                                            Map<String, Long> properties, long txnidMostSets, long txnidLeastSets) {
-        if (txnidMostSets != -1 && txnidLeastSets != -1) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txnidMostSets, txnidLeastSets);
+                                            Map<String, Long> properties, long txnidMostBits, long txnidLeastBits) {
+        if (txnidMostBits != -1 && txnidLeastBits != -1) {
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txnidMostBits, txnidLeastBits);
         } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, -1, -1);
         } else if (ackType == AckType.Cumulative) {
@@ -216,7 +216,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private boolean doImmediateAck(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                   long txnidMostSets, long txnidLeastSets) {
+                                   long txnidMostBits, long txnidLeastBits) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -224,12 +224,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         newAckCommand(consumer.consumerId, msgId, null, ackType, null,
-                properties, cnx, true /* flush */, txnidMostSets, txnidLeastSets);
+                properties, cnx, true /* flush */, txnidMostBits, txnidLeastBits);
         return true;
     }
 
     private boolean doImmediateBatchIndexAck(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
-                                             Map<String, Long> properties, long txnidMostSets, long txnidLeastSets) {
+                                             Map<String, Long> properties, long txnidMostBits, long txnidLeastBits) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -249,7 +249,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
-                null, properties, txnidLeastSets, txnidMostSets);
+                null, properties, txnidLeastBits, txnidMostBits);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -358,10 +358,10 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private void newAckCommand(long consumerId, MessageIdImpl msgId, BitSetRecyclable lastCumulativeAckSet,
             AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx,
-                               boolean flush, long txnidMostSets, long txnidLeastSets) {
+                               boolean flush, long txnidMostBits, long txnidLeastBits) {
 
         MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
-        if (chunkMsgIds != null && txnidLeastSets < 0 && txnidMostSets < 0) {
+        if (chunkMsgIds != null && txnidLeastBits < 0 && txnidMostBits < 0) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())
                     && ackType != AckType.Cumulative) {
                 List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(chunkMsgIds.length);

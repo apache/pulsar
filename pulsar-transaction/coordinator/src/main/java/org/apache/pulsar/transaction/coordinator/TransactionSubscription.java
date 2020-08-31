@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class TransactionSubscription {
+public class TransactionSubscription implements Comparable<TransactionSubscription> {
 
     private String topic;
     private String subscription;
@@ -27,5 +27,14 @@ public class TransactionSubscription {
         TransactionSubscription that = (TransactionSubscription) o;
         return topic.equals(that.topic) &&
                 subscription.equals(that.subscription);
+    }
+
+    @Override
+    public int compareTo(TransactionSubscription o) {
+        int topicCompare = topic.compareTo(o.topic);
+        if (topicCompare == 0) {
+            return subscription.compareTo(o.subscription);
+        }
+        return topicCompare;
     }
 }

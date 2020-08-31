@@ -1761,22 +1761,17 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
-                if (!(subscription instanceof PersistentSubscription)) {
-                    log.error("Transaction commit only support `PersistentSubscription`.");
+                if (subscription == null) {
+                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
                     ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                             requestId, txnidLeastBits, txnidMostBits,
                             ServerError.UnknownError,
-                            "Transaction commit only support `PersistentSubscription."));
+                            "Topic " + optionalTopic.get().getName() + " subscription " + subName + " is not exist."));
                     return;
                 }
 
-                TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                if (command.getTxnAction().equals(PulsarApi.TxnAction.COMMIT)) {
-                    completableFuture = ((PersistentSubscription) subscription).commitTxn(txnID, Collections.emptyMap());
-                } else {
-                    completableFuture = ((PersistentSubscription) subscription).abortTxn(txnID, null);
-                }
+                CompletableFuture<Void> completableFuture =
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, command.getTxnAction().getNumber());
                 completableFuture.whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle end txn on subscription failed for request {}", requestId);

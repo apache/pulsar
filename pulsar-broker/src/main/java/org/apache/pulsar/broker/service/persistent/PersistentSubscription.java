@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeySharedMeta;
@@ -66,6 +67,7 @@ import org.apache.pulsar.common.api.proto.PulsarMarkers.ReplicatedSubscriptionsS
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -1244,6 +1246,20 @@ public class PersistentSubscription implements Subscription {
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(snapshot);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction) {
+        TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        if (PulsarApi.TxnAction.COMMIT.getNumber() == txnAction) {
+            completableFuture = commitTxn(txnID, Collections.emptyMap());
+        } else if (PulsarApi.TxnAction.ABORT.getNumber() == txnAction) {
+            completableFuture = abortTxn(txnID, null);
+        } else {
+            completableFuture.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
+        }
+        return completableFuture;
     }
 
     @VisibleForTesting

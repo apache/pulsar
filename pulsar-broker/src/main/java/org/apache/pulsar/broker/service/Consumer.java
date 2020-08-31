@@ -452,6 +452,20 @@ public class Consumer {
         }
     }
 
+    private void transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
+                                        List<Position> positionList, AckType ackType) {
+        if (subscription instanceof PersistentSubscription) {
+            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+            try {
+                ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
+            } catch (TransactionConflictException e) {
+                log.error("Transaction acknowledge failed for txn " + txnID, e);
+            }
+        } else {
+            log.error("Transaction acknowledge only support the `PersistentSubscription`.");
+        }
+    }
+
     void flowPermits(int additionalNumberOfMessages) {
         checkArgument(additionalNumberOfMessages > 0);
 

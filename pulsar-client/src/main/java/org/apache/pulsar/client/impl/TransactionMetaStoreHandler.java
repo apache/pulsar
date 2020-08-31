@@ -422,7 +422,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         RequestTime peeked = timeoutQueue.peek();
         while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
                 - System.currentTimeMillis() <= 0) {
-            System.out.println("timeout check");
             RequestTime lastPolled = timeoutQueue.poll();
             if (lastPolled != null) {
                 OpBase<?> op = pendingRequests.remove(lastPolled.requestId);

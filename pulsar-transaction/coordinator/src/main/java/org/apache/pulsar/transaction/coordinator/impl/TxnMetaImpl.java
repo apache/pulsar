@@ -79,6 +79,7 @@ class TxnMetaImpl implements TxnMeta {
             returnedPartitions = new ArrayList<>(ackedPartitions.size());
             returnedPartitions.addAll(ackedPartitions);
         }
+        Collections.sort(returnedPartitions);
         return returnedPartitions;
     }
 

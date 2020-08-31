@@ -225,8 +225,8 @@ public class TransactionMetadataStoreProviderTest {
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
-        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
         finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
         assertEquals(txn.ackedPartitions(), finalPartitions);
 
