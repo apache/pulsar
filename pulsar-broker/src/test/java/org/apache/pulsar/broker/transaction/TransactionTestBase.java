@@ -60,7 +60,7 @@ import org.apache.zookeeper.data.ACL;
 @Slf4j
 public class TransactionTestBase {
 
-    private final static String CLUSTER_NAME = "test";
+    public final static String CLUSTER_NAME = "test";
 
     @Setter
     private int brokerCount = 3;
@@ -81,11 +81,9 @@ public class TransactionTestBase {
     public void internalSetup() throws Exception {
         init();
 
-        int webServicePort = serviceConfigurationList.get(0).getWebServicePort().get();
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl("http://localhost:" + webServicePort).build());
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
 
-        int brokerPort = serviceConfigurationList.get(0).getBrokerServicePort().get();
-        pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:" + brokerPort).build();
+        pulsarClient = PulsarClient.builder().serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl()).build();
     }
 
     private void init() throws Exception {
@@ -111,14 +109,13 @@ public class TransactionTestBase {
             conf.setConfigurationStoreServers("localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
+            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
-            Integer brokerServicePort = PortManager.nextFreePort();
-            conf.setBrokerServicePort(Optional.of(brokerServicePort));
-
-            conf.setBrokerServicePortTls(Optional.of(PortManager.nextFreePort()));
+            conf.setBrokerServicePort(Optional.of(0));
+            conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
-            conf.setWebServicePort(Optional.of(PortManager.nextFreePort()));
-            conf.setWebServicePortTls(Optional.of(PortManager.nextFreePort()));
+            conf.setWebServicePort(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spy(new PulsarService(conf));
@@ -234,6 +231,10 @@ public class TransactionTestBase {
                 for (PulsarService pulsarService : pulsarServiceList) {
                     pulsarService.close();
                 }
+                pulsarServiceList.clear();
+            }
+            if (serviceConfigurationList.size() > 0) {
+                serviceConfigurationList.clear();
             }
             if (mockBookKeeper != null) {
                 mockBookKeeper.reallyShutdown();

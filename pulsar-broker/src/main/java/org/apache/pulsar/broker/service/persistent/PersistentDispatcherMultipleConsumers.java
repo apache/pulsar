@@ -104,7 +104,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ServiceConfiguration serviceConfig;
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
-    private TransactionReader transactionReader;
+    protected TransactionReader transactionReader;
 
     enum ReadType {
         Normal, Replay
@@ -122,7 +122,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader = new TransactionReader(this);
+        this.transactionReader = new TransactionReader(topic, cursor);
     }
 
     @Override
@@ -327,7 +327,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (havePendingTxnToRead()) {
+            } else if (transactionReader.havePendingTxnToRead()) {
                 transactionReader.read(messagesToRead, ReadType.Normal, this);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
@@ -508,7 +508,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
+                        transactionReader);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
