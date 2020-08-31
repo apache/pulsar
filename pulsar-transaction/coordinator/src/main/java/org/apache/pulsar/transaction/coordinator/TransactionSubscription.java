@@ -4,6 +4,9 @@ import com.google.common.base.Objects;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * A class for representing acked topic subscription info.
+ */
 @Data
 @Builder
 public class TransactionSubscription implements Comparable<TransactionSubscription> {
@@ -25,8 +28,8 @@ public class TransactionSubscription implements Comparable<TransactionSubscripti
             return false;
         }
         TransactionSubscription that = (TransactionSubscription) o;
-        return topic.equals(that.topic) &&
-                subscription.equals(that.subscription);
+        return topic.equals(that.topic)
+                && subscription.equals(that.subscription);
     }
 
     @Override

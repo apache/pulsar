@@ -119,9 +119,9 @@ class TxnMetaImpl implements TxnMeta {
      * @throws InvalidTxnStatusException
      */
     @Override
-    public synchronized TxnMetaImpl addAckedPartitions(List<TransactionSubscription> partitions) throws InvalidTxnStatusException {
+    public synchronized TxnMetaImpl addAckedPartitions(List<TransactionSubscription> partitions)
+            throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
-
         this.ackedPartitions.addAll(partitions);
         return this;
     }
