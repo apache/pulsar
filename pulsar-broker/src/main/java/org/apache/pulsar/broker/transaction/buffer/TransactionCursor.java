@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
+
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionMetaImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -70,4 +73,13 @@ public interface TransactionCursor {
      * @return
      */
     CompletableFuture<Void> removeTxnsCommittedAtLedger(long ledgerId);
+
+    void updateSnapshotPosition(Position position);
+
+    Position getSnapshotPosition();
+
+    ConcurrentMap<TxnID, TransactionMetaImpl> getTxnIndexMap();
+
+    void recoverFromBK(TransactionMetaImpl transactionMeta);
+
 }

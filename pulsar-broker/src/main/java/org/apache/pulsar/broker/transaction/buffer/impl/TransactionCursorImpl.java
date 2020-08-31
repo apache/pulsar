@@ -34,9 +34,15 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 
 public class TransactionCursorImpl implements TransactionCursor {
 
-
     private final ConcurrentMap<TxnID, TransactionMetaImpl> txnIndex;
     private final Map<Long, Set<TxnID>> committedLedgerTxnIndex;
+    /**
+     * this snapshot position may not be match with {@link TransactionCursorImpl#txnIndex},
+     * it may be later than the index in timeline,
+     * this error could be fixed by the TransactionBuffer log recover,
+     * so we needn't to add lock for it, this is more efficient.
+     */
+    private Position snapshotPosition;
 
     TransactionCursorImpl() {
         this.txnIndex = new ConcurrentHashMap<>();
@@ -122,5 +128,25 @@ public class TransactionCursorImpl implements TransactionCursor {
         }
 
         return removeFuture;
+    }
+
+    @Override
+    public void updateSnapshotPosition(Position position) {
+        this.snapshotPosition = position;
+    }
+
+    @Override
+    public Position getSnapshotPosition() {
+        return this.snapshotPosition;
+    }
+
+    @Override
+    public ConcurrentMap<TxnID, TransactionMetaImpl> getTxnIndexMap() {
+        return txnIndex;
+    }
+
+    @Override
+    public void recoverFromBK(TransactionMetaImpl transactionMeta) {
+        this.txnIndex.put(transactionMeta.id(), transactionMeta);
     }
 }

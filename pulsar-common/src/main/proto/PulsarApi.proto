@@ -805,6 +805,29 @@ message CommandEndTxnOnSubscriptionResponse {
     optional string message = 5;
 }
 
+enum TxnStatus {
+    OPEN = 1;
+    COMMITTING = 2;
+    COMMITTED = 3;
+    ABORTING = 4;
+    ABORTED = 5;
+}
+
+message TransactionPosition {
+    required uint64 sequenceId = 1;
+    required uint64 ledgerId = 2;
+    required uint64 entryId = 3;
+}
+
+message CommandTransactionMeta {
+    required uint64 txnidMostBits = 1;
+    required uint64 txnidLeastBits = 2;
+    repeated TransactionPosition txnPosition = 3;
+    required TxnStatus txnStatus = 4;
+    optional uint64 commitedLedgerId = 5;
+    optional uint64 commitedEntryId = 6;
+}
+
 message BaseCommand {
     enum Type {
         CONNECT     = 2;
@@ -888,6 +911,7 @@ message BaseCommand {
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
 
+        TRANSACTION_META = 62;
     }
 
 
@@ -962,4 +986,5 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
+    optional TransactionMeta txnMeta = 61;
 }

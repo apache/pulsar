@@ -46,6 +46,15 @@ public class TransactionMetaImpl implements TransactionMeta {
         this.txnStatus = TxnStatus.OPEN;
     }
 
+    public TransactionMetaImpl(TxnID txnID, SortedMap<Long, Position> entries,
+                                              TxnStatus txnStatus, long committedAtLedgerId, long committedAtEntryId) {
+        this.txnID = txnID;
+        this.entries = entries;
+        this.txnStatus = txnStatus;
+        this.committedAtLedgerId = committedAtLedgerId;
+        this.committedAtEntryId = committedAtEntryId;
+    }
+
     @Override
     public TxnID id() {
         return this.txnID;

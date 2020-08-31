@@ -371,6 +371,56 @@ public final class PulsarApi {
     // @@protoc_insertion_point(enum_scope:pulsar.proto.TxnAction)
   }
   
+  public enum TxnStatus
+      implements org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLite {
+    OPEN(0, 1),
+    COMMITTING(1, 2),
+    COMMITTED(2, 3),
+    ABORTING(3, 4),
+    ABORTED(4, 5),
+    ;
+    
+    public static final int OPEN_VALUE = 1;
+    public static final int COMMITTING_VALUE = 2;
+    public static final int COMMITTED_VALUE = 3;
+    public static final int ABORTING_VALUE = 4;
+    public static final int ABORTED_VALUE = 5;
+    
+    
+    public final int getNumber() { return value; }
+    
+    public static TxnStatus valueOf(int value) {
+      switch (value) {
+        case 1: return OPEN;
+        case 2: return COMMITTING;
+        case 3: return COMMITTED;
+        case 4: return ABORTING;
+        case 5: return ABORTED;
+        default: return null;
+      }
+    }
+    
+    public static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<TxnStatus>
+        internalGetValueMap() {
+      return internalValueMap;
+    }
+    private static org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<TxnStatus>
+        internalValueMap =
+          new org.apache.pulsar.shaded.com.google.protobuf.v241.Internal.EnumLiteMap<TxnStatus>() {
+            public TxnStatus findValueByNumber(int number) {
+              return TxnStatus.valueOf(number);
+            }
+          };
+    
+    private final int value;
+    
+    private TxnStatus(int index, int value) {
+      this.value = value;
+    }
+    
+    // @@protoc_insertion_point(enum_scope:pulsar.proto.TxnStatus)
+  }
+  
   public interface SchemaOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
@@ -39017,6 +39067,1202 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandEndTxnOnSubscriptionResponse)
   }
   
+  public interface TransactionPositionOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required uint64 sequenceId = 1;
+    boolean hasSequenceId();
+    long getSequenceId();
+    
+    // required uint64 ledgerId = 2;
+    boolean hasLedgerId();
+    long getLedgerId();
+    
+    // required uint64 entryId = 3;
+    boolean hasEntryId();
+    long getEntryId();
+  }
+  public static final class TransactionPosition extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements TransactionPositionOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use TransactionPosition.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private TransactionPosition(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<TransactionPosition> RECYCLER = new io.netty.util.Recycler<TransactionPosition>() {
+            protected TransactionPosition newObject(Handle handle) {
+              return new TransactionPosition(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private TransactionPosition(boolean noInit) {}
+    
+    private static final TransactionPosition defaultInstance;
+    public static TransactionPosition getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public TransactionPosition getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 sequenceId = 1;
+    public static final int SEQUENCEID_FIELD_NUMBER = 1;
+    private long sequenceId_;
+    public boolean hasSequenceId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getSequenceId() {
+      return sequenceId_;
+    }
+    
+    // required uint64 ledgerId = 2;
+    public static final int LEDGERID_FIELD_NUMBER = 2;
+    private long ledgerId_;
+    public boolean hasLedgerId() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public long getLedgerId() {
+      return ledgerId_;
+    }
+    
+    // required uint64 entryId = 3;
+    public static final int ENTRYID_FIELD_NUMBER = 3;
+    private long entryId_;
+    public boolean hasEntryId() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public long getEntryId() {
+      return entryId_;
+    }
+    
+    private void initFields() {
+      sequenceId_ = 0L;
+      ledgerId_ = 0L;
+      entryId_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasSequenceId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasLedgerId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasEntryId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, sequenceId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, ledgerId_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeUInt64(3, entryId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(1, sequenceId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(2, ledgerId_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(3, entryId_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.TransactionPositionOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        sequenceId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        ledgerId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        entryId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000004);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition result = org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.sequenceId_ = sequenceId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.ledgerId_ = ledgerId_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.entryId_ = entryId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.getDefaultInstance()) return this;
+        if (other.hasSequenceId()) {
+          setSequenceId(other.getSequenceId());
+        }
+        if (other.hasLedgerId()) {
+          setLedgerId(other.getLedgerId());
+        }
+        if (other.hasEntryId()) {
+          setEntryId(other.getEntryId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasSequenceId()) {
+          
+          return false;
+        }
+        if (!hasLedgerId()) {
+          
+          return false;
+        }
+        if (!hasEntryId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              sequenceId_ = input.readUInt64();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              ledgerId_ = input.readUInt64();
+              break;
+            }
+            case 24: {
+              bitField0_ |= 0x00000004;
+              entryId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 sequenceId = 1;
+      private long sequenceId_ ;
+      public boolean hasSequenceId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getSequenceId() {
+        return sequenceId_;
+      }
+      public Builder setSequenceId(long value) {
+        bitField0_ |= 0x00000001;
+        sequenceId_ = value;
+        
+        return this;
+      }
+      public Builder clearSequenceId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        sequenceId_ = 0L;
+        
+        return this;
+      }
+      
+      // required uint64 ledgerId = 2;
+      private long ledgerId_ ;
+      public boolean hasLedgerId() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public long getLedgerId() {
+        return ledgerId_;
+      }
+      public Builder setLedgerId(long value) {
+        bitField0_ |= 0x00000002;
+        ledgerId_ = value;
+        
+        return this;
+      }
+      public Builder clearLedgerId() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        ledgerId_ = 0L;
+        
+        return this;
+      }
+      
+      // required uint64 entryId = 3;
+      private long entryId_ ;
+      public boolean hasEntryId() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public long getEntryId() {
+        return entryId_;
+      }
+      public Builder setEntryId(long value) {
+        bitField0_ |= 0x00000004;
+        entryId_ = value;
+        
+        return this;
+      }
+      public Builder clearEntryId() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        entryId_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.TransactionPosition)
+    }
+    
+    static {
+      defaultInstance = new TransactionPosition(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.TransactionPosition)
+  }
+  
+  public interface TransactionMetaOrBuilder
+      extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
+    
+    // required uint64 txnidMostBits = 1;
+    boolean hasTxnidMostBits();
+    long getTxnidMostBits();
+    
+    // required uint64 txnidLeastBits = 2;
+    boolean hasTxnidLeastBits();
+    long getTxnidLeastBits();
+    
+    // repeated .pulsar.proto.TransactionPosition txnPosition = 3;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> 
+        getTxnPositionList();
+    org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition getTxnPosition(int index);
+    int getTxnPositionCount();
+    
+    // required .pulsar.proto.TxnStatus txnStatus = 4;
+    boolean hasTxnStatus();
+    org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus getTxnStatus();
+    
+    // optional uint64 commitedLedgerId = 5;
+    boolean hasCommitedLedgerId();
+    long getCommitedLedgerId();
+    
+    // optional uint64 commitedEntryId = 6;
+    boolean hasCommitedEntryId();
+    long getCommitedEntryId();
+  }
+  public static final class TransactionMeta extends
+      org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite
+      implements TransactionMetaOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use TransactionMeta.newBuilder() to construct.
+    private io.netty.util.Recycler.Handle handle;
+    private TransactionMeta(io.netty.util.Recycler.Handle handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<TransactionMeta> RECYCLER = new io.netty.util.Recycler<TransactionMeta>() {
+            protected TransactionMeta newObject(Handle handle) {
+              return new TransactionMeta(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            if (handle != null) { RECYCLER.recycle(this, handle); }
+        }
+         
+    private TransactionMeta(boolean noInit) {}
+    
+    private static final TransactionMeta defaultInstance;
+    public static TransactionMeta getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public TransactionMeta getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 txnidMostBits = 1;
+    public static final int TXNIDMOSTBITS_FIELD_NUMBER = 1;
+    private long txnidMostBits_;
+    public boolean hasTxnidMostBits() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getTxnidMostBits() {
+      return txnidMostBits_;
+    }
+    
+    // required uint64 txnidLeastBits = 2;
+    public static final int TXNIDLEASTBITS_FIELD_NUMBER = 2;
+    private long txnidLeastBits_;
+    public boolean hasTxnidLeastBits() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public long getTxnidLeastBits() {
+      return txnidLeastBits_;
+    }
+    
+    // repeated .pulsar.proto.TransactionPosition txnPosition = 3;
+    public static final int TXNPOSITION_FIELD_NUMBER = 3;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> txnPosition_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> getTxnPositionList() {
+      return txnPosition_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.TransactionPositionOrBuilder> 
+        getTxnPositionOrBuilderList() {
+      return txnPosition_;
+    }
+    public int getTxnPositionCount() {
+      return txnPosition_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition getTxnPosition(int index) {
+      return txnPosition_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPositionOrBuilder getTxnPositionOrBuilder(
+        int index) {
+      return txnPosition_.get(index);
+    }
+    
+    // required .pulsar.proto.TxnStatus txnStatus = 4;
+    public static final int TXNSTATUS_FIELD_NUMBER = 4;
+    private org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus txnStatus_;
+    public boolean hasTxnStatus() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus getTxnStatus() {
+      return txnStatus_;
+    }
+    
+    // optional uint64 commitedLedgerId = 5;
+    public static final int COMMITEDLEDGERID_FIELD_NUMBER = 5;
+    private long commitedLedgerId_;
+    public boolean hasCommitedLedgerId() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public long getCommitedLedgerId() {
+      return commitedLedgerId_;
+    }
+    
+    // optional uint64 commitedEntryId = 6;
+    public static final int COMMITEDENTRYID_FIELD_NUMBER = 6;
+    private long commitedEntryId_;
+    public boolean hasCommitedEntryId() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public long getCommitedEntryId() {
+      return commitedEntryId_;
+    }
+    
+    private void initFields() {
+      txnidMostBits_ = 0L;
+      txnidLeastBits_ = 0L;
+      txnPosition_ = java.util.Collections.emptyList();
+      txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
+      commitedLedgerId_ = 0L;
+      commitedEntryId_ = 0L;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasTxnidMostBits()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasTxnidLeastBits()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasTxnStatus()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      for (int i = 0; i < getTxnPositionCount(); i++) {
+        if (!getTxnPosition(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, txnidMostBits_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeUInt64(2, txnidLeastBits_);
+      }
+      for (int i = 0; i < txnPosition_.size(); i++) {
+        output.writeMessage(3, txnPosition_.get(i));
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeEnum(4, txnStatus_.getNumber());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeUInt64(5, commitedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeUInt64(6, commitedEntryId_);
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(1, txnidMostBits_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(2, txnidLeastBits_);
+      }
+      for (int i = 0; i < txnPosition_.size(); i++) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeMessageSize(3, txnPosition_.get(i));
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeEnumSize(4, txnStatus_.getNumber());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(5, commitedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(6, commitedEntryId_);
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(byte[] data)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        byte[] data,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseDelimitedFrom(
+        java.io.InputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta parseFrom(
+        org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+        org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetaOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta.newBuilder()
+      private final io.netty.util.Recycler.Handle handle;
+      private Builder(io.netty.util.Recycler.Handle handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                if (handle != null) {RECYCLER.recycle(this, handle);}
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        txnidMostBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        txnidLeastBits_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        txnPosition_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
+        bitField0_ = (bitField0_ & ~0x00000008);
+        commitedLedgerId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000010);
+        commitedEntryId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000020);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta buildParsed()
+          throws org.apache.pulsar.shaded.com.google.protobuf.v241.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta result = org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.txnidMostBits_ = txnidMostBits_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.txnidLeastBits_ = txnidLeastBits_;
+        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+          txnPosition_ = java.util.Collections.unmodifiableList(txnPosition_);
+          bitField0_ = (bitField0_ & ~0x00000004);
+        }
+        result.txnPosition_ = txnPosition_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.txnStatus_ = txnStatus_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.commitedLedgerId_ = commitedLedgerId_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.commitedEntryId_ = commitedEntryId_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.TransactionMeta.getDefaultInstance()) return this;
+        if (other.hasTxnidMostBits()) {
+          setTxnidMostBits(other.getTxnidMostBits());
+        }
+        if (other.hasTxnidLeastBits()) {
+          setTxnidLeastBits(other.getTxnidLeastBits());
+        }
+        if (!other.txnPosition_.isEmpty()) {
+          if (txnPosition_.isEmpty()) {
+            txnPosition_ = other.txnPosition_;
+            bitField0_ = (bitField0_ & ~0x00000004);
+          } else {
+            ensureTxnPositionIsMutable();
+            txnPosition_.addAll(other.txnPosition_);
+          }
+          
+        }
+        if (other.hasTxnStatus()) {
+          setTxnStatus(other.getTxnStatus());
+        }
+        if (other.hasCommitedLedgerId()) {
+          setCommitedLedgerId(other.getCommitedLedgerId());
+        }
+        if (other.hasCommitedEntryId()) {
+          setCommitedEntryId(other.getCommitedEntryId());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasTxnidMostBits()) {
+          
+          return false;
+        }
+        if (!hasTxnidLeastBits()) {
+          
+          return false;
+        }
+        if (!hasTxnStatus()) {
+          
+          return false;
+        }
+        for (int i = 0; i < getTxnPositionCount(); i++) {
+          if (!getTxnPosition(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.shaded.com.google.protobuf.v241.CodedInputStream input,
+                              org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          org.apache.pulsar.shaded.com.google.protobuf.v241.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              txnidMostBits_ = input.readUInt64();
+              break;
+            }
+            case 16: {
+              bitField0_ |= 0x00000002;
+              txnidLeastBits_ = input.readUInt64();
+              break;
+            }
+            case 26: {
+              org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addTxnPosition(subBuilder.buildPartial());
+              break;
+            }
+            case 32: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus value = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000008;
+                txnStatus_ = value;
+              }
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              commitedLedgerId_ = input.readUInt64();
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              commitedEntryId_ = input.readUInt64();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 txnidMostBits = 1;
+      private long txnidMostBits_ ;
+      public boolean hasTxnidMostBits() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getTxnidMostBits() {
+        return txnidMostBits_;
+      }
+      public Builder setTxnidMostBits(long value) {
+        bitField0_ |= 0x00000001;
+        txnidMostBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidMostBits() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        txnidMostBits_ = 0L;
+        
+        return this;
+      }
+      
+      // required uint64 txnidLeastBits = 2;
+      private long txnidLeastBits_ ;
+      public boolean hasTxnidLeastBits() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public long getTxnidLeastBits() {
+        return txnidLeastBits_;
+      }
+      public Builder setTxnidLeastBits(long value) {
+        bitField0_ |= 0x00000002;
+        txnidLeastBits_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnidLeastBits() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        txnidLeastBits_ = 0L;
+        
+        return this;
+      }
+      
+      // repeated .pulsar.proto.TransactionPosition txnPosition = 3;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> txnPosition_ =
+        java.util.Collections.emptyList();
+      private void ensureTxnPositionIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          txnPosition_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition>(txnPosition_);
+          bitField0_ |= 0x00000004;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> getTxnPositionList() {
+        return java.util.Collections.unmodifiableList(txnPosition_);
+      }
+      public int getTxnPositionCount() {
+        return txnPosition_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition getTxnPosition(int index) {
+        return txnPosition_.get(index);
+      }
+      public Builder setTxnPosition(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureTxnPositionIsMutable();
+        txnPosition_.set(index, value);
+        
+        return this;
+      }
+      public Builder setTxnPosition(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.Builder builderForValue) {
+        ensureTxnPositionIsMutable();
+        txnPosition_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addTxnPosition(org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureTxnPositionIsMutable();
+        txnPosition_.add(value);
+        
+        return this;
+      }
+      public Builder addTxnPosition(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureTxnPositionIsMutable();
+        txnPosition_.add(index, value);
+        
+        return this;
+      }
+      public Builder addTxnPosition(
+          org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.Builder builderForValue) {
+        ensureTxnPositionIsMutable();
+        txnPosition_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addTxnPosition(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition.Builder builderForValue) {
+        ensureTxnPositionIsMutable();
+        txnPosition_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllTxnPosition(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.TransactionPosition> values) {
+        ensureTxnPositionIsMutable();
+        super.addAll(values, txnPosition_);
+        
+        return this;
+      }
+      public Builder clearTxnPosition() {
+        txnPosition_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        
+        return this;
+      }
+      public Builder removeTxnPosition(int index) {
+        ensureTxnPositionIsMutable();
+        txnPosition_.remove(index);
+        
+        return this;
+      }
+      
+      // required .pulsar.proto.TxnStatus txnStatus = 4;
+      private org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
+      public boolean hasTxnStatus() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus getTxnStatus() {
+        return txnStatus_;
+      }
+      public Builder setTxnStatus(org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000008;
+        txnStatus_ = value;
+        
+        return this;
+      }
+      public Builder clearTxnStatus() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
+        
+        return this;
+      }
+      
+      // optional uint64 commitedLedgerId = 5;
+      private long commitedLedgerId_ ;
+      public boolean hasCommitedLedgerId() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getCommitedLedgerId() {
+        return commitedLedgerId_;
+      }
+      public Builder setCommitedLedgerId(long value) {
+        bitField0_ |= 0x00000010;
+        commitedLedgerId_ = value;
+        
+        return this;
+      }
+      public Builder clearCommitedLedgerId() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        commitedLedgerId_ = 0L;
+        
+        return this;
+      }
+      
+      // optional uint64 commitedEntryId = 6;
+      private long commitedEntryId_ ;
+      public boolean hasCommitedEntryId() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public long getCommitedEntryId() {
+        return commitedEntryId_;
+      }
+      public Builder setCommitedEntryId(long value) {
+        bitField0_ |= 0x00000020;
+        commitedEntryId_ = value;
+        
+        return this;
+      }
+      public Builder clearCommitedEntryId() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        commitedEntryId_ = 0L;
+        
+        return this;
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.TransactionMeta)
+    }
+    
+    static {
+      defaultInstance = new TransactionMeta(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.TransactionMeta)
+  }
+  
   public interface BaseCommandOrBuilder
       extends org.apache.pulsar.shaded.com.google.protobuf.v241.MessageLiteOrBuilder {
     
@@ -39316,6 +40562,7 @@ public final class PulsarApi {
       END_TXN_ON_PARTITION_RESPONSE(48, 59),
       END_TXN_ON_SUBSCRIPTION(49, 60),
       END_TXN_ON_SUBSCRIPTION_RESPONSE(50, 61),
+      TRANSACTION_META(51, 62),
       ;
       
       public static final int CONNECT_VALUE = 2;
@@ -39369,6 +40616,7 @@ public final class PulsarApi {
       public static final int END_TXN_ON_PARTITION_RESPONSE_VALUE = 59;
       public static final int END_TXN_ON_SUBSCRIPTION_VALUE = 60;
       public static final int END_TXN_ON_SUBSCRIPTION_RESPONSE_VALUE = 61;
+      public static final int TRANSACTION_META_VALUE = 62;
       
       
       public final int getNumber() { return value; }
@@ -39426,6 +40674,7 @@ public final class PulsarApi {
           case 59: return END_TXN_ON_PARTITION_RESPONSE;
           case 60: return END_TXN_ON_SUBSCRIPTION;
           case 61: return END_TXN_ON_SUBSCRIPTION_RESPONSE;
+          case 62: return TRANSACTION_META;
           default: return null;
         }
       }

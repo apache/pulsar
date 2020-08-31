@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -66,6 +67,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private Topic originTopic;
     private ConcurrentLinkedQueue<TxnID> pendingCommitTxn;
     private volatile boolean pendingCommitHandling;
+    private TransactionBufferSnapshotFactory snapshotFactory;
 
     abstract static class TxnCtx implements PublishContext {
         private final long sequenceId;
@@ -98,6 +100,8 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
+        this.snapshotFactory = new TransactionBufferSnapshotFactory(
+                this, brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig());
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -116,8 +120,12 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     private CompletableFuture<Position> appendBuffer(TxnID txnID, Position position, long sequenceId, long batchSize) {
-        return txnCursor.getTxnMeta(txnID, true).thenCompose(meta ->
-                meta.appendEntry(sequenceId, position, (int) batchSize));
+        return txnCursor.getTxnMeta(txnID, true)
+                .thenCompose(meta -> meta.appendEntry(sequenceId, position, (int) batchSize))
+                .thenCompose(snapshotPosition -> {
+                    txnCursor.updateSnapshotPosition(snapshotPosition);
+                    return CompletableFuture.completedFuture(snapshotPosition);
+                });
     }
 
     @Override
@@ -384,5 +392,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     @Override
     public CompletableFuture<Void> closeAsync() {
         return FutureUtil.failedFuture(new UnsupportedOperationException());
+    }
+
+    public TransactionCursor getTxnCursor() {
+        return txnCursor;
     }
 }

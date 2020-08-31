@@ -27,6 +27,7 @@ import static org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString.copyF
 import com.google.common.annotations.VisibleForTesting;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 
 import java.io.IOException;
@@ -34,8 +35,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.stream.Collectors;
 
+import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
@@ -118,6 +121,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnAction;
+import org.apache.pulsar.common.api.proto.PulsarMarkers;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -1510,6 +1514,48 @@ public class Commands {
         response.recycle();
         return res;
     }
+
+    @SneakyThrows
+    public static ByteBuf serializedTransactionMeta(long txnidMostBits,
+                                             long txnidLeastBits,
+                                             List<PulsarApi.TransactionPosition> transactionPositionList,
+                                             PulsarApi.TxnStatus txnStatus,
+                                             long commitedAtLedgerId,
+                                             long commitedAtEntryId) {
+
+        MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
+        msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
+        msgMetadataBuilder.setProducerName("pulsar.txn.meta");
+        msgMetadataBuilder.setTxnidMostBits(txnidMostBits);
+        msgMetadataBuilder.setTxnidLeastBits(txnidLeastBits);
+
+        MessageMetadata msgMetadata = msgMetadataBuilder.build();
+
+        PulsarApi.TransactionMeta.Builder builder = PulsarApi.TransactionMeta.newBuilder()
+                .setTxnidMostBits(txnidMostBits)
+                .setTxnidLeastBits(txnidLeastBits)
+                .addAllTxnPosition(transactionPositionList)
+                .setTxnStatus(txnStatus)
+                .setCommitedLedgerId(commitedAtLedgerId)
+                .setCommitedEntryId(commitedAtEntryId);
+
+        PulsarApi.TransactionMeta transactionMeta = builder.build();
+        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(transactionMeta.getSerializedSize());
+        ByteBufCodedOutputStream os = ByteBufCodedOutputStream.get(payload);
+        transactionMeta.writeTo(os);
+
+        try {
+            return serializeMetadataAndPayload(ChecksumType.Crc32c, msgMetadata, payload);
+        } finally {
+            payload.release();
+            os.recycle();
+            msgMetadataBuilder.recycle();
+            msgMetadata.recycle();
+            builder.recycle();
+            transactionMeta.recycle();
+        }
+    }
+
     @VisibleForTesting
     public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
         // / Wire format
