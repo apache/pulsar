@@ -24,13 +24,13 @@ import org.apache.pulsar.transaction.impl.common.TxnStatus;
 /**
  * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
  */
-public class UnexpectedTxnStatusException extends TransactionBufferException {
+public class TransactionStatusException extends TransactionBufferException {
 
     private static final long serialVersionUID = 0L;
 
-    public UnexpectedTxnStatusException(TxnID txnId,
-                                        TxnStatus expectedStatus,
-                                        TxnStatus actualStatus) {
+    public TransactionStatusException(TxnID txnId,
+                                      TxnStatus expectedStatus,
+                                      TxnStatus actualStatus) {
         super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
             + "`, but is in status `" + actualStatus + "`");
     }

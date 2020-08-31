@@ -1135,6 +1135,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
+            if (isTxnMessage(msgMetadata)) {
+                BitSet ackBitSet = null;
+                if (ackSet != null && ackSet.size() > 0) {
+                    ackBitSet = BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+                }
+                if (!ackBitSet.get(messageId.getBatchIndex())) {
+                    msgMetadata.recycle();
+                    return;
+                }
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
+            }
+
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
@@ -1169,6 +1181,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (listener != null) {
             triggerListener(numMessages);
         }
+    }
+
+    private boolean isTxnMessage(MessageMetadata messageMetadata) {
+        return messageMetadata.hasTxnidMostBits() && messageMetadata.hasTxnidLeastBits();
     }
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
@@ -1351,7 +1367,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
         }
         try {
-            for (int i = 0; i < batchSize; ++i) {
+            int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
+            for (int i = startBatchIndex; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
