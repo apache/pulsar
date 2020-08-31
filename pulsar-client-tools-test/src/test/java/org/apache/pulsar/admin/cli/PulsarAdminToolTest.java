@@ -726,6 +726,15 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
 
+        cmdTopics.run(split("enable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("disable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
         class TimestampMatcher implements ArgumentMatcher<Long> {
