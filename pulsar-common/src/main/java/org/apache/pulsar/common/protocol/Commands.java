@@ -1521,13 +1521,15 @@ public class Commands {
                                              List<PulsarApi.TransactionPosition> transactionPositionList,
                                              PulsarApi.TxnStatus txnStatus,
                                              long commitedAtLedgerId,
-                                             long commitedAtEntryId) {
+                                             long commitedAtEntryId,
+                                             int numMessageInTxn) {
 
         MessageMetadata.Builder msgMetadataBuilder = MessageMetadata.newBuilder();
         msgMetadataBuilder.setPublishTime(System.currentTimeMillis());
         msgMetadataBuilder.setProducerName("pulsar.txn.meta");
         msgMetadataBuilder.setTxnidMostBits(txnidMostBits);
         msgMetadataBuilder.setTxnidLeastBits(txnidLeastBits);
+        msgMetadataBuilder.setSequenceId(-1);
 
         MessageMetadata msgMetadata = msgMetadataBuilder.build();
 
@@ -1537,7 +1539,8 @@ public class Commands {
                 .addAllTxnPosition(transactionPositionList)
                 .setTxnStatus(txnStatus)
                 .setCommitedLedgerId(commitedAtLedgerId)
-                .setCommitedEntryId(commitedAtEntryId);
+                .setCommitedEntryId(commitedAtEntryId)
+                .setNumMessageInTxn(numMessageInTxn);
 
         PulsarApi.TransactionMeta transactionMeta = builder.build();
         ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(transactionMeta.getSerializedSize());

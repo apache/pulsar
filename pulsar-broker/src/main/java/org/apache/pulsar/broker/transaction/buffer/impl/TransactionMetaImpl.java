@@ -46,13 +46,18 @@ public class TransactionMetaImpl implements TransactionMeta {
         this.txnStatus = TxnStatus.OPEN;
     }
 
-    public TransactionMetaImpl(TxnID txnID, SortedMap<Long, Position> entries,
-                                              TxnStatus txnStatus, long committedAtLedgerId, long committedAtEntryId) {
+    public TransactionMetaImpl(TxnID txnID,
+                               SortedMap<Long, Position> entries,
+                               TxnStatus txnStatus,
+                               long committedAtLedgerId,
+                               long committedAtEntryId,
+                               int numMessageInTxn) {
         this.txnID = txnID;
         this.entries = entries;
         this.txnStatus = txnStatus;
         this.committedAtLedgerId = committedAtLedgerId;
         this.committedAtEntryId = committedAtEntryId;
+        this.numMessageInTxn = numMessageInTxn;
     }
 
     @Override
@@ -73,10 +78,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public int numMessageInTxn() throws TransactionStatusException {
-        if (!checkStatus(TxnStatus.COMMITTING, null) && !checkStatus(TxnStatus.COMMITTED, null)) {
-            throw new TransactionStatusException(txnID, TxnStatus.COMMITTED, txnStatus);
-        }
+    public int numMessageInTxn() {
         return numMessageInTxn;
     }
 

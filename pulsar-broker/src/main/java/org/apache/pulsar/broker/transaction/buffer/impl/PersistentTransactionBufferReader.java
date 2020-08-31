@@ -77,15 +77,6 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
         List<TransactionEntry> txnEntries = new ArrayList<>(entries.size());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        int numMessageInTxn = -1;
-        try {
-            numMessageInTxn = meta.numMessageInTxn();
-        } catch (TransactionStatusException e) {
-            log.error("Get transaction totalBatchSize failed.", e);
-            readFuture.completeExceptionally(e);
-        }
-
-        final int finalNumMessageInTxn = numMessageInTxn;
         for (Map.Entry<Long, Position> longPositionEntry : entries.entrySet()) {
             CompletableFuture<Void> tmpFuture = new CompletableFuture<>();
             readEntry(longPositionEntry.getValue()).whenComplete((entry, throwable) -> {
@@ -93,7 +84,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
                     tmpFuture.completeExceptionally(throwable);
                 } else {
                     TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
-                            entry, meta.committedAtLedgerId(), meta.committedAtEntryId(), finalNumMessageInTxn);
+                            entry, meta.committedAtLedgerId(), meta.committedAtEntryId(), meta.numMessageInTxn());
                     synchronized (txnEntries) {
                         txnEntries.add(txnEntry);
                     }

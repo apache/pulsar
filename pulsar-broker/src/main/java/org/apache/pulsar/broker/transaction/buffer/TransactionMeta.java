@@ -57,9 +57,8 @@ public interface TransactionMeta {
      * Return messages number in one transaction
      *
      * @return the number of transaction messages
-     * @throws TransactionStatusException
      */
-    int numMessageInTxn() throws TransactionStatusException;
+    int numMessageInTxn();
 
     /**
      * Return the committed ledger id at data ledger.

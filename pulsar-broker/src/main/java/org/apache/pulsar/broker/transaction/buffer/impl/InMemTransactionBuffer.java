@@ -82,7 +82,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public int numMessageInTxn() throws TransactionStatusException {
+        public int numMessageInTxn() {
             return -1;
         }
 

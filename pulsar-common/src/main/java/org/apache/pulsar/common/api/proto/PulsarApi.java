@@ -39546,11 +39546,15 @@ public final class PulsarApi {
     boolean hasTxnStatus();
     org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus getTxnStatus();
     
-    // optional uint64 commitedLedgerId = 5;
+    // required uint32 numMessageInTxn = 5;
+    boolean hasNumMessageInTxn();
+    int getNumMessageInTxn();
+    
+    // optional uint64 commitedLedgerId = 6;
     boolean hasCommitedLedgerId();
     long getCommitedLedgerId();
     
-    // optional uint64 commitedEntryId = 6;
+    // optional uint64 commitedEntryId = 7;
     boolean hasCommitedEntryId();
     long getCommitedEntryId();
   }
@@ -39640,21 +39644,31 @@ public final class PulsarApi {
       return txnStatus_;
     }
     
-    // optional uint64 commitedLedgerId = 5;
-    public static final int COMMITEDLEDGERID_FIELD_NUMBER = 5;
+    // required uint32 numMessageInTxn = 5;
+    public static final int NUMMESSAGEINTXN_FIELD_NUMBER = 5;
+    private int numMessageInTxn_;
+    public boolean hasNumMessageInTxn() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public int getNumMessageInTxn() {
+      return numMessageInTxn_;
+    }
+    
+    // optional uint64 commitedLedgerId = 6;
+    public static final int COMMITEDLEDGERID_FIELD_NUMBER = 6;
     private long commitedLedgerId_;
     public boolean hasCommitedLedgerId() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
+      return ((bitField0_ & 0x00000010) == 0x00000010);
     }
     public long getCommitedLedgerId() {
       return commitedLedgerId_;
     }
     
-    // optional uint64 commitedEntryId = 6;
-    public static final int COMMITEDENTRYID_FIELD_NUMBER = 6;
+    // optional uint64 commitedEntryId = 7;
+    public static final int COMMITEDENTRYID_FIELD_NUMBER = 7;
     private long commitedEntryId_;
     public boolean hasCommitedEntryId() {
-      return ((bitField0_ & 0x00000010) == 0x00000010);
+      return ((bitField0_ & 0x00000020) == 0x00000020);
     }
     public long getCommitedEntryId() {
       return commitedEntryId_;
@@ -39665,6 +39679,7 @@ public final class PulsarApi {
       txnidLeastBits_ = 0L;
       txnPosition_ = java.util.Collections.emptyList();
       txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
+      numMessageInTxn_ = 0;
       commitedLedgerId_ = 0L;
       commitedEntryId_ = 0L;
     }
@@ -39682,6 +39697,10 @@ public final class PulsarApi {
         return false;
       }
       if (!hasTxnStatus()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasNumMessageInTxn()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -39716,10 +39735,13 @@ public final class PulsarApi {
         output.writeEnum(4, txnStatus_.getNumber());
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeUInt64(5, commitedLedgerId_);
+        output.writeUInt32(5, numMessageInTxn_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeUInt64(6, commitedEntryId_);
+        output.writeUInt64(6, commitedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeUInt64(7, commitedEntryId_);
       }
     }
     
@@ -39747,11 +39769,15 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000008) == 0x00000008)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(5, commitedLedgerId_);
+          .computeUInt32Size(5, numMessageInTxn_);
       }
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
-          .computeUInt64Size(6, commitedEntryId_);
+          .computeUInt64Size(6, commitedLedgerId_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += org.apache.pulsar.shaded.com.google.protobuf.v241.CodedOutputStream
+          .computeUInt64Size(7, commitedEntryId_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -39874,10 +39900,12 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000004);
         txnStatus_ = org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus.OPEN;
         bitField0_ = (bitField0_ & ~0x00000008);
-        commitedLedgerId_ = 0L;
+        numMessageInTxn_ = 0;
         bitField0_ = (bitField0_ & ~0x00000010);
-        commitedEntryId_ = 0L;
+        commitedLedgerId_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000020);
+        commitedEntryId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -39931,9 +39959,13 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
           to_bitField0_ |= 0x00000008;
         }
-        result.commitedLedgerId_ = commitedLedgerId_;
+        result.numMessageInTxn_ = numMessageInTxn_;
         if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
           to_bitField0_ |= 0x00000010;
+        }
+        result.commitedLedgerId_ = commitedLedgerId_;
+        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
+          to_bitField0_ |= 0x00000020;
         }
         result.commitedEntryId_ = commitedEntryId_;
         result.bitField0_ = to_bitField0_;
@@ -39961,6 +39993,9 @@ public final class PulsarApi {
         if (other.hasTxnStatus()) {
           setTxnStatus(other.getTxnStatus());
         }
+        if (other.hasNumMessageInTxn()) {
+          setNumMessageInTxn(other.getNumMessageInTxn());
+        }
         if (other.hasCommitedLedgerId()) {
           setCommitedLedgerId(other.getCommitedLedgerId());
         }
@@ -39980,6 +40015,10 @@ public final class PulsarApi {
           return false;
         }
         if (!hasTxnStatus()) {
+          
+          return false;
+        }
+        if (!hasNumMessageInTxn()) {
           
           return false;
         }
@@ -40041,11 +40080,16 @@ public final class PulsarApi {
             }
             case 40: {
               bitField0_ |= 0x00000010;
-              commitedLedgerId_ = input.readUInt64();
+              numMessageInTxn_ = input.readUInt32();
               break;
             }
             case 48: {
               bitField0_ |= 0x00000020;
+              commitedLedgerId_ = input.readUInt64();
+              break;
+            }
+            case 56: {
+              bitField0_ |= 0x00000040;
               commitedEntryId_ = input.readUInt64();
               break;
             }
@@ -40210,43 +40254,64 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional uint64 commitedLedgerId = 5;
+      // required uint32 numMessageInTxn = 5;
+      private int numMessageInTxn_ ;
+      public boolean hasNumMessageInTxn() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public int getNumMessageInTxn() {
+        return numMessageInTxn_;
+      }
+      public Builder setNumMessageInTxn(int value) {
+        bitField0_ |= 0x00000010;
+        numMessageInTxn_ = value;
+        
+        return this;
+      }
+      public Builder clearNumMessageInTxn() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        numMessageInTxn_ = 0;
+        
+        return this;
+      }
+      
+      // optional uint64 commitedLedgerId = 6;
       private long commitedLedgerId_ ;
       public boolean hasCommitedLedgerId() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
+        return ((bitField0_ & 0x00000020) == 0x00000020);
       }
       public long getCommitedLedgerId() {
         return commitedLedgerId_;
       }
       public Builder setCommitedLedgerId(long value) {
-        bitField0_ |= 0x00000010;
+        bitField0_ |= 0x00000020;
         commitedLedgerId_ = value;
         
         return this;
       }
       public Builder clearCommitedLedgerId() {
-        bitField0_ = (bitField0_ & ~0x00000010);
+        bitField0_ = (bitField0_ & ~0x00000020);
         commitedLedgerId_ = 0L;
         
         return this;
       }
       
-      // optional uint64 commitedEntryId = 6;
+      // optional uint64 commitedEntryId = 7;
       private long commitedEntryId_ ;
       public boolean hasCommitedEntryId() {
-        return ((bitField0_ & 0x00000020) == 0x00000020);
+        return ((bitField0_ & 0x00000040) == 0x00000040);
       }
       public long getCommitedEntryId() {
         return commitedEntryId_;
       }
       public Builder setCommitedEntryId(long value) {
-        bitField0_ |= 0x00000020;
+        bitField0_ |= 0x00000040;
         commitedEntryId_ = value;
         
         return this;
       }
       public Builder clearCommitedEntryId() {
-        bitField0_ = (bitField0_ & ~0x00000020);
+        bitField0_ = (bitField0_ & ~0x00000040);
         commitedEntryId_ = 0L;
         
         return this;

@@ -819,13 +819,14 @@ message TransactionPosition {
     required uint64 entryId = 3;
 }
 
-message CommandTransactionMeta {
+message TransactionMeta {
     required uint64 txnidMostBits = 1;
     required uint64 txnidLeastBits = 2;
     repeated TransactionPosition txnPosition = 3;
     required TxnStatus txnStatus = 4;
-    optional uint64 commitedLedgerId = 5;
-    optional uint64 commitedEntryId = 6;
+    required uint32 numMessageInTxn = 5;
+    optional uint64 commitedLedgerId = 6;
+    optional uint64 commitedEntryId = 7;
 }
 
 message BaseCommand {
@@ -986,5 +987,4 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
-    optional TransactionMeta txnMeta = 61;
 }

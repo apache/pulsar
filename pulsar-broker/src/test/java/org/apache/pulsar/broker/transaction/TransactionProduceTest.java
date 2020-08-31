@@ -21,12 +21,16 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
@@ -38,8 +42,10 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
-import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferSnapshotFactory;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionMetaImpl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -47,6 +53,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -148,7 +155,7 @@ public class TransactionProduceTest extends TransactionTestBase {
             futureList.add(produceFuture);
         }
 
-        // the target topic hasn't the commit marker before commit
+        // the topic partition doesn't have the commit marker before the transaction commit
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(PRODUCE_COMMIT_TOPIC, i);
             Assert.assertNotNull(originTopicCursor);
@@ -510,5 +517,57 @@ public class TransactionProduceTest extends TransactionTestBase {
         return pendingAckCount;
     }
 
+
+    @Test
+    public void transactionBufferSnapshotTest() throws Exception {
+        String topic = NAMESPACE1 + "/tb-snapshot-test";
+        PersistentTopic persistentTopic = new PersistentTopic(
+                topic,
+                getPulsarServiceList().get(0).getManagedLedgerFactory().open(topic),
+                getPulsarServiceList().get(0).getBrokerService());
+
+        PersistentTransactionBuffer transactionBuffer = new PersistentTransactionBuffer(
+                    topic,
+                    persistentTopic.getManagedLedger(),
+                    getPulsarServiceList().get(0).getBrokerService(),
+                    persistentTopic);
+
+        TxnID txnID = new TxnID(3, 10);
+        ByteBuf byteBuf = Unpooled.buffer().writeBytes("Hello".getBytes());
+
+        for (int i = 0; i < 10; i++) {
+            transactionBuffer.appendBufferToTxn(txnID, i, i, byteBuf).get();
+        }
+        transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.COMMIT.getNumber()).get();
+        Thread.sleep(100);
+
+        ConcurrentMap<TxnID, TransactionMetaImpl> originalIndexMap =
+                new ConcurrentHashMap<>(transactionBuffer.getTxnCursor().getTxnIndexMap());
+        Assert.assertTrue(originalIndexMap.containsKey(txnID));
+
+        TransactionBufferSnapshotFactory snapshotFactory = new TransactionBufferSnapshotFactory(
+                transactionBuffer,
+                getPulsarServiceList().get(0).getBookKeeperClient(),
+                new ManagedLedgerConfig());
+
+        long snapshotLedgerId = snapshotFactory.makeSnapshot().get();
+        log.info("snapshotLedgerId: {}", snapshotLedgerId);
+
+        transactionBuffer.getTxnCursor().getTxnIndexMap().clear();
+        ConcurrentMap<TxnID, TransactionMetaImpl> recoverIndexMap = transactionBuffer.getTxnCursor().getTxnIndexMap();
+        Assert.assertFalse(recoverIndexMap.containsKey(txnID));
+
+        snapshotFactory.recoverFromBK(snapshotLedgerId).get();
+        Assert.assertTrue(recoverIndexMap.containsKey(txnID));
+
+        TransactionMetaImpl originalMeta = originalIndexMap.get(txnID);
+        TransactionMetaImpl recoverMeta = recoverIndexMap.get(txnID);
+
+        Assert.assertEquals(originalMeta.status(), recoverMeta.status());
+        Assert.assertEquals(originalMeta.getEntries(), recoverMeta.getEntries());
+        Assert.assertEquals(originalMeta.committedAtLedgerId(), recoverMeta.committedAtLedgerId());
+        Assert.assertEquals(originalMeta.committedAtEntryId(), recoverMeta.committedAtEntryId());
+        Assert.assertEquals(originalMeta.numMessageInTxn(), recoverMeta.numMessageInTxn());
+    }
 
 }

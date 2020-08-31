@@ -102,8 +102,9 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
                                 metaEntry.getKey().getLeastSigBits(),
                                 positionList,
                                 PulsarApi.TxnStatus.valueOf(metaEntry.getValue().status().name()),
+                                metaEntry.getValue().committedAtLedgerId(),
                                 metaEntry.getValue().committedAtEntryId(),
-                                metaEntry.getValue().committedAtEntryId());
+                                metaEntry.getValue().numMessageInTxn());
 
                         CompletableFuture<Void> addEntryFuture = new CompletableFuture<>();
                         addEntryFutureList.add(addEntryFuture);
@@ -120,8 +121,6 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
                         if (addEntriesError != null) {
                             future.completeExceptionally(addEntriesError);
                         }
-                        transactionBuffer.getManagedLedger().asyncSetProperty(
-                                SNAPSHOT_LEDGER, "" + ledgerHandle.getId(), null, null);
                         Map<String, String> properties = new HashMap<>();
                         properties.put(SNAPSHOT_LEDGER, "" + ledgerHandle.getId());
                         properties.put(SNAPSHOT_LOG_LEDGER_ID, "" + ledgerId);
@@ -134,7 +133,7 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
                                     log.debug("update snapshot metadata complete in ledger {} for transactionBuffer {} at position {}.",
                                             ledgerId, transactionBuffer.getName(), snapshotLogPosition);
                                 }
-                                future.complete(null);
+                                future.complete(ledgerHandle.getId());
                             }
 
                             @Override
@@ -152,12 +151,12 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
 
     }
 
-    public void recoverFromBK(long ledgerId) {
+    public CompletableFuture<Void> recoverFromBK(long ledgerId) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         this.bookKeeper.asyncOpenLedger(ledgerId, digestType, password, new AsyncCallback.OpenCallback() {
             @Override
             public void openComplete(int i, LedgerHandle ledgerHandle, Object o) {
-                ledgerHandle.readAsync(-1, ledgerHandle.getLastAddConfirmed()).thenAccept(entries -> {
+                ledgerHandle.readAsync(0, ledgerHandle.getLastAddConfirmed()).thenAccept(entries -> {
                     for (LedgerEntry ledgerEntry : entries) {
                         ByteBuf byteBuf = ledgerEntry.getEntryBuffer();
                         Commands.parseMessageMetadata(byteBuf);
@@ -174,8 +173,8 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
                                     sortedMap,
                                     TxnStatus.valueOf(txnMeta.getTxnStatus().name()),
                                     txnMeta.getCommitedLedgerId(),
-                                    txnMeta.getCommitedEntryId()
-                            );
+                                    txnMeta.getCommitedEntryId(),
+                                    txnMeta.getNumMessageInTxn());
 
                             TransactionBufferSnapshotFactory.this.txnCursor.recoverFromBK(metaImpl);
                         } catch (IOException e) {
@@ -186,6 +185,7 @@ public class TransactionBufferSnapshotFactory implements TimerTask {
                 });
             }
         }, null);
+        return completableFuture;
     }
 
     @Override
