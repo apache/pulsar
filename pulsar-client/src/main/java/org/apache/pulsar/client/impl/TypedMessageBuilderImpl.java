@@ -91,8 +91,9 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public CompletableFuture<MessageId> sendAsync() {
-        long sequenceId = beforeSend();
-        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(getMessage(), txn);
+        Message<T> message = getMessage();
+        final long sequenceId = message.getSequenceId();
+        CompletableFuture<MessageId> sendFuture = producer.internalSendAsync(message, txn);
         if (txn != null) {
             // register the sendFuture as part of the transaction
             return txn.registerSendOp(sequenceId, sendFuture);
