@@ -303,10 +303,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Delete offload policies on a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
-    public void deleteOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
-                                                       @PathParam("tenant") String tenant,
-                                                       @PathParam("namespace") String namespace,
-                                                       @PathParam("topic") @Encoded String encodedTopic) {
+    public void removeOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
+                                      @PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace,
+                                      @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         setOffloadPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }

@@ -49,6 +49,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -119,6 +120,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
         jcommander.addCommand("remove-persistence", new RemovePersistence());
+        jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
+        jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
+        jcommander.addCommand("remove-offload-policies", new RemoveOffloadPolicies());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1062,6 +1066,75 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(admin.topics().getPersistence(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the offload policies for a topic")
+    private class GetOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getOffloadPolicies(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the offload policies for a topic")
+    private class RemoveOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeOffloadPolicies(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Set the offload policies for a topic")
+    private class SetOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-d", "--driver"}, description = "ManagedLedger offload driver", required = true)
+        private String driver;
+
+        @Parameter(names = {"-r", "--region"}
+                , description = "ManagedLedger offload region, s3 and google-cloud-storage requires this parameter")
+        private String region;
+
+        @Parameter(names = {"-b", "--bucket"}
+                , description = "ManagedLedger offload bucket, s3 and google-cloud-storage requires this parameter")
+        private String bucket;
+
+        @Parameter(names = {"-e", "--endpoint"}
+                , description = "ManagedLedger offload service endpoint, only s3 requires this parameter")
+        private String endpoint;
+
+        @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
+                , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
+        private int maxBlockSizeInBytes;
+
+        @Parameter(names = {"-rb", "--readBufferSizeInBytes"}
+                , description = "ManagedLedger offload read buffer size in bytes, s3 and google-cloud-storage requires this parameter")
+        private int readBufferSizeInBytes;
+
+        @Parameter(names = {"-t", "--offloadThresholdInBytes"}
+                , description = "ManagedLedger offload threshold in bytes", required = true)
+        private long offloadThresholdInBytes;
+
+        @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
+                , description = "ManagedLedger offload deletion lag in bytes")
+        private Long offloadDeletionLagInMillis;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, maxBlockSizeInBytes
+                    , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
+            admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
     }
 
