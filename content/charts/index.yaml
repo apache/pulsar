@@ -18,6 +18,22 @@ entries:
     - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.6.1-1/pulsar-2.6.1-1.tgz
     version: 2.6.1-1
   - apiVersion: v1
+    appVersion: 2.6.1
+    created: "2020-08-31T05:06:22.671294102Z"
+    description: Apache Pulsar Helm chart for Kubernetes
+    digest: 4a8343100a25942faef6e8db64169f19e3568be5d63e95b38c3f684843db2b3e
+    home: https://pulsar.apache.org
+    icon: http://pulsar.apache.org/img/pulsar.svg
+    maintainers:
+    - email: dev@pulsar.apache.org
+      name: The Apache Pulsar Team
+    name: pulsar
+    sources:
+    - https://github.com/apache/pulsar
+    urls:
+    - https://github.com/apache/pulsar-helm-chart/releases/download/pulsar-2.6.1-1/pulsar-2.6.1-1.tgz
+    version: 2.6.1-1
+  - apiVersion: v1
     appVersion: "1.0"
     created: "2020-07-02T06:19:53.443507716Z"
     description: Apache Pulsar Helm chart for Kubernetes
