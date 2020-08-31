@@ -444,6 +444,10 @@ public final class PulsarApi {
       Time(13, 13),
       Timestamp(14, 14),
       KeyValue(15, 15),
+      Instant(16, 16),
+      LocalDate(17, 17),
+      LocalTime(18, 18),
+      LocalDateTime(19, 19),
       ;
       
       public static final int None_VALUE = 0;
@@ -462,6 +466,10 @@ public final class PulsarApi {
       public static final int Time_VALUE = 13;
       public static final int Timestamp_VALUE = 14;
       public static final int KeyValue_VALUE = 15;
+      public static final int Instant_VALUE = 16;
+      public static final int LocalDate_VALUE = 17;
+      public static final int LocalTime_VALUE = 18;
+      public static final int LocalDateTime_VALUE = 19;
       
       
       public final int getNumber() { return value; }
@@ -484,6 +492,10 @@ public final class PulsarApi {
           case 13: return Time;
           case 14: return Timestamp;
           case 15: return KeyValue;
+          case 16: return Instant;
+          case 17: return LocalDate;
+          case 18: return LocalTime;
+          case 19: return LocalDateTime;
           default: return null;
         }
       }
@@ -1576,6 +1588,15 @@ public final class PulsarApi {
             case 40: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 42: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
               break;
             }
           }
@@ -18858,6 +18879,15 @@ public final class PulsarApi {
             case 32: {
               ensureAckSetIsMutable();
               ackSet_.add(input.readInt64());
+              break;
+            }
+            case 34: {
+              int length = input.readRawVarint32();
+              int limit = input.pushLimit(length);
+              while (input.getBytesUntilLimit() > 0) {
+                addAckSet(input.readInt64());
+              }
+              input.popLimit(limit);
               break;
             }
           }
