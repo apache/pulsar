@@ -361,7 +361,9 @@ public class PersistentSubscription implements Subscription {
                 cursor.asyncDelete(positions, deleteCallback, positions);
             }
 
-            dispatcher.getRedeliveryTracker().removeBatch(positions);
+            if(dispatcher != null){
+                dispatcher.getRedeliveryTracker().removeBatch(positions);
+            }
         }
 
         if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
@@ -379,11 +381,15 @@ public class PersistentSubscription implements Subscription {
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
-            dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            if(dispatcher != null){
+                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+            }
         }
 
         // Signal the dispatchers to give chance to take extra actions
-        dispatcher.acknowledgementWasProcessed();
+        if(dispatcher != null){
+            dispatcher.acknowledgementWasProcessed();
+        }
     }
 
     /**
