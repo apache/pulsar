@@ -29,6 +29,10 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -217,6 +221,30 @@ public class DefaultImplementation {
         return catchExceptions(
               () -> (Schema<Timestamp>) getStaticMethod(
                   "org.apache.pulsar.client.impl.schema.TimestampSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<Instant> newInstantSchema() {
+        return catchExceptions(
+              () -> (Schema<Instant>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.InstantSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalDate> newLocalDateSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalDate>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalDateSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalTime> newLocalTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalTime>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalTimeSchema", "of", null)
+                    .invoke(null, null));
+    }
+    public static Schema<LocalDateTime> newLocalDateTimeSchema() {
+        return catchExceptions(
+              () -> (Schema<LocalDateTime>) getStaticMethod(
+                  "org.apache.pulsar.client.impl.schema.LocalDateTimeSchema", "of", null)
                     .invoke(null, null));
     }
 

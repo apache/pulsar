@@ -21,11 +21,13 @@ package org.apache.pulsar.client.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -37,6 +39,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -46,10 +49,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class EndToEndTest extends TransactionTestBase {
 
-
     private final static int TOPIC_PARTITION = 3;
 
-    private final static String CLUSTER_NAME = "test";
     private final static String TENANT = "tnx";
     private final static String NAMESPACE1 = TENANT + "/ns1";
     private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
@@ -58,26 +59,31 @@ public class EndToEndTest extends TransactionTestBase {
     protected void setup() throws Exception {
         internalSetup();
 
-        int webServicePort = getServiceConfigurationList().get(0).getWebServicePort().get();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
         admin.tenants().createTenant(TENANT,
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, 3);
+        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, TOPIC_PARTITION);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
-        int brokerPort = getServiceConfigurationList().get(0).getBrokerServicePort().get();
         pulsarClient = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:" + brokerPort)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
 
         Thread.sleep(1000 * 3);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
     }
 
     @Test
@@ -107,23 +113,39 @@ public class EndToEndTest extends TransactionTestBase {
                 .topic(TOPIC_OUTPUT)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("test")
+                .enableBatchIndexAcknowledgment(true)
                 .subscribe();
 
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         // Can't receive transaction messages before commit.
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         txn.commit().get();
 
-        Thread.sleep(2000);
-
         int receiveCnt = 0;
+        Set<MessageId> firstReceivedMessageIdList = Sets.newHashSet();
         for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive(2, TimeUnit.SECONDS);
+            message = consumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
+            firstReceivedMessageIdList.add(message.getMessageId());
+            log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
         Assert.assertEquals(messageCnt, receiveCnt);
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveCnt = 0;
+        for (int i = 0; i < messageCnt; i++) {
+            message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertTrue(firstReceivedMessageIdList.remove(message.getMessageId()));
+            log.info("second receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
+            receiveCnt ++;
+        }
+        Assert.assertEquals(messageCnt, receiveCnt);
+        Assert.assertEquals(firstReceivedMessageIdList.size(), 0);
+
         log.info("receive transaction messages count: {}", receiveCnt);
     }
 

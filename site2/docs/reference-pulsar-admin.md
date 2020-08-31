@@ -1796,6 +1796,9 @@ Subcommands
 * `get-message-ttl`
 * `set-message-ttl`
 * `remove-message-ttl`
+* `get-deduplication`
+* `set-deduplication`
+* `remove-deduplication`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2225,6 +2228,21 @@ Set a backlog quota policy for a topic.
 Usage
 ```bash
 $ pulsar-admin topics set-backlog-quota tenant/namespace/topic options
+=======
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Enable or disable message deduplication on a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic
 ```
 
 Options
@@ -2299,6 +2317,17 @@ Remove the message TTL for a topic.
 Usage
 ```bash
 $ pulsar-admin topics remove-message-ttl tenant/namespace/topic
+=======
+|---|---|---|
+|`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
+|`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
+
+### `remove-deduplication`
+Remove a deduplication policy from a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-deduplication tenant/namespace/topic
 ```
 
 ## `tenants`

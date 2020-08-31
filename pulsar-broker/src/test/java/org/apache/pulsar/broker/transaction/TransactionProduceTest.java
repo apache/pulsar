@@ -62,36 +62,29 @@ public class TransactionProduceTest extends TransactionTestBase {
 
     private final static int TOPIC_PARTITION = 3;
 
-    private final static String CLUSTER_NAME = "test";
     private final static String TENANT = "tnx";
     private final static String NAMESPACE1 = TENANT + "/ns1";
-    private final static String TOPIC_INPUT_1 = NAMESPACE1 + "/input1";
-    private final static String TOPIC_INPUT_2 = NAMESPACE1 + "/input2";
-    private final static String TOPIC_OUTPUT_1 = NAMESPACE1 + "/output1";
-    private final static String TOPIC_OUTPUT_2 = NAMESPACE1 + "/output2";
+    private final static String TOPIC_OUTPUT = NAMESPACE1 + "/output";
 
     @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
 
-        int webServicePort = getServiceConfigurationList().get(0).getWebServicePort().get();
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
         admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
         admin.tenants().createTenant(TENANT,
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE1);
-        admin.topics().createPartitionedTopic(TOPIC_INPUT_1, 3);
-        admin.topics().createPartitionedTopic(TOPIC_INPUT_2, 3);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT_1, 3);
-        admin.topics().createPartitionedTopic(TOPIC_OUTPUT_2, 3);
+        admin.topics().createPartitionedTopic(TOPIC_OUTPUT, 3);
 
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfo(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
 
-        int brokerPort = getServiceConfigurationList().get(0).getBrokerServicePort().get();
         pulsarClient = PulsarClient.builder()
-                .serviceUrl("pulsar://localhost:" + brokerPort)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .enableTransaction(true)
                 .build();
@@ -119,7 +112,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         @Cleanup
         PartitionedProducerImpl<byte[]> outProducer = (PartitionedProducerImpl<byte[]>) pulsarClientImpl
                 .newProducer()
-                .topic(TOPIC_OUTPUT_1)
+                .topic(TOPIC_OUTPUT)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .enableBatching(false)
                 .roundRobinRouterBatchingPartitionSwitchFrequency(1)
@@ -140,7 +133,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         // the target topic hasn't the commit marker before commit
         for (int i = 0; i < TOPIC_PARTITION; i++) {
-            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, i);
+            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT, i);
             Assert.assertNotNull(originTopicCursor);
             Assert.assertFalse(originTopicCursor.hasMoreEntries());
             originTopicCursor.close();
@@ -179,7 +172,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             // the target topic partition received the commit marker
-            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT_1, i);
+            ReadOnlyCursor originTopicCursor = getOriginTopicCursor(TOPIC_OUTPUT, i);
             Assert.assertNotNull(originTopicCursor);
             Assert.assertTrue(originTopicCursor.hasMoreEntries());
             List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
@@ -191,7 +184,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
             // the target topic transactionBuffer should receive the transaction messages,
             // committing marker and commit marker
-            ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT_1, i);
+            ReadOnlyCursor tbTopicCursor = getTBTopicCursor(TOPIC_OUTPUT, i);
             Assert.assertNotNull(tbTopicCursor);
             Assert.assertTrue(tbTopicCursor.hasMoreEntries());
             long tbEntriesCnt = tbTopicCursor.getNumberOfEntries();

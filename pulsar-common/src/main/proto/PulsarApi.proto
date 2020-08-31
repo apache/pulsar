@@ -40,6 +40,10 @@ message Schema {
         Time = 13;
         Timestamp = 14;
         KeyValue = 15;
+        Instant = 16;
+        LocalDate = 17;
+        LocalTime = 18;
+        LocalDateTime = 19;
     }
 
     required string name = 1;
