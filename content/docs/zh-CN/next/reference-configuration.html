@@ -80,8 +80,8 @@
 <tr><td>journalBufferedWritesThreshold</td><td>要实现分组的最大写入缓存</td><td>524288</td></tr>
 <tr><td>journalFlushWhenQueueEmpty</td><td>是否在日志队列为空时刷写日志</td><td>false</td></tr>
 <tr><td>numJournalCallbackThreads</td><td>处理日志回调的线程数</td><td>8</td></tr>
+<tr><td>openLedgerRereplicationGracePeriod</td><td>The grace period, in milliseconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon bookie failure.</td><td>30000</td></tr>
 <tr><td>rereplicationEntryBatchSize</td><td>重复制时在 fragment 中保存的最大条目数</td><td>100</td></tr>
-<tr><td>openLedgerRereplicationGracePeriod</td><td>The grace period, in seconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon the bookie failure.</td><td>30</td></tr>
 <tr><td>autoRecoveryDaemonEnabled</td><td>Whether the bookie itself can start auto-recovery service.</td><td>true</td></tr>
 <tr><td>lostBookieRecoveryDelay</td><td>How long to wait, in seconds, before starting auto recovery of a lost bookie.</td><td>0</td></tr>
 <tr><td>gcWaitTime</td><td>触发下一次垃圾收集的时间间隔（毫秒）。 由于垃圾收集工作在后台进行，过于频繁的垃圾收集工作将降低性能。 如果磁盘容量足够，最好用更大的 gc 时间间隔。</td><td>900000</td></tr>

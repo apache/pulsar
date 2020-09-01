@@ -130,6 +130,7 @@
 <tr><td>journalFlushWhenQueueEmpty</td><td>是否在日志队列为空时刷写日志</td><td>false</td></tr>
 <tr><td>numJournalCallbackThreads</td><td>处理日志回调的线程数</td><td>8</td></tr>
 <tr><td>rereplicationEntryBatchSize</td><td>重复制时在 fragment 中保存的最大条目数</td><td>5000</td></tr>
+<tr><td>openLedgerRereplicationGracePeriod</td><td>The grace period, in milliseconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon bookie failure.</td><td>30000</td></tr>
 <tr><td>gcWaitTime</td><td>触发下一次垃圾收集的时间间隔（毫秒）。 由于垃圾收集工作在后台进行，过于频繁的垃圾收集工作将降低性能。 如果磁盘容量足够，最好用更大的 gc 时间间隔。</td><td>900000</td></tr>
 <tr><td>gcOverreplicatedLedgerWaitTime</td><td>触发下一次垃圾收集器收集过度复制的 ledger 的时间间隔（毫秒）。 这种情况不应经常发生，因为我们从 zookeeper 的 bookie 上读取所有 ledger 的元数据。</td><td>86400000</td></tr>
 <tr><td>flushInterval</td><td>刷新 ledger 索引页到磁盘的间隔，以毫秒计。 刷新索引文件会引入大量随机磁盘 I/O。 如果在不同的设备上将日志目录和 ledger 目录分开，刷写就不会影响性能。 但是，如果在同一设备上放置日志目录和 ledger 目录，性能会在频繁刷写的情况下大幅下降。 你可以考虑增加刷写间隔来获得更好的性能，但你需要在 bookie 服务器失败重启后花更多时间。</td><td>60000</td></tr>
