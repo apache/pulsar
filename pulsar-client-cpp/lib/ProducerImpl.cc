@@ -64,8 +64,6 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
       msgSequenceGenerator_(0),
-      sendTimer_(),
-      msgCrypto_(),
       dataKeyGenIntervalSec_(4 * 60 * 60) {
     LOG_DEBUG("ProducerName - " << producerName_ << " Created producer on topic " << topic_
                                 << " id: " << producerId_);
@@ -165,7 +163,6 @@ void ProducerImpl::handleCreateProducer(const ClientConnectionPtr& cnx, Result r
         LOG_INFO(getName() << "Created producer on broker " << cnx->cnxString());
 
         Lock lock(mutex_);
-        keepMaxMessageSize_ = cnx->getMaxMessageSize();
         cnx->registerProducer(producerId_, shared_from_this());
         producerName_ = responseData.producerName;
         schemaVersion_ = responseData.schemaVersion;
@@ -372,9 +369,9 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         }
         payload = encryptedPayload;
 
-        if (payloadSize > keepMaxMessageSize_) {
+        if (payloadSize > ClientConnection::getMaxMessageSize()) {
             LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
-                                << keepMaxMessageSize_ << " bytes");
+                                << ClientConnection::getMaxMessageSize() << " bytes");
             cb(ResultMessageTooBig, msg.getMessageId());
             return;
         }

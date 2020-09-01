@@ -66,8 +66,6 @@ class ProducerImpl : public HandlerBase,
                  const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
 
-    int keepMaxMessageSize_;
-
     virtual const std::string& getTopic() const;
 
     virtual void sendAsync(const Message& msg, SendCallback callback);
@@ -158,6 +156,7 @@ class ProducerImpl : public HandlerBase,
     uint64_t producerId_;
     int64_t msgSequenceGenerator_;
     proto::BaseCommand cmd_;
+
     BatchMessageContainerPtr batchMessageContainer;
 
     volatile int64_t lastSequenceIdPublished_;
