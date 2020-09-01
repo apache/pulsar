@@ -65,9 +65,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.AbstractTopic;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.*;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
@@ -80,15 +78,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.broker.service.Replicator;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.broker.service.StreamingStats;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -2366,6 +2355,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             dispatchRateLimiter.ifPresent(dispatchRateLimiter ->
                 dispatchRateLimiter.updateDispatchRate(policies.getDispatchRate()));
         }
+
+        if (policies != null && policies.getPublishRate() != null) {
+            topicPolicyPublishRate = policies.getPublishRate();
+            updateTopicPublishDispatcher();
+        }
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(Optional<TopicPolicies> policies) {
@@ -2381,6 +2375,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this;
     }
 
+    @Override
+    protected void updateTopicPublishDispatcher() {
+        if (topicPolicyPublishRate != null && (topicPolicyPublishRate.publishThrottlingRateInByte > 0
+            || topicPolicyPublishRate.publishThrottlingRateInMsg > 0)) {
+            log.info("Enabling topic policy publish rate limiting {} on topic {}", topicPolicyPublishRate, this.topic);
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupBrokerPublishRateLimiterMonitor();
+            }
+
+            if (this.topicPublishRateLimiter == null
+                || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                // create new rateLimiter if rate-limiter is disabled
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(topicPolicyPublishRate, ()-> this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(topicPolicyPublishRate);
+                }
+            } else {
+                this.topicPublishRateLimiter.update(topicPolicyPublishRate);
+            }
+        } else {
+            log.info("Disabling publish throttling for {}", this.topic);
+            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            enableProducerReadForPublishRateLimiting();
+        }
+    }
 
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {
