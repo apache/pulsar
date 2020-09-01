@@ -36,7 +36,7 @@ echo "---- Build Pulsar C++ client using image $IMAGE (pass <skip-clean> for inc
 docker pull $IMAGE
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
-COMMAND="cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make check-format && make -j16"
+COMMAND="cd /pulsar/pulsar-client-cpp && cmake . $CMAKE_ARGS && make check-format && make -j8"
 
 DOCKER_CMD="docker run -i ${VOLUME_OPTION} ${IMAGE}"
 
