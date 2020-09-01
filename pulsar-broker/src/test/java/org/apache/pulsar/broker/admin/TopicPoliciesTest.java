@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -334,6 +335,83 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
         getPersistencePolicies = admin.topics().getPersistence(testTopic);
         Assert.assertNull(getPersistencePolicies);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+
+    @Test
+    public void testGetSetDispatchRate() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, dispatchRate);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
+        Assert.assertEquals(getDispatchRate, dispatchRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveDispatchRate() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, dispatchRate);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
+        Assert.assertEquals(getDispatchRate, dispatchRate);
+
+        admin.topics().removeDispatchRate(testTopic);
+        Thread.sleep(3000);
+        log.info("Dispatch Rate get on topic: {} after remove", getDispatchRate, testTopic);
+        getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        Assert.assertNull(getDispatchRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetCompactionThreshold() throws Exception {
+        long compactionThreshold = 100000;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveCompactionThreshold() throws Exception {
+        Long compactionThreshold = 100000L;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        Long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().removeCompactionThreshold(testTopic);
+        Thread.sleep(3000);
+        log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
+        getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        Assert.assertNull(getCompactionThreshold);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
