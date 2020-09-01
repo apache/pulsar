@@ -178,7 +178,9 @@ ProducerConfiguration& ProducerConfiguration::setCryptoFailureAction(ProducerCry
     return *this;
 }
 
-std::set<std::string>& ProducerConfiguration::getEncryptionKeys() { return impl_->encryptionKeys; }
+const std::set<std::string>& ProducerConfiguration::getEncryptionKeys() const {
+    return impl_->encryptionKeys;
+}
 
 bool ProducerConfiguration::isEncryptionEnabled() const {
     return (!impl_->encryptionKeys.empty() && (impl_->cryptoKeyReader != NULL));

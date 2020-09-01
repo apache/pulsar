@@ -617,21 +617,29 @@ std::string Commands::messageType(BaseCommand_Type type) {
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {
-    if (msg.impl_->metadata.has_publish_time()) {
-        batchMetadata.set_publish_time(msg.impl_->metadata.publish_time());
-    }
+    // metadata has already been set in ProducerImpl::setMessageMetadata
+    const proto::MessageMetadata& metadata = msg.impl_->metadata;
 
-    if (msg.impl_->metadata.has_sequence_id()) {
-        batchMetadata.set_sequence_id(msg.impl_->metadata.sequence_id());
-    }
+    // required fields
+    batchMetadata.set_producer_name(metadata.producer_name());
+    batchMetadata.set_sequence_id(metadata.sequence_id());
+    batchMetadata.set_publish_time(metadata.publish_time());
 
-    if (msg.impl_->metadata.has_replicated_from()) {
-        batchMetadata.set_replicated_from(msg.impl_->metadata.replicated_from());
+    // optional fields
+    if (metadata.has_partition_key()) {
+        batchMetadata.set_partition_key(metadata.partition_key());
     }
+    if (metadata.has_ordering_key()) {
+        batchMetadata.set_ordering_key(metadata.ordering_key());
+    }
+    if (metadata.has_replicated_from()) {
+        batchMetadata.set_replicated_from(metadata.replicated_from());
+    }
+    // TODO: set other optional fields
 }
 
 void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                        const unsigned long& maxMessageSizeInBytes) {
+                                                        unsigned long maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());

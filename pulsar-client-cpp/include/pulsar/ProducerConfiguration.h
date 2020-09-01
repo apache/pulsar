@@ -158,7 +158,7 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerCryptoFailureAction getCryptoFailureAction() const;
     ProducerConfiguration& setCryptoFailureAction(ProducerCryptoFailureAction action);
 
-    std::set<std::string>& getEncryptionKeys();
+    const std::set<std::string>& getEncryptionKeys() const;
     bool isEncryptionEnabled() const;
     ProducerConfiguration& addEncryptionKey(std::string key);
 
