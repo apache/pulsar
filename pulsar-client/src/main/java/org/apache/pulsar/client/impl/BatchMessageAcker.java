@@ -34,6 +34,11 @@ class BatchMessageAcker {
         return new BatchMessageAcker(bitSet, batchSize);
     }
 
+    // Use the param bitSet as the BatchMessageAcker's bitSet, don't care about the batchSize.
+    static BatchMessageAcker newAcker(BitSet bitSet) {
+        return new BatchMessageAcker(bitSet, -1);
+    }
+
     // bitset shared across messages in the same batch.
     private final int batchSize;
     private final BitSet bitSet;
