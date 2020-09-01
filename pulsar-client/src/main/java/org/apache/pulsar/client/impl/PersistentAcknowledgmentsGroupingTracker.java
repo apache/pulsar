@@ -168,8 +168,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         } else if (ackType == AckType.Individual) {
             ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
-                    ConcurrentBitSetRecyclable value = ConcurrentBitSetRecyclable.create();
-                    value.set(0, batchSize);
+                    ConcurrentBitSetRecyclable value;
+                    if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
+                        value = ConcurrentBitSetRecyclable.create(msgId.getAcker().getBitSet());
+                    } else {
+                        value = ConcurrentBitSetRecyclable.create();
+                        value.set(0, batchSize);
+                    }
                     return value;
                 });
             bitSet.clear(batchIndex);
@@ -221,8 +226,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (cnx == null) {
             return false;
         }
-        BitSetRecyclable bitSet = BitSetRecyclable.create();
-        bitSet.set(0, batchSize);
+        BitSetRecyclable bitSet;
+        if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
+            bitSet = BitSetRecyclable.valueOf(msgId.getAcker().getBitSet().toLongArray());
+        } else {
+            bitSet = BitSetRecyclable.create();
+            bitSet.set(0, batchSize);
+        }
         if (ackType == AckType.Cumulative) {
             bitSet.clear(0, batchIndex + 1);
         } else {
