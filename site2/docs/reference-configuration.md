@@ -68,8 +68,8 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |journalBufferedWritesThreshold|Maximum writes to buffer to achieve grouping|524288|
 |journalFlushWhenQueueEmpty|If we should flush the journal when journal queue is empty|false|
 |numJournalCallbackThreads|The number of threads that should handle journal callbacks|8|
+|openLedgerRereplicationGracePeriod | The grace period, in milliseconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon bookie failure. | 30000 |
 |rereplicationEntryBatchSize|The number of max entries to keep in fragment for re-replication|100|
-|openLedgerRereplicationGracePeriod|The grace period, in seconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon the bookie failure.|30|
 |autoRecoveryDaemonEnabled|Whether the bookie itself can start auto-recovery service.|true|
 |lostBookieRecoveryDelay|How long to wait, in seconds, before starting auto recovery of a lost bookie.|0|
 |gcWaitTime|How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.|900000|
