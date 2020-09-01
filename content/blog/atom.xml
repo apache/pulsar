@@ -2,12 +2,36 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
     <id>https://pulsar.incubator.apache.org/blog</id>
     <title>Apache Pulsar Blog</title>
-    <updated>2020-06-18T06:00:00.000Z</updated>
+    <updated>2020-08-24T06:00:00.000Z</updated>
     <generator>https://github.com/jpmonette/feed</generator>
     <link rel="alternate" href="https://pulsar.incubator.apache.org/blog"/>
     <subtitle>The best place to stay up-to-date with the latest Apache Pulsar news and events.</subtitle>
     <logo>https://pulsar.incubator.apache.org/img/pulsar.svg</logo>
     <rights>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</rights>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar Celebrates 300 Contributors]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2020/08/24/Pulsar-300-contributors.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2020/08/24/Pulsar-300-contributors.html"/>
+        <updated>2020-08-24T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>Dear Pulsar community,</p> <p>Over the last few years, the shift to real-time streaming technologies has bolstered the adoption of Pulsar and there has been a major increase in both the interest and adoption of Pulsar in 2020 alone. With Pulsar being sought...</p>]]></summary>
+        <author>
+            <name>Jennifer Huang</name>
+            <uri>https://twitter.com/Jennife06125739</uri>
+        </author>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[Apache Pulsar 2.6.1]]></title>
+        <id>https://pulsar.incubator.apache.org/blog/2020/08/17/Apache-Pulsar-2-6-1.html</id>
+        <link href="https://pulsar.incubator.apache.org/blog/2020/08/17/Apache-Pulsar-2-6-1.html"/>
+        <updated>2020-08-17T06:00:00.000Z</updated>
+        <summary type="html"><![CDATA[<p>We are excited to see that the Apache Pulsar community has successfully released 2.6.1 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.1 is the result of a big effort from the community, with over 100 commits and a long list of improvements and bug fixes.</p>
+<p>Here are some highlights and major features added in Pulsar 2.6.1.</p>
+]]></summary>
+        <author>
+            <name>XiaoLong Ran</name>
+            <uri>https://twitter.com/wolf4j1</uri>
+        </author>
+    </entry>
     <entry>
         <title type="html"><![CDATA[Apache Pulsar 2.6.0]]></title>
         <id>https://pulsar.incubator.apache.org/blog/2020/06/18/Apache-Pulsar-2-6-0.html</id>

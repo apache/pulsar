@@ -5151,6 +5151,128 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/compactionThreshold" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "getCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Set compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "setCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Dispatch rate for the specified topic",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Remove compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/createMissedPartitions" : {
       "post" : {
         "tags" : [ "non-persistent topic" ],
@@ -5419,6 +5541,127 @@
           },
           "404" : {
             "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          }
+        }
+      }
+    },
+    "/non-persistent/{tenant}/{namespace}/{topic}/dispatchRate" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "getDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Set message dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "setDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Dispatch rate for the specified topic",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Remove message dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
           }
         }
       }
@@ -6958,7 +7201,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "307" : {
@@ -7544,6 +7787,9 @@
         "responses" : {
           "307" : {
             "description" : "Current broker doesn't serve the namespace of this topic"
+          },
+          "400" : {
+            "description" : "Create subscription on non persistent topic is not supported"
           },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
@@ -8407,6 +8653,128 @@
         }
       }
     },
+    "/persistent/{tenant}/{namespace}/{topic}/compactionThreshold" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "getCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Set compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "setCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Dispatch rate for the specified topic",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Remove compaction threshold configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeCompactionThreshold",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/persistent/{tenant}/{namespace}/{topic}/createMissedPartitions" : {
       "post" : {
         "tags" : [ "persistent topic" ],
@@ -8675,6 +9043,127 @@
           },
           "404" : {
             "description" : "Tenant or cluster or namespace or topic doesn't exist"
+          }
+        }
+      }
+    },
+    "/persistent/{tenant}/{namespace}/{topic}/dispatchRate" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "getDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Set message dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "setDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "Dispatch rate for the specified topic",
+          "required" : false,
+          "schema" : {
+            "$ref" : "#/definitions/DispatchRate"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Remove message dispatch rate configuration for specified topic.",
+        "description" : "",
+        "operationId" : "removeDispatchRate",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Topic does not exist"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, please enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
           }
         }
       }
@@ -10807,6 +11296,9 @@
           "307" : {
             "description" : "Current broker doesn't serve the namespace of this topic"
           },
+          "400" : {
+            "description" : "Create subscription on non persistent topic is not supported"
+          },
           "401" : {
             "description" : "Don't have permission to administrate resources on this tenant orsubscriber is not authorized to access this operation"
           },
@@ -12317,7 +12809,7 @@
         },
         "type" : {
           "type" : "string",
-          "enum" : [ "NONE", "STRING", "JSON", "PROTOBUF", "AVRO", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "FLOAT", "DOUBLE", "DATE", "TIME", "TIMESTAMP", "KEY_VALUE", "BYTES", "AUTO", "AUTO_CONSUME", "AUTO_PUBLISH" ]
+          "enum" : [ "NONE", "STRING", "JSON", "PROTOBUF", "AVRO", "BOOLEAN", "INT8", "INT16", "INT32", "INT64", "FLOAT", "DOUBLE", "DATE", "TIME", "TIMESTAMP", "KEY_VALUE", "INSTANT", "LOCAL_DATE", "LOCAL_TIME", "LOCAL_DATE_TIME", "BYTES", "AUTO", "AUTO_CONSUME", "AUTO_PUBLISH" ]
         },
         "timestamp" : {
           "type" : "integer",
@@ -12760,13 +13252,13 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -13634,13 +14126,13 @@
             "type" : "string"
           }
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "producerName" : {
           "type" : "string"
         },
         "address" : {
@@ -13742,11 +14234,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "availableResource" : {
-          "$ref" : "#/definitions/ResourceDescription"
-        },
         "resourceId" : {
           "type" : "string"
+        },
+        "availableResource" : {
+          "$ref" : "#/definitions/ResourceDescription"
         }
       }
     },

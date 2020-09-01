@@ -46,7 +46,11 @@
 <tr><td>bookiePort</td><td>The port on which the bookie server listens.</td><td>3181</td></tr>
 <tr><td>allowLoopback</td><td>Whether the bookie is allowed to use a loopback interface as its primary interface (i.e. the interface used to establish its identity). By default, loopback interfaces are not allowed as the primary interface. Using a loopback interface as the primary interface usually indicates a configuration error. For example, it’s fairly common in some VPS setups to not configure a hostname or to have the hostname resolve to <code>127.0.0.1</code>. If this is the case, then all bookies in the cluster will establish their identities as <code>127.0.0.1:3181</code> and only one will be able to join the cluster. For VPSs configured like this, you should explicitly set the listening interface.</td><td>false</td></tr>
 <tr><td>listeningInterface</td><td>The network interface on which the bookie listens. If not set, the bookie will listen on all interfaces.</td><td>eth0</td></tr>
+<tr><td>advertisedAddress</td><td>Configure a specific hostname or IP address that the bookie should use to advertise itself to clients. If not set, bookie will advertised its own IP address or hostname, depending on the <code>listeningInterface</code> and <code>useHostNameAsBookieID</code> settings.</td><td>N/A</td></tr>
+<tr><td>allowMultipleDirsUnderSameDiskPartition</td><td>Configure the bookie to allow/disallow multiple ledger/index/journal directories in the same filesystem disk partition</td><td>false</td></tr>
+<tr><td>minUsableSizeForIndexFileCreation</td><td>The minimum safe usable size available in index directory for bookie to create index files while replaying journal at the time of bookie starts in Readonly Mode (in bytes).</td><td>1073741824</td></tr>
 <tr><td>journalDirectory</td><td>The directory where Bookkeeper outputs its write-ahead log (WAL)</td><td>data/bookkeeper/journal</td></tr>
+<tr><td>journalDirectories</td><td>Directories that BookKeeper outputs its write ahead log. Multi directories are available, being separated by <code>,</code>. For example: <code>journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2</code>. If <code>journalDirectories</code> is set, bookies will skip <code>journalDirectory</code> and use this setting directory.</td><td>/tmp/bk-journal</td></tr>
 <tr><td>ledgerDirectories</td><td>The directory where Bookkeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by comma, for example <code>ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data</code>. Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.</td><td>data/bookkeeper/ledgers</td></tr>
 <tr><td>ledgerManagerType</td><td>The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See <a href="http://bookkeeper.apache.org/docs/latest/getting-started/concepts">BookKeeper Internals</a> for more info.</td><td>hierarchical</td></tr>
 <tr><td>zkLedgersRootPath</td><td>The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.</td><td>/ledgers</td></tr>
@@ -54,9 +58,12 @@
 <tr><td>entryLogFilePreallocationEnabled</td><td>Enable or disable entry logger preallocation</td><td>true</td></tr>
 <tr><td>logSizeLimit</td><td>Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.</td><td>2147483648</td></tr>
 <tr><td>minorCompactionThreshold</td><td>Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.</td><td>0.2</td></tr>
-<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled.</td><td>3600</td></tr>
+<tr><td>minorCompactionInterval</td><td>Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime.</td><td>3600</td></tr>
 <tr><td>majorCompactionThreshold</td><td>The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.</td><td>0.5</td></tr>
-<tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled.</td><td>86400</td></tr>
+<tr><td>majorCompactionInterval</td><td>The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled. Note: should be greater than gcWaitTime.</td><td>86400</td></tr>
+<tr><td>readOnlyModeEnabled</td><td>If <code>readOnlyModeEnabled=true</code>, then on all full ledger disks, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown.</td><td>true</td></tr>
+<tr><td>forceReadOnlyBookie</td><td>Whether the bookie is force started in read only mode.</td><td>false</td></tr>
+<tr><td>persistBookieStatusEnabled</td><td>Persist the bookie status locally on the disks. So the bookies can keep their status upon restarts.</td><td>false</td></tr>
 <tr><td>compactionMaxOutstandingRequests</td><td>Sets the maximum number of entries that can be compacted without flushing. When compacting, the entries are written to the entrylog and the new offsets are cached in memory. Once the entrylog is flushed the index is updated with the new offsets. This parameter controls the number of entries added to the entrylog before a flush is forced. A higher value for this parameter means more memory will be used for offsets. Each offset consists of 3 longs. This parameter should not be modified unless you’re fully aware of the consequences.</td><td>100000</td></tr>
 <tr><td>compactionRate</td><td>The rate at which compaction will read entries, in adds per second.</td><td>1000</td></tr>
 <tr><td>isThrottleByBytes</td><td>Throttle compaction by bytes or by entries.</td><td>false</td></tr>
@@ -73,34 +80,60 @@
 <tr><td>journalBufferedWritesThreshold</td><td>Maximum writes to buffer to achieve grouping</td><td>524288</td></tr>
 <tr><td>journalFlushWhenQueueEmpty</td><td>If we should flush the journal when journal queue is empty</td><td>false</td></tr>
 <tr><td>numJournalCallbackThreads</td><td>The number of threads that should handle journal callbacks</td><td>8</td></tr>
-<tr><td>rereplicationEntryBatchSize</td><td>The number of max entries to keep in fragment for re-replication</td><td>5000</td></tr>
+<tr><td>rereplicationEntryBatchSize</td><td>The number of max entries to keep in fragment for re-replication</td><td>100</td></tr>
+<tr><td>openLedgerRereplicationGracePeriod</td><td>The grace period, in seconds, that the replication worker waits before fencing and replicating a ledger fragment that's still being written to upon the bookie failure.</td><td>30</td></tr>
+<tr><td>autoRecoveryDaemonEnabled</td><td>Whether the bookie itself can start auto-recovery service.</td><td>true</td></tr>
+<tr><td>lostBookieRecoveryDelay</td><td>How long to wait, in seconds, before starting auto recovery of a lost bookie.</td><td>0</td></tr>
 <tr><td>gcWaitTime</td><td>How long the interval to trigger next garbage collection, in milliseconds. Since garbage collection is running in background, too frequent gc will heart performance. It is better to give a higher number of gc interval if there is enough disk capacity.</td><td>900000</td></tr>
 <tr><td>gcOverreplicatedLedgerWaitTime</td><td>How long the interval to trigger next garbage collection of overreplicated ledgers, in milliseconds. This should not be run very frequently since we read the metadata for all the ledgers on the bookie from zk.</td><td>86400000</td></tr>
 <tr><td>flushInterval</td><td>How long the interval to flush ledger index pages to disk, in milliseconds. Flushing index files will introduce much random disk I/O. If separating journal dir and ledger dirs each on different devices, flushing would not affect performance. But if putting journal dir and ledger dirs on same device, performance degrade significantly on too frequent flushing. You can consider increment flush interval to get better performance, but you need to pay more time on bookie server restart after failure.</td><td>60000</td></tr>
 <tr><td>bookieDeathWatchInterval</td><td>Interval to watch whether bookie is dead or not, in milliseconds</td><td>1000</td></tr>
+<tr><td>allowStorageExpansion</td><td>Allow the bookie storage to expand. Newly added ledger and index dirs must be empty.</td><td>false</td></tr>
 <tr><td>zkServers</td><td>A list of one of more servers on which zookeeper is running. The server list can be comma separated values, for example: zkServers=zk1:2181,zk2:2181,zk3:2181.</td><td>localhost:2181</td></tr>
 <tr><td>zkTimeout</td><td>ZooKeeper client session timeout in milliseconds Bookie server will exit if it received SESSION_EXPIRED because it was partitioned off from ZooKeeper for more than the session timeout JVM garbage collection, disk I/O will cause SESSION_EXPIRED. Increment this value could help avoiding this issue</td><td>30000</td></tr>
+<tr><td>zkRetryBackoffStartMs</td><td>The start time that the Zookeeper client backoff retries in milliseconds.</td><td>1000</td></tr>
+<tr><td>zkRetryBackoffMaxMs</td><td>The maximum time that the Zookeeper client backoff retries in milliseconds.</td><td>10000</td></tr>
+<tr><td>zkEnableSecurity</td><td>Set ACLs on every node written on ZooKeeper, allowing users to read and write BookKeeper metadata stored on ZooKeeper. In order to make ACLs work you need to setup ZooKeeper JAAS authentication. All the bookies and Client need to share the same user, and this is usually done using Kerberos authentication. See ZooKeeper documentation.</td><td>false</td></tr>
+<tr><td>httpServerEnabled</td><td>The flag enables/disables starting the admin http server.</td><td>false</td></tr>
+<tr><td>httpServerPort</td><td>The http server port to listen on. By default, the value is 8080. Use <code>8000</code> as the port to keep it consistent with prometheus stats provider.</td><td>8000</td></tr>
+<tr><td>httpServerClass</td><td>The http server class.</td><td>org.apache.bookkeeper.http.vertx.VertxHttpServer</td></tr>
 <tr><td>serverTcpNoDelay</td><td>This settings is used to enabled/disabled Nagle’s algorithm, which is a means of improving the efficiency of TCP/IP networks by reducing the number of packets that need to be sent over the network. If you are sending many small messages, such that more than one can fit in a single IP packet, setting server.tcpnodelay to false to enable Nagle algorithm can provide better performance.</td><td>true</td></tr>
+<tr><td>serverSockKeepalive</td><td>This setting is used to send keep-alive messages on connection-oriented sockets.</td><td>true</td></tr>
+<tr><td>serverTcpLinger</td><td>The socket linger timeout on close. When enabled, a close or shutdown will not return until all queued messages for the socket have been successfully sent or the linger timeout has been reached. Otherwise, the call returns immediately and the closing is done in the background.</td><td>0</td></tr>
+<tr><td>byteBufAllocatorSizeMax</td><td>The maximum buf size of the received ByteBuf allocator.</td><td>1048576</td></tr>
+<tr><td>nettyMaxFrameSizeBytes</td><td>The maximum netty frame size in bytes. Any message received larger than this will be rejected. The default value is 1G.</td><td>5253120</td></tr>
 <tr><td>openFileLimit</td><td>Max number of ledger index files could be opened in bookie server If number of ledger index files reaches this limitation, bookie server started to swap some ledgers from memory to disk. Too frequent swap will affect performance. You can tune this number to gain performance according your requirements.</td><td>0</td></tr>
-<tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficent when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.</td><td>8192</td></tr>
-<tr><td>pageLimit</td><td>How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain bettern performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
+<tr><td>pageSize</td><td>Size of a index page in ledger cache, in bytes A larger index page can improve performance writing page to disk, which is efficient when you have small number of ledgers and these ledgers have similar number of entries. If you have large number of ledgers and each ledger has fewer entries, smaller index page would improve memory usage.</td><td>8192</td></tr>
+<tr><td>pageLimit</td><td>How many index pages provided in ledger cache If number of index pages reaches this limitation, bookie server starts to swap some ledgers from memory to disk. You can increment this value when you found swap became more frequent. But make sure pageLimit*pageSize should not more than JVM max memory limitation, otherwise you would got OutOfMemoryException. In general, incrementing pageLimit, using smaller index page would gain better performance in lager number of ledgers with fewer entries case If pageLimit is -1, bookie server will use 1/3 of JVM memory to compute the limitation of number of index pages.</td><td>0</td></tr>
 <tr><td>readOnlyModeEnabled</td><td>If all ledger directories configured are full, then support only read requests for clients. If “readOnlyModeEnabled=true” then on all ledger disks full, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown. By default this will be disabled.</td><td>true</td></tr>
-<tr><td>diskUsageThreshold</td><td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).</td><td>0.95</td></tr>
+<tr><td>diskUsageThreshold</td><td>For each ledger dir, maximum disk space which can be used. Default is 0.95f. i.e. 95% of disk can be used at most after which nothing will be written to that partition. If all ledger dir partitions are full, then bookie will turn to readonly mode if ‘readOnlyModeEnabled=true’ is set, else it will shutdown. Valid values should be in between 0 and 1 (exclusive).</td><td>0.95</td></tr>
 <tr><td>diskCheckInterval</td><td>Disk check interval in milli seconds, interval to check the ledger dirs usage.</td><td>10000</td></tr>
 <tr><td>auditorPeriodicCheckInterval</td><td>Interval at which the auditor will do a check of all ledgers in the cluster. By default this runs once a week. The interval is set in seconds. To disable the periodic check completely, set this to 0. Note that periodic checking will put extra load on the cluster, so it should not be run more frequently than once a day.</td><td>604800</td></tr>
+<tr><td>sortedLedgerStorageEnabled</td><td>Whether sorted-ledger storage is enabled.</td><td>ture</td></tr>
 <tr><td>auditorPeriodicBookieCheckInterval</td><td>The interval between auditor bookie checks. The auditor bookie check, checks ledger metadata to see which bookies should contain entries for each ledger. If a bookie which should contain entries is unavailable, thea the ledger containing that entry is marked for recovery. Setting this to 0 disabled the periodic check. Bookie checks will still run when a bookie fails. The interval is specified in seconds.</td><td>86400</td></tr>
-<tr><td>numAddWorkerThreads</td><td>number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
-<tr><td>numReadWorkerThreads</td><td>number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
+<tr><td>numAddWorkerThreads</td><td>The number of threads that should handle write requests. if zero, the writes would be handled by netty threads directly.</td><td>0</td></tr>
+<tr><td>numReadWorkerThreads</td><td>The number of threads that should handle read requests. if zero, the reads would be handled by netty threads directly.</td><td>8</td></tr>
+<tr><td>numHighPriorityWorkerThreads</td><td>The umber of threads that should be used for high priority requests (i.e. recovery reads and adds, and fencing).</td><td>8</td></tr>
 <tr><td>maxPendingReadRequestsPerThread</td><td>If read workers threads are enabled, limit the number of pending requests, to avoid the executor queue to grow indefinitely.</td><td>2500</td></tr>
+<tr><td>maxPendingAddRequestsPerThread</td><td>The limited number of pending requests, which is used to avoid the executor queue to grow indefinitely when add workers threads are enabled.</td><td>10000</td></tr>
+<tr><td>isForceGCAllowWhenNoSpace</td><td>Whether force compaction is allowed when the disk is full or almost full. Forcing GC could get some space back, but could also fill up the disk space more quickly. This is because new log files are created before GC, while old garbage log files are deleted after GC.</td><td>false</td></tr>
+<tr><td>verifyMetadataOnGC</td><td>True if the bookie should double check <code>readMetadata</code> prior to GC.</td><td>false</td></tr>
+<tr><td>flushEntrylogBytes</td><td>Entry log flush interval in bytes. Flushing in smaller chunks but more frequently reduces spikes in disk I/O. Flushing too frequently may also affect performance negatively.</td><td>268435456</td></tr>
 <tr><td>readBufferSizeBytes</td><td>The number of bytes we should use as capacity for BufferedReadChannel.</td><td>4096</td></tr>
 <tr><td>writeBufferSizeBytes</td><td>The number of bytes used as capacity for the write buffer</td><td>65536</td></tr>
-<tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ipaddress for the registration.</td><td>false</td></tr>
+<tr><td>useHostNameAsBookieID</td><td>Whether the bookie should use its hostname to register with the coordination service (e.g.: zookeeper service). When false, bookie will use its ip address for the registration.</td><td>false</td></tr>
+<tr><td>allowEphemeralPorts</td><td>Whether the bookie is allowed to use an ephemeral port (port 0) as its server port. By default, an ephemeral port is not allowed. Using an ephemeral port as the service port usually indicates a configuration error. However, in unit tests, using an ephemeral port will address port conflict problems and allow running tests in parallel.</td><td>false</td></tr>
+<tr><td>enableLocalTransport</td><td>Whether the bookie is allowed to listen for the BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
+<tr><td>disableServerSocketBind</td><td>Whether the bookie is allowed to disable bind on network interfaces. This bookie will be available only to BookKeeper clients executed on the local JVM.</td><td>false</td></tr>
+<tr><td>skipListArenaChunkSize</td><td>The number of bytes that we should use as chunk allocation for <code>org.apache.bookkeeper.bookie.SkipListArena</code>.</td><td>4194304</td></tr>
+<tr><td>skipListArenaMaxAllocSize</td><td>The maximum size that we should allocate from the skiplist arena. Allocations larger than this should be allocated directly by the VM to avoid fragmentation.</td><td>131072</td></tr>
+<tr><td>bookieAuthProviderFactoryClass</td><td>The factory class name of the bookie authentication provider. If this is null, then there is no authentication.</td><td>null</td></tr>
 <tr><td>statsProviderClass</td><td></td><td>org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider</td></tr>
 <tr><td>prometheusStatsHttpPort</td><td></td><td>8000</td></tr>
-<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log For good performance, it should be big enough to hold a sub</td><td>25% of direct memory</td></tr>
-<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens</td><td>25% of direct memory</td></tr>
+<tr><td>dbStorage_writeCacheMaxSizeMb</td><td>Size of Write Cache. Memory is allocated from JVM direct memory. Write cache is used to buffer entries before flushing into the entry log. For good performance, it should be big enough to hold a substantial amount of entries in the flush interval. By default, it is allocated to 25% of the available direct memory.</td><td>N/A</td></tr>
+<tr><td>dbStorage_readAheadCacheMaxSizeMb</td><td>Size of Read cache. Memory is allocated from JVM direct memory. This read cache is pre-filled doing read-ahead whenever a cache miss happens. By default, it is allocated to 25% of the available direct memory.</td><td>N/A</td></tr>
 <tr><td>dbStorage_readAheadCacheBatchSize</td><td>How many entries to pre-fill in cache after a read cache miss</td><td>1000</td></tr>
-<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases</td><td>10% of direct memory</td></tr>
+<tr><td>dbStorage_rocksDB_blockCacheSize</td><td>Size of RocksDB block-cache. For best performance, this cache should be big enough to hold a significant portion of the index database which can reach ~2GB in some cases. By default, it uses 10% of direct memory.</td><td>N/A</td></tr>
 <tr><td>dbStorage_rocksDB_writeBufferSizeMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_sstSizeInMB</td><td></td><td>64</td></tr>
 <tr><td>dbStorage_rocksDB_blockSize</td><td></td><td>65536</td></tr>
@@ -124,6 +157,9 @@
 <tr><td>enablePersistentTopics</td><td>Whether persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>enableNonPersistentTopics</td><td>Whether non-persistent topics are enabled on the broker</td><td>true</td></tr>
 <tr><td>functionsWorkerEnabled</td><td>Whether the Pulsar Functions worker service is enabled in the broker</td><td>false</td></tr>
+<tr><td>exposePublisherStats</td><td>Whether to enable topic level metrics.</td><td>true</td></tr>
+<tr><td>statsUpdateFrequencyInSecs</td><td></td><td>60</td></tr>
+<tr><td>statsUpdateInitialDelayInSecs</td><td></td><td>60</td></tr>
 <tr><td>zookeeperServers</td><td>Zookeeper quorum connection string</td><td></td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
 <tr><td>configurationStoreServers</td><td>Configuration store connection string (as a comma-separated list)</td><td></td></tr>
@@ -132,6 +168,13 @@
 <tr><td>webServicePort</td><td>Port to use to server HTTP request</td><td>8080</td></tr>
 <tr><td>webServicePortTls</td><td>Port to use to server HTTPS request</td><td>8443</td></tr>
 <tr><td>webSocketServiceEnabled</td><td>Enable the WebSocket API service in broker</td><td>false</td></tr>
+<tr><td>webSocketNumIoThreads</td><td>The number of IO threads in Pulsar Client used in WebSocket proxy.</td><td>8</td></tr>
+<tr><td>webSocketConnectionsPerBroker</td><td>The number of connections per Broker in Pulsar Client used in WebSocket proxy.</td><td>8</td></tr>
+<tr><td>webSocketSessionIdleTimeoutMillis</td><td>Time in milliseconds that idle WebSocket session times out.</td><td>300000</td></tr>
+<tr><td>webSocketMaxTextFrameSize</td><td>The maximum size of a text message during parsing in WebSocket proxy.</td><td>1048576</td></tr>
+<tr><td>exposeTopicLevelMetricsInPrometheus</td><td>Whether to enable topic level metrics.</td><td>true</td></tr>
+<tr><td>exposeConsumerLevelMetricsInPrometheus</td><td>Whether to enable consumer level metrics.</td><td>false</td></tr>
+<tr><td>jvmGCMetricsLoggerClassName</td><td>Classname of Pluggable JVM GC metrics logger that can log GC specific metrics.</td><td>N/A</td></tr>
 <tr><td>bindAddress</td><td>Hostname or IP address the service binds on, default is 0.0.0.0.</td><td>0.0.0.0</td></tr>
 <tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
 <tr><td>clusterName</td><td>Name of the cluster to which this broker belongs to</td><td></td></tr>
@@ -146,9 +189,10 @@
 <tr><td>skipBrokerShutdownOnOOM</td><td>Flag to skip broker shutdown when broker handles Out of memory error.</td><td>false</td></tr>
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable backlog quota check. Enforces action on topic when the quota is reached</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the quota</td><td>60</td></tr>
-<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit</td><td>-1</td></tr>
+<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1.</td><td>-1</td></tr>
+<tr><td>backlogQuotaDefaultRetentionPolicy</td><td>The defaulted backlog quota retention policy. By Default, it is <code>producer_request_hold</code>. <li>'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out)</li> <li>'producer_exception' Policy which throws <code>javax.jms.ResourceAllocationException</code> to the producer </li><li>'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog</li></td><td>producer_request_hold</td></tr>
 <tr><td>allowAutoTopicCreation</td><td>Enable topic auto creation if a new producer or consumer connected</td><td>true</td></tr>
-<tr><td>allowAutoTopicCreationType</td><td>The topic type (partitioned or non-partitioned) that is allowed to be automatically created.</td><td>Partitioned</td></tr>
+<tr><td>allowAutoTopicCreationType</td><td>The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)</td><td>non-partitioned</td></tr>
 <tr><td>allowAutoSubscriptionCreation</td><td>Enable subscription auto creation if a new consumer connected</td><td>true</td></tr>
 <tr><td>defaultNumPartitions</td><td>The number of partitioned topics that is allowed to be automatically created if <code>allowAutoTopicCreationType</code> is partitioned</td><td>1</td></tr>
 <tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics</td><td>true</td></tr>
@@ -157,17 +201,20 @@
 <tr><td>brokerDeleteInactiveTopicsMaxInactiveDurationSeconds</td><td>Set the maximum duration for inactive topics. If it is not specified, the <code>brokerDeleteInactiveTopicsFrequencySeconds</code> parameter is adopted.</td><td>N/A</td></tr>
 <tr><td>messageExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired messages</td><td>5</td></tr>
 <tr><td>brokerServiceCompactionMonitorIntervalInSeconds</td><td>Interval between checks to see if topics with compaction policies need to be compacted</td><td>60</td></tr>
+<tr><td>delayedDeliveryEnabled</td><td>Whether to enable the delayed delivery for messages. If disabled, messages will be immediately delivered and there will be no tracking overhead.</td><td>true</td></tr>
+<tr><td>delayedDeliveryTickTimeMillis</td><td>Control the tick time for retrying on delayed delivery, which affecte the accuracy of the delivery time compared to the scheduled time. By default, it is 1 second.</td><td>1000</td></tr>
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
 <tr><td>clientLibraryVersionCheckEnabled</td><td>Enable check for minimum allowed client library version</td><td>false</td></tr>
 <tr><td>clientLibraryVersionCheckAllowUnversioned</td><td>Allow client libraries with no version information</td><td>true</td></tr>
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the broker when responding to service discovery health checks</td><td></td></tr>
 <tr><td>preferLaterVersions</td><td>If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)</td><td>false</td></tr>
 <tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
-<tr><td>tlsEnabled</td><td>Enable TLS</td><td>false</td></tr>
+<tr><td>tlsEnabled</td><td>Deprecated - Use <code>webServicePortTls</code> and <code>brokerServicePortTls</code> instead.</td><td>false</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
-<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file</td><td></td></tr>
-<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client</td><td>false</td></tr>
+<tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped.</td><td></td></tr>
+<tr><td>tlsAllowInsecureConnection</td><td>Accept untrusted TLS certificate from client. If it is set to <code>true</code>, a client with a cert which cannot be verified with the</td></tr>
+<tr><td>'tlsTrustCertsFilePath' cert will be allowed to connect to the server, though the cert will not be used for client authentication.</td><td>false</td></tr>
 <tr><td>tlsProtocols</td><td>Specify the tls protocols the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLSv1.2</code>, <code>TLSv1.1</code>, <code>TLSv1</code></td><td></td></tr>
 <tr><td>tlsCiphers</td><td>Specify the tls cipher the broker will use to negotiate during TLS Handshake. Multiple values can be specified, separated by commas. Example:- <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></td><td></td></tr>
 <tr><td>tlsEnabledWithKeyStore</td><td>Enable TLS with KeyStore type configuration in broker</td><td>false</td></tr>
@@ -197,13 +244,16 @@
 <tr><td>maxConcurrentTopicLoadRequest</td><td>Max number of concurrent topic loading request broker allows to control number of zk-operations</td><td>5000</td></tr>
 <tr><td>authenticationEnabled</td><td>Enable authentication</td><td>false</td></tr>
 <tr><td>authenticationProviders</td><td>Autentication provider name list, which is comma separated list of class names</td><td></td></tr>
-<tr><td>authenticationRefreshCheckSeconds</td><td>Interval of time for checking for expired authentication credentials</td><td>60s</td></tr>
+<tr><td>authenticationRefreshCheckSeconds</td><td>Interval of time for checking for expired authentication credentials</td><td>60</td></tr>
 <tr><td>authorizationEnabled</td><td>Enforce authorization</td><td>false</td></tr>
 <tr><td>superUserRoles</td><td>Role names that are treated as “super-user”, meaning they will be able to do all admin operations and publish/consume from all topics</td><td></td></tr>
 <tr><td>brokerClientAuthenticationPlugin</td><td>Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters</td><td></td></tr>
 <tr><td>brokerClientAuthenticationParameters</td><td></td><td></td></tr>
 <tr><td>athenzDomainNames</td><td>Supported Athenz provider domain names(comma separated) for authentication</td><td></td></tr>
 <tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
+<tr><td>schemaRegistryStorageClassName</td><td>The schema storage implementation used by this broker.</td><td>org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory</td></tr>
+<tr><td>isSchemaValidationEnforced</td><td>Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.</td><td>false</td></tr>
+<tr><td>offloadersDirectory</td><td>The directory for all the offloader implementations.</td><td>./offloaders</td></tr>
 <tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <a href="zk+hierarchical://localhost:2181/ledgers">zk+hierarchical://localhost:2181/ledgers</a>. The metadata service uri list can also be semicolon separated values like below: <a href="zk+hierarchical://zk1:2181">zk+hierarchical://zk1:2181</a>;zk2:2181;zk3:2181/ledgers</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to use when connecting to bookies</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper auth plugin implementatation specifics parameters name and values</td><td></td></tr>
@@ -263,14 +313,20 @@
 <tr><td>replicationProducerQueueSize</td><td>Replicator producer queue size</td><td>1000</td></tr>
 <tr><td>replicatorPrefix</td><td>Replicator prefix used for replicator producer name and cursor name pulsar.repl</td><td></td></tr>
 <tr><td>replicationTlsEnabled</td><td>Enable TLS when talking with other clusters to replicate messages</td><td>false</td></tr>
+<tr><td>brokerServicePurgeInactiveFrequencyInSeconds</td><td>Deprecated. Use <code>brokerDeleteInactiveTopicsFrequencySeconds</code>.</td><td>60</td></tr>
+<tr><td>transactionCoordinatorEnabled</td><td>Whether to enable transaction coordinator in broker.</td><td>true</td></tr>
+<tr><td>transactionMetadataStoreProviderClassName</td><td></td><td>org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider</td></tr>
 <tr><td>defaultRetentionTimeInMinutes</td><td>Default message retention time</td><td></td></tr>
 <tr><td>defaultRetentionSizeInMB</td><td>Default retention size</td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td>How often to check whether the connections are still alive</td><td>30</td></tr>
+<tr><td>bootstrapNamespaces</td><td>The bootstrap name.</td><td>N/A</td></tr>
 <tr><td>loadManagerClassName</td><td>Name of load manager to use</td><td>org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl</td></tr>
 <tr><td>supportedNamespaceBundleSplitAlgorithms</td><td>Supported algorithms name for namespace bundle split</td><td>[range_equally_divide,topic_count_equally_divide]</td></tr>
 <tr><td>defaultNamespaceBundleSplitAlgorithm</td><td>Default algorithm name for namespace bundle split</td><td>range_equally_divide</td></tr>
-<tr><td>managedLedgerOffloadDriver</td><td>Driver to use to offload old data to long term storage (Possible values: S3)</td><td></td></tr>
+<tr><td>managedLedgerOffloadDriver</td><td>The directory for all the offloader implementations</td></tr>
+<tr><td><code>offloadersDirectory=./offloaders</code>. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -&gt; Api&amp;auth -&gt; APIs).</td><td></td></tr>
 <tr><td>managedLedgerOffloadMaxThreads</td><td>Maximum number of thread pool threads for ledger offloading</td><td>2</td></tr>
+<tr><td>managedLedgerOffloadPrefetchRounds</td><td>The maximum prefetch rounds for ledger reading for offloading.</td><td>1</td></tr>
 <tr><td>managedLedgerUnackedRangesOpenCacheSetEnabled</td><td>Use Open Range-Set to cache unacknowledged messages</td><td>true</td></tr>
 <tr><td>managedLedgerOffloadDeletionLagMs</td><td>Delay between a ledger being successfully offloaded to long term storage and the ledger being deleted from bookkeeper</td><td>14400000</td></tr>
 <tr><td>managedLedgerOffloadAutoTriggerSizeThresholdBytes</td><td>The number of bytes before triggering automatic offload to long term storage</td><td>-1 (disabled)</td></tr>
@@ -279,13 +335,27 @@
 <tr><td>s3ManagedLedgerOffloadServiceEndpoint</td><td>For Amazon S3 ledger offload, Alternative endpoint to connect to (useful for testing)</td><td></td></tr>
 <tr><td>s3ManagedLedgerOffloadMaxBlockSizeInBytes</td><td>For Amazon S3 ledger offload, Max block size in bytes. (64MB by default, 5MB minimum)</td><td>67108864</td></tr>
 <tr><td>s3ManagedLedgerOffloadReadBufferSizeInBytes</td><td>For Amazon S3 ledger offload, Read buffer size in bytes (1MB by default)</td><td>1048576</td></tr>
+<tr><td>gcsManagedLedgerOffloadRegion</td><td>For Google Cloud Storage ledger offload, region where offload bucket is located. Go to this page for more details: <a href="https://cloud.google.com/storage/docs/bucket-locations">https://cloud.google.com/storage/docs/bucket-locations</a> .</td><td>N/A</td></tr>
+<tr><td>gcsManagedLedgerOffloadBucket</td><td>For Google Cloud Storage ledger offload, Bucket to place offloaded ledger into.</td><td>N/A</td></tr>
+<tr><td>gcsManagedLedgerOffloadMaxBlockSizeInBytes</td><td>For Google Cloud Storage ledger offload, the maximum block size in bytes. (64MB by default, 5MB minimum)</td><td>67108864</td></tr>
+<tr><td>gcsManagedLedgerOffloadReadBufferSizeInBytes</td><td>For Google Cloud Storage ledger offload, Read buffer size in bytes. (1MB by default)</td><td>1048576</td></tr>
+<tr><td>gcsManagedLedgerOffloadServiceAccountKeyFile</td><td>For Google Cloud Storage, path to json file containing service account credentials. For more details, see the &quot;Service Accounts&quot; section of <a href="https://support.google.com/googleapi/answer/6158849">https://support.google.com/googleapi/answer/6158849</a> .</td><td>N/A</td></tr>
+<tr><td>fileSystemProfilePath</td><td>For File System Storage, file system profile path.</td><td>../conf/filesystem_offload_core_site.xml</td></tr>
+<tr><td>fileSystemURI</td><td>For File System Storage, file system uri.</td><td>N/A</td></tr>
 <tr><td>s3ManagedLedgerOffloadRole</td><td>For Amazon S3 ledger offload, provide a role to assume before writing to s3</td><td></td></tr>
 <tr><td>s3ManagedLedgerOffloadRoleSessionName</td><td>For Amazon S3 ledger offload, provide a role session name when using a role</td><td>pulsar-s3-offload</td></tr>
 <tr><td>acknowledgmentAtBatchIndexLevelEnabled</td><td>Enable or disable the batch index acknowledgement.</td><td>false</td></tr>
-<tr><td>maxMessageSize</td><td>Set the maximum size of a message.</td><td>5 MB</td></tr>
-<tr><td>preciseTopicPublishRateLimiterEnable</td><td>Enable precise topic publish rate limiting.</td><td>false</td></tr>
+<tr><td>enableReplicatedSubscriptions</td><td>Whether to enable tracking of replicated subscriptions state across clusters.</td><td>true</td></tr>
+<tr><td>replicatedSubscriptionsSnapshotFrequencyMillis</td><td>The frequency of snapshots for replicated subscriptions tracking.</td><td>1000</td></tr>
+<tr><td>replicatedSubscriptionsSnapshotTimeoutSeconds</td><td>The timeout for building a consistent snapshot for tracking replicated subscriptions state.</td><td>30</td></tr>
+<tr><td>replicatedSubscriptionsSnapshotMaxCachedPerSubscription</td><td>The maximum number of snapshot to be cached per subscription.</td><td>10</td></tr>
+<tr><td>maxMessagePublishBufferSizeInMB</td><td>The maximum memory size for broker handling messages sent from producers. If the processing message size exceeds this value, broker stops reading data from the connection. The processing messages means messages are sent to broker but broker have not sent response to the client. Usually the message are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value <code>-1</code> disables the memory limitation. By default, it is 50% of direct memory.</td><td>N/A</td></tr>
+<tr><td>messagePublishBufferCheckIntervalInMillis</td><td>Interval between checks to see if message publish buffer size exceeds the maximum. Use <code>0</code> or negative number to disable the max publish buffer limiting.</td><td>100</td></tr>
+<tr><td>retentionCheckIntervalInSeconds</td><td>Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.</td><td>120</td></tr>
 </tbody>
 </table>
+<p>| maxMessageSize | Set the maximum size of a message. | 5242880 |
+| preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |</p>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
 <p>The <a href="/docs/en/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.</p>
 <table>
@@ -298,7 +368,6 @@
 <tr><td>authPlugin</td><td>The authentication plugin.</td><td></td></tr>
 <tr><td>authParams</td><td>The authentication parameters for the cluster, as a comma-separated string.</td><td></td></tr>
 <tr><td>useTls</td><td>Whether or not TLS authentication will be enforced in the cluster.</td><td>false</td></tr>
-<tr><td>tlsAllowInsecureConnection</td><td></td><td></td></tr>
 <tr><td>tlsAllowInsecureConnection</td><td>Allow TLS connections to servers whose certificate cannot be verified to have been signed by a trusted certificate authority.</td><td>false</td></tr>
 <tr><td>tlsEnableHostnameVerification</td><td>Whether the server hostname must match the common name of the certificate that is used by the server.</td><td>false</td></tr>
 <tr><td>tlsTrustCertsFilePath</td><td></td><td></td></tr>
@@ -398,14 +467,16 @@
 <tr><td>advertisedAddress</td><td>The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostName()</code> is used.</td><td></td></tr>
 <tr><td>numIOThreads</td><td>Number of threads to use for Netty IO</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
 <tr><td>numHttpServerThreads</td><td>Number of threads to use for HTTP requests processing</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>isRunningStandalone</td><td>This flag controls features that are meant to be used when running in standalone mode.</td><td>N/A</td></tr>
 <tr><td>clusterName</td><td>The name of the cluster that this broker belongs to.</td><td>standalone</td></tr>
 <tr><td>failureDomainsEnabled</td><td>Enable cluster's failure-domain which can distribute brokers into logical region.</td><td>false</td></tr>
 <tr><td>zooKeeperSessionTimeoutMillis</td><td>The ZooKeeper session timeout, in milliseconds.</td><td>30000</td></tr>
+<tr><td>zooKeeperOperationTimeoutSeconds</td><td>ZooKeeper operation timeout in seconds.</td><td>30</td></tr>
 <tr><td>brokerShutdownTimeoutMs</td><td>The time to wait for graceful broker shutdown. After this time elapses, the process will be killed.</td><td>60000</td></tr>
 <tr><td>skipBrokerShutdownOnOOM</td><td>Flag to skip broker shutdown when broker handles Out of memory error.</td><td>false</td></tr>
 <tr><td>backlogQuotaCheckEnabled</td><td>Enable the backlog quota check, which enforces a specified action when the quota is reached.</td><td>true</td></tr>
 <tr><td>backlogQuotaCheckIntervalInSeconds</td><td>How often to check for topics that have reached the backlog quota.</td><td>60</td></tr>
-<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit.</td><td>10</td></tr>
+<tr><td>backlogQuotaDefaultLimitGB</td><td>The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1.</td><td>-1</td></tr>
 <tr><td>ttlDurationDefaultInSeconds</td><td>The default ttl for namespaces if ttl is not configured at namespace policies.</td><td>0</td></tr>
 <tr><td>brokerDeleteInactiveTopicsEnabled</td><td>Enable the deletion of inactive topics.</td><td>true</td></tr>
 <tr><td>brokerDeleteInactiveTopicsFrequencySeconds</td><td>How often to check for inactive topics, in seconds.</td><td>60</td></tr>
@@ -414,6 +485,7 @@
 <tr><td>activeConsumerFailoverDelayTimeMillis</td><td>How long to delay rewinding cursor and dispatching messages when active consumer is changed.</td><td>1000</td></tr>
 <tr><td>subscriptionExpirationTimeMinutes</td><td>How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically</td><td>0</td></tr>
 <tr><td>subscriptionRedeliveryTrackerEnabled</td><td>Enable subscription message redelivery tracker to send redelivery count to consumer.</td><td>true</td></tr>
+<tr><td>subscriptionKeySharedEnable</td><td>Whether to enable the Key_Shared subscription.</td><td>true</td></tr>
 <tr><td>subscriptionKeySharedUseConsistentHashing</td><td>In the Key_Shared subscription mode, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers.</td><td>false</td></tr>
 <tr><td>subscriptionKeySharedConsistentHashingReplicaPoints</td><td>In the Key_Shared subscription mode, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers.</td><td>100</td></tr>
 <tr><td>subscriptionExpiryCheckIntervalInMinutes</td><td>How frequently to proactively check and purge expired subscription</td><td>5</td></tr>
@@ -430,14 +502,24 @@
 <tr><td>maxUnackedMessagesPerBroker</td><td>Maximum number of unacknowledged messages allowed per broker. Once this limit reaches, the broker stops dispatching messages to all shared subscriptions which has a higher number of unacknowledged messages until subscriptions start acknowledging messages back and unacknowledged messages count reaches to limit/2. When the value is set to 0, unacknowledged message limit check is disabled and broker does not block dispatchers.</td><td>0</td></tr>
 <tr><td>maxUnackedMessagesPerSubscriptionOnBrokerBlocked</td><td>Once the broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which have higher unacknowledged messages than this percentage limit and subscription does not receive any new messages until that subscription acknowledges messages back.</td><td>0.16</td></tr>
 <tr><td>maxNumPartitionsPerPartitionedTopic</td><td>Max number of partitions per partitioned topic. Use 0 or negative number to disable the check</td><td>0</td></tr>
-<tr><td>topicPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can give more accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled.</td><td>2</td></tr>
-<tr><td>brokerPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can give more accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled.</td><td>50</td></tr>
+<tr><td>zookeeperSessionExpiredPolicy</td><td>There are two policies when ZooKeeper session expired happens, &quot;shutdown&quot; and &quot;reconnect&quot;. If it is set to &quot;shutdown&quot; policy, when ZooKeeper session expired happens, the broker is shutdown. If it is set to &quot;reconnect&quot; policy, the broker tries to reconnect to ZooKeeper server and re-register metadata to ZooKeeper. Note: the &quot;reconnect&quot; policy is an experiment feature.</td><td>shutdown</td></tr>
+<tr><td>topicPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. (Disable publish throttling with value 0)</td><td>10</td></tr>
+<tr><td>brokerPublisherThrottlingTickTimeMillis</td><td>Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled.</td><td>50</td></tr>
 <tr><td>brokerPublisherThrottlingMaxMessageRate</td><td>Maximum rate (in 1 second) of messages allowed to publish for a broker if the message rate limiting is enabled. When the value is set to 0, message rate limiting is disabled.</td><td>0</td></tr>
 <tr><td>brokerPublisherThrottlingMaxByteRate</td><td>Maximum rate (in 1 second) of bytes allowed to publish for a broker if the  byte rate limiting is enabled. When the value is set to 0, the byte rate limiting is disabled.</td><td>0</td></tr>
+<tr><td>subscribeThrottlingRatePerConsumer</td><td>Too many subscribe requests from a consumer can cause broker rewinding consumer cursors and loading data from bookies, hence causing high network bandwidth usage. When the positive value is set, broker will throttle the subscribe requests for one consumer. Otherwise, the throttling will be disabled. By default, throttling is disabled.</td><td>0</td></tr>
+<tr><td>subscribeRatePeriodPerConsumerInSecond</td><td>Rate period for {subscribeThrottlingRatePerConsumer}. By default, it is 30s.</td><td>30</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInMsg</td><td>Default messages (per second) dispatch throttling-limit for every topic. When the value is set to 0, default message dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRatePerTopicInByte</td><td>Default byte (per second) dispatch throttling-limit for every topic. When the value is set to 0, default byte dispatch throttling-limit is disabled.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingRateRelativeToPublishRate</td><td>Enable dispatch rate-limiting relative to publish rate.</td><td>false</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInMsg</td><td>The defaulted number of message dispatching throttling-limit for a subscription. The value of 0 disables message dispatch-throttling.</td><td>0</td></tr>
+<tr><td>dispatchThrottlingRatePerSubscriptionInByte</td><td>The default number of message-bytes dispatching throttling-limit for a subscription.</td></tr>
+<tr><td>The value of 0 disables message-byte dispatch-throttling.</td><td>0</td></tr>
 <tr><td>dispatchThrottlingOnNonBacklogConsumerEnabled</td><td>Enable dispatch-throttling for both caught up consumers as well as consumers who have backlogs.</td><td>true</td></tr>
+<tr><td>dispatcherMaxReadBatchSize</td><td>The maximum number of entries to read from BookKeeper. By default, it is 100 entries.</td><td>100</td></tr>
+<tr><td>dispatcherMaxReadSizeBytes</td><td>The maximum size in bytes of entries to read from BookKeeper. By default, it is 5MB.</td><td>5242880</td></tr>
+<tr><td>dispatcherMinReadBatchSize</td><td>The minimum number of entries to read from BookKeeper. By default, it is 1 entry. When there is an error occurred on reading entries from bookkeeper, the broker will backoff the batch size to this minimum number.</td><td>1</td></tr>
+<tr><td>dispatcherMaxRoundRobinBatchSize</td><td>The maximum number of entries to dispatch for a shared subscription. By default, it is 20 entries.</td><td>20</td></tr>
 <tr><td>preciseDispatcherFlowControl</td><td>Precise dispathcer flow control according to history message number of each entry.</td><td>false</td></tr>
 <tr><td>maxConcurrentLookupRequest</td><td>Maximum number of concurrent lookup request that the broker allows to throttle heavy incoming lookup traffic.</td><td>50000</td></tr>
 <tr><td>maxConcurrentTopicLoadRequest</td><td>Maximum number of concurrent topic loading request that the broker allows to control the number of zk-operations.</td><td>5000</td></tr>
@@ -489,16 +571,23 @@
 <tr><td>tokenAuthClaim</td><td>Specify the token claim that will be used as the authentication &quot;principal&quot; or &quot;role&quot;. The &quot;subject&quot; field will be used if this is left blank</td><td></td></tr>
 <tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
 <tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
+<tr><td>saslJaasClientAllowedIds</td><td>This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to <code>SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT</code>, which is &quot;.<em>pulsar.</em>&quot;, so only clients whose id contains 'pulsar' are allowed to connect.</td><td>N/A</td></tr>
+<tr><td>saslJaasBrokerSectionName</td><td>Service Principal, for login context name. By default, it is set to <code>SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME</code>, which is &quot;Broker&quot;.</td><td>N/A</td></tr>
+<tr><td>httpMaxRequestSize</td><td>If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.</td><td>-1</td></tr>
 <tr><td>exposePreciseBacklogInPrometheus</td><td>Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate.</td><td>false</td></tr>
+<tr><td>bookkeeperMetadataServiceUri</td><td>Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using <code>bookkeeper shell whatisinstanceid</code> command in BookKeeper cluster. For example: <code>zk+hierarchical://localhost:2181/ledgers</code>. The metadata service uri list can also be semicolon separated values like: <code>zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers</code>.</td><td>N/A</td></tr>
 <tr><td>bookkeeperClientAuthenticationPlugin</td><td>Authentication plugin to be used when connecting to bookies (BookKeeper servers).</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParametersName</td><td>BookKeeper authentication plugin implementation parameters and values.</td><td></td></tr>
 <tr><td>bookkeeperClientAuthenticationParameters</td><td>Parameters associated with the bookkeeperClientAuthenticationParametersName</td><td></td></tr>
 <tr><td>bookkeeperClientTimeoutInSeconds</td><td>Timeout for BookKeeper add and read operations.</td><td>30</td></tr>
 <tr><td>bookkeeperClientSpeculativeReadTimeoutInMillis</td><td>Speculative reads are initiated if a read request doesn’t complete within a certain time. A value of 0 disables speculative reads.</td><td>0</td></tr>
+<tr><td>bookkeeperUseV2WireProtocol</td><td>Use older Bookkeeper wire protocol with bookie.</td><td>true</td></tr>
 <tr><td>bookkeeperClientHealthCheckEnabled</td><td>Enable bookie health checks.</td><td>true</td></tr>
 <tr><td>bookkeeperClientHealthCheckIntervalSeconds</td><td>The time interval, in seconds, at which health checks are performed. New ledgers are not created during health checks.</td><td>60</td></tr>
 <tr><td>bookkeeperClientHealthCheckErrorThresholdPerInterval</td><td>Error threshold for health checks.</td><td>5</td></tr>
 <tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td>If bookies have more than the allowed number of failures within the time interval specified by bookkeeperClientHealthCheckIntervalSeconds</td><td>1800</td></tr>
+<tr><td>bookkeeperGetBookieInfoIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>86400</td></tr>
+<tr><td>bookkeeperGetBookieInfoRetryIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>60</td></tr>
 <tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
 <tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
 <tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
@@ -520,10 +609,10 @@
 <tr><td>managedLedgerDefaultWriteQuorum</td><td></td><td>1</td></tr>
 <tr><td>managedLedgerDefaultAckQuorum</td><td></td><td>1</td></tr>
 <tr><td>managedLedgerDigestType</td><td>Default type of checksum to use when writing to BookKeeper.</td><td>CRC32C</td></tr>
-<tr><td>managedLedgerNumWorkerThreads</td><td>Number of threads to be used for managed ledger tasks dispatching.</td><td>4</td></tr>
-<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>4</td></tr>
-<tr><td>managedLedgerCacheSizeMB</td><td></td><td>1024</td></tr>
-<tr><td>managedLedgerCacheCopyEntries</td><td>Whether we should make a copy of the entry payloads when inserting in cache</td><td>false</td></tr>
+<tr><td>managedLedgerNumWorkerThreads</td><td>Number of threads to be used for managed ledger tasks dispatching.</td><td>8</td></tr>
+<tr><td>managedLedgerNumSchedulerThreads</td><td>Number of threads to be used for managed ledger scheduled tasks.</td><td>8</td></tr>
+<tr><td>managedLedgerCacheSizeMB</td><td></td><td>N/A</td></tr>
+<tr><td>managedLedgerCacheCopyEntries</td><td>Whether to copy the entry payloads when inserting in cache.</td><td>false</td></tr>
 <tr><td>managedLedgerCacheEvictionWatermark</td><td></td><td>0.9</td></tr>
 <tr><td>managedLedgerCacheEvictionFrequency</td><td>Configure the cache eviction frequency for the managed ledger cache (evictions/sec)</td><td>100.0</td></tr>
 <tr><td>managedLedgerCacheEvictionTimeThresholdMillis</td><td>All entries that have stayed in cache for more than the configured time, will be evicted</td><td>1000</td></tr>
@@ -535,7 +624,7 @@
 <tr><td>managedLedgerMaxLedgerRolloverTimeMinutes</td><td></td><td>240</td></tr>
 <tr><td>managedLedgerCursorMaxEntriesPerLedger</td><td></td><td>50000</td></tr>
 <tr><td>managedLedgerCursorRolloverTimeInSeconds</td><td></td><td>14400</td></tr>
-<tr><td>managedLedgerMaxSizePerLedgerMbytes</td><td>Maximum ledger size before triggering a rollover for a topic.</td><td>2048 MB</td></tr>
+<tr><td>managedLedgerMaxSizePerLedgerMbytes</td><td>Maximum ledger size before triggering a rollover for a topic.</td><td>2048</td></tr>
 <tr><td>managedLedgerMaxUnackedRangesToPersist</td><td>Maximum number of &quot;acknowledgment holes&quot; that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in &quot;ranges&quot; of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes.</td><td>10000</td></tr>
 <tr><td>managedLedgerMaxUnackedRangesToPersistInZooKeeper</td><td>Maximum number of &quot;acknowledgment holes&quot; that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper.</td><td>1000</td></tr>
 <tr><td>autoSkipNonRecoverableData</td><td></td><td>false</td></tr>
@@ -543,8 +632,9 @@
 <tr><td>managedLedgerReadEntryTimeoutSeconds</td><td>Read entries timeout when the broker tries to read messages from BookKeeper.</td><td>0</td></tr>
 <tr><td>managedLedgerAddEntryTimeoutSeconds</td><td>Add entry timeout when the broker tries to publish message to BookKeeper.</td><td>0</td></tr>
 <tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.</td><td>10 ms</td></tr>
-<tr><td>managedLedgerPrometheusStatsLatencyRolloverSeconds</td><td>Managed ledger prometheus stats latency rollover seconds.</td><td>60s</td></tr>
+<tr><td>managedLedgerPrometheusStatsLatencyRolloverSeconds</td><td>Managed ledger prometheus stats latency rollover seconds.</td><td>60</td></tr>
 <tr><td>managedLedgerTraceTaskExecution</td><td>Whether to trace managed ledger task execution time.</td><td>true</td></tr>
+<tr><td>managedLedgerNewEntriesCheckDelayInMillis</td><td>New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.</td><td>10</td></tr>
 <tr><td>loadBalancerEnabled</td><td></td><td>false</td></tr>
 <tr><td>loadBalancerPlacementStrategy</td><td></td><td>weightedRandomSelection</td></tr>
 <tr><td>loadBalancerReportUpdateThresholdPercentage</td><td></td><td>10</td></tr>
@@ -571,7 +661,7 @@
 <tr><td>loadBalancerCPUResourceWeight</td><td>The CPU usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy.</td><td>1.0</td></tr>
 <tr><td>loadBalancerMemoryResourceWeight</td><td>The heap memory usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy.</td><td>1.0</td></tr>
 <tr><td>loadBalancerDirectMemoryResourceWeight</td><td>The direct memory usage weight when calculating new resource usage. It only takes effect in the ThresholdSheddler strategy.</td><td>1.0</td></tr>
-<tr><td>loadBalancerBundleUnloadMinThroughputThreshold</td><td>Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdSheddler strategy.</td><td>10 MB</td></tr>
+<tr><td>loadBalancerBundleUnloadMinThroughputThreshold</td><td>Bundle unload minimum throughput threshold. Avoid bundle unload frequently. It only takes effect in the ThresholdSheddler strategy.</td><td>10</td></tr>
 <tr><td>replicationMetricsEnabled</td><td></td><td>true</td></tr>
 <tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
 <tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
@@ -627,8 +717,15 @@
 <tr><td>brokerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the broker cluster</td><td></td></tr>
 <tr><td>functionWorkerWebServiceURL</td><td>The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
 <tr><td>functionWorkerWebServiceURLTLS</td><td>The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster.</td><td></td></tr>
+<tr><td>brokerServiceURL</td><td>If service discovery is disabled, this url should point to the discovery service provider.</td><td>N/A</td></tr>
+<tr><td>brokerServiceURLTLS</td><td>If service discovery is disabled, this url should point to the discovery service provider.</td><td>N/A</td></tr>
+<tr><td>brokerWebServiceURL</td><td>This settings are unnecessary if <code>zookeeperServers</code> is specified.</td><td>N/A</td></tr>
+<tr><td>brokerWebServiceURLTLS</td><td>This settings are unnecessary if <code>zookeeperServers</code> is specified.</td><td>N/A</td></tr>
+<tr><td>functionWorkerWebServiceURL</td><td>If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.</td><td>N/A</td></tr>
+<tr><td>functionWorkerWebServiceURLTLS</td><td>If function workers are setup in a separate cluster, configure the this setting to point to the function workers cluster.</td><td>N/A</td></tr>
 <tr><td>zookeeperSessionTimeoutMs</td><td>ZooKeeper session timeout (in milliseconds)</td><td>30000</td></tr>
 <tr><td>zooKeeperCacheExpirySeconds</td><td>ZooKeeper cache expiry time in seconds</td><td>300</td></tr>
+<tr><td>advertisedAddress</td><td>Hostname or IP address the service advertises to the outside world. If not set, the value of <code>InetAddress.getLocalHost().getHostname()</code> is used.</td><td>N/A</td></tr>
 <tr><td>servicePort</td><td>The port to use for server binary Protobuf requests</td><td>6650</td></tr>
 <tr><td>servicePortTls</td><td>The port to use to server binary Protobuf TLS requests</td><td>6651</td></tr>
 <tr><td>statusFilePath</td><td>Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks</td><td></td></tr>
@@ -647,9 +744,9 @@
 <tr><td>forwardAuthorizationCredentials</td><td>Whether client authorization credentials are forwared to the broker for re-authorization. Authentication must be enabled via authenticationEnabled=true for this to take effect.</td><td>false</td></tr>
 <tr><td>maxConcurrentInboundConnections</td><td>Max concurrent inbound connections. The proxy will reject requests beyond that.</td><td>10000</td></tr>
 <tr><td>maxConcurrentLookupRequests</td><td>Max concurrent outbound connections. The proxy will error out requests beyond that.</td><td>50000</td></tr>
-<tr><td>tlsEnabledInProxy</td><td>Whether TLS is enabled for the proxy</td><td>false</td></tr>
-<tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers</td><td>false</td></tr>
-<tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. If the value is set 0, check TLS certificate every new connection.</td><td>300s</td></tr>
+<tr><td>tlsEnabledInProxy</td><td>Deprecated - use <code>servicePortTls</code> and <code>webServicePortTls</code> instead.</td><td>false</td></tr>
+<tr><td>tlsEnabledWithBroker</td><td>Whether TLS is enabled when communicating with Pulsar brokers.</td><td>false</td></tr>
+<tr><td>tlsCertRefreshCheckDurationSec</td><td>TLS certificate refresh duration in seconds. If the value is set 0, check TLS certificate every new connection.</td><td>300</td></tr>
 <tr><td>tlsCertificateFilePath</td><td>Path for the TLS certificate file</td><td></td></tr>
 <tr><td>tlsKeyFilePath</td><td>Path for the TLS private key file</td><td></td></tr>
 <tr><td>tlsTrustCertsFilePath</td><td>Path for the trusted TLS certificate pem file</td><td></td></tr>
@@ -680,8 +777,11 @@
 <tr><td>syncLimit</td><td>The maximum time, in ticks, that a follower ZooKeeper server is allowed to sync with other ZooKeeper servers. The tick time is set in milliseconds using the tickTime parameter.</td><td>5</td></tr>
 <tr><td>dataDir</td><td>The location where ZooKeeper will store in-memory database snapshots as well as the transaction log of updates to the database.</td><td>data/zookeeper</td></tr>
 <tr><td>clientPort</td><td>The port on which the ZooKeeper server will listen for connections.</td><td>2181</td></tr>
+<tr><td>admin.enableServer</td><td>The port at which the admin listens.</td><td>true</td></tr>
+<tr><td>admin.serverPort</td><td>The port at which the admin listens.</td><td>9990</td></tr>
 <tr><td>autopurge.snapRetainCount</td><td>In ZooKeeper, auto purge determines how many recent snapshots of the database stored in dataDir to retain within the time interval specified by autopurge.purgeInterval (while deleting the rest).</td><td>3</td></tr>
 <tr><td>autopurge.purgeInterval</td><td>The time interval, in hours, by which the ZooKeeper database purge task is triggered. Setting to a non-zero number will enable auto purge; setting to 0 will disable. Read this guide before enabling auto purge.</td><td>1</td></tr>
+<tr><td>forceSync</td><td>Requires updates to be synced to media of the transaction log before finishing processing the update. If this option is set to 'no', ZooKeeper will not require updates to be synced to the media. WARNING: it's not recommended to run a production ZK cluster with <code>forceSync</code> disabled.</td><td>yes</td></tr>
 <tr><td>maxClientCnxns</td><td>The maximum number of client connections. Increase this if you need to handle more ZooKeeper clients.</td><td>60</td></tr>
 </tbody>
 </table>
