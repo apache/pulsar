@@ -383,7 +383,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize lookup";
+                final String msg = "Exception occurred while trying to authorize lookup";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName, ex);
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
@@ -458,7 +458,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize get Partition Metadata";
+                final String msg = "Exception occurred while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();

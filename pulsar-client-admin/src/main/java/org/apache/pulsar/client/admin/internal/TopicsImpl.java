@@ -1348,7 +1348,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 ret.add(new MessageImpl<>(topic, batchMsgId, properties, singleMessagePayload,
                         Schema.BYTES, msgMetadataBuilder));
             } catch (Exception ex) {
-                log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
+                log.error("Exception occurred while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
             singleMessageMetadataBuilder.recycle();
         }
