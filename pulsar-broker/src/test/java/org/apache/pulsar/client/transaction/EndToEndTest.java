@@ -87,7 +87,7 @@ public class EndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void test() throws Exception {
+    public void partitionCommitTest() throws Exception {
         Transaction txn = ((PulsarClientImpl) pulsarClient)
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
@@ -147,6 +147,49 @@ public class EndToEndTest extends TransactionTestBase {
         Assert.assertEquals(firstReceivedMessageIdList.size(), 0);
 
         log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
+    @Test
+    public void partitionAbortTest() throws Exception {
+        Transaction txn = ((PulsarClientImpl) pulsarClient)
+                .newTransaction()
+                .withTransactionTimeout(2, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(TOPIC_OUTPUT)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        int messageCnt = 10;
+        for (int i = 0; i < messageCnt; i++) {
+            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+        }
+
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(TOPIC_OUTPUT)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test")
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        // Can't receive transaction messages before abort.
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        txn.abort().get();
+
+        // Cant't receive transaction messages after abort.
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        log.info("finished test partitionAbortTest");
     }
 
 }
