@@ -30,6 +30,8 @@ import static org.testng.Assert.assertNull;
 
 import com.google.common.collect.Sets;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -42,6 +44,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -239,9 +242,9 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         offloadPolicies.setManagedLedgerOffloadPrefetchRounds(10);
         offloadPolicies.setManagedLedgerOffloadThresholdInBytes(1024);
 
-        LedgerOffloader ledgerOffloader = mock(LedgerOffloader.class);
-        when(ledgerOffloader.getOffloadDriverName()).thenReturn("mock");
-        doReturn(ledgerOffloader).when(pulsar).createManagedLedgerOffloader(any());
+        LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
+        when(topicOffloader.getOffloadDriverName()).thenReturn("mock");
+        doReturn(topicOffloader).when(pulsar).createManagedLedgerOffloader(any());
 
         //4 set topic level offload policies
         admin.topics().setOffloadPolicies(topicName, offloadPolicies);
@@ -266,6 +269,41 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
             assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
             assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
                     , "mock");
+        }
+        //6 remove topic level offload policy, offloader should become namespaceOffloader
+        LedgerOffloader namespaceOffloader = mock(LedgerOffloader.class);
+        when(namespaceOffloader.getOffloadDriverName()).thenReturn("s3");
+        Map<NamespaceName, LedgerOffloader> map = new HashMap<>();
+        map.put(TopicName.get(topicName).getNamespaceObject(), namespaceOffloader);
+        doReturn(map).when(pulsar).getLedgerOffloaderMap();
+
+        admin.topics().removeOffloadPolicies(topicName);
+        for (int i = 0; i < 50; i++) {
+            if (admin.topics().getOffloadPolicies(topicName) == null) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+        // topic level offloader should be closed
+        if (isPartitioned) {
+            verify(topicOffloader, times(partitionNum)).close();
+        } else {
+            verify(topicOffloader).close();
+        }
+        if (isPartitioned) {
+            for (int i = 0; i < partitionNum; i++) {
+                PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                        .getTopicIfExists(TopicName.get(topicName).getPartition(i).toString()).get().get();
+                assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+                assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                        , "s3");
+            }
+        } else {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().get();
+            assertNotNull(topic.getManagedLedger().getConfig().getLedgerOffloader());
+            assertEquals(topic.getManagedLedger().getConfig().getLedgerOffloader().getOffloadDriverName()
+                    , "s3");
         }
     }
 

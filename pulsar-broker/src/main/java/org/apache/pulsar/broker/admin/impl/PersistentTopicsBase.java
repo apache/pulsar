@@ -57,6 +57,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -850,9 +851,16 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 PersistentTopic persistentTopic = (PersistentTopic) optionalTopic.get();
                 ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-                managedLedgerConfig.setLedgerOffloader(offloadPolicies != null
-                        ? pulsar().createManagedLedgerOffloader(offloadPolicies)
-                        : pulsar().getLedgerOffloaderMap().get(topicName.getNamespaceObject()));
+                if (offloadPolicies == null) {
+                    LedgerOffloader namespaceOffloader = pulsar().getLedgerOffloaderMap().get(topicName.getNamespaceObject());
+                    LedgerOffloader topicOffloader = managedLedgerConfig.getLedgerOffloader();
+                    if (topicOffloader != null && topicOffloader != namespaceOffloader) {
+                        topicOffloader.close();
+                    }
+                    managedLedgerConfig.setLedgerOffloader(namespaceOffloader);
+                } else {
+                    managedLedgerConfig.setLedgerOffloader(pulsar().createManagedLedgerOffloader(offloadPolicies));
+                }
                 persistentTopic.getManagedLedger().setConfig(managedLedgerConfig);
             } catch (PulsarServerException e) {
                 throw new RestException(e);
