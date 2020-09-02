@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -114,9 +115,12 @@ public abstract class AbstractTopic implements Topic {
         this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
         this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
-        topicPolicyPublishRate = Optional.ofNullable(getTopicPolicies(TopicName.get(topic)))
-            .map(TopicPolicies::getPublishRate)
-            .orElse(null);
+        ServiceConfiguration brokerConfig = brokerService.pulsar().getConfiguration();
+        if (brokerConfig.isSystemTopicEnabled() && brokerConfig.isSystemTopicEnabled()) {
+            topicPolicyPublishRate = Optional.ofNullable(getTopicPolicies(TopicName.get(topic)))
+                    .map(TopicPolicies::getPublishRate)
+                    .orElse(null);
+        }
         if (topicPolicyPublishRate != null) {
             // update topic level publish dispatcher
             updateTopicPublishDispatcher();
@@ -565,6 +569,10 @@ public abstract class AbstractTopic implements Topic {
             return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
         } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
             log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            return null;
+        } catch (NullPointerException e) {
+            log.warn("Topic level policies are not enabled. " +
+                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
             return null;
         }
     }

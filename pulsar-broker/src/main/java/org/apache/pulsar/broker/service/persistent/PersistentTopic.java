@@ -2138,24 +2138,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     /**
-     * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
-     */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        }
-    }
-
-    /**
      * Get message TTL for this topic.
      * @param topicPolicies TopicPolicies
      * @param policies      NameSpace policy
