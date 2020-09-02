@@ -4,7 +4,7 @@
         <title>Apache Pulsar Blog</title>
         <link>https://pulsar.incubator.apache.org/blog</link>
         <description>The best place to stay up-to-date with the latest Apache Pulsar news and events.</description>
-        <lastBuildDate>Tue, 25 Aug 2020 06:00:00 GMT</lastBuildDate>
+        <lastBuildDate>Tue, 01 Sep 2020 06:00:00 GMT</lastBuildDate>
         <docs>https://validator.w3.org/feed/docs/rss2.html</docs>
         <generator>https://github.com/jpmonette/feed</generator>
         <image>
@@ -15,9 +15,9 @@
         <copyright>Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</copyright>
         <item>
             <title><![CDATA[Pulsar Summit Asia 2020 CFP is now open]]></title>
-            <link>https://pulsar.incubator.apache.org/blog/2020/08/25/pulsar-summit-asia-2020-cfp.html</link>
-            <guid>https://pulsar.incubator.apache.org/blog/2020/08/25/pulsar-summit-asia-2020-cfp.html</guid>
-            <pubDate>Tue, 25 Aug 2020 06:00:00 GMT</pubDate>
+            <link>https://pulsar.incubator.apache.org/blog/2020/09/01/pulsar-summit-asia-2020-cfp.html</link>
+            <guid>https://pulsar.incubator.apache.org/blog/2020/09/01/pulsar-summit-asia-2020-cfp.html</guid>
+            <pubDate>Tue, 01 Sep 2020 06:00:00 GMT</pubDate>
             <description><![CDATA[<p>The Pulsar Summit is an annual conference dedicated to the Apache Pulsar community. The summit brings together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messag...</p>]]></description>
         </item>
         <item>

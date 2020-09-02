@@ -8582,6 +8582,152 @@
                 }
             }
         },
+        "/non-persistent/{tenant}/{namespace}/{topic}/publishRate": {
+            "get": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Get publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "getPublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Set message publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "setPublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/PublishRate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Remove message publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "removePublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
         "/non-persistent/{tenant}/{namespace}/{topic}/retention": {
             "get": {
                 "tags": [
@@ -12694,6 +12840,152 @@
                 }
             }
         },
+        "/persistent/{tenant}/{namespace}/{topic}/publishRate": {
+            "get": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Get publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "getPublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Set message publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "setPublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/PublishRate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Remove message publish rate configuration for specified topic.",
+                "description": "",
+                "operationId": "removePublishRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
         "/persistent/{tenant}/{namespace}/{topic}/retention": {
             "get": {
                 "tags": [
@@ -15570,21 +15862,14 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
                 "overLoaded": {
                     "type": "boolean"
                 },
                 "loadReportType": {
                     "type": "string"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
+                "underLoaded": {
+                    "type": "boolean"
                 },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -15595,16 +15880,23 @@
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "msgThroughputIn": {
                     "type": "number",
                     "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -15785,13 +16077,13 @@
                     "type": "number",
                     "format": "double"
                 },
+                "producerName": {
+                    "type": "string"
+                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -16095,13 +16387,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
+                "s3Driver": {
+                    "type": "boolean"
+                },
                 "gcsDriver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
-                    "type": "boolean"
-                },
-                "s3Driver": {
                     "type": "boolean"
                 }
             }
@@ -16691,13 +16983,13 @@
                         "type": "string"
                     }
                 },
+                "producerName": {
+                    "type": "string"
+                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "producerName": {
                     "type": "string"
                 },
                 "address": {
