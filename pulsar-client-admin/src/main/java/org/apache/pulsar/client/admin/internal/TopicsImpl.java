@@ -75,6 +75,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
@@ -2079,5 +2080,81 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncDeleteRequest(path);
     }
 
-  private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
+    @Override
+    public PublishRate getPublishRate(String topic) throws PulsarAdminException {
+        try {
+            return getPublishRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<PublishRate> getPublishRateAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "publishRate");
+        final CompletableFuture<PublishRate> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+            new InvocationCallback<PublishRate>() {
+                @Override
+                public void completed(PublishRate publishRate) {
+                    future.complete(publishRate);
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    future.completeExceptionally(getApiException(throwable.getCause()));
+                }
+            });
+        return future;
+    }
+
+    @Override
+    public void setPublishRate(String topic, PublishRate publishRate) throws PulsarAdminException {
+        try {
+            setPublishRateAsync(topic, publishRate).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "publishRate");
+        return asyncPostRequest(path, Entity.entity(publishRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removePublishRate(String topic) throws PulsarAdminException {
+        try {
+            removePublishRateAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removePublishRateAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "publishRate");
+        return asyncDeleteRequest(path);
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

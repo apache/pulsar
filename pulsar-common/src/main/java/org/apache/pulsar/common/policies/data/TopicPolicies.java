@@ -51,6 +51,7 @@ public class TopicPolicies {
     private Boolean delayedDeliveryEnabled = null;
     private DispatchRate dispatchRate = null;
     private Long compactionThreshold = null;
+    private PublishRate publishRate = null;
 
     public boolean isMaxUnackedMessagesOnConsumerSet() {
         return maxUnackedMessagesOnConsumer != null;
@@ -106,5 +107,9 @@ public class TopicPolicies {
 
     public boolean isCompactionThresholdSet() {
         return compactionThreshold != null;
+    }
+
+    public boolean isPublishRateSet() {
+        return publishRate != null;
     }
 }
