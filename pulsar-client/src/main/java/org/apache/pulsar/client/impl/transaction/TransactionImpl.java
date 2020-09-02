@@ -138,6 +138,12 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> abort() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
+        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
+            sendOps.values().forEach(txnSendOp -> {
+                txnSendOp.sendFuture.whenComplete(((messageId, t) -> {
+                    txnSendOp.transactionalSendFuture.complete(messageId);
+                }));
+            });
+        });
     }
 }
