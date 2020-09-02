@@ -194,7 +194,7 @@ public class TransactionMetadataStoreService {
         }
 
         completableFuture = updateTxnStatus(txnID, newStatus, TxnStatus.OPEN)
-                .thenCompose(ignored -> endToTB(txnID, newStatus));
+                .thenCompose(ignored -> endToTB(txnID, txnAction));
         if (TxnStatus.COMMITTING.equals(newStatus)) {
             completableFuture = completableFuture
                     .thenCompose(ignored -> updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING));
@@ -205,7 +205,7 @@ public class TransactionMetadataStoreService {
         return completableFuture;
     }
 
-    private CompletableFuture<Void> endToTB(TxnID txnID, TxnStatus newStatus) {
+    private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
@@ -214,16 +214,15 @@ public class TransactionMetadataStoreService {
                 return;
             }
             txnMeta.producedPartitions().forEach(partition -> {
-                CompletableFuture<TxnID> commitFuture = new CompletableFuture<>();
-                if (TxnStatus.COMMITTING.equals(newStatus)) {
-                    commitFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
-                } else if (TxnStatus.ABORTING.equals(newStatus)) {
-                    commitFuture.completeExceptionally(new Throwable("Unsupported operation."));
+                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+                if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
                 } else {
-                    // Unsupported txnStatus
-                    commitFuture.completeExceptionally(new Throwable("Unsupported txnStatus."));
+                    actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
-                commitFutureList.add(commitFuture);
+                commitFutureList.add(actionFuture);
             });
             try {
                 FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, waitThrowable) -> {
