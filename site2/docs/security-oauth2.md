@@ -133,7 +133,7 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 })
 ```
 
-### Python Client
+### Python client
 
 To enable OAuth2 authentication in Python client, you need to configure OAuth2 authentication.
 This example shows how to configure OAuth2 authentication in Python client.
