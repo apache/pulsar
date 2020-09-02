@@ -1397,22 +1397,9 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "publishTime" : {
+        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1421,10 +1408,6 @@
             "format" : "byte"
           }
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
         "schemaVersion" : {
           "type" : "array",
           "items" : {
@@ -1432,18 +1415,12 @@
             "format" : "byte"
           }
         },
-        "replicated" : {
-          "type" : "boolean"
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
-        "sequenceId" : {
+        "redeliveryCount" : {
           "type" : "integer",
-          "format" : "int64"
-        },
-        "producerName" : {
-          "type" : "string"
-        },
-        "replicatedFrom" : {
-          "type" : "string"
+          "format" : "int32"
         },
         "data" : {
           "type" : "array",
@@ -1458,6 +1435,29 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "replicated" : {
+          "type" : "boolean"
+        },
+        "producerName" : {
+          "type" : "string"
         },
         "value" : {
           "type" : "object"
