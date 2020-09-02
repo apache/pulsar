@@ -52,6 +52,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -95,6 +96,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Variable is used through the atomic updater
     private volatile long msgIdGenerator;
 
+    private final AtomicLong pendingBytes;
     private final BlockingQueue<OpSendMsg> pendingMessages;
     private final BlockingQueue<OpSendMsg> pendingCallbacks;
     private final Semaphore semaphore;
@@ -152,6 +154,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         this.partitionIndex = partitionIndex;
         this.pendingMessages = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
         this.pendingCallbacks = Queues.newArrayBlockingQueue(conf.getMaxPendingMessages());
+        this.pendingBytes = new AtomicLong(0);
         this.semaphore = new Semaphore(conf.getMaxPendingMessages(), true);
 
         this.compressor = CompressionCodecProvider.getCompressionCodec(conf.getCompressionType());
@@ -828,6 +831,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     msg.recycle();
                 });
                 pendingMessages.clear();
+                pendingBytes.set(0);
             }
 
             return CompletableFuture.completedFuture(null);
@@ -850,6 +854,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         msg.recycle();
                     });
                     pendingMessages.clear();
+                    pendingBytes.set(0);
                 }
 
                 closeFuture.complete(null);
@@ -917,6 +922,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.debug("[{}] [{}] Received ack for msg {} ", topic, producerName, sequenceId);
                     }
                     pendingMessages.remove();
+                    pendingBytes.getAndAdd(-op.batchSizeByte);
                     releaseSemaphoreForSendOp(op);
                     callback = true;
                     pendingCallbacks.add(op);
@@ -997,6 +1003,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (corrupted) {
                     // remove message from pendingMessages queue and fail callback
                     pendingMessages.remove();
+                    pendingBytes.getAndAdd(-op.batchSizeByte);
                     releaseSemaphoreForSendOp(op);
                     try {
                         op.callback.sendComplete(
@@ -1496,6 +1503,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             });
 
             pendingMessages.clear();
+            pendingBytes.set(0);
             pendingCallbacks.clear();
             semaphore.release(releaseCount.get());
             if (batchMessagingEnabled) {
@@ -1584,6 +1592,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageAndSend();
             }
             pendingMessages.put(op);
+            pendingBytes.getAndAdd(op.batchSizeByte);
             if (op.msg != null) {
                 LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(this,
                         last -> Math.max(last, getHighestSequenceId(op)));

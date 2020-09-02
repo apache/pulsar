@@ -54,14 +54,18 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     public static final int DEFAULT_BATCHING_MAX_MESSAGES = 1000;
     public static final int DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    public static final int DEFAULT_MAX_PENDING_BYTES = Integer.MAX_VALUE;
     public static final int DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+    public static final int DEFAULT_MAX_PENDING_BYTES_ACROSS_PARTITIONS = Integer.MAX_VALUE;
 
     private String topicName = null;
     private String producerName = null;
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = DEFAULT_MAX_PENDING_MESSAGES;
+    private int maxPendingBytes = DEFAULT_MAX_PENDING_BYTES;
     private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
+    private int maxPendingBytesAcrossPartitions = DEFAULT_MAX_PENDING_BYTES_ACROSS_PARTITIONS;
     private MessageRoutingMode messageRoutingMode = null;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
 
@@ -135,6 +139,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
         checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
         this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
+    }
+
+    public void setMaxPendingBytesAcrossPartitions(int maxPendingBytesAcrossPartitions) {
+        checkArgument(maxPendingBytesAcrossPartitions >= maxPendingBytes);
+        this.maxPendingBytesAcrossPartitions = maxPendingBytesAcrossPartitions;
     }
 
     public void setBatchingMaxMessages(int batchingMaxMessages) {

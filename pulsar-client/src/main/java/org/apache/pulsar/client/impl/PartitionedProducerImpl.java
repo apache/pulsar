@@ -74,7 +74,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
         int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
                 conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
+        int maxPendingBytes = Math.min(conf.getMaxPendingBytes(),
+                conf.getMaxPendingBytesAcrossPartitions() / numPartitions);
         conf.setMaxPendingMessages(maxPendingMessages);
+        conf.setMaxPendingBytes(maxPendingBytes);
         start();
 
         // start track and auto subscribe partition increasement

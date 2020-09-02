@@ -63,6 +63,7 @@ public class PulsarKafkaProducerTest {
         assertEquals(conf.getCompressionType(), CompressionType.NONE);
         assertEquals(conf.isBlockIfQueueFull(), true);
         assertEquals(conf.getMaxPendingMessages(), 1000);
+        assertEquals(conf.getMaxPendingBytes(), Integer.MAX_VALUE);
         assertEquals(conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MILLISECONDS.toMicros(1));
         assertEquals(conf.getBatchingMaxMessages(), 1000);
     }

@@ -113,6 +113,13 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
+     * @return the maximum number of bytes allowed in the outstanding messages queue for the producer
+     */
+    public int getMaxPendingBytes() {
+        return conf.getMaxPendingBytes();
+    }
+
+    /**
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
      * <p>
      * When the queue is full, by default, all calls to {@link Producer#send} and {@link Producer#sendAsync} will fail
