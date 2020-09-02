@@ -39,9 +39,9 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-
 /**
  * Admin interface for Topics management.
  */
@@ -2006,5 +2006,65 @@ public interface Topics {
      *            Topic name
      */
     CompletableFuture<Void> removeCompactionThresholdAsync(String topic);
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setPublishRate(String topic, PublishRate publishMsgRate) throws PulsarAdminException;
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishMsgRate);
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @return number of messages per second
+     * @throws PulsarAdminException Unexpected error
+     */
+    PublishRate getPublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @return number of messages per second
+     */
+    CompletableFuture<PublishRate> getPublishRateAsync(String topic);
+
+    /**
+     * Remove message-publish-rate.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removePublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove message-publish-rate asynchronously.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removePublishRateAsync(String topic) throws PulsarAdminException;
+
 
 }
