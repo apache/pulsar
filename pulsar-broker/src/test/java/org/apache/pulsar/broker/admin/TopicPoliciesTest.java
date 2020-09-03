@@ -34,6 +34,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -412,6 +413,44 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
         getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
         Assert.assertNull(getCompactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetPublishRate() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        admin.topics().setPublishRate(testTopic, publishRate);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
+        Assert.assertEquals(getPublishRate, publishRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemovePublishRate() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        admin.topics().setPublishRate(testTopic, publishRate);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
+        Assert.assertEquals(getPublishRate, publishRate);
+
+        admin.topics().removePublishRate(testTopic);
+        Thread.sleep(3000);
+        getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate get on topic: {} after remove", getPublishRate, testTopic);
+        Assert.assertNull(getPublishRate);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
