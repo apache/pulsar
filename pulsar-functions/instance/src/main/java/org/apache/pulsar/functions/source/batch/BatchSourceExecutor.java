@@ -28,6 +28,8 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.instance.InstanceUtils;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
@@ -126,9 +128,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
   }
 
   private void start() throws Exception {
-    // This is the first thing to do to ensure that any tasks discovered during the discover
-    // phase are not lost
-    setupInstanceSubscription();
+    createIntermediateTopicConsumer();
     batchSource.open(this.config, this.sourceContext);
     if (sourceContext.getInstanceId() == 0) {
       discoveryTriggerer.init(batchSourceConfig.getDiscoveryTriggererConfig(),
@@ -188,44 +188,49 @@ public class BatchSourceExecutor<T> implements Source<T> {
     }
   }
 
-  private void setupInstanceSubscription() {
+  private void createIntermediateTopicConsumer() {
     String subName = SourceConfigUtils.computeBatchSourceInstanceSubscriptionName(
-            sourceContext.getTenant(), sourceContext.getNamespace(),
-            sourceContext.getSourceName());
+      sourceContext.getTenant(), sourceContext.getNamespace(),
+      sourceContext.getSourceName());
+    String fqfn = FunctionCommon.getFullyQualifiedName(
+      sourceContext.getTenant(), sourceContext.getNamespace(),
+      sourceContext.getSourceName());
     try {
       Actions.newBuilder()
-              .addAction(
-                      Actions.Action.builder()
-                              .actionName(String.format("Setting up instance consumer for BatchSource intermediate " +
-                                      "topic for function %s", FunctionCommon.getFullyQualifiedName(
-                                              sourceContext.getTenant(), sourceContext.getNamespace(),
-                                      sourceContext.getSourceName())))
-                              .numRetries(10)
-                              .sleepBetweenInvocationsMs(1000)
-                              .supplier(() -> {
-                                try {
-                                  CompletableFuture<Consumer<byte[]>> cf = sourceContext.newConsumerBuilder(Schema.BYTES)
-                                          .subscriptionName(subName)
-                                          .subscriptionType(SubscriptionType.Shared)
-                                          .topic(intermediateTopicName)
-                                          .subscribeAsync();
-                                  intermediateTopicConsumer = cf.join();
-                                  return Actions.ActionResult.builder()
-                                          .success(true)
-                                          .build();
-                                } catch (Exception e) {
-                                    return Actions.ActionResult.builder()
-                                            .success(false)
-                                            .build();
-                                }
-                              })
-                              .build())
-              .run();
+        .addAction(
+          Actions.Action.builder()
+            .actionName(String.format("Setting up instance consumer for BatchSource intermediate " +
+              "topic for function %s", fqfn))
+            .numRetries(10)
+            .sleepBetweenInvocationsMs(1000)
+            .supplier(() -> {
+              try {
+                CompletableFuture<Consumer<byte[]>> cf = sourceContext.newConsumerBuilder(Schema.BYTES)
+                  .subscriptionName(subName)
+                  .subscriptionType(SubscriptionType.Shared)
+                  .topic(intermediateTopicName)
+                  .properties(InstanceUtils.getProperties(
+                    Function.FunctionDetails.ComponentType.SOURCE, fqfn, sourceContext.getInstanceId()))
+                  .subscribeAsync();
+                intermediateTopicConsumer = cf.join();
+                return Actions.ActionResult.builder()
+                  .success(true)
+                  .build();
+              } catch (Exception e) {
+                return Actions.ActionResult.builder()
+                  .success(false)
+                  .errorMsg(e.getMessage())
+                  .build();
+              }
+            })
+            .build())
+        .run();
     } catch (InterruptedException e) {
       log.error("Error setting up instance subscription for intermediate topic", e);
       throw new RuntimeException(e);
     }
   }
+
 
   private void retrieveNextTask() throws Exception {
     currentTask = intermediateTopicConsumer.receive();
