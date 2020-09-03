@@ -2882,5 +2882,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         return Math.min(maxEntriesBasedOnSize, maxEntries);
     }
+
+    public void internalInitBatchDeletedIndex(PositionImpl position, int totalNumMessageInBatch) {
+        batchDeletedIndexes.computeIfAbsent(position, key -> {
+            BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
+            bitSetRecyclable.set(0, totalNumMessageInBatch);
+            return bitSetRecyclable;
+        });
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
 }

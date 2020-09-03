@@ -39,9 +39,9 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
-
 /**
  * Admin interface for Topics management.
  */
@@ -1912,5 +1912,159 @@ public interface Topics {
      *              unexpected error
      */
     CompletableFuture<Void> removeDispatchRateAsync(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a topic. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Long getCompactionThreshold(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the compactionThreshold for a topic asynchronously. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Long> getCompactionThresholdAsync(String topic);
+
+    /**
+     * Set the compactionThreshold for a topic. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setCompactionThreshold(String topic, long compactionThreshold) throws PulsarAdminException;
+
+    /**
+     * Set the compactionThreshold for a topic asynchronously. The maximum number of bytes
+     * can have before compaction is triggered. 0 disables.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param compactionThreshold
+     *            maximum number of backlog bytes before compaction is triggered
+     */
+    CompletableFuture<Void> setCompactionThresholdAsync(String topic, long compactionThreshold);
+
+    /**
+     * Remove the compactionThreshold for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeCompactionThreshold(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the compactionThreshold for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeCompactionThresholdAsync(String topic);
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setPublishRate(String topic, PublishRate publishMsgRate) throws PulsarAdminException;
+
+    /**
+     * Set message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @param publishMsgRate
+     *            number of messages per second
+     */
+    CompletableFuture<Void> setPublishRateAsync(String topic, PublishRate publishMsgRate);
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second).
+     *
+     * @param topic
+     * @return number of messages per second
+     * @throws PulsarAdminException Unexpected error
+     */
+    PublishRate getPublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get message-publish-rate (topics can publish this many messages per second) asynchronously.
+     *
+     * @param topic
+     * @return number of messages per second
+     */
+    CompletableFuture<PublishRate> getPublishRateAsync(String topic);
+
+    /**
+     * Remove message-publish-rate.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removePublishRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove message-publish-rate asynchronously.
+     * <p/>
+     * Remove topic message publish rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removePublishRateAsync(String topic) throws PulsarAdminException;
+
 
 }

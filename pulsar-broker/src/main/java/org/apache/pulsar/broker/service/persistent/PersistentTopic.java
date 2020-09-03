@@ -82,7 +82,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.PrecisPublishLimiter;
 import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.PublishRateLimiter;
+import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -1155,12 +1158,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void checkCompaction() {
         TopicName name = TopicName.get(topic);
         try {
-            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, name.getNamespace()))
-                .orElseThrow(() -> new KeeperException.NoNodeException());
+            Long compactionThreshold = Optional.ofNullable(getTopicPolicies(name))
+                .map(TopicPolicies::getCompactionThreshold)
+                .orElse(null);
+            if (compactionThreshold == null) {
+                Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, name.getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+                compactionThreshold = policies.compaction_threshold;
+            }
 
 
-            if (isSystemTopic() || policies.compaction_threshold != 0
+            if (isSystemTopic() || compactionThreshold != 0
                 && currentCompaction.isDone()) {
 
                 long backlogEstimate = 0;
@@ -1173,13 +1182,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     backlogEstimate = ledger.getEstimatedBacklogSize();
                 }
 
-                if (backlogEstimate > policies.compaction_threshold) {
+                if (backlogEstimate > compactionThreshold) {
                     try {
                         triggerCompaction();
                     } catch (AlreadyRunningException are) {
                         log.debug("[{}] Compaction already running, so don't trigger again, "
                                   + "even though backlog({}) is over threshold({})",
-                                  name, backlogEstimate, policies.compaction_threshold);
+                                  name, backlogEstimate, compactionThreshold);
                     }
                 }
             }
@@ -2129,24 +2138,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     /**
-     * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
-     */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        }
-    }
-
-    /**
      * Get message TTL for this topic.
      * @param topicPolicies TopicPolicies
      * @param policies      NameSpace policy
@@ -2258,7 +2249,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, PublishContext publishContext) {
+    public void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext) {
         pendingWriteOps.incrementAndGet();
         if (isFenced) {
             publishContext.completed(new TopicFencedException("fenced"), -1, -1);
@@ -2271,7 +2262,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             case NotDup:
                 getTransactionBuffer(true)
                         .thenCompose(txnBuffer -> txnBuffer.appendBufferToTxn(
-                                txnID, publishContext.getSequenceId(), headersAndPayload))
+                                txnID, publishContext.getSequenceId(), batchSize, headersAndPayload))
                         .thenAccept(position -> {
                             decrementPendingWriteOpsAndCheck();
                             publishContext.completed(null,
@@ -2360,6 +2351,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             dispatchRateLimiter.ifPresent(dispatchRateLimiter ->
                 dispatchRateLimiter.updateDispatchRate(policies.getDispatchRate()));
         }
+
+        if (policies != null && policies.getPublishRate() != null) {
+            topicPolicyPublishRate = policies.getPublishRate();
+            updateTopicPublishDispatcher();
+        }
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(Optional<TopicPolicies> policies) {
@@ -2375,6 +2371,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this;
     }
 
+    @Override
+    protected void updateTopicPublishDispatcher() {
+        if (topicPolicyPublishRate != null && (topicPolicyPublishRate.publishThrottlingRateInByte > 0
+            || topicPolicyPublishRate.publishThrottlingRateInMsg > 0)) {
+            log.info("Enabling topic policy publish rate limiting {} on topic {}", topicPolicyPublishRate, this.topic);
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupBrokerPublishRateLimiterMonitor();
+            }
+
+            if (this.topicPublishRateLimiter == null
+                || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                // create new rateLimiter if rate-limiter is disabled
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(topicPolicyPublishRate, ()-> this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(topicPolicyPublishRate);
+                }
+            } else {
+                this.topicPublishRateLimiter.update(topicPolicyPublishRate);
+            }
+        } else {
+            log.info("Disabling publish throttling for {}", this.topic);
+            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            enableProducerReadForPublishRateLimiting();
+        }
+    }
 
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {

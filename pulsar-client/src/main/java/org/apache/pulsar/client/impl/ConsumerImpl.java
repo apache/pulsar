@@ -1135,6 +1135,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
+            if (isTxnMessage(msgMetadata)) {
+                BitSet ackBitSet = null;
+                if (ackSet != null && ackSet.size() > 0) {
+                    ackBitSet = BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+                }
+                if (!ackBitSet.get(messageId.getBatchIndex())) {
+                    msgMetadata.recycle();
+                    return;
+                }
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
+            }
+
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
@@ -1169,6 +1181,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (listener != null) {
             triggerListener(numMessages);
         }
+    }
+
+    private boolean isTxnMessage(MessageMetadata messageMetadata) {
+        return messageMetadata.hasTxnidMostBits() && messageMetadata.hasTxnidLeastBits();
     }
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
@@ -1340,18 +1356,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // create ack tracker for entry aka batch
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
-        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         List<MessageImpl<T>> possibleToDeadLetter = null;
         if (deadLetterPolicy != null && redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
             possibleToDeadLetter = new ArrayList<>();
         }
-        int skippedMessages = 0;
+
+        BatchMessageAcker acker;
         BitSetRecyclable ackBitSet = null;
         if (ackSet != null && ackSet.size() > 0) {
             ackBitSet = BitSetRecyclable.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+            acker = BatchMessageAcker.newAcker(BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet)));
+        } else {
+            acker = BatchMessageAcker.newAcker(batchSize);
         }
+
+        int skippedMessages = 0;
         try {
-            for (int i = 0; i < batchSize; ++i) {
+            int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
+            for (int i = startBatchIndex; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
