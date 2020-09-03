@@ -236,27 +236,36 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> loadConf(Map<String, Object> config) {
         config.forEach((key, value) -> {
-            if (key.equals(CONF_KEY)) {
-                this.key(checkType(value, String.class));
-            } else if (key.equals(CONF_PROPERTIES)) {
-                this.properties(checkType(value, Map.class));
-            } else if (key.equals(CONF_EVENT_TIME)) {
-                this.eventTime(checkType(value, Long.class));
-            } else if (key.equals(CONF_SEQUENCE_ID)) {
-                this.sequenceId(checkType(value, Long.class));
-            } else if (key.equals(CONF_REPLICATION_CLUSTERS)) {
-                this.replicationClusters(checkType(value, List.class));
-            } else if (key.equals(CONF_DISABLE_REPLICATION)) {
-                boolean disableReplication = checkType(value, Boolean.class);
-                if (disableReplication) {
-                    this.disableReplication();
-                }
-            } else if (key.equals(CONF_DELIVERY_AFTER_SECONDS)) {
-                this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
-            } else if (key.equals(CONF_DELIVERY_AT)) {
-                this.deliverAt(checkType(value, Long.class));
-            } else {
-                throw new RuntimeException("Invalid message config key '" + key + "'");
+            switch (key) {
+                case CONF_KEY:
+                    this.key(checkType(value, String.class));
+                    break;
+                case CONF_PROPERTIES:
+                    this.properties(checkType(value, Map.class));
+                    break;
+                case CONF_EVENT_TIME:
+                    this.eventTime(checkType(value, Long.class));
+                    break;
+                case CONF_SEQUENCE_ID:
+                    this.sequenceId(checkType(value, Long.class));
+                    break;
+                case CONF_REPLICATION_CLUSTERS:
+                    this.replicationClusters(checkType(value, List.class));
+                    break;
+                case CONF_DISABLE_REPLICATION:
+                    boolean disableReplication = checkType(value, Boolean.class);
+                    if (disableReplication) {
+                        this.disableReplication();
+                    }
+                    break;
+                case CONF_DELIVERY_AFTER_SECONDS:
+                    this.deliverAfter(checkType(value, Long.class), TimeUnit.SECONDS);
+                    break;
+                case CONF_DELIVERY_AT:
+                    this.deliverAt(checkType(value, Long.class));
+                    break;
+                default:
+                    throw new RuntimeException("Invalid message config key '" + key + "'");
             }
         });
         return this;
