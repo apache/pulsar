@@ -15446,10 +15446,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -15862,19 +15862,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "underLoaded": {
                     "type": "boolean"
@@ -15894,9 +15891,12 @@
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "msgThroughputIn": {
+                "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -16080,13 +16080,13 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
                 "address": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -16387,10 +16387,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "s3Driver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
-                "gcsDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
@@ -16986,13 +16986,13 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
                 "address": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
