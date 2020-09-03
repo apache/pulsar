@@ -2209,7 +2209,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
 
         // Simulating time consuming cursor recovery.
-        CompletableFuture<Void> future = bkc.promiseAfter(3);
+        CompletableFuture<Void> future = bkc.promiseAfter(2);
         ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lazyCursorRecovery"));
         scheduledExecutorService.schedule(() -> {
             future.complete(null);
@@ -2221,7 +2221,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // Check ledger recovered before time consuming cursor recovery complete.
         ledger = factory2.open("testLedger", managedLedgerConfig);
-        assertTrue(System.currentTimeMillis() - startLedgerRecovery < 50000);
+        assertTrue(System.currentTimeMillis() - startLedgerRecovery < 5000);
 
         // Check cursor recovered successfully.
         cursor = ledger.openCursor("testCursor");
