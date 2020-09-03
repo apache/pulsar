@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import com.google.common.collect.Lists;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
@@ -35,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -182,7 +182,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
             throws TransactionCoordinatorClientException {
         try {
-            addSubscriptionToTxnAsync(txnID, topic, subscription);
+            addSubscriptionToTxnAsync(txnID, topic, subscription).get();
         } catch (Exception e) {
             throw TransactionCoordinatorClientException.unwrap(e);
         }
@@ -199,7 +199,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                 .setTopic(topic)
                 .setSubscription(subscription)
                 .build();
-        return handler.addSubscriptionToTxn(txnID, Lists.newArrayList(sub));
+        return handler.addSubscriptionToTxn(txnID, Collections.singletonList(sub));
     }
 
     @Override

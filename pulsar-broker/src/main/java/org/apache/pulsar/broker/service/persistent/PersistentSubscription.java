@@ -1213,8 +1213,8 @@ public class PersistentSubscription implements Subscription {
         // Reset txdID and position for cumulative ack.
         PENDING_CUMULATIVE_ACK_TXNID_UPDATER.set(this, null);
         POSITION_UPDATER.set(this, null);
-//        dispatcher.redeliverUnacknowledgedMessages(consumer, (List<PositionImpl>)
-//                                                                    (List<?>)pendingAckMessageForCurrentTxn.values());
+        dispatcher.redeliverUnacknowledgedMessages(consumer, (List<PositionImpl>)
+                                                                    (List<?>)pendingAckMessageForCurrentTxn.values());
         abortFuture.complete(null);
 
         return abortFuture;

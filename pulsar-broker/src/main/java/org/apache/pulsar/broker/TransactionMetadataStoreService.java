@@ -215,7 +215,7 @@ public class TransactionMetadataStoreService {
                 return;
             }
 
-            for (TransactionSubscription tbSub : txnMeta.ackedPartitions()) {
+            txnMeta.ackedPartitions().forEach(tbSub -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
                     actionFuture = tbClient.commitTxnOnSubscription(
@@ -227,7 +227,7 @@ public class TransactionMetadataStoreService {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
                 completableFutureList.add(actionFuture);
-            }
+            });
 
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
