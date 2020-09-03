@@ -116,6 +116,11 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
+
+        jcommander.addCommand("enable-deduplication", new EnableDeduplication());
+        jcommander.addCommand("disable-deduplication", new DisableDeduplication());
+        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
@@ -1062,6 +1067,42 @@ public class CmdTopics extends CmdBase {
                 retentionSizeInMB = -1;
             }
             admin.topics().setRetention(persistentTopic, new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
+        }
+    }
+
+    @Parameters(commandDescription = "Enable the deduplication policy for a topic")
+    private class EnableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, true);
+        }
+    }
+
+    @Parameters(commandDescription = "Disable the deduplication policy for a topic")
+    private class DisableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, false);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the deduplication policy for a topic")
+    private class GetDeduplicationEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getDeduplicationEnabled(persistentTopic));
         }
     }
 

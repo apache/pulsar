@@ -726,6 +726,15 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
 
+        cmdTopics.run(split("enable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("disable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+
         cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
