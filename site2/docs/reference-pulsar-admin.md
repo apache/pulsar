@@ -1787,6 +1787,9 @@ Subcommands
 * `reset-cursor`
 * `get-message-by-id`
 * `last-message-id`
+* `get-deduplication`
+* `set-deduplication`
+* `remove-deduplication`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2202,6 +2205,35 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Enable or disable message deduplication on a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
+|`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
+
+### `remove-deduplication`
+Remove a deduplication policy from a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
 
 ## `tenants`
 Operations for managing tenants

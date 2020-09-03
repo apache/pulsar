@@ -217,10 +217,7 @@ public class TransactionMetadataStoreService {
                 CompletableFuture<TxnID> commitFuture = new CompletableFuture<>();
                 if (TxnStatus.COMMITTING.equals(newStatus)) {
                     commitFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(), txnID.getLeastSigBits());
-                    // TODO commitTxnOnSubscription
                 } else if (TxnStatus.ABORTING.equals(newStatus)) {
-                    // TODO abortTxnOnTopic
-                    // TODO abortTxnOnSubscription
                     commitFuture.completeExceptionally(new Throwable("Unsupported operation."));
                 } else {
                     // Unsupported txnStatus

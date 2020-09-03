@@ -20,48 +20,59 @@ package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.util.concurrent.TimeUnit;
-
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
-import org.apache.pulsar.broker.transaction.coordinator.TransactionMetaStoreTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * Test for consuming transaction messages.
  */
 @Slf4j
-public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
+public class TransactionConsumeTest extends TransactionTestBase {
 
     private final static String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
     private final static String NORMAL_MSG_CONTENT = "Normal - ";
     private final static String TXN_MSG_CONTENT = "Txn - ";
 
-    @BeforeClass
-    public void init() throws Exception {
-        BROKER_COUNT = 1;
-        super.setup();
+    @BeforeMethod
+    public void setup() throws Exception {
+        setBrokerCount(1);
+        super.internalSetup();
 
-        pulsarAdmins[0].clusters().createCluster("my-cluster", new ClusterData(pulsarServices[0].getWebServiceAddress()));
-        pulsarAdmins[0].tenants().createTenant("public", new TenantInfo(Sets.newHashSet(), Sets.newHashSet("my-cluster")));
-        pulsarAdmins[0].namespaces().createNamespace("public/txn", 10);
-        pulsarAdmins[0].topics().createNonPartitionedTopic(CONSUME_TOPIC);
+        String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        admin.clusters().createCluster(CLUSTER_NAME, new ClusterData("http://localhost:" + webServicePort));
+        admin.tenants().createTenant("public",
+                new TenantInfo(Sets.newHashSet(), Sets.newHashSet(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("public/txn", 10);
+        admin.topics().createNonPartitionedTopic(CONSUME_TOPIC);
+    }
+
+    @AfterMethod
+    protected void cleanup() {
+        super.internalCleanup();
     }
 
     @Test
@@ -71,15 +82,18 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         int messageCntAfterTxn = 10;
         int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(CONSUME_TOPIC)
                 .create();
 
+        @Cleanup
         Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("exclusive-test")
                 .subscribe();
 
+        @Cleanup
         Consumer<byte[]> sharedConsumer = pulsarClient.newConsumer()
                 .topic(CONSUME_TOPIC)
                 .subscriptionName("shared-test")
@@ -90,7 +104,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         long leastSigBits = 5L;
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
 
-        PersistentTopic persistentTopic = (PersistentTopic) pulsarServices[0].getBrokerService()
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(CONSUME_TOPIC, false).get().get();
         TransactionBuffer transactionBuffer = persistentTopic.getTransactionBuffer(true).get();
         log.info("transactionBuffer init finish.");
@@ -123,17 +137,23 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         Thread.sleep(1000);
         log.info("Commit txn.");
 
+        Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();
+        Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
+        // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
             Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn exclusive msg: {}", new String(message.getData()));
+            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+            checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
+            log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
+
             message = sharedConsumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("Receive txn shared msg: {}", new String(message.getData(), UTF_8));
+            Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
+            checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
+            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
         }
-
-        exclusiveConsumer.close();
-        sharedConsumer.close();
+        log.info("TransactionConsumeTest noSortedTest finish.");
     }
 
     private void sendNormalMessages(Producer<byte[]> producer, int startMsgCnt, int messageCnt)
@@ -147,7 +167,7 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
         for (int i = 0; i < transactionMsgCnt; i++) {
             PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
             builder.setProducerName("producerName");
-            builder.setSequenceId(10L);
+            builder.setSequenceId(i);
             builder.setTxnidMostBits(txnID.getMostSigBits());
             builder.setTxnidLeastBits(txnID.getLeastSigBits());
             builder.setPublishTime(System.currentTimeMillis());
@@ -155,9 +175,22 @@ public class TransactionConsumeTest extends TransactionMetaStoreTestBase {
             ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
                     Commands.ChecksumType.Crc32c, builder.build(),
                     Unpooled.copiedBuffer((TXN_MSG_CONTENT + i).getBytes(UTF_8)));
-            tb.appendBufferToTxn(txnID, i, headerAndPayload);
+            tb.appendBufferToTxn(txnID, i, 1, headerAndPayload);
         }
         log.info("append messages to TB finish.");
+    }
+
+    private void checkBatchIndex(Map<String, Integer> batchIndexMap, BatchMessageIdImpl messageId) {
+        batchIndexMap.compute(messageId.getLedgerId() + ":" + messageId.getEntryId(),
+            (key, value) -> {
+                if (value == null) {
+                    Assert.assertEquals(messageId.getBatchIndex(), 0);
+                    return messageId.getBatchIndex();
+                } else {
+                    Assert.assertEquals(messageId.getBatchIndex(), value + 1);
+                    return value + 1;
+                }
+            });
     }
 
 }

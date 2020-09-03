@@ -17,29 +17,35 @@
 # under the License.
 #
 
-# This dummy github workflow is needed since github is configured to have this
-# job pass as a checkin requirement. Once that restriction is moved it's safe
-# to delete this file.
-
-name: CI - Unit - Flaky
+name: CI - Pulsar Website build
 on:
-  pull_request:
-    branches:
-      - master
-  push:
-    branches:
-      - branch-*
+  schedule:
+    - cron: '0 */6 * * *'
 
 jobs:
-
-  unit-test-flaky:
-    name:
+  build-website:
+    name: Build and publish pulsar website
     runs-on: ubuntu-latest
     timeout-minutes: 120
-
     steps:
       - name: checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: build
+        run: mvn clean package -DskipTests -Pswagger
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ secrets.PULSARBOT_TOKEN }}
+          CROWDIN_DOCUSAURUS_API_KEY: ${{ secrets.PULSAR_CROWDIN_DOCUSAURUS_API_KEY }}
+        run: |
+          export CROWDIN_DOCUSAURUS_PROJECT_ID=apache-pulsar
+          echo "Copying swagger json file ..."
+          mkdir -p site2/website/static/swagger/master/
+          cp pulsar-broker/target/docs/swagger*.json site2/website/static/swagger/master
+          echo "Copied swagger json file."
+          echo "Building Website"
+          # Build the new website
+          site2/tools/docker-build-site.sh
+          # Script was initially made for travis
+          bash -e site2/tools/publish-website.sh
