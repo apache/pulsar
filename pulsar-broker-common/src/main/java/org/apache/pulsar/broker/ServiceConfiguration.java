@@ -989,6 +989,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperNumberOfChannelsPerBookie = 16;
     @FieldContext(
+        dynamic = true,
         category = CATEGORY_STORAGE_BK,
         doc = "Use older Bookkeeper wire protocol with bookie"
     )
