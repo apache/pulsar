@@ -1617,12 +1617,23 @@
                 "replicated": {
                     "type": "boolean"
                 },
+                "publishTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "topicName": {
+                    "type": "string"
+                },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1630,26 +1641,6 @@
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
                 },
                 "data": {
                     "type": "array",
@@ -1665,15 +1656,24 @@
                         "format": "byte"
                     }
                 },
-                "publishTime": {
-                    "type": "integer",
-                    "format": "int64"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
-                "topicName": {
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "producerName": {
+                    "type": "string"
+                },
+                "replicatedFrom": {
                     "type": "string"
                 },
                 "value": {
