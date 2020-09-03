@@ -38,7 +38,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -82,6 +82,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
+        public int numMessageInTxn() throws TransactionStatusException {
+            return -1;
+        }
+
+        @Override
         public long committedAtLedgerId() {
             return committedAtLedgerId;
         }
@@ -102,7 +107,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         }
 
         @Override
-        public CompletableFuture<Position> appendEntry(long sequenceId, Position position) {
+        public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
             return FutureUtil.failedFuture(new UnsupportedOperationException());
         }
 
@@ -116,7 +121,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> commitTxn(long committedAtLedgerId, long committedAtEntryId) {
             try {
                 return CompletableFuture.completedFuture(commitAt(committedAtLedgerId, committedAtEntryId));
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
@@ -125,23 +130,23 @@ class InMemTransactionBuffer implements TransactionBuffer {
         public CompletableFuture<TransactionMeta> abortTxn() {
             try {
                 return CompletableFuture.completedFuture(abort());
-            } catch (UnexpectedTxnStatusException e) {
+            } catch (TransactionStatusException e) {
                 return FutureUtil.failedFuture(e);
             }
         }
 
-        synchronized TxnBuffer abort() throws UnexpectedTxnStatusException {
+        synchronized TxnBuffer abort() throws TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
             this.status = TxnStatus.ABORTED;
             return this;
         }
 
         synchronized TxnBuffer commitAt(long committedAtLedgerId, long committedAtEntryId)
-                throws UnexpectedTxnStatusException {
+                throws TransactionStatusException {
             if (TxnStatus.OPEN != status) {
-                throw new UnexpectedTxnStatusException(txnid, TxnStatus.OPEN, status);
+                throw new TransactionStatusException(txnid, TxnStatus.OPEN, status);
             }
 
             this.committedAtLedgerId = committedAtLedgerId;
@@ -246,6 +251,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId,
                                                      long sequenceId,
+                                                     long batchSize,
                                                      ByteBuf buffer) {
         TxnBuffer txnBuffer = getTxnBufferOrCreateIfNotExist(txnId);
 
@@ -296,7 +302,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
                 addTxnToTxnIdex(txnID, committedAtLedgerId);
             }
             commitFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionNotFoundException | TransactionStatusException e) {
             commitFuture.completeExceptionally(e);
         }
         return commitFuture;
@@ -319,7 +325,7 @@ class InMemTransactionBuffer implements TransactionBuffer {
             txnBuffer.abort();
             buffers.remove(txnID, txnBuffer);
             abortFuture.complete(null);
-        } catch (TransactionNotFoundException | UnexpectedTxnStatusException e) {
+        } catch (TransactionNotFoundException | TransactionStatusException e) {
             abortFuture.completeExceptionally(e);
         }
 

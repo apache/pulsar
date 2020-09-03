@@ -132,3 +132,22 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 		Authentication:   oauth,
 })
 ```
+
+### Python client
+
+To enable OAuth2 authentication in Python client, you need to configure OAuth2 authentication.
+This example shows how to configure OAuth2 authentication in Python client.
+
+```python
+from pulsar import Client, AuthenticationOauth2
+
+params = '''
+{
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
+    "private_key": "/path/to/privateKey",
+    "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"
+}
+'''
+
+client = Client("puslar://my-cluster:6650", authentication=AuthenticationOauth2(params))
+```
