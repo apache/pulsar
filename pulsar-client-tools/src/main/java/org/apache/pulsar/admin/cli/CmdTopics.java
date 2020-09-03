@@ -139,6 +139,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
         jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+        jcommander.addCommand("get-maxConsumers", new GetMaxConsumers());
+        jcommander.addCommand("set-maxConsumers", new SetMaxConsumers());
+        jcommander.addCommand("remove-maxConsumers", new RemoveMaxConsumers());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1380,6 +1383,45 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max number of consumers for a topic")
+    private class GetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().getMaxConsumers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Set max number of consumers for a topic")
+    private class SetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers", "-c" }, description = "Max consumers for a topic", required = true)
+        private int maxConsumers;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxConsumers(persistentTopic, maxConsumers);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max number of consumers for a topic")
+    private class RemoveMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxConsumers(persistentTopic);
         }
     }
 }

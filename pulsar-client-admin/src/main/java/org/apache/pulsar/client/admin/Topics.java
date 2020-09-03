@@ -2119,4 +2119,57 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
+
+
+    /**
+     * Get the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic);
+
+
+    /**
+     * Set the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxConsumers(String topic, int maxConsumers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxConsumersAsync(String topic, int maxConsumers);
+
+    /**
+     * Remove the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersAsync(String topic);
 }
