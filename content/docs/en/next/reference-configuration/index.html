@@ -352,10 +352,10 @@
 <tr><td>maxMessagePublishBufferSizeInMB</td><td>The maximum memory size for broker handling messages sent from producers. If the processing message size exceeds this value, broker stops reading data from the connection. The processing messages means messages are sent to broker but broker have not sent response to the client. Usually the message are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value <code>-1</code> disables the memory limitation. By default, it is 50% of direct memory.</td><td>N/A</td></tr>
 <tr><td>messagePublishBufferCheckIntervalInMillis</td><td>Interval between checks to see if message publish buffer size exceeds the maximum. Use <code>0</code> or negative number to disable the max publish buffer limiting.</td><td>100</td></tr>
 <tr><td>retentionCheckIntervalInSeconds</td><td>Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.</td><td>120</td></tr>
+<tr><td>maxMessageSize</td><td>Set the maximum size of a message.</td><td>5242880</td></tr>
+<tr><td>preciseTopicPublishRateLimiterEnable</td><td>Enable precise topic publish rate limiting.</td><td>false</td></tr>
 </tbody>
 </table>
-<p>| maxMessageSize | Set the maximum size of a message. | 5242880 |
-| preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |</p>
 <h2><a class="anchor" aria-hidden="true" id="client"></a><a href="#client" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Client</h2>
 <p>The <a href="/docs/en/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> CLI tool can be used to publish messages to Pulsar and consume messages from Pulsar topics. This tool can be used in lieu of a client library.</p>
 <table>

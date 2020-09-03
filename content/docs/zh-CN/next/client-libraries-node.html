@@ -32,6 +32,8 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">1.0.0</td><td style="text-align:left">2.3.0 及以上</td></tr>
+<tr><td style="text-align:left">1.1.0</td><td style="text-align:left">2.4.0 or later</td></tr>
+<tr><td style="text-align:left">1.2.0</td><td style="text-align:left">2.5.0 or later</td></tr>
 </tbody>
 </table>
 <p>If an incompatible version of the C++ client is installed, you may fail to build or run this library.</p>
@@ -84,6 +86,7 @@
 <tr><td style="text-align:left"><code>tlsValidateHostname</code></td><td style="text-align:left">设置是否启用 TLS 主机名验证。</td><td style="text-align:left"><code>false</code></td></tr>
 <tr><td style="text-align:left"><code>tlsAllowInsecureConnection</code></td><td style="text-align:left">设置是否让 Pulsar 客户端从 broker 接受不信任的 TLS 证书。</td><td style="text-align:left"><code>false</code></td></tr>
 <tr><td style="text-align:left"><code>statsIntervalInSeconds</code></td><td style="text-align:left">两次信息统计之间的时间间隔。 当 statsInterval 为正数时启用信息统计。 最小值为 1 秒。</td><td style="text-align:left">600</td></tr>
+<tr><td style="text-align:left"><code>log</code></td><td style="text-align:left">A function that is used for logging.</td><td style="text-align:left"><code>console.log</code></td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="producers"></a><a href="#producers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Producers</h2>
@@ -197,6 +200,8 @@ consumer.acknowledge(msg);
 <tr><td style="text-align:left"><code>acknowledgeId(Object)</code></td><td style="text-align:left">通过消息 ID 向 Pulsar <a href="/docs/zh-CN/next/reference-terminology#broker">broker</a> <a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>一条消息。</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>acknowledgeCumulative(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止的<em>所有</em>消息，包括指定消息。 <code>acknowledgeCumulative</code> 方法返回 void，并向 broker 异步发送确认。 消息将<em>不会</em>重新发送给 consumer。 <a href="/docs/zh-CN/next/concepts-messaging#shared">共享</a>订阅类型不支持累积确认。</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>acknowledgeCumulativeId(Object)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#acknowledgment-ack">确认收到</a>流中到指定消息为止<em>所有</em>消息的 ID，包括指定消息的 ID。</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>negativeAcknowledge(Message)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#negative-acknowledgment-nack">Negatively acknowledges</a>  a message to the Pulsar broker by message object.</td><td style="text-align:left"><code>void</code></td></tr>
+<tr><td style="text-align:left"><code>negativeAcknowledgeId(MessageId)</code></td><td style="text-align:left"><a href="/docs/zh-CN/next/reference-terminology#negative-acknowledgment-nack">Negatively acknowledges</a> a message to the Pulsar broker by message ID object.</td><td style="text-align:left"><code>void</code></td></tr>
 <tr><td style="text-align:left"><code>close()</code></td><td style="text-align:left">关闭 consumer，使 consumer 不再从 broker 接收消息。</td><td style="text-align:left"><code>Promise&lt;null&gt;</code></td></tr>
 </tbody>
 </table>
@@ -209,11 +214,15 @@ consumer.acknowledge(msg);
 <tr><td style="text-align:left"><code>topic</code></td><td style="text-align:left">Consumer 创建订阅并监听消息的目标 Pulsar <a href="/docs/zh-CN/next/reference-terminology#topic">topic</a>。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscription</code></td><td style="text-align:left">Consumer 的订阅名称。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscriptionType</code></td><td style="text-align:left">可以设置为<code>独占</code>、<code>共享</code>或<code>灾备</code>。</td><td style="text-align:left"><code>Exclusive</code></td></tr>
+<tr><td style="text-align:left"><code>subscriptionInitialPosition</code></td><td style="text-align:left">Initial position at which to set cursor when subscribing to a topic at first time.</td><td style="text-align:left"><code>SubscriptionInitialPosition.Latest</code></td></tr>
 <tr><td style="text-align:left"><code>ackTimeoutMs</code></td><td style="text-align:left">消息确认的超时时间（以毫秒为单位）。</td><td style="text-align:left">0</td></tr>
+<tr><td style="text-align:left"><code>nAckRedeliverTimeoutMs</code></td><td style="text-align:left">Delay to wait before redelivering messages that failed to be processed.</td><td style="text-align:left">60000</td></tr>
 <tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置 consumer 接收队列的大小，即在应用程序调用 <code>receive</code> 之前允许堆积的消息数。 A value higher than the default of 1000 could increase consumer throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
 <tr><td style="text-align:left"><code>receiverQueueSizeAcrossPartitions</code></td><td style="text-align:left">Set the max total receiver queue size across partitions. 当接收队列总数超过此值时，将减小每个分区接收队列的大小。</td><td style="text-align:left">50000</td></tr>
 <tr><td style="text-align:left"><code>consumerName</code></td><td style="text-align:left">Consumer 的名称。 当前（v2.4.1）版本中， <a href="/docs/zh-CN/next/concepts-messaging#failover">灾备</a>模式按照 consumer 名称排序。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>properties</code></td><td style="text-align:left">Consumer 的元数据。</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>listener</code></td><td style="text-align:left">A listener that is called for a message received.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>readCompacted</code></td><td style="text-align:left">If enabling <code>readCompacted</code>, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> <code>readCompacted</code> can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a <code>PulsarClientException</code>.</td><td style="text-align:left">false</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="消费者示例"></a><a href="#消费者示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>消费者示例</h3>
@@ -243,6 +252,18 @@ consumer.acknowledge(msg);
   <span class="hljs-keyword">await</span> consumer.close();
   <span class="hljs-keyword">await</span> client.close();
 })();
+</code></pre>
+<p>Instead a consumer can be created with <code>listener</code> to process messages.</p>
+<pre><code class="hljs css language-JavaScript"><span class="hljs-comment">// Create a consumer</span>
+<span class="hljs-keyword">const</span> consumer = <span class="hljs-keyword">await</span> client.subscribe({
+  <span class="hljs-attr">topic</span>: <span class="hljs-string">'my-topic'</span>,
+  <span class="hljs-attr">subscription</span>: <span class="hljs-string">'my-subscription'</span>,
+  <span class="hljs-attr">subscriptionType</span>: <span class="hljs-string">'Exclusive'</span>,
+  <span class="hljs-attr">listener</span>: <span class="hljs-function">(<span class="hljs-params">msg, msgConsumer</span>) =&gt;</span> {
+    <span class="hljs-built_in">console</span>.log(msg.getData().toString());
+    msgConsumer.acknowledge(msg);
+  },
+});
 </code></pre>
 <h2><a class="anchor" aria-hidden="true" id="readers"></a><a href="#readers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Readers</h2>
 <p>Pulsar readers process messages from Pulsar topics. Readers are different from consumers because with readers you need to explicitly specify which message in the stream you want to begin with (consumers, on the other hand, automatically begin with the most recently unacked message). You can <a href="#reader-configuration">configure</a> Node.js readers using a reader configuration object.</p>
@@ -281,6 +302,7 @@ consumer.acknowledge(msg);
 <tr><td style="text-align:left"><code>receiverQueueSize</code></td><td style="text-align:left">设置 reader 接收队列的大小，即在应用程序调用 <code>readNext</code> 之前允许堆积的消息数。 A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization.</td><td style="text-align:left">1000</td></tr>
 <tr><td style="text-align:left"><code>readerName</code></td><td style="text-align:left">Reader 的名称。</td><td style="text-align:left"></td></tr>
 <tr><td style="text-align:left"><code>subscriptionRolePrefix</code></td><td style="text-align:left">The subscription role prefix.</td><td style="text-align:left"></td></tr>
+<tr><td style="text-align:left"><code>readCompacted</code></td><td style="text-align:left">If enabling <code>readCompacted</code>, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> <code>readCompacted</code> can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a <code>PulsarClientException</code>.</td><td style="text-align:left"><code>false</code></td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="reader-示例"></a><a href="#reader-示例" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Reader 示例</h3>
@@ -356,6 +378,7 @@ consumer.acknowledge(msg);
 <tr><td style="text-align:left"><code>getMessageId()</code></td><td style="text-align:left"><a href="#message-id-object-operations">消息 id 对象</a>的 Getter 方法。</td><td style="text-align:left"><code>对象</code></td></tr>
 <tr><td style="text-align:left"><code>getPublishTimestamp()</code></td><td style="text-align:left">发布时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
 <tr><td style="text-align:left"><code>getEventTimestamp()</code></td><td style="text-align:left">事件时间戳的 Getter 方法。</td><td style="text-align:left"><code>数值</code></td></tr>
+<tr><td style="text-align:left"><code>getRedeliveryCount()</code></td><td style="text-align:left">Getter method of redelivery count.</td><td style="text-align:left"><code>数值</code></td></tr>
 <tr><td style="text-align:left"><code>getPartitionKey()</code></td><td style="text-align:left">分区键的 Getter 方法。</td><td style="text-align:left"><code>String</code></td></tr>
 </tbody>
 </table>

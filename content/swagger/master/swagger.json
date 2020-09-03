@@ -5918,6 +5918,131 @@
         }
       }
     },
+    "/non-persistent/{tenant}/{namespace}/{topic}/maxProducers" : {
+      "get" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Get maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "getMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Set maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "setMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The max producers of the topic",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "Invalid value of maxProducers"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "non-persistent topic" ],
+        "summary" : "Remove maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "removeMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/non-persistent/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer" : {
       "get" : {
         "tags" : [ "non-persistent topic" ],
@@ -9544,6 +9669,131 @@
         }
       }
     },
+    "/persistent/{tenant}/{namespace}/{topic}/maxProducers" : {
+      "get" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Get maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "getMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Set maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "setMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "in" : "body",
+          "name" : "body",
+          "description" : "The max producers of the topic",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          },
+          "412" : {
+            "description" : "Invalid value of maxProducers"
+          }
+        }
+      },
+      "delete" : {
+        "tags" : [ "persistent topic" ],
+        "summary" : "Remove maxProducers config for specified topic.",
+        "description" : "",
+        "operationId" : "removeMaxProducers",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "tenant",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "namespace",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "topic",
+          "in" : "path",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "403" : {
+            "description" : "Don't have admin permission"
+          },
+          "404" : {
+            "description" : "Topic does not exist"
+          },
+          "405" : {
+            "description" : "Topic level policy is disabled, to enable the topic level policy and retry"
+          },
+          "409" : {
+            "description" : "Concurrent modification"
+          }
+        }
+      }
+    },
     "/persistent/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer" : {
       "get" : {
         "tags" : [ "persistent topic" ],
@@ -12900,10 +13150,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -13288,6 +13538,15 @@
           "type" : "number",
           "format" : "double"
         },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "underLoaded" : {
+          "type" : "boolean"
+        },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
@@ -13299,11 +13558,12 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
+        "msgThroughputOut" : {
+          "type" : "number",
+          "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "cpu" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "loadReportType" : {
           "type" : "string"
@@ -13312,16 +13572,6 @@
           "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "msgThroughputOut" : {
-          "type" : "number",
-          "format" : "double"
-        },
-        "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         }
       }
@@ -13494,16 +13744,16 @@
           "type" : "number",
           "format" : "double"
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "address" : {
           "type" : "string"
         }
       }
@@ -13799,13 +14049,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
+        "fileSystemDriver" : {
+          "type" : "boolean"
+        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "s3Driver" : {
-          "type" : "boolean"
-        },
-        "fileSystemDriver" : {
           "type" : "boolean"
         }
       }
@@ -14368,16 +14618,16 @@
             "type" : "string"
           }
         },
-        "connectedSince" : {
-          "type" : "string"
-        },
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "connectedSince" : {
           "type" : "string"
         },
         "clientVersion" : {
+          "type" : "string"
+        },
+        "address" : {
           "type" : "string"
         }
       }
