@@ -2067,4 +2067,56 @@ public interface Topics {
     CompletableFuture<Void> removePublishRateAsync(String topic) throws PulsarAdminException;
 
 
+
+    /**
+     * Get the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxProducers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxProducersAsync(String topic);
+
+
+    /**
+     * Set the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxProducers Max number of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxProducers(String topic, int maxProducers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxProducers Max number of producer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxProducersAsync(String topic, int maxProducers);
+
+    /**
+     * Remove the max number of producer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxProducers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of producer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxProducersAsync(String topic);
 }
