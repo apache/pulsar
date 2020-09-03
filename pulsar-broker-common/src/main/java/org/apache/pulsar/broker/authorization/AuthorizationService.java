@@ -300,7 +300,7 @@ public class AuthorizationService {
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug(
-                            "Topic [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                            "Topic [{}] Role [{}] exception occurred while trying to check Produce permissions. {}",
                             topicName.toString(), role, ex.getMessage());
                 }
             }
@@ -313,7 +313,7 @@ public class AuthorizationService {
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug(
-                                "Topic [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                                "Topic [{}] Role [{}] exception occurred while trying to check Consume permissions. {}",
                                 topicName.toString(), role, e.getMessage());
 
                     }
