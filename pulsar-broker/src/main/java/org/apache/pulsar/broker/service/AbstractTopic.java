@@ -140,19 +140,24 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isProducersExceeded() {
-        Policies policies;
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get namespace policies that include max number of producers: {}", topic,
-                    e.getMessage());
-            policies = new Policies();
+        Integer maxProducers = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null) {
+            maxProducers = topicPolicies.getMaxProducerPerTopic();
         }
-        final int maxProducers = policies.max_producers_per_topic > 0 ?
-                policies.max_producers_per_topic :
-                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+
+        if (maxProducers == null) {
+            Policies policies;
+            try {
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                        .orElseGet(() -> new Policies());
+            } catch (Exception e) {
+                policies = new Policies();
+            }
+            maxProducers = policies.max_producers_per_topic;
+        }
+        maxProducers = maxProducers > 0 ? maxProducers : brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
