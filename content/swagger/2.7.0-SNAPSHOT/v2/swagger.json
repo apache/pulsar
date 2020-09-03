@@ -15746,10 +15746,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -16162,6 +16162,12 @@
                     "type": "number",
                     "format": "double"
                 },
+                "bandwidthIn": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -16170,6 +16176,12 @@
                 },
                 "overLoaded": {
                     "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -16185,18 +16197,6 @@
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "bandwidthOut": {
-                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -16383,10 +16383,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -16687,13 +16687,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "fileSystemDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
                 "gcsDriver": {
                     "type": "boolean"
                 },
-                "s3Driver": {
+                "fileSystemDriver": {
                     "type": "boolean"
                 }
             }
@@ -17289,10 +17289,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
