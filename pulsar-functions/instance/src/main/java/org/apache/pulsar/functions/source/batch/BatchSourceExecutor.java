@@ -219,6 +219,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
               } catch (Exception e) {
                 return Actions.ActionResult.builder()
                   .success(false)
+                  .errorMsg(e.getMessage())
                   .build();
               }
             })
