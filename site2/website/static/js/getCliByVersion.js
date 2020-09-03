@@ -27,6 +27,7 @@ function getCliByVersion(){
             return
         }
     } else {
+        version = parseInt(versions[0]) + "." + parseInt(versions[1]) + ".0"
         window.location.href = "http://pulsar.apache.org/tools/pulsar-admin/" + version + "-SNAPSHOT"
         return
     }
