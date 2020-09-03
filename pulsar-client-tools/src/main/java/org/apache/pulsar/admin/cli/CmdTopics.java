@@ -52,6 +52,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
@@ -126,6 +127,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-compaction-threshold", new GetCompactionThreshold());
         jcommander.addCommand("set-compaction-threshold", new SetCompactionThreshold());
         jcommander.addCommand("remove-compaction-threshold", new RemoveCompactionThreshold());
+        jcommander.addCommand("get-publish-rate", new GetPublishRate());
+        jcommander.addCommand("set-publish-rate", new SetPublishRate());
+        jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
         jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
@@ -1208,6 +1212,51 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeCompactionThreshold(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get publish rate for a topic")
+    private class GetPublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getPublishRate(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set publish rate for a topic")
+    private class SetPublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--msg-publish-rate",
+            "-m" }, description = "message-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int msgPublishRate = -1;
+
+         @Parameter(names = { "--byte-publish-rate",
+            "-b" }, description = "byte-publish-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private long bytePublishRate = -1;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setPublishRate(persistentTopic,
+                new PublishRate(msgPublishRate, bytePublishRate));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove publish rate for a topic")
+    private class RemovePublishRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removePublishRate(persistentTopic);
         }
     }
 

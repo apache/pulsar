@@ -27,7 +27,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
@@ -38,6 +38,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     private TxnStatus txnStatus;
     private long committedAtLedgerId = -1L;
     private long committedAtEntryId = -1L;
+    private int numMessageInTxn;
 
     TransactionMetaImpl(TxnID txnID) {
         this.txnID = txnID;
@@ -60,6 +61,14 @@ public class TransactionMetaImpl implements TransactionMeta {
         synchronized (entries) {
             return entries.size();
         }
+    }
+
+    @Override
+    public int numMessageInTxn() throws TransactionStatusException {
+        if (!checkStatus(TxnStatus.COMMITTING, null) && !checkStatus(TxnStatus.COMMITTED, null)) {
+            throw new TransactionStatusException(txnID, TxnStatus.COMMITTED, txnStatus);
+        }
+        return numMessageInTxn;
     }
 
     @VisibleForTesting
@@ -109,7 +118,7 @@ public class TransactionMetaImpl implements TransactionMeta {
     }
 
     @Override
-    public CompletableFuture<Position> appendEntry(long sequenceId, Position position) {
+    public CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize) {
         CompletableFuture<Position> appendFuture = new CompletableFuture<>();
         synchronized (this) {
             if (TxnStatus.OPEN != txnStatus) {
@@ -120,6 +129,7 @@ public class TransactionMetaImpl implements TransactionMeta {
         }
         synchronized (this.entries) {
             this.entries.put(sequenceId, position);
+            this.numMessageInTxn += batchSize;
         }
         return CompletableFuture.completedFuture(position);
     }
@@ -166,7 +176,9 @@ public class TransactionMetaImpl implements TransactionMeta {
 
     private boolean checkStatus(TxnStatus expectedStatus, CompletableFuture<TransactionMeta> future) {
         if (!txnStatus.equals(expectedStatus)) {
-            future.completeExceptionally(new UnexpectedTxnStatusException(txnID, expectedStatus, txnStatus));
+            if (future != null) {
+                future.completeExceptionally(new TransactionStatusException(txnID, expectedStatus, txnStatus));
+            }
             return false;
         }
         return true;

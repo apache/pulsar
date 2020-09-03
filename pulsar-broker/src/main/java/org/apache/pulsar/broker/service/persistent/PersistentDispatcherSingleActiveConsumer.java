@@ -86,7 +86,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader  = new TransactionReader(this);
+        this.transactionReader  = new TransactionReader(topic, cursor);
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -219,7 +219,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, transactionReader);
 
             int totalMessages = sendMessageInfo.getTotalMessages();
             long totalBytes = sendMessageInfo.getTotalBytes();
@@ -434,7 +434,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             }
             havePendingRead = true;
 
-            if (havePendingTxnToRead()) {
+            if (transactionReader.havePendingTxnToRead()) {
                 transactionReader.read(messagesToRead, consumer, this);
             } else if (consumer.readCompacted()) {
                 topic.getCompactedTopic().asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
