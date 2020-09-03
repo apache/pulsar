@@ -218,9 +218,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 readMoreEntries();
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
-            }
+            log.info("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
         }
     }
 
