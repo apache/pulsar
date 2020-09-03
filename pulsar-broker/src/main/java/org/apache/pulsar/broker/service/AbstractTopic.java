@@ -198,24 +198,6 @@ public abstract class AbstractTopic implements Topic {
         subscription.addConsumer(consumer);
     }
 
-    /**
-     * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
-     */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        }
-    }
-
     @Override
     public void disableCnxAutoRead() {
         if (producers != null) {
