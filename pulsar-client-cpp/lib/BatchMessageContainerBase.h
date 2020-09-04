@@ -109,7 +109,6 @@ class BatchMessageContainerBase : public boost::noncopyable {
     virtual void serialize(std::ostream& os) const = 0;
 
     bool hasEnoughSpace(const Message& msg) const noexcept;
-    bool isFull() const noexcept;
     bool isEmpty() const noexcept;
 
    protected:
@@ -127,6 +126,8 @@ class BatchMessageContainerBase : public boost::noncopyable {
 
     unsigned int numMessages_ = 0;
     unsigned long sizeInBytes_ = 0;
+
+    bool isFull() const noexcept;
 
     void updateStats(const Message& msg);
     void resetStats();

@@ -638,8 +638,8 @@ void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::Messa
     // TODO: set other optional fields
 }
 
-void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                        unsigned long maxMessageSizeInBytes) {
+uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                            unsigned long maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());
@@ -681,6 +681,8 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
     metadata.SerializeToArray(batchPayLoad.mutableData(), msgMetadataSize);
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
+
+    return msg.impl_->metadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {

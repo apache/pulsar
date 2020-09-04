@@ -32,8 +32,8 @@ void MessageAndCallbackBatch::add(const Message& msg, const SendCallback& callba
         Commands::initBatchMessageMetadata(msg, msgImpl_->metadata);
     }
     LOG_DEBUG(" Before serialization payload size in bytes = " << msgImpl_->payload.readableBytes());
-    Commands::serializeSingleMessageInBatchWithPayload(msg, msgImpl_->payload,
-                                                       ClientConnection::getMaxMessageSize());
+    sequenceId_ = Commands::serializeSingleMessageInBatchWithPayload(msg, msgImpl_->payload,
+                                                                     ClientConnection::getMaxMessageSize());
     LOG_DEBUG(" After serialization payload size in bytes = " << msgImpl_->payload.readableBytes());
     callbacks_.emplace_back(callback);
 }

@@ -172,6 +172,7 @@ class PULSAR_PUBLIC Message {
     friend class ProducerImpl;
     friend class Commands;
     friend class BatchMessageContainer;
+    friend class BatchMessageKeyBasedContainer;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
     friend class MessageBatch;

@@ -19,6 +19,7 @@
 #ifndef LIB_MESSAGEANDCALLBACK_BATCH_H_
 #define LIB_MESSAGEANDCALLBACK_BATCH_H_
 
+#include <atomic>
 #include <vector>
 
 #include <pulsar/Message.h>
@@ -68,10 +69,12 @@ class MessageAndCallbackBatch : public boost::noncopyable {
     SendCallback createSendCallback() const;
 
     const MessageImplPtr& msgImpl() const { return msgImpl_; }
+    uint64_t sequenceId() const noexcept { return sequenceId_; }
 
    private:
     MessageImplPtr msgImpl_;
     std::vector<SendCallback> callbacks_;
+    std::atomic<uint64_t> sequenceId_{static_cast<uint64_t>(-1L)};
 };
 
 }  // namespace pulsar

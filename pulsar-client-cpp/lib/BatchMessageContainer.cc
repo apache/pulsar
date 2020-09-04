@@ -21,7 +21,6 @@
 #include "Commands.h"
 #include "LogUtils.h"
 #include "MessageImpl.h"
-#include "ObjectPool.h"
 #include "ProducerImpl.h"
 #include "TimeUtils.h"
 #include <stdexcept>
