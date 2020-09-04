@@ -134,11 +134,14 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
-    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
+    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
+                                  long txnidMostBits, long txnidLeastBits) {
+        if (txnidMostBits != -1 && txnidLeastBits != -1) {
+            doImmediateAck(msgId, ackType, properties, txnidMostBits, txnidLeastBits);
+        } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
-            doImmediateAck(msgId, ackType, properties);
+            doImmediateAck(msgId, ackType, properties, -1, -1);
         } else if (ackType == AckType.Cumulative) {
             doCumulativeAck(msgId, null);
         } else {
@@ -157,9 +160,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
-    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties);
+    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
+                                            Map<String, Long> properties, long txnidMostBits, long txnidLeastBits) {
+        if (txnidMostBits != -1 && txnidLeastBits != -1) {
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txnidMostBits, txnidLeastBits);
+        } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, -1, -1);
         } else if (ackType == AckType.Cumulative) {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
@@ -209,18 +215,21 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private boolean doImmediateAck(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties) {
+    private boolean doImmediateAck(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
+                                   long txnidMostBits, long txnidLeastBits) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
             return false;
         }
 
-        newAckCommand(consumer.consumerId, msgId, null, ackType, null, properties, cnx, true /* flush */);
+        newAckCommand(consumer.consumerId, msgId, null, ackType, null,
+                properties, cnx, true /* flush */, txnidMostBits, txnidLeastBits);
         return true;
     }
 
-    private boolean doImmediateBatchIndexAck(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties) {
+    private boolean doImmediateBatchIndexAck(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
+                                             Map<String, Long> properties, long txnidMostBits, long txnidLeastBits) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
@@ -239,7 +248,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             bitSet.clear(batchIndex);
         }
 
-        final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType, null, properties);
+        final ByteBuf cmd = Commands.newAck(consumer.consumerId, msgId.ledgerId, msgId.entryId, bitSet, ackType,
+                null, properties, txnidLeastBits, txnidMostBits);
         bitSet.recycle();
         cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
         return true;
@@ -261,8 +271,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
         boolean shouldFlush = false;
         if (cumulativeAckFlushRequired) {
-            newAckCommand(consumer.consumerId, lastCumulativeAck, lastCumulativeAckSet, AckType.Cumulative, null, Collections.emptyMap(), cnx,
-                    false /* flush */);
+            newAckCommand(consumer.consumerId, lastCumulativeAck, lastCumulativeAckSet, AckType.Cumulative, null, Collections.emptyMap(), cnx, false /* flush */, -1, -1);
             shouldFlush=true;
             cumulativeAckFlushRequired = false;
         }
@@ -301,8 +310,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                         break;
                     }
 
-                    newAckCommand(consumer.consumerId, msgId, null, AckType.Individual, null, Collections.emptyMap(),
-                            cnx, false);
+                    newAckCommand(consumer.consumerId, msgId, null, AckType.Individual, null, Collections.emptyMap(), cnx, false, -1, -1);
                     shouldFlush = true;
                 }
             }
@@ -349,11 +357,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     private void newAckCommand(long consumerId, MessageIdImpl msgId, BitSetRecyclable lastCumulativeAckSet,
-            AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx, boolean flush) {
+            AckType ackType, ValidationError validationError, Map<String, Long> map, ClientCnx cnx,
+                               boolean flush, long txnidMostBits, long txnidLeastBits) {
 
         MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(msgId);
-        if (chunkMsgIds != null) {
-            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion()) && ackType != AckType.Cumulative) {
+        if (chunkMsgIds != null && txnidLeastBits < 0 && txnidMostBits < 0) {
+            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())
+                    && ackType != AckType.Cumulative) {
                 List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     if (cMsgId != null && chunkMsgIds.length > 1) {
