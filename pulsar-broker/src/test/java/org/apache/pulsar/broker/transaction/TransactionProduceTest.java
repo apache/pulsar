@@ -483,38 +483,6 @@ public class TransactionProduceTest extends TransactionTestBase {
         log.info("finish test ackAbortTest");
     }
 
-    @Test
-    public void normalReconsumeTest() throws Exception {
-        String topic = NAMESPACE1 + "/reconsume-test";
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .create();
-
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic(topic)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscribe();
-
-        for (int i = 0; i < 10; i++) {
-            producer.newMessage().value("hello".getBytes()).sendAsync();
-        }
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            System.out.println("receive msg: " + new String(message.getData()));
-        }
-
-        consumer.redeliverUnacknowledgedMessages();
-
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
-            System.out.println("receive msg: " + new String(message.getData()));
-        }
-    }
-
     private int getPendingAckCount(String topic, String subscriptionName) throws Exception {
         Class<PersistentSubscription> clazz = PersistentSubscription.class;
         Field field = clazz.getDeclaredField("pendingAckMessages");
