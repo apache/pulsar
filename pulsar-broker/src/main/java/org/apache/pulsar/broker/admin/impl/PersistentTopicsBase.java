@@ -57,6 +57,7 @@ import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -97,6 +98,9 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.protocol.Commands;
@@ -799,6 +803,70 @@ public class PersistentTopicsBase extends AdminResource {
                 return null;
             });
         }
+    }
+
+    protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPolicies offloadPolicies) {
+        TopicPolicies topicPolicies = null;
+        try {
+            topicPolicies = pulsar().getTopicPoliciesService().getTopicPolicies(topicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.error("Topic {} policies cache have not init.", topicName);
+            throw new RestException(Status.PRECONDITION_FAILED, "Policies cache have not init");
+        }
+        if (topicPolicies == null) {
+            topicPolicies = new TopicPolicies();
+        }
+        topicPolicies.setOffloadPolicies(offloadPolicies);
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies)
+                .thenCompose((res) -> {
+                    //The policy update is asynchronous. Cache at this step may not be updated yet.
+                    //So we need to set the loader by the incoming offloadPolicies instead of topic policies cache.
+                    PartitionedTopicMetadata metadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
+                    if (metadata.partitions > 0) {
+                        List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
+                        for (int i = 0; i < metadata.partitions; i++) {
+                            futures.add(internalUpdateOffloadPolicies(offloadPolicies, topicName.getPartition(i)));
+                        }
+                        return FutureUtil.waitForAll(futures);
+                    } else {
+                        return internalUpdateOffloadPolicies(offloadPolicies, topicName);
+                    }
+                })
+                .whenComplete((result, e) -> {
+                    if (e != null) {
+                        completableFuture.completeExceptionally(e);
+                    } else {
+                        completableFuture.complete(null);
+                    }
+                });
+        return completableFuture;
+    }
+
+    private CompletableFuture<Void> internalUpdateOffloadPolicies(OffloadPolicies offloadPolicies, TopicName topicName) {
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenAccept(optionalTopic -> {
+            try {
+                if (!optionalTopic.isPresent() || !topicName.isPersistent()) {
+                    return;
+                }
+                PersistentTopic persistentTopic = (PersistentTopic) optionalTopic.get();
+                ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+                if (offloadPolicies == null) {
+                    LedgerOffloader namespaceOffloader = pulsar().getLedgerOffloaderMap().get(topicName.getNamespaceObject());
+                    LedgerOffloader topicOffloader = managedLedgerConfig.getLedgerOffloader();
+                    if (topicOffloader != null && topicOffloader != namespaceOffloader) {
+                        topicOffloader.close();
+                    }
+                    managedLedgerConfig.setLedgerOffloader(namespaceOffloader);
+                } else {
+                    managedLedgerConfig.setLedgerOffloader(pulsar().createManagedLedgerOffloader(offloadPolicies));
+                }
+                persistentTopic.getManagedLedger().setConfig(managedLedgerConfig);
+            } catch (PulsarServerException e) {
+                throw new RestException(e);
+            }
+        });
     }
 
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNum) {

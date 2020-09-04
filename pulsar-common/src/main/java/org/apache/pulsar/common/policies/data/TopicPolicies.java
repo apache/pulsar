@@ -49,6 +49,11 @@ public class TopicPolicies {
     private Integer maxUnackedMessagesOnSubscription = null;
     private Long delayedDeliveryTickTimeMillis = null;
     private Boolean delayedDeliveryEnabled = null;
+    private OffloadPolicies offloadPolicies;
+
+    public boolean isOffloadPoliciesSet() {
+        return offloadPolicies != null;
+    }
     private DispatchRate dispatchRate = null;
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
