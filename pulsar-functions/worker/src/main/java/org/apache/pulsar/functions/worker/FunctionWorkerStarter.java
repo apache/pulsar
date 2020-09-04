@@ -22,7 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-
+import io.prometheus.client.hotspot.DefaultExports;
 import lombok.extern.slf4j.Slf4j;
 
 /**

@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
@@ -37,6 +38,7 @@ import java.io.IOException;
 import java.io.Writer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Enumeration;
 
 @Path("/")
 public class FunctionsMetricsResource extends FunctionApiResource {
