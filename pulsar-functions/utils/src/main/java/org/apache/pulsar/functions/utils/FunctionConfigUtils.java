@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -154,7 +155,7 @@ public class FunctionConfigUtils {
 
         // Set subscription position
         Function.SubscriptionPosition subPosition;
-        if (functionConfig.getRetainEarliestPosition() != null && functionConfig.getRetainEarliestPosition()) {
+        if (functionConfig.getSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
             subPosition = Function.SubscriptionPosition.EARLIEST;
         } else {
             subPosition = Function.SubscriptionPosition.LATEST;
@@ -349,7 +350,6 @@ public class FunctionConfigUtils {
         }
         functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
         functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());
-        functionConfig.setRetainEarliestPosition(functionDetails.getRetainEarliestPosition());
 
         functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
         functionConfig.setAutoAck(functionDetails.getAutoAck());

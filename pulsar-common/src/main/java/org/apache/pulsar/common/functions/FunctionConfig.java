@@ -27,6 +27,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 /**
  * Configuration of Pulsar Function.
@@ -125,5 +126,5 @@ public class FunctionConfig {
     // Only used in AsyncFunction. Default: 1000.
     private Integer maxPendingAsyncRequests;
 
-    private Boolean retainEarliestPosition;
+    private SubscriptionInitialPosition subscriptionPosition;
 }

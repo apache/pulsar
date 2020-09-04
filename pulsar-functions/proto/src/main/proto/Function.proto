@@ -87,7 +87,7 @@ message FunctionDetails {
     string builtin = 20;
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
-    bool retainEarliestPosition = 23;
+    SubscriptionPosition subscriptionPosition = 23;
 }
 
 message ConsumerSpec {

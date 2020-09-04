@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
+
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.*;
 import org.apache.pulsar.common.util.Reflections;
@@ -58,7 +60,6 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
-        functionConfig.setRetainEarliestPosition(false);
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
@@ -99,7 +100,6 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
-        functionConfig.setRetainEarliestPosition(false);
         functionConfig.setForwardSourceMessageProperty(true);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
@@ -442,7 +442,7 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
         functionConfig.setRetainOrdering(false);
         functionConfig.setRetainKeyOrdering(false);
-        functionConfig.setRetainEarliestPosition(false);
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         functionConfig.setForwardSourceMessageProperty(false);
         functionConfig.setUserConfig(new HashMap<>());
         functionConfig.setAutoAck(true);
