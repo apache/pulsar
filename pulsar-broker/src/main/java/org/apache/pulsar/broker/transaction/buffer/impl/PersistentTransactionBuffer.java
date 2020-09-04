@@ -67,6 +67,8 @@ import java.util.stream.Collectors;
 public class PersistentTransactionBuffer extends PersistentTopic implements TransactionBuffer {
 
     private final static String TB_TOPIC_NAME_SUFFIX = "/_txnlog";
+    public final static String TB_EXIST_PROPERTY = "txn_tb_exist";
+
     private TransactionCursor txnCursor;
     private ManagedCursor retentionCursor;
     private Topic originTopic;
@@ -104,6 +106,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
+        recover();
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -398,7 +401,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     public void recover() {
         // TODO recover from snapshot
-        // TODO recover from log
+        recoverFromLog(PositionImpl.earliest);
     }
 
     public void recoverFromLog(PositionImpl startPosition) {

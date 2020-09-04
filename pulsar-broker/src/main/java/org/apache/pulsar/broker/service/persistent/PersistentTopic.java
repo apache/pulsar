@@ -98,6 +98,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -2271,9 +2272,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             transactionBufferLock.lock();
             try {
                 if (transactionBuffer == null) {
+                    this.ledger.setProperty(PersistentTransactionBuffer.TB_EXIST_PROPERTY, "true");
                     transactionBuffer = brokerService.getPulsar().getTransactionBufferProvider()
                             .newTransactionBuffer(this);
                 }
+            } catch (InterruptedException | ManagedLedgerException e) {
+                log.error("Update ledger property failed.", e);
             } finally {
                 transactionBufferLock.unlock();
             }
