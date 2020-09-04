@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
  */
 public class ServiceConfigurationTest {
 
-    final String fileName = "configurations/"; // test-resource file
+    final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
 
     /**
      * test {@link ServiceConfiguration} initialization
