@@ -30,11 +30,13 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
 
     boolean isDuplicate(MessageId messageId);
 
-    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties);
+    void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
+                           long txnidMostBits, long txnidLeastBits);
 
     void addListAcknowledgment(List<MessageIdImpl> messageIds, AckType ackType, Map<String, Long> properties);
 
-    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType, Map<String, Long> properties);
+    void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
+                                     Map<String, Long> properties, long txnidMostBits, long txnidLeastBits);
 
     void flush();
 

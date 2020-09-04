@@ -39,9 +39,10 @@ public class TransactionEntryImplTest {
         TransactionEntryImpl entry = new TransactionEntryImpl(
             new TxnID(1234L, 3456L),
             0L,
-            EntryImpl.create(12L, 23L, buffer),
+            EntryImpl.create(-1L, -1L, buffer),
             33L,
-            44L
+            44L,
+            1
         );
         assertEquals(buffer.refCnt(), 2);
         entry.close();

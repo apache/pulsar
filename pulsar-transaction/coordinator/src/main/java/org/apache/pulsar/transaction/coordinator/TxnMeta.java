@@ -59,7 +59,7 @@ public interface TxnMeta {
      * @return the list of partitions that this transaction acknowledges to.
      *         the returned list is sorted by partition name.
      */
-    List<String> ackedPartitions();
+    List<TransactionSubscription> ackedPartitions();
 
     /**
      * Add the list of produced partitions to the transaction.
@@ -78,7 +78,7 @@ public interface TxnMeta {
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addAckedPartitions(List<String> partitions)
+    TxnMeta addAckedPartitions(List<TransactionSubscription> partitions)
         throws InvalidTxnStatusException;
 
     /**

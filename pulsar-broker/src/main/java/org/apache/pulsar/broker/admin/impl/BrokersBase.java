@@ -275,11 +275,16 @@ public class BrokersBase extends AdminResource {
         // create non-partitioned topic manually and close the previous reader if present.
         try {
             pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
-                t.getSubscriptions().values().forEach(Subscription::deleteForcefully);
+                for (Subscription value : t.getSubscriptions().values()) {
+                    try {
+                        value.deleteForcefully();
+                    } catch (Exception e) {
+                        LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
+                    }
+                }
             });
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-            return;
+            LOG.warn("Failed to try to delete subscriptions for health check", e);
         }
         CompletableFuture<Producer<String>> producerFuture =
             client.newProducer(Schema.STRING).topic(topic).createAsync();

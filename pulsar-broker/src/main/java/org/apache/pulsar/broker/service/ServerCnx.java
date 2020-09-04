@@ -36,6 +36,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.ssl.SslHandler;
 
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -69,6 +70,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataExc
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicNotFoundException;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -125,6 +127,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -383,7 +386,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize lookup";
+                final String msg = "Exception occurred while trying to authorize lookup";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName, ex);
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
@@ -458,7 +461,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize get Partition Metadata";
+                final String msg = "Exception occurred while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
@@ -1717,7 +1720,7 @@ public class ServerCnx extends PulsarHandler {
         final int txnAction = command.getTxnAction().getNumber();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
-        service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
+        service.getTopics().get(TopicName.get(command.getTopic()).toString()).whenComplete((topic, t) -> {
             if (!topic.isPresent()) {
                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
                         command.getRequestId(), ServerError.TopicNotFound,
@@ -1740,7 +1743,48 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleEndTxnOnSubscription(PulsarApi.CommandEndTxnOnSubscription command) {
-        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+        final long requestId = command.getRequestId();
+        final long txnidMostBits = command.getTxnidMostBits();
+        final long txnidLeastBits = command.getTxnidLeastBits();
+        final String topic = command.getSubscription().getTopic();
+        final String subName = command.getSubscription().getSubscription();
+
+        service.getTopics().get(command.getSubscription().getTopic())
+            .thenAccept(optionalTopic -> {
+                if (!optionalTopic.isPresent()) {
+                    log.error("The topic {} is not exist in broker.", command.getSubscription().getTopic());
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "The topic " + topic + " is not exist in broker."));
+                    return;
+                }
+
+                Subscription subscription = optionalTopic.get().getSubscription(subName);
+                if (subscription == null) {
+                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "Topic " + optionalTopic.get().getName() + " subscription " + subName + " is not exist."));
+                    return;
+                }
+
+                CompletableFuture<Void> completableFuture =
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, command.getTxnAction().getNumber());
+                completableFuture.whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Handle end txn on subscription failed for request {}", requestId);
+                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                requestId, txnidLeastBits, txnidMostBits,
+                                ServerError.UnknownError,
+                                "Handle end txn on subscription failed."));
+                        return;
+                    }
+                    ctx.writeAndFlush(
+                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                });
+            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
@@ -1769,8 +1813,11 @@ public class ServerCnx extends PulsarHandler {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     command.getRequestId(), remoteAddress, txnID);
         }
-        List<String> subscriptionList = command.getSubscriptionList().stream()
-                .map(subscription -> subscription.getTopic() + "|" + subscription.getSubscription())
+        List<TransactionSubscription> subscriptionList = command.getSubscriptionList().stream()
+                .map(subscription -> TransactionSubscription.builder()
+                        .topic(subscription.getTopic())
+                        .subscription(subscription.getSubscription())
+                        .build())
                 .collect(Collectors.toList());
         service.pulsar().getTransactionMetadataStoreService().addAckedPartitionToTxn(txnID, subscriptionList)
                 .whenComplete(((v, ex) -> {
@@ -1779,7 +1826,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response success for add published partition to txn request {}",
                                     command.getRequestId());
                         }
-                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         log.info("handle add partition to txn finish.");
                     } else {
@@ -1787,7 +1834,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response error for add published partition to txn request {}",
                                     command.getRequestId(), ex);
                         }
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                     }

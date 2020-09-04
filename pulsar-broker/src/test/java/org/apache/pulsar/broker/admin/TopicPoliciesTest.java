@@ -29,10 +29,13 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -289,6 +292,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetPersistence() throws Exception {
+        PersistencePolicies persistencePoliciesForNamespace = new PersistencePolicies(2, 2, 2, 0.3);
+        admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
+
         PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
 
@@ -318,22 +324,269 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemovePersistence() throws Exception {
+        PersistencePolicies persistencePoliciesForNamespace = new PersistencePolicies(2, 2, 2, 0.3);
+        admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
 
-        PersistencePolicies persistencePolicies = new PersistencePolicies(2, 2, 2, 0.0);
-        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
+        PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
+        log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
 
-        admin.topics().setPersistence(testTopic, persistencePolicies);
+        admin.topics().setPersistence(persistenceTopic, persistencePolicies);
         Thread.sleep(3000);
-        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(testTopic);
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer = pulsarClient.newProducer().topic(persistenceTopic).create();
+        producer.close();
 
-        log.info("PersistencePolicies {} get on topic: {}", getPersistencePolicies, testTopic);
+        PersistencePolicies getPersistencePolicies = admin.topics().getPersistence(persistenceTopic);
+        log.info("PersistencePolicies {} get on topic: {}", getPersistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
 
-        admin.topics().removePersistence(testTopic);
+        admin.topics().removePersistence(persistenceTopic);
         Thread.sleep(3000);
         log.info("PersistencePolicies {} get on topic: {} after remove", getPersistencePolicies, testTopic);
         getPersistencePolicies = admin.topics().getPersistence(testTopic);
         Assert.assertNull(getPersistencePolicies);
+
+        admin.lookups().lookupTopic(persistenceTopic);
+        Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
+        PersistentTopic persistentTopic = (PersistentTopic) t;
+        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+        assertEquals(managedLedgerConfig.getEnsembleSize(), 2);
+        assertEquals(managedLedgerConfig.getWriteQuorumSize(), 2);
+        assertEquals(managedLedgerConfig.getAckQuorumSize(), 2);
+        assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.3);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckMaxProducers() throws Exception {
+        Integer maxProducers = new Integer(-1);
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, testTopic);
+        try {
+            admin.topics().setMaxProducers(testTopic, maxProducers);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetMaxProducers() throws Exception {
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 1);
+        log.info("MaxProducers: {} will set to the namespace: {}", 1, myNamespace);
+        Integer maxProducers = 2;
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
+        admin.topics().setMaxProducers(persistenceTopic, maxProducers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer1 = null;
+        Producer producer2 = null;
+        Producer producer3 = null;
+        try {
+            producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max producers limit");
+        }
+        Assert.assertNotNull(producer1);
+        Assert.assertNotNull(producer2);
+        Assert.assertNull(producer3);
+        producer1.close();
+        producer2.close();
+
+        Integer getMaxProducers = admin.topics().getMaxProducers(persistenceTopic);
+        log.info("MaxProducers {} get on topic: {}", getMaxProducers, persistenceTopic);
+        Assert.assertEquals(getMaxProducers, maxProducers);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveMaxProducers() throws Exception {
+        Integer maxProducers = 2;
+        log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
+        admin.topics().setMaxProducers(persistenceTopic, maxProducers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Producer producer1 = null;
+        Producer producer2 = null;
+        Producer producer3 = null;
+        Producer producer4 = null;
+        try {
+            producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max producers limit on topic level.");
+        }
+        Assert.assertNotNull(producer1);
+        Assert.assertNotNull(producer2);
+        Assert.assertNull(producer3);
+
+        admin.topics().removeMaxProducers(persistenceTopic);
+        Thread.sleep(3000);
+        Integer getMaxProducers = admin.topics().getMaxProducers(testTopic);
+        log.info("MaxProducers: {} get on topic: {} after remove", getMaxProducers, testTopic);
+        Assert.assertNull(getMaxProducers);
+        try {
+            producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        Assert.assertNotNull(producer3);
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
+        log.info("MaxProducers: {} will set to the namespace: {}", 3, myNamespace);
+        try {
+            producer4 = pulsarClient.newProducer().topic(persistenceTopic).create();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max producers limit on namespace level.");
+        }
+        Assert.assertNull(producer4);
+
+        producer1.close();
+        producer2.close();
+        producer3.close();
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+
+    @Test
+    public void testGetSetDispatchRate() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, dispatchRate);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
+        Assert.assertEquals(getDispatchRate, dispatchRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveDispatchRate() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(100, 10000, 1, true);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        admin.topics().setDispatchRate(testTopic, dispatchRate);
+        log.info("Dispatch Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        DispatchRate getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        log.info("Dispatch Rate: {} get on topic: {}", getDispatchRate, testTopic);
+        Assert.assertEquals(getDispatchRate, dispatchRate);
+
+        admin.topics().removeDispatchRate(testTopic);
+        Thread.sleep(3000);
+        log.info("Dispatch Rate get on topic: {} after remove", getDispatchRate, testTopic);
+        getDispatchRate = admin.topics().getDispatchRate(testTopic);
+        Assert.assertNull(getDispatchRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetCompactionThreshold() throws Exception {
+        long compactionThreshold = 100000;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveCompactionThreshold() throws Exception {
+        Long compactionThreshold = 100000L;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+        log.info("Compaction threshold set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        Long getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold: {} get on topic: {}", getCompactionThreshold, testTopic);
+        Assert.assertEquals(getCompactionThreshold, compactionThreshold);
+
+        admin.topics().removeCompactionThreshold(testTopic);
+        Thread.sleep(3000);
+        log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
+        getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        Assert.assertNull(getCompactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetPublishRate() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        admin.topics().setPublishRate(testTopic, publishRate);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
+        Assert.assertEquals(getPublishRate, publishRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemovePublishRate() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        admin.topics().setPublishRate(testTopic, publishRate);
+        log.info("Publish Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        PublishRate getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate: {} get on topic: {}", getPublishRate, testTopic);
+        Assert.assertEquals(getPublishRate, publishRate);
+
+        admin.topics().removePublishRate(testTopic);
+        Thread.sleep(3000);
+        getPublishRate = admin.topics().getPublishRate(testTopic);
+        log.info("Publish Rate get on topic: {} after remove", getPublishRate, testTopic);
+        Assert.assertNull(getPublishRate);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
