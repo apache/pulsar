@@ -212,7 +212,7 @@ public final class PulsarDatabaseHistory extends AbstractDatabaseHistory {
                             if (log.isTraceEnabled()) {
                                 log.trace("Recovering database history: {}", recordObj);
                             }
-                            if (recordObj == null || !recordObj.isValid()) {
+                            if (!recordObj.isValid()) {
                                 log.warn("Skipping invalid database history record '{}'. " +
                                         "This is often not an issue, but if it happens repeatedly please check the '{}' topic.",
                                     recordObj, topicName);
