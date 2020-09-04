@@ -21,12 +21,18 @@ package org.apache.pulsar.broker.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
@@ -35,11 +41,15 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.PersistentTransactionBuffer;
-import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionCursorImpl;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionMetaImpl;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -47,6 +57,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -510,5 +521,82 @@ public class TransactionProduceTest extends TransactionTestBase {
         return pendingAckCount;
     }
 
+
+    @Test
+    public void recoverFromLogTest() throws Exception {
+        ManagedLedgerImpl normalTopicLedger = (ManagedLedgerImpl) getPulsarServiceList().get(0)
+                .getManagedLedgerFactory().open("normal-ml");
+        PersistentTopic normalTopic = new PersistentTopic(
+                "normal-topic", normalTopicLedger, getPulsarServiceList().get(0).getBrokerService());
+
+        ManagedLedgerImpl tbLedger = (ManagedLedgerImpl) getPulsarServiceList().get(0)
+                .getManagedLedgerFactory().open("tb-ml");
+        PersistentTransactionBuffer transactionBuffer =
+                new PersistentTransactionBuffer("tb-test", tbLedger,
+                        getPulsarServiceList().get(0).getBrokerService(), normalTopic);
+
+        Set<TxnID> txnIDSet = new LinkedHashSet<>();
+        for (int i = 0; i < 5; i++) {
+            TxnID txnID = new TxnID(i, i + 1);
+            txnIDSet.add(txnID);
+            appendTransactionMessages(txnID, transactionBuffer, 10);
+        }
+        for (TxnID txnID : txnIDSet) {
+            log.info("txnId: {}", txnID);
+            if (txnID.getMostSigBits() % 2 == 0) {
+                transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.COMMIT_VALUE).get();
+            } else {
+                transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.ABORT_VALUE).get();
+            }
+        }
+        Thread.sleep(1000);
+
+        PersistentTransactionBuffer recoverTB = new PersistentTransactionBuffer(
+                "tb-test", tbLedger, getPulsarServiceList().get(0).getBrokerService(), normalTopic);
+        Class<TransactionCursorImpl> transactionCursorClass = TransactionCursorImpl.class;
+        Field txnIndexField = transactionCursorClass.getDeclaredField("txnIndex");
+        txnIndexField.setAccessible(true);
+        Field ledgerTxnIndexField = transactionCursorClass.getDeclaredField("committedLedgerTxnIndex");
+        ledgerTxnIndexField.setAccessible(true);
+
+        ConcurrentMap<TxnID, TransactionMetaImpl> recoverIndexMap =
+                (ConcurrentMap) txnIndexField.get(recoverTB.getTxnCursor());
+        Assert.assertEquals(recoverIndexMap.size(), 0);
+
+        recoverTB.recoverFromLog(PositionImpl.earliest);
+
+        ConcurrentMap<TxnID, TransactionMetaImpl> originalIndexMap =
+                (ConcurrentMap) txnIndexField.get(transactionBuffer.getTxnCursor());
+        for (Map.Entry<TxnID, TransactionMetaImpl> entry : originalIndexMap.entrySet()) {
+            TransactionMetaImpl recoverMeta = recoverIndexMap.getOrDefault(entry.getKey(), null);
+            Assert.assertNotNull(recoverMeta);
+            Assert.assertEquals(entry.getValue().getEntries(), recoverMeta.getEntries());
+        }
+
+        Map<Long, Set<TxnID>> recoverLedgerTxnIndexMap = (Map) ledgerTxnIndexField.get(recoverTB.getTxnCursor());
+        Map<Long, Set<TxnID>> originLedgerTxnIndexMap = (Map) ledgerTxnIndexField.get(transactionBuffer.getTxnCursor());
+        for (Map.Entry<Long, Set<TxnID>> entry : originLedgerTxnIndexMap.entrySet()) {
+            Set<TxnID> recoverCommittedIndex = recoverLedgerTxnIndexMap.getOrDefault(entry.getKey(), null);
+            Assert.assertNotNull(recoverCommittedIndex);
+            Assert.assertEquals(entry.getValue(), recoverCommittedIndex);
+        }
+    }
+
+    private void appendTransactionMessages(TxnID txnID, TransactionBuffer tb, int transactionMsgCnt) throws ExecutionException, InterruptedException {
+        for (int i = 0; i < transactionMsgCnt; i++) {
+            PulsarApi.MessageMetadata.Builder builder = PulsarApi.MessageMetadata.newBuilder();
+            builder.setProducerName("producerName");
+            builder.setSequenceId(i);
+            builder.setTxnidMostBits(txnID.getMostSigBits());
+            builder.setTxnidLeastBits(txnID.getLeastSigBits());
+            builder.setPublishTime(System.currentTimeMillis());
+
+            ByteBuf headerAndPayload = Commands.serializeMetadataAndPayload(
+                    Commands.ChecksumType.Crc32c, builder.build(),
+                    Unpooled.copiedBuffer(("TXN_MSG_CONTENT" + i).getBytes(UTF_8)));
+            tb.appendBufferToTxn(txnID, i, 1, headerAndPayload).get();
+        }
+        log.info("append messages to TB finish.");
+    }
 
 }
