@@ -42,7 +42,8 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     }
 
     @Override
-    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties) {
+    public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
+                                  long txnidMostBits, long txnidLeastBits) {
         // no-op
     }
 
@@ -52,7 +53,8 @@ public class NonPersistentAcknowledgmentGroupingTracker implements Acknowledgmen
     }
 
     @Override
-    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int BatchSize, AckType ackType, Map<String, Long> properties) {
+    public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int BatchSize, AckType ackType,
+                                            Map<String, Long> properties, long txnidMostSets, long txnidLeastSets) {
         // no-op
     }
 
