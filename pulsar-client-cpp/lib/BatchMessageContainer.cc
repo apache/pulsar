@@ -58,6 +58,15 @@ void BatchMessageContainer::clear() {
 
 Result BatchMessageContainer::createOpSendMsg(OpSendMsg& opSendMsg,
                                               const FlushCallback& flushCallback) const {
+    if (flushCallback) {
+        opSendMsg.sendCallback_ = [this, flushCallback](Result result, const MessageId& id) {
+            batch_.complete(result, id);
+            flushCallback(result);
+        };
+    } else {
+        opSendMsg.sendCallback_ = batch_.createSendCallback();
+    }
+
     if (batch_.empty()) {
         return ResultOperationNotSupported;
     }
@@ -81,14 +90,6 @@ Result BatchMessageContainer::createOpSendMsg(OpSendMsg& opSendMsg,
     }
 
     opSendMsg.msg_.impl_ = impl;
-    if (flushCallback) {
-        opSendMsg.sendCallback_ = [this, flushCallback](Result result, const MessageId& id) {
-            batch_.complete(result, id);
-            flushCallback(result);
-        };
-    } else {
-        opSendMsg.sendCallback_ = batch_.createSendCallback();
-    }
     opSendMsg.sequenceId_ = impl->metadata.sequence_id();
     opSendMsg.producerId_ = producerId_;
     opSendMsg.timeout_ = TimeUtils::now() + milliseconds(producerConfig_.getSendTimeout());
@@ -102,14 +103,14 @@ std::vector<Result> BatchMessageContainer::createOpSendMsgs(std::vector<OpSendMs
 }
 
 void BatchMessageContainer::serialize(std::ostream& os) const {
-    os << "{ BatchMessageContainer [ size = " << numMessages_    //
-       << "] [ bytes = " << sizeInBytes_                         //
-       << "] [ maxSize = " << getMaxNumMessages()                //
-       << "] [ maxBytes = " << getMaxSizeInBytes()               //
-       << "] [ topicName = " << topicName_                       //
-       << "] [ numberOfBatchesSent_ = " << numberOfBatchesSent_  //
-       << "] [ averageBatchSize_ = " << averageBatchSize_        //
-       << "]}";
+    os << "{ BatchMessageContainer [size = " << numMessages_    //
+       << "] [bytes = " << sizeInBytes_                         //
+       << "] [maxSize = " << getMaxNumMessages()                //
+       << "] [maxBytes = " << getMaxSizeInBytes()               //
+       << "] [topicName = " << topicName_                       //
+       << "] [numberOfBatchesSent_ = " << numberOfBatchesSent_  //
+       << "] [averageBatchSize_ = " << averageBatchSize_        //
+       << "] }";
 }
 
 }  // namespace pulsar

@@ -85,6 +85,7 @@ class BatchMessageContainerBase : public boost::noncopyable {
      * @param opSendMsg the OpSendMsg object to create
      * @param flushCallback the callback to trigger after the OpSendMsg was completed
      * @return ResultOk if create successfully
+     * @note OpSendMsg's sendCallback_ must be set even if it failed
      */
     virtual Result createOpSendMsg(OpSendMsg& opSendMsg,
                                    const FlushCallback& flushCallback = nullptr) const = 0;
@@ -95,6 +96,7 @@ class BatchMessageContainerBase : public boost::noncopyable {
      * @param opSendMsgList the OpSendMsg list to create
      * @param flushCallback the callback to trigger after the OpSendMsg was completed
      * @return all create results of `opSendMsgs`, ResultOk means create successfully
+     * @note OpSendMsg's sendCallback_ must be set even if it failed
      */
     virtual std::vector<Result> createOpSendMsgs(std::vector<OpSendMsg>& opSendMsgs,
                                                  const FlushCallback& flushCallback = nullptr) const = 0;

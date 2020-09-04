@@ -33,6 +33,7 @@
 #include "PulsarApi.pb.h"
 #include "OpSendMsg.h"
 #include "BatchMessageContainerBase.h"
+#include "PendingFailures.h"
 
 using namespace pulsar;
 
@@ -147,7 +148,7 @@ class ProducerImpl : public HandlerBase,
 
     std::unique_ptr<BatchMessageContainerBase> batchMessageContainer_;
     DeadlineTimerPtr batchTimer_;
-    void batchMessageAndSend(const FlushCallback& flushCallback = nullptr);
+    PendingFailures batchMessageAndSend(const FlushCallback& flushCallback = nullptr);
 
     volatile int64_t lastSequenceIdPublished_;
     std::string schemaVersion_;

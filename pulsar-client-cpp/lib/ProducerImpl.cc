@@ -297,7 +297,9 @@ void ProducerImpl::statsCallBackHandler(Result res, const MessageId& msgId, Send
 void ProducerImpl::flushAsync(FlushCallback callback) {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        batchMessageAndSend(callback);
+        auto failures = batchMessageAndSend(callback);
+        lock.unlock();
+        failures.complete();
     } else {
         callback(ResultOk);
     }
@@ -306,7 +308,9 @@ void ProducerImpl::flushAsync(FlushCallback callback) {
 void ProducerImpl::triggerFlush() {
     if (batchMessageContainer_) {
         Lock lock(mutex_);
-        batchMessageAndSend();
+        auto failures = batchMessageAndSend();
+        lock.unlock();
+        failures.complete();
     }
 }
 
@@ -384,9 +388,12 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         // If queue is full sending the batch immediately, no point waiting till batchMessagetimeout
         if (batchMessageContainer_) {
             LOG_DEBUG(getName() << " - sending batch message immediately");
-            batchMessageAndSend();
+            auto failures = batchMessageAndSend();
+            lock.unlock();
+            failures.complete();
+        } else {
+            lock.unlock();
         }
-        lock.unlock();
         cb(ResultProducerQueueIsFull, msg.getMessageId());
         return;
     }
@@ -396,26 +403,24 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     if (batchMessageContainer_ && !msg.impl_->metadata.has_deliver_at_time()) {
         // Batching is enabled and the message is not delayed
         if (!batchMessageContainer_->hasEnoughSpace(msg)) {
-            batchMessageAndSend();
+            batchMessageAndSend().complete();
         }
         bool isFirstMessage = batchMessageContainer_->isFirstMessageToAdd(msg);
-        if (batchMessageContainer_->hasEnoughSpace(msg)) {
-            bool isFull = batchMessageContainer_->add(msg, cb);
-            if (isFirstMessage) {
-                batchTimer_->expires_from_now(
-                    boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
-                batchTimer_->async_wait(std::bind(&ProducerImpl::batchMessageTimeoutHandler,
-                                                  shared_from_this(), std::placeholders::_1));
-            }
-            if (!isFirstMessage) {
-                pendingMessagesQueue_.release(1);
-            }  // else: retain the spot only for the 1st single message of batch
-            if (isFull) {
-                batchMessageAndSend();
-            }
+        bool isFull = batchMessageContainer_->add(msg, cb);
+        if (isFirstMessage) {
+            batchTimer_->expires_from_now(
+                boost::posix_time::milliseconds(conf_.getBatchingMaxPublishDelayMs()));
+            batchTimer_->async_wait(std::bind(&ProducerImpl::batchMessageTimeoutHandler, shared_from_this(),
+                                              std::placeholders::_1));
+            // Retain the spot only for the 1st single message of batch, the spot would be released when the
+            // batched message was sent to the pending queue or batching failed in batchMessageAndSend()
         } else {
+            pendingMessagesQueue_.release(1);
+        }
+        if (isFull) {
+            auto failures = batchMessageAndSend();
             lock.unlock();
-            cb(ResultMessageTooBig, msg.getMessageId());
+            failures.complete();
         }
     } else {
         sendMessage(OpSendMsg{msg, cb, producerId_, sequenceId, conf_.getSendTimeout()});
@@ -423,7 +428,8 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
 }
 
 // It must be called while `mutex_` is acquired
-void ProducerImpl::batchMessageAndSend(const FlushCallback& flushCallback) {
+PendingFailures ProducerImpl::batchMessageAndSend(const FlushCallback& flushCallback) {
+    PendingFailures failures;
     LOG_DEBUG("batchMessageAndSend " << *batchMessageContainer_);
     batchTimer_->cancel();
 
@@ -443,6 +449,7 @@ void ProducerImpl::batchMessageAndSend(const FlushCallback& flushCallback) {
                 // we need to release the spot manually
                 LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsg: " << result);
                 pendingMessagesQueue_.release(1);
+                failures.add(std::bind(opSendMsg.sendCallback_, result, MessageId{}));
             }
         } else if (numBatches > 1) {
             std::vector<OpSendMsg> opSendMsgs;
@@ -456,12 +463,14 @@ void ProducerImpl::batchMessageAndSend(const FlushCallback& flushCallback) {
                     LOG_ERROR("batchMessageAndSend | Failed to createOpSendMsgs[" << i
                                                                                   << "]: " << results[i]);
                     pendingMessagesQueue_.release(1);
+                    failures.add(std::bind(opSendMsgs[i].sendCallback_, results[i], MessageId{}));
                 }
             }
         }  // else numBatches is 0, do nothing
     }
 
     batchMessageContainer_->clear();
+    return failures;
 }
 
 // Precondition -
