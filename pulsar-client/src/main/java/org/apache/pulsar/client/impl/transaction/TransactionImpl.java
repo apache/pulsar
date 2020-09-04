@@ -92,7 +92,7 @@ public class TransactionImpl implements Transaction {
     // register the topics that will be modified by this transaction
     public synchronized void registerProducedTopic(String topic) {
         if (producedTopics.add(topic)) {
-            // TODO: we need to issue the request to TC to register the produced topic
+            // we need to issue the request to TC to register the produced topic
             tcClient.addPublishPartitionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
         }
     }
@@ -109,9 +109,10 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerAckedTopic(String topic) {
+    public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
-            // TODO: we need to issue the request to TC to register the acked topic
+            // we need to issue the request to TC to register the acked topic
+            tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
         }
     }
 
