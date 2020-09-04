@@ -40,7 +40,7 @@ RUN mkdir /pulsar
 COPY . /pulsar/
 
 # Python dependencies
-RUN pip3 install -r /pulsar/requirements.txt
+RUN pip install -r /pulsar/requirements.txt
 
 # Collect all static files needed by Django in a
 # single place. Needed to run the app outside the

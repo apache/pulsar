@@ -32,6 +32,7 @@ RUN apt-get update \
     && apt-get -y install python3.7 python3.7-dev python3-pip postgresql sudo nginx supervisor libpq-dev
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+RUN ln -s /usr/bin/pip3 /usr/bin/pip
 
 # Postgres configuration
 COPY --from=dashboard /etc/postgresql/11/main/postgresql.conf /etc/postgresql/11/main/postgresql.conf
@@ -61,8 +62,10 @@ COPY --from=dashboard /pulsar/django /pulsar/django
 COPY --from=dashboard /pulsar/requirements.txt /pulsar/django
 COPY --from=dashboard /pulsar/conf/* /pulsar/conf/
 
+RUN pip -V
+
 # Python dependencies
-RUN pip3 install -r /pulsar/django/requirements.txt
+RUN pip install -r /pulsar/django/requirements.txt
 
 # Copy web-app sources
 # Setup database and create tables
@@ -80,10 +83,10 @@ redirect_stderr=true" >> /etc/supervisor/conf.d/supervisor-app.conf
 # Collect all static files needed by Django in a
 # single place. Needed to run the app outside the
 # Django test web server
-RUN python --version
-RUN cd /pulsar/django && python3 manage.py collectstatic --no-input
+RUN cd /pulsar/django && python manage.py collectstatic --no-input
 
 ENV SERVICE_URL http://127.0.0.1:8080
 EXPOSE 80 8080 6650
 
 CMD ["supervisord", "-n"]
+
