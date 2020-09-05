@@ -383,7 +383,7 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet(config.getClusterName()));
             }
         } catch (PulsarAdminException e) {
-            log.info(e.getMessage());
+            log.info(e.getMessage(), e);
         }
     }
 
@@ -413,7 +413,7 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().createNamespace(namespace);
             }
         } catch (PulsarAdminException e) {
-            log.info(e.getMessage());
+            log.warn(e.getMessage(), e);
         }
     }
 
@@ -447,7 +447,7 @@ public class PulsarStandalone implements AutoCloseable {
                 bkEnsemble.stop();
             }
         } catch (Exception e) {
-            log.error("Shutdown failed: {}", e.getMessage());
+            log.error("Shutdown failed: {}", e.getMessage(), e);
         }
     }
 }
