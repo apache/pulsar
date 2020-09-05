@@ -137,8 +137,8 @@
         {
             "version": "v3",
             "fileName": [
-                "swaggerfunctions",
                 "swaggersink",
+                "swaggerfunctions",
                 "swaggersource"
             ]
         }
