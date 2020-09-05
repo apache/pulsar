@@ -71,6 +71,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -1498,6 +1499,83 @@ public class TopicsImpl extends BaseResource implements Topics {
     public void removeMaxUnackedMessagesOnConsumer(String topic) throws PulsarAdminException {
         try {
             removeMaxUnackedMessagesOnConsumerAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException {
+        try {
+            return getInactiveTopicPoliciesAsync(topic).
+                    get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
+        final CompletableFuture<InactiveTopicPolicies> future = new CompletableFuture<>();
+        asyncGetRequest(path, new InvocationCallback<InactiveTopicPolicies>() {
+            @Override
+            public void completed(InactiveTopicPolicies inactiveTopicPolicies) {
+                future.complete(inactiveTopicPolicies);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                future.completeExceptionally(getApiException(throwable.getCause()));
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
+        return asyncPostRequest(path, Entity.entity(inactiveTopicPolicies, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void setInactiveTopicPolicies(String topic, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
+        try {
+            setInactiveTopicPoliciesAsync(topic, inactiveTopicPolicies)
+                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void removeInactiveTopicPolicies(String topic) throws PulsarAdminException {
+        try {
+            removeInactiveTopicPoliciesAsync(topic).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {

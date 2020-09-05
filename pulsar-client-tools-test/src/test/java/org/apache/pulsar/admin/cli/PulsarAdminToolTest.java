@@ -760,6 +760,14 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
         verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
 
+        cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
+        verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
+                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
         class TimestampMatcher implements ArgumentMatcher<Long> {

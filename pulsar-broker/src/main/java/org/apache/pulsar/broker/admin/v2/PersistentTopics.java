@@ -57,6 +57,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -375,6 +376,69 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                        @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         setMaxUnackedMessagesOnConsumer(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Get inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                         @PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace,
+                                         @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isInactiveTopicPoliciesSet()) {
+            asyncResponse.resume(topicPolicies.getInactiveTopicPolicies());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Set inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @PathParam("topic") @Encoded String encodedTopic,
+                                                @ApiParam(value = "inactive topic policies for the specified topic")
+                                                        InactiveTopicPolicies inactiveTopicPolicies) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set InactiveTopicPolicies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set InactiveTopicPolicies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Delete inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("tenant") String tenant,
+                                                       @PathParam("namespace") String namespace,
+                                                       @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setInactiveTopicPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }
 
     @GET
