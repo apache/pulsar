@@ -371,7 +371,7 @@ public class FunctionActioner {
                       .get(topic).getNamespace(), subscriptionName);
                 } else {
                     pulsarAdmin.topics().deleteSubscription(topic,
-                      subscriptionName, true);
+                      subscriptionName);
                 }
             } catch (PulsarAdminException e) {
                 if (e instanceof PulsarAdminException.NotFoundException) {
