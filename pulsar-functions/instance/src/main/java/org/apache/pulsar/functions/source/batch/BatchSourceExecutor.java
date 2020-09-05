@@ -175,16 +175,40 @@ public class BatchSourceExecutor<T> implements Source<T> {
   }
 
   private void stop() throws Exception {
+    Exception ex = null;
     if (discoveryTriggerer != null) {
-      discoveryTriggerer.stop();
+      try {
+        discoveryTriggerer.stop();
+      } catch (Exception e) {
+        log.error("Encountered exception when closing Batch Source Triggerer", e);
+        ex = e;
+      }
       discoveryTriggerer = null;
     }
     if (intermediateTopicConsumer != null) {
-      intermediateTopicConsumer.close();
+      try {
+        intermediateTopicConsumer.close();
+      } catch (Exception e) {
+        log.error("Encountered exception when closing intermediate topic of Batch Source", e);
+        if (ex != null) {
+          ex = e;
+        }
+      }
       intermediateTopicConsumer = null;
     }
     if (batchSource != null) {
-      batchSource.close();
+      try {
+        batchSource.close();
+      } catch (Exception e) {
+        log.error("Encountered exception when closing Batch Source", e);
+        if (ex != null) {
+          ex = e;
+        }
+      }
+    }
+
+    if (ex != null) {
+      throw ex;
     }
   }
 
