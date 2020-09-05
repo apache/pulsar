@@ -1544,14 +1544,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies) {
+    public CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic
+            , InactiveTopicPolicies inactiveTopicPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "inactiveTopicPolicies");
         return asyncPostRequest(path, Entity.entity(inactiveTopicPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void setInactiveTopicPolicies(String topic, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
+    public void setInactiveTopicPolicies(String topic
+            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException {
         try {
             setInactiveTopicPoliciesAsync(topic, inactiveTopicPolicies)
                     .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);

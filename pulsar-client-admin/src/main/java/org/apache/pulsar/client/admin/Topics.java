@@ -1732,7 +1732,8 @@ public interface Topics {
      * @param maxNum
      * @throws PulsarAdminException
      */
-    void setInactiveTopicPolicies(String topic, InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+    void setInactiveTopicPolicies(String topic
+            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
 
     /**
      * set inactive topic policies of a topic asynchronously.
