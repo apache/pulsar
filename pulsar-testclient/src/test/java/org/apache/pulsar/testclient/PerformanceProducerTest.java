@@ -140,7 +140,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
         Assert.assertTrue(count1 > 0 && count2 > 0);
         thread2.interrupt();
-        consumer1.close();
-        consumer2.close();
+        newConsumer1.close();
+        newConsumer2.close();
     }
 }
