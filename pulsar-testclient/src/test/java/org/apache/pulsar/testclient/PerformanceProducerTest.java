@@ -94,6 +94,9 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         }
         //in key_share mode, only one consumer can get msg
         Assert.assertTrue(count1 == 0 || count2 == 0);
+
+        consumer1.close();
+        consumer2.close();
         thread.interrupt();
         while (thread.isAlive()) {
             Thread.sleep(1000);
@@ -112,30 +115,32 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         });
         thread2.start();
 
-        consumer1 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
+        Consumer newConsumer1 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
-        consumer2 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
+        Consumer newConsumer2 = pulsarClient.newConsumer().topic(topic2).subscriptionName("sub-2")
                 .subscriptionType(SubscriptionType.Key_Shared).subscribe();
         count1 = 0;
         count2 = 0;
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer1.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> message = newConsumer1.receive(1, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
             count1++;
-            consumer1.acknowledge(message);
+            newConsumer1.acknowledge(message);
         }
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer2.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> message = newConsumer2.receive(1, TimeUnit.SECONDS);
             if (message == null) {
                 break;
             }
             count2++;
-            consumer2.acknowledge(message);
+            newConsumer2.acknowledge(message);
         }
 
         Assert.assertTrue(count1 > 0 && count2 > 0);
         thread2.interrupt();
+        consumer1.close();
+        consumer2.close();
     }
 }
