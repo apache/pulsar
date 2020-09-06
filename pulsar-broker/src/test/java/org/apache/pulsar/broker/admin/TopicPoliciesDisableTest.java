@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -249,6 +250,26 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().getMaxConsumers(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testSubscribeRateDisabled() throws Exception {
+        SubscribeRate subscribeRate = new SubscribeRate(10, 30);
+        log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);
+
+        try {
+            admin.topics().setSubscribeRate(testTopic, subscribeRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getSubscribeRate(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);

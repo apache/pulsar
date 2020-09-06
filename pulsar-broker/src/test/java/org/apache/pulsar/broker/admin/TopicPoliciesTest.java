@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import static org.testng.Assert.assertEquals;
 
 import com.google.common.collect.Sets;
@@ -786,6 +787,44 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer3.close();
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetSubscribeRate() throws Exception {
+        SubscribeRate subscribeRate = new SubscribeRate(10, 30);
+        log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);
+
+        admin.topics().setSubscribeRate(testTopic, subscribeRate);
+        log.info("Subscribe Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        SubscribeRate getSubscribeRate = admin.topics().getSubscribeRate(testTopic);
+        log.info("Subscribe Rate: {} get on topic: {}", getSubscribeRate, testTopic);
+        Assert.assertEquals(getSubscribeRate, subscribeRate);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveSubscribeRate() throws Exception {
+        SubscribeRate subscribeRate = new SubscribeRate(10, 30);
+        log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);
+
+        admin.topics().setSubscribeRate(testTopic, subscribeRate);
+        log.info("Subscribe Rate set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        SubscribeRate getSubscribeRate = admin.topics().getSubscribeRate(testTopic);
+        log.info("Subscribe Rate: {} get on topic: {}", getSubscribeRate, testTopic);
+        Assert.assertEquals(getSubscribeRate, subscribeRate);
+
+        admin.topics().removeSubscribeRate(testTopic);
+        Thread.sleep(3000);
+        log.info("Subscribe Rate get on topic: {} after remove", getSubscribeRate, testTopic);
+        getSubscribeRate = admin.topics().getSubscribeRate(testTopic);
+        Assert.assertNull(getSubscribeRate);
+
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 }

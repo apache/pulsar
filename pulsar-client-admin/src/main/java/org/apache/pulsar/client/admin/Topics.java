@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
 /**
  * Admin interface for Topics management.
@@ -2301,7 +2302,6 @@ public interface Topics {
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
 
-
     /**
      * Get the max number of consumer for specified topic.
      *
@@ -2353,4 +2353,66 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxConsumersAsync(String topic);
+
+    /**
+     * Set topic-subscribe-rate (topic will limit by subscribeRate).
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscribeRate(String topic, SubscribeRate subscribeRate) throws PulsarAdminException;
+
+    /**
+     * Set topic-subscribe-rate (topics will limit by subscribeRate) asynchronously.
+     *
+     * @param topic
+     * @param subscribeRate
+     *            consumer subscribe limit by this subscribeRate
+     */
+    CompletableFuture<Void> setSubscribeRateAsync(String topic, SubscribeRate subscribeRate);
+
+    /**
+     * Get topic-subscribe-rate (topics allow subscribe times per consumer in a period).
+     *
+     * @param topic
+     * @returns subscribeRate
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    SubscribeRate getSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Get topic-subscribe-rate asynchronously.
+     * <p/>
+     * Topic allow subscribe times per consumer in a period.
+     *
+     * @param topic
+     * @returns subscribeRate
+     */
+    CompletableFuture<SubscribeRate> getSubscribeRateAsync(String topic);
+
+    /**
+     * Remove topic-subscribe-rate.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    void removeSubscribeRate(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove topic-subscribe-rate asynchronously.
+     * <p/>
+     * Remove topic subscribe rate
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *              unexpected error
+     */
+    CompletableFuture<Void> removeSubscribeRateAsync(String topic) throws PulsarAdminException;
 }
