@@ -24,6 +24,7 @@
 #include "Commands.h"
 #include "BatchMessageContainerBase.h"
 #include "BatchMessageContainer.h"
+#include "BatchMessageKeyBasedContainer.h"
 #include <boost/date_time/local_time/local_time.hpp>
 #include <lib/TopicName.h>
 #include "MessageAndCallbackBatch.h"
@@ -79,7 +80,17 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
     }
 
     if (conf_.getBatchingEnabled()) {
-        batchMessageContainer_.reset(new BatchMessageContainer(*this));
+        switch (conf_.getBatchingType()) {
+            case ProducerConfiguration::DefaultBatching:
+                batchMessageContainer_.reset(new BatchMessageContainer(*this));
+                break;
+            case ProducerConfiguration::KeyBasedBatching:
+                batchMessageContainer_.reset(new BatchMessageKeyBasedContainer(*this));
+                break;
+            default:  // never reached here
+                LOG_ERROR("Unknown batching type: " << conf_.getBatchingType());
+                return;
+        }
         batchTimer_ = executor_->createDeadlineTimer();
     }
 }
@@ -500,7 +511,9 @@ void ProducerImpl::batchMessageTimeoutHandler(const boost::system::error_code& e
     }
     LOG_DEBUG(getName() << " - Batch Message Timer expired");
     Lock lock(mutex_);
-    batchMessageAndSend();
+    auto failures = batchMessageAndSend();
+    lock.unlock();
+    failures.complete();
 }
 
 void ProducerImpl::printStats() {
