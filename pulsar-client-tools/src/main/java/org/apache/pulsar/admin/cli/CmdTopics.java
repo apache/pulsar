@@ -1466,7 +1466,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            admin.topics().getMaxProducers(persistentTopic);
+            print(admin.topics().getMaxProducers(persistentTopic));
         }
     }
 
