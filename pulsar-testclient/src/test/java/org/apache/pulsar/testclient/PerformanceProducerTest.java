@@ -58,7 +58,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000)
     public void testMsgKey() throws Exception {
-        String argString = "%s -r 10 -u %s -m 1000000000";
+        String argString = "%s -r 10 -u %s -m 500";
         String topic = testTopic + UUID.randomUUID().toString();
         String args = String.format(argString, topic, pulsar.getBrokerServiceUrl());
         Thread thread = new Thread(() -> {
@@ -100,7 +100,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         }
 
         //use msg key generator,so every consumer can get msg
-        String newArgString = "%s -r 10 -u %s -m 1000000000 -mk autoIncrement";
+        String newArgString = "%s -r 10 -u %s -m 500 -mk autoIncrement";
         String topic2 = testTopic + UUID.randomUUID().toString();
         String newArgs = String.format(newArgString, topic2, pulsar.getBrokerServiceUrl());
         Thread thread2 = new Thread(() -> {
