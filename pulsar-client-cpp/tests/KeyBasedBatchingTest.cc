@@ -30,7 +30,7 @@ static ProducerConfiguration createDefaultProducerConfig() {
     return ProducerConfiguration()
         .setBatchingType(ProducerConfiguration::KeyBasedBatching)
         .setBatchingMaxAllowedSizeInBytes(static_cast<unsigned long>(-1))
-        .setBatchingMaxPublishDelayMs(static_cast<unsigned long>(-1));
+        .setBatchingMaxPublishDelayMs(3600 * 1000);
 }
 
 class KeyBasedBatchingTest : public ::testing::Test {
