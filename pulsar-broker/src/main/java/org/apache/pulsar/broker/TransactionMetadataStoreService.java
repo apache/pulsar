@@ -31,6 +31,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
@@ -148,7 +149,7 @@ public class TransactionMetadataStoreService {
         return store.addProducedPartitionToTxn(txnId, partitions);
     }
 
-    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<String> partitions) {
+    public CompletableFuture<Void> addAckedPartitionToTxn(TxnID txnId, List<TransactionSubscription> partitions) {
         TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
@@ -207,12 +208,27 @@ public class TransactionMetadataStoreService {
 
     private CompletableFuture<Void> endToTB(TxnID txnID, int txnAction) {
         CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<TxnID>> commitFutureList = new ArrayList<>();
+        List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
         this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
             if (throwable != null) {
                 resultFuture.completeExceptionally(throwable);
                 return;
             }
+
+            txnMeta.ackedPartitions().forEach(tbSub -> {
+                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
+                if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
+                    actionFuture = tbClient.commitTxnOnSubscription(
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
+                    actionFuture = tbClient.abortTxnOnSubscription(
+                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(), txnID.getLeastSigBits());
+                } else {
+                    actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
+                }
+                completableFutureList.add(actionFuture);
+            });
+
             txnMeta.producedPartitions().forEach(partition -> {
                 CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
                 if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
@@ -222,10 +238,11 @@ public class TransactionMetadataStoreService {
                 } else {
                     actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
                 }
-                commitFutureList.add(actionFuture);
+                completableFutureList.add(actionFuture);
             });
+
             try {
-                FutureUtil.waitForAll(commitFutureList).whenComplete((ignored, waitThrowable) -> {
+                FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, waitThrowable) -> {
                     if (waitThrowable != null) {
                         resultFuture.completeExceptionally(waitThrowable);
                         return;

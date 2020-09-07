@@ -46,6 +46,8 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.Long
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionEntryImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -59,6 +61,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -413,7 +416,12 @@ public class Consumer {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
             }
-            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
+            List<Position> positionsAcked = Collections.singletonList(position);
+            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
+                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Cumulative);
+            } else {
+                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
+            }
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
@@ -436,7 +444,25 @@ public class Consumer {
                             consumerId, position, ack.getValidationError());
                 }
             }
-            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
+                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Individual);
+            } else {
+                subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+            }
+        }
+    }
+
+    private void transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
+                                        List<Position> positionList, AckType ackType) {
+        if (subscription instanceof PersistentSubscription) {
+            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
+            try {
+                ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
+            } catch (TransactionConflictException e) {
+                log.error("Transaction acknowledge failed for txn " + txnID, e);
+            }
+        } else {
+            log.error("Transaction acknowledge only support the `PersistentSubscription`.");
         }
     }
 
