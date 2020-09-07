@@ -1825,13 +1825,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
             delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
         }
+        //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (data.inactive_topic_policies != null) {
-            this.inactiveTopicPolicies = data.inactive_topic_policies;
+            if (topicPolicies == null || !topicPolicies.isInactiveTopicPoliciesSet()) {
+                this.inactiveTopicPolicies = data.inactive_topic_policies;
+            }
         } else {
             ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
             resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
                     , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
+
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -2344,24 +2349,50 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (log.isDebugEnabled()) {
             log.debug("[{}] update topic policy: {}", topic, policies);
         }
-
-        initializeTopicDispatchRateLimiterIfNeeded(Optional.ofNullable(policies));
-        if (this.dispatchRateLimiter.isPresent() && policies != null
-                && policies.getDispatchRate() != null) {
+        if (policies == null) {
+            return;
+        }
+        Optional<Policies> namespacePolicies = getNamespacePolicies();
+        initializeTopicDispatchRateLimiterIfNeeded(policies);
+        if (this.dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
             dispatchRateLimiter.ifPresent(dispatchRateLimiter ->
                 dispatchRateLimiter.updateDispatchRate(policies.getDispatchRate()));
         }
 
-        if (policies != null && policies.getPublishRate() != null) {
+        if (policies.getPublishRate() != null) {
             topicPolicyPublishRate = policies.getPublishRate();
             updateTopicPublishDispatcher();
         }
+
+        if (policies.isInactiveTopicPoliciesSet()) {
+            inactiveTopicPolicies = policies.getInactiveTopicPolicies();
+        } else {
+            //topic-level policies is null , so use namespace-level or broker-level
+            namespacePolicies.ifPresent(nsPolicies -> {
+                if (nsPolicies.inactive_topic_policies != null) {
+                    inactiveTopicPolicies = nsPolicies.inactive_topic_policies;
+                } else {
+                    ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+                    resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                            , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
+                }
+            });
+        }
     }
 
-    private void initializeTopicDispatchRateLimiterIfNeeded(Optional<TopicPolicies> policies) {
+    private Optional<Policies> getNamespacePolicies(){
+        try {
+            return Optional.ofNullable(brokerService.pulsar().getAdminClient().namespaces()
+                    .getPolicies(TopicName.get(topic).getNamespace()));
+        } catch (Exception e) {
+            log.error("get namespace policies fail", e);
+        }
+        return Optional.empty();
+    }
+
+    private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
         synchronized (dispatchRateLimiter) {
-            if (!dispatchRateLimiter.isPresent() && policies.isPresent() &&
-                policies.get().getDispatchRate() != null) {
+            if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
         }

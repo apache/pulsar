@@ -50,6 +50,9 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -115,12 +118,20 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-retention", new GetRetention());
         jcommander.addCommand("set-retention", new SetRetention());
         jcommander.addCommand("remove-retention", new RemoveRetention());
+
+        jcommander.addCommand("enable-deduplication", new EnableDeduplication());
+        jcommander.addCommand("disable-deduplication", new DisableDeduplication());
+        jcommander.addCommand("get-deduplication-enabled", new GetDeduplicationEnabled());
+
         jcommander.addCommand("get-delayed-delivery", new GetDelayedDelivery());
         jcommander.addCommand("set-delayed-delivery", new SetDelayedDelivery());
         jcommander.addCommand("remove-delayed-delivery", new RemoveDelayedDelivery());
         jcommander.addCommand("get-persistence", new GetPersistence());
         jcommander.addCommand("set-persistence", new SetPersistence());
         jcommander.addCommand("remove-persistence", new RemovePersistence());
+        jcommander.addCommand("get-offload-policies", new GetOffloadPolicies());
+        jcommander.addCommand("set-offload-policies", new SetOffloadPolicies());
+        jcommander.addCommand("remove-offload-policies", new RemoveOffloadPolicies());
         jcommander.addCommand("get-dispatch-rate", new GetDispatchRate());
         jcommander.addCommand("set-dispatch-rate", new SetDispatchRate());
         jcommander.addCommand("remove-dispatch-rate", new RemoveDispatchRate());
@@ -139,6 +150,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-maxProducers", new GetMaxProducers());
         jcommander.addCommand("set-maxProducers", new SetMaxProducers());
         jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+        jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
+        jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
+        jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
         jcommander.addCommand("get-maxConsumers", new GetMaxConsumers());
         jcommander.addCommand("set-maxConsumers", new SetMaxConsumers());
         jcommander.addCommand("remove-maxConsumers", new RemoveMaxConsumers());
@@ -1064,6 +1078,42 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Enable the deduplication policy for a topic")
+    private class EnableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, true);
+        }
+    }
+
+    @Parameters(commandDescription = "Disable the deduplication policy for a topic")
+    private class DisableDeduplication extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().enableDeduplication(persistentTopic, false);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the deduplication policy for a topic")
+    private class GetDeduplicationEnabled extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getDeduplicationEnabled(persistentTopic));
+        }
+    }
+
     @Parameters(commandDescription = "Remove the retention policy for a topic")
     private class RemoveRetention extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -1085,6 +1135,75 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             print(admin.topics().getPersistence(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the offload policies for a topic")
+    private class GetOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getOffloadPolicies(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the offload policies for a topic")
+    private class RemoveOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeOffloadPolicies(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Set the offload policies for a topic")
+    private class SetOffloadPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"-d", "--driver"}, description = "ManagedLedger offload driver", required = true)
+        private String driver;
+
+        @Parameter(names = {"-r", "--region"}
+                , description = "ManagedLedger offload region, s3 and google-cloud-storage requires this parameter")
+        private String region;
+
+        @Parameter(names = {"-b", "--bucket"}
+                , description = "ManagedLedger offload bucket, s3 and google-cloud-storage requires this parameter")
+        private String bucket;
+
+        @Parameter(names = {"-e", "--endpoint"}
+                , description = "ManagedLedger offload service endpoint, only s3 requires this parameter")
+        private String endpoint;
+
+        @Parameter(names = {"-m", "--maxBlockSizeInBytes"}
+                , description = "ManagedLedger offload max block Size in bytes, s3 and google-cloud-storage requires this parameter")
+        private int maxBlockSizeInBytes;
+
+        @Parameter(names = {"-rb", "--readBufferSizeInBytes"}
+                , description = "ManagedLedger offload read buffer size in bytes, s3 and google-cloud-storage requires this parameter")
+        private int readBufferSizeInBytes;
+
+        @Parameter(names = {"-t", "--offloadThresholdInBytes"}
+                , description = "ManagedLedger offload threshold in bytes", required = true)
+        private long offloadThresholdInBytes;
+
+        @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
+                , description = "ManagedLedger offload deletion lag in bytes")
+        private Long offloadDeletionLagInMillis;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, maxBlockSizeInBytes
+                    , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis);
+            admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
     }
 
@@ -1383,6 +1502,68 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the inactive topic policies on a topic")
+    private class GetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getInactiveTopicPolicies(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the inactive topic policies on a topic")
+    private class SetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable-delete-while-inactive", "-e" }, description = "Enable delete while inactive")
+        private boolean enableDeleteWhileInactive = false;
+
+        @Parameter(names = { "--disable-delete-while-inactive", "-d" }, description = "Disable delete while inactive")
+        private boolean disableDeleteWhileInactive = false;
+
+        @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in seconds" +
+                ",topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        private String deleteInactiveTopicsMaxInactiveDuration;
+
+        @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic" +
+                ",Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
+        private String inactiveTopicDeleteMode;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+
+            if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
+                throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");
+            }
+            InactiveTopicDeleteMode deleteMode = null;
+            try {
+                deleteMode = InactiveTopicDeleteMode.valueOf(inactiveTopicDeleteMode);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or delete_when_subscriptions_caught_up");
+            }
+            admin.topics().setInactiveTopicPolicies(persistentTopic,
+                    new InactiveTopicPolicies(deleteMode, (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove inactive topic policies from a topic")
+    private class RemoveInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeInactiveTopicPolicies(persistentTopic);
         }
     }
 
