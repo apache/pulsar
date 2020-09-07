@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
@@ -42,6 +43,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.UUID;
 
 @Slf4j
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
@@ -513,6 +516,45 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(getDispatchRate);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test(timeOut = 20000)
+    public void testPolicyOverwrittenByNamespaceLevel() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        //wait for cache init
+        Thread.sleep(2000);
+        DispatchRate dispatchRate = new DispatchRate(200, 20000, 1, true);
+        admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
+        //wait for zk
+        Thread.sleep(2000);
+        dispatchRate = new DispatchRate(100, 10000, 1, true);
+        admin.topics().setDispatchRate(topic, dispatchRate);
+        for (int i = 0; i < 10; i++) {
+            if (admin.topics().getDispatchRate(topic) != null) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+        //1 Set ns level policy, topic level should not be overwritten
+        dispatchRate = new DispatchRate(300, 30000, 2, true);
+        admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
+        //wait for zk
+        Thread.sleep(1000);
+        DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
+        Assert.assertEquals(limiter.getDispatchRateOnByte(), 10000);
+        Assert.assertEquals(limiter.getDispatchRateOnMsg(), 100);
+        admin.topics().removeDispatchRate(topic);
+        for (int i = 0; i < 10; i++) {
+            if (admin.topics().getDispatchRate(topic) == null) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+        //2 Remove level policy ,DispatchRateLimiter should us ns level policy
+        limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
+        Assert.assertEquals(limiter.getDispatchRateOnByte(), 30000);
+        Assert.assertEquals(limiter.getDispatchRateOnMsg(), 300);
     }
 
     @Test

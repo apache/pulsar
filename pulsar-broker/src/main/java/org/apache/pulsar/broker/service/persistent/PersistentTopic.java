@@ -1283,10 +1283,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return subscriptions;
     }
 
+    @Override
     public PersistentSubscription getSubscription(String subscriptionName) {
         return subscriptions.get(subscriptionName);
     }
 
+    @Override
     public ConcurrentOpenHashMap<String, Replicator> getReplicators() {
         return replicators;
     }
@@ -1837,7 +1839,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
 
-
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
 
         this.updateMaxPublishRate(data);
@@ -1862,7 +1863,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
         // update rate-limiter if policies updated
         if (this.dispatchRateLimiter.isPresent()) {
-            dispatchRateLimiter.get().onPoliciesUpdate(data);
+            if (topicPolicies == null || !topicPolicies.isDispatchRateSet()) {
+                dispatchRateLimiter.get().onPoliciesUpdate(data);
+            }
         }
         if (this.subscribeRateLimiter.isPresent()) {
             subscribeRateLimiter.get().onPoliciesUpdate(data);
@@ -2354,10 +2357,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         Optional<Policies> namespacePolicies = getNamespacePolicies();
         initializeTopicDispatchRateLimiterIfNeeded(policies);
-        if (this.dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
-            dispatchRateLimiter.ifPresent(dispatchRateLimiter ->
-                dispatchRateLimiter.updateDispatchRate(policies.getDispatchRate()));
-        }
+
+        dispatchRateLimiter.ifPresent(limiter -> {
+            if (policies.isDispatchRateSet()) {
+                dispatchRateLimiter.get().updateDispatchRate(policies.getDispatchRate());
+            } else {
+                dispatchRateLimiter.get().updateDispatchRate();
+            }
+        });
 
         if (policies.getPublishRate() != null) {
             topicPolicyPublishRate = policies.getPublishRate();
@@ -2366,17 +2373,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (policies.isInactiveTopicPoliciesSet()) {
             inactiveTopicPolicies = policies.getInactiveTopicPolicies();
+        } else if (namespacePolicies.isPresent() && namespacePolicies.get().inactive_topic_policies != null) {
+            //topic-level policies is null , so use namespace-level
+            inactiveTopicPolicies = namespacePolicies.get().inactive_topic_policies;
         } else {
-            //topic-level policies is null , so use namespace-level or broker-level
-            namespacePolicies.ifPresent(nsPolicies -> {
-                if (nsPolicies.inactive_topic_policies != null) {
-                    inactiveTopicPolicies = nsPolicies.inactive_topic_policies;
-                } else {
-                    ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-                    resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                            , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
-                }
-            });
+            //namespace-level policies is null , so use broker level
+            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
     }
 
