@@ -10,7 +10,7 @@ You can use the following methods to run functions.
 - *Process*: Invoke functions in processes forked by functions worker.
 - *Kubernetes*: Submit functions as Kubernetes StatefulSets by functions worker.
 
-> **Note**
+> **Note**  
 > Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects.
 
 The differences of the thread and process modes are:
@@ -96,7 +96,7 @@ kubernetesContainerFactory:
 
 If you run functions worker embedded in a broker on Kubernetes, you can use the default settings. 
 
-### Run standalone functions worker on K8S
+### Run standalone functions worker on Kubernetes
 
 If you run functions worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the broker and `pulsarAdminUrl` as the URL to the functions worker.
 
@@ -107,7 +107,7 @@ pulsarServiceUrl: pulsar://broker.pulsar:6650 // or pulsar+ssl://broker.pulsar:6
 pulsarAdminUrl: http://func-worker.pulsar:8080 // or https://func-worker:8443 if using TLS
 ```
 
-### Run RBAC in Kubernetes
+### Run RBAC in Kubernetes clusters
 
 If you run RBAC in your Kubernetes cluster, make sure that the service account you use for running functions workers (or brokers, if functions workers run along with brokers) have permissions on the following Kubernetes APIs.
 
@@ -170,7 +170,7 @@ io.kubernetes.client.ApiException: Forbidden
 	at java.util.TimerThread.run(Timer.java:505) [?:1.8.0_212]
 ```
 
-### Integrate Kubernetes Secrets
+### Integrate Kubernetes secrets
 
 In order to safely distribute secrets, Pulasr Functions can reference Kubernetes secrets. To enable this, set the `secretsProviderConfiguratorClassName` to `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`.
 
@@ -191,7 +191,7 @@ secrets:
 
 ```
 
-### Kubernetes Functions authentication
+### Enable token authentication 
 
 When you enable authentication for your Pulsar cluster, you need a mechanism for the pod running your function to authenticate with the broker.
 
@@ -207,10 +207,35 @@ For token authentication, the functions worker captures the token that is used t
 
 For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. If you use token authentication and TLS encryption to secure the communication with the cluster, Pulsar passes your certificate authority (CA) to the client, so the client obtains what it needs to authenticate the cluster, and trusts the cluster with your signed certificate.
 
-> **Note**
+> **Note**   
 > If you use tokens that expire when deploying functions, these tokens will expire.
 
-### Customize Kubernetes Runtime
+### Run clusters with authentication
+
+When you run a functions worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your functions worker to interact with the broker and authenticate incoming requests. So you need to configure properties that the broker requires for authentication or authorization.
+
+For example, if you use token authentication, you need to configure the following properties in the `function-worker.yml` file.
+
+```Yaml
+clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
+clientAuthenticationParameters: file:///etc/pulsar/token/admin-token.txt
+configurationStoreServers: zookeeper-cluster:2181 # auth requires a connection to zookeeper
+authenticationProviders:
+ - "org.apache.pulsar.broker.authentication.AuthenticationProviderToken"
+authorizationEnabled: true
+authenticationEnabled: true
+superUserRoles:
+  - superuser
+  - proxy
+properties:
+  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
+  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
+```
+
+> **Note**   
+> You must configure both the Function Worker authorization or authentication for the server to authenticate requests and configure the client to be authenticated to communicate with the broker.
+
+### Customize Kubernetes runtime
 
 The Kubernetes integration enables you to implement a class and customize how to generate manifests. You can configure it by setting `runtimeCustomizerClassName` in the `functions-worker.yml` file and use the fully qualified class name. You must implement the `org.apache.pulsar.functions.runtime.kubernetes.KubernetesManifestCustomizer` interface.
 
@@ -250,9 +275,7 @@ Pulsar includes a built-in implementation. To use the basic implementation, set 
 }
 ```
 
-## Other configuration considerations
-
-### Run clusters with geo-replication
+## Run clusters with geo-replication
 
 If you run multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster. Otherwise, the function shares a namespace and potentially schedule across clusters.
 
@@ -270,7 +293,7 @@ pulsarFunctionsNamespace: public/functions-west-1
 
 This ensures the two different Functions Workers use distinct sets of topics for their internal coordination.
 
-### Configure standalone functions worker
+## Configure standalone functions worker
 
 When configuring a standalone functions worker, you need to configure properties that the broker requires, especially if you use TLS. And then Functions Worker can communicate with the broker. 
 
@@ -287,29 +310,3 @@ pulsarWebServiceUrl: http://broker.pulsar:8080/ # or https://pulsar-prod-broker.
 useTls: true # when using TLS, critical!
 
 ```
-
-### Run clusters with authentication
-
-When running a functions worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your functions worker to interact with the broker and authenticate incoming requests. So you need to configure properties that the broker requires for authentication or authorization.
-
-For example, if you want to use token authentication, you need to configure the following properties in the `function-worker.yml` file.
-
-```Yaml
-clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
-clientAuthenticationParameters: file:///etc/pulsar/token/admin-token.txt
-configurationStoreServers: zookeeper-cluster:2181 # auth requires a connection to zookeeper
-authenticationProviders:
- - "org.apache.pulsar.broker.authentication.AuthenticationProviderToken"
-authorizationEnabled: true
-authenticationEnabled: true
-superUserRoles:
-  - superuser
-  - proxy
-properties:
-  tokenSecretKey: file:///etc/pulsar/jwt/secret # if using a secret token
-  tokenPublicKey: file:///etc/pulsar/jwt/public.key # if using public/private key tokens
-```
-
-> **Note** 
->
-> You must configure both the Function Worker authorization or authentication for the server to authenticate requests and configure the client to be authenticated to communicate with the broker.
