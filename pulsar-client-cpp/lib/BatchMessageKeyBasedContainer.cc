@@ -72,7 +72,10 @@ void BatchMessageKeyBasedContainer::clear() {
 
 Result BatchMessageKeyBasedContainer::createOpSendMsg(OpSendMsg& opSendMsg,
                                                       const FlushCallback& flushCallback) const {
-    throw std::runtime_error("createOpSendMsgs is not supported for BatchMessageKeyBasedContainer");
+    if (batches_.size() < 1) {
+        return ResultOperationNotSupported;
+    }
+    return createOpSendMsgHelper(opSendMsg, flushCallback, batches_.begin()->second);
 }
 
 std::vector<Result> BatchMessageKeyBasedContainer::createOpSendMsgs(
@@ -90,52 +93,13 @@ std::vector<Result> BatchMessageKeyBasedContainer::createOpSendMsgs(
     size_t numBatches = sortedBatches.size();
     opSendMsgs.resize(numBatches);
 
-    for (size_t i = 0; i < numBatches; i++) {
-        opSendMsgs[i].sendCallback_ = sortedBatches[i]->createSendCallback();
-    }
-
-    // add flushCallback to the last message
-    if (flushCallback) {
-        auto& lastOpSendMsg = opSendMsgs.back();
-        auto callback = lastOpSendMsg.sendCallback_;
-        lastOpSendMsg.sendCallback_ = [callback, flushCallback](Result result, const MessageId& id) {
-            callback(result, id);
-            flushCallback(result);
-        };
-    }
-
     std::vector<Result> results(numBatches);
-    for (size_t i = 0; i < numBatches; i++) {
-        auto& batch = *(sortedBatches[i]);
-        MessageImplPtr impl = batch.msgImpl();
-
-        impl->metadata.set_num_messages_in_batch(batch.size());
-        auto compressionType = producerConfig_.getCompressionType();
-        if (compressionType != CompressionNone) {
-            impl->metadata.set_compression(CompressionCodecProvider::convertType(compressionType));
-            impl->metadata.set_uncompressed_size(impl->payload.readableBytes());
-        }
-        impl->payload = CompressionCodecProvider::getCodec(compressionType).encode(impl->payload);
-
-        SharedBuffer encryptedPayload;
-        if (!encryptMessage(impl->metadata, impl->payload, encryptedPayload)) {
-            results[i] = ResultCryptoError;
-            continue;
-        }
-
-        if (impl->payload.readableBytes() > ClientConnection::getMaxMessageSize()) {
-            results[i] = ResultMessageTooBig;
-            continue;
-        }
-
-        auto& opSendMsg = opSendMsgs[i];
-        opSendMsg.msg_.impl_ = impl;
-        opSendMsg.sequenceId_ = impl->metadata.sequence_id();
-        opSendMsg.producerId_ = producerId_;
+    for (size_t i = 0; i + 1 < numBatches; i++) {
+        results[i] = createOpSendMsgHelper(opSendMsgs[i], nullptr, *sortedBatches[i]);
     }
-    auto timeout = TimeUtils::now() + milliseconds(producerConfig_.getSendTimeout());
-    for (auto& opSendMsg : opSendMsgs) {
-        opSendMsg.timeout_ = timeout;
+    if (numBatches > 0) {
+        // Add flush callback to the last batch
+        results.back() = createOpSendMsgHelper(opSendMsgs.back(), flushCallback, *sortedBatches.back());
     }
     return results;
 }

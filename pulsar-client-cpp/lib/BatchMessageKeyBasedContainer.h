@@ -52,6 +52,9 @@ class BatchMessageKeyBasedContainer : public BatchMessageContainerBase {
     std::unordered_map<std::string, MessageAndCallbackBatch> batches_;
     size_t numberOfBatchesSent_ = 0;
     double averageBatchSize_ = 0;
+
+    Result createOpSendMsg(OpSendMsg& opSendMsg, const FlushCallback& flushCallback,
+                           MessageAndCallbackBatch& batch) const;
 };
 
 }  // namespace pulsar

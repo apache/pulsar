@@ -18,6 +18,8 @@
  */
 #include <time.h>
 #include <atomic>
+#include <map>
+#include <utility>
 
 #include <gtest/gtest.h>
 #include <pulsar/Client.h>
@@ -152,4 +154,25 @@ TEST_F(KeyBasedBatchingTest, testSequenceId) {
     decltype(receivedValues) expectedValues{"1", "3", "2", "4", "0", "5"};
     EXPECT_EQ(receivedKeys, expectedKeys);
     EXPECT_EQ(receivedValues, expectedValues);
+}
+
+TEST_F(KeyBasedBatchingTest, testSingleBatch) {
+    initTopicName("SingleBatch");
+    initProducer(createDefaultProducerConfig().setBatchingMaxMessages(5));
+    initConsumer();
+
+    constexpr int numMessages = 5 * 100;
+    std::atomic_int numMessageSent{0};
+    // messages with no key will use a batch with an empty string as key
+    for (int i = 0; i < numMessages; i++) {
+        producer_.sendAsync(
+            MessageBuilder().setContent("x").build(),
+            [&numMessageSent](Result result, const MessageId&) { ASSERT_EQ(result, ResultOk); });
+    }
+
+    Message msg;
+    for (int i = 0; i < numMessages; i++) {
+        receiveAndAck(msg);
+    }
+    ASSERT_EQ(ResultTimeout, consumer_.receive(msg, 3000));
 }

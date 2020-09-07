@@ -29,6 +29,7 @@
 
 #include <boost/noncopyable.hpp>
 
+#include "MessageAndCallbackBatch.h"
 #include "OpSendMsg.h"
 
 namespace pulsar {
@@ -132,8 +133,8 @@ class BatchMessageContainerBase : public boost::noncopyable {
     void updateStats(const Message& msg);
     void resetStats();
 
-    bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
-                        SharedBuffer& encryptedPayload) const;
+    Result createOpSendMsgHelper(OpSendMsg& opSendMsg, const FlushCallback& flushCallback,
+                                 const MessageAndCallbackBatch& batch) const;
 };
 
 inline bool BatchMessageContainerBase::hasEnoughSpace(const Message& msg) const noexcept {

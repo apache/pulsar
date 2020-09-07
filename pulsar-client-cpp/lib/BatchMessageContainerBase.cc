@@ -18,6 +18,7 @@
  */
 #include "BatchMessageContainerBase.h"
 #include "MessageCrypto.h"
+#include "MessageImpl.h"
 #include "ProducerImpl.h"
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
@@ -31,16 +32,51 @@ BatchMessageContainerBase::BatchMessageContainerBase(const ProducerImpl& produce
       producerId_(producer.producerId_),
       msgCryptoWeakPtr_(producer.msgCrypto_) {}
 
-bool BatchMessageContainerBase::encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
-                                               SharedBuffer& encryptedPayload) const {
-    auto msgCrypto = msgCryptoWeakPtr_.lock();
-    if (!msgCrypto || producerConfig_.isEncryptionEnabled()) {
-        encryptedPayload = payload;
-        return true;
+Result BatchMessageContainerBase::createOpSendMsgHelper(OpSendMsg& opSendMsg,
+                                                        const FlushCallback& flushCallback,
+                                                        const MessageAndCallbackBatch& batch) const {
+    opSendMsg.sendCallback_ = batch.createSendCallback();
+    if (flushCallback) {
+        auto sendCallback = opSendMsg.sendCallback_;
+        opSendMsg.sendCallback_ = [sendCallback, flushCallback](Result result, const MessageId& id) {
+            sendCallback(result, id);
+            flushCallback(result);
+        };
     }
 
-    return msgCrypto->encrypt(producerConfig_.getEncryptionKeys(), producerConfig_.getCryptoKeyReader(),
-                              metadata, payload, encryptedPayload);
+    if (batch.empty()) {
+        return ResultOperationNotSupported;
+    }
+
+    MessageImplPtr impl = batch.msgImpl();
+    impl->metadata.set_num_messages_in_batch(batch.size());
+    auto compressionType = producerConfig_.getCompressionType();
+    if (compressionType != CompressionNone) {
+        impl->metadata.set_compression(CompressionCodecProvider::convertType(compressionType));
+        impl->metadata.set_uncompressed_size(impl->payload.readableBytes());
+    }
+    impl->payload = CompressionCodecProvider::getCodec(compressionType).encode(impl->payload);
+
+    auto msgCrypto = msgCryptoWeakPtr_.lock();
+    if (msgCrypto && producerConfig_.isEncryptionEnabled()) {
+        SharedBuffer encryptedPayload;
+        if (!msgCrypto->encrypt(producerConfig_.getEncryptionKeys(), producerConfig_.getCryptoKeyReader(),
+                                impl->metadata, impl->payload, encryptedPayload)) {
+            return ResultCryptoError;
+        }
+        impl->payload = encryptedPayload;
+    }
+
+    if (impl->payload.readableBytes() > ClientConnection::getMaxMessageSize()) {
+        return ResultMessageTooBig;
+    }
+
+    opSendMsg.msg_.impl_ = impl;
+    opSendMsg.sequenceId_ = impl->metadata.sequence_id();
+    opSendMsg.producerId_ = producerId_;
+    opSendMsg.timeout_ = TimeUtils::now() + milliseconds(producerConfig_.getSendTimeout());
+
+    return ResultOk;
 }
 
 }  // namespace pulsar

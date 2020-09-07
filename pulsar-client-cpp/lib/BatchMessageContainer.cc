@@ -57,43 +57,7 @@ void BatchMessageContainer::clear() {
 
 Result BatchMessageContainer::createOpSendMsg(OpSendMsg& opSendMsg,
                                               const FlushCallback& flushCallback) const {
-    if (flushCallback) {
-        opSendMsg.sendCallback_ = [this, flushCallback](Result result, const MessageId& id) {
-            batch_.complete(result, id);
-            flushCallback(result);
-        };
-    } else {
-        opSendMsg.sendCallback_ = batch_.createSendCallback();
-    }
-
-    if (batch_.empty()) {
-        return ResultOperationNotSupported;
-    }
-
-    MessageImplPtr impl = batch_.msgImpl();
-    impl->metadata.set_num_messages_in_batch(batch_.size());
-    auto compressionType = producerConfig_.getCompressionType();
-    if (compressionType != CompressionNone) {
-        impl->metadata.set_compression(CompressionCodecProvider::convertType(compressionType));
-        impl->metadata.set_uncompressed_size(impl->payload.readableBytes());
-    }
-    impl->payload = CompressionCodecProvider::getCodec(compressionType).encode(impl->payload);
-
-    SharedBuffer encryptedPayload;
-    if (!encryptMessage(impl->metadata, impl->payload, encryptedPayload)) {
-        return ResultCryptoError;
-    }
-
-    if (impl->payload.readableBytes() > ClientConnection::getMaxMessageSize()) {
-        return ResultMessageTooBig;
-    }
-
-    opSendMsg.msg_.impl_ = impl;
-    opSendMsg.sequenceId_ = impl->metadata.sequence_id();
-    opSendMsg.producerId_ = producerId_;
-    opSendMsg.timeout_ = TimeUtils::now() + milliseconds(producerConfig_.getSendTimeout());
-
-    return ResultOk;
+    return createOpSendMsgHelper(opSendMsg, flushCallback, batch_);
 }
 
 std::vector<Result> BatchMessageContainer::createOpSendMsgs(std::vector<OpSendMsg>& opSendMsgs,
