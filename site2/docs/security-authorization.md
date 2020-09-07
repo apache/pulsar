@@ -24,9 +24,10 @@ superUserRoles=my-super-user-1,my-super-user-2
 > A full list of parameters is available in the `conf/broker.conf` file.
 > You can also find the default values for those parameters in [Broker Configuration](reference-configuration.md#broker). 
 
-Typically, you use superuser roles for administrators and clients but also for broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
+Typically, you use superuser roles for administrators, clients as well as broker-to-broker authorization. When you use [geo-replication](concepts-replication.md), every broker needs to be able to publish to all the other topics of clusters.
 
-You can also enable the authorization for the proxy in the proxy configuration file (`conf/proxy.conf`). Once you enable the authorization on the proxy, the proxy does an additional authorization check before forwarding the request to a broker. If authorization is also enabled on the broker, the broker will again check the authorization of the request when the broker receives the forwarded request.
+You can also enable the authorization for the proxy in the proxy configuration file (`conf/proxy.conf`). Once you enable the authorization on the proxy, the proxy does an additional authorization check before forwarding the request to a broker. 
+If you enable authorization on the broker, the broker checks the authorization of the request when the broker receives the forwarded request.
 
 ### Proxy Roles
 

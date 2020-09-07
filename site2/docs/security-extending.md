@@ -10,7 +10,7 @@ Pulsar provides a way to use custom authentication and authorization mechanisms.
 
 Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview.md).
 
-You can choose to use a custom authentication mechanism by providing the implementation in the form of two plugins. One plugin is for the Client library and the other plugin is for the Pulsar Proxy and/or Pulsar Broker to validate the credentials.
+You can use a custom authentication mechanism by providing the implementation in the form of two plugins. One plugin is for the Client library and the other plugin is for the Pulsar Proxy and/or Pulsar Broker to validate the credentials.
 
 ### Client authentication plugin
 
@@ -92,7 +92,9 @@ The following is the example for Broker authentication plugins:
 
 Authorization is the operation that checks whether a particular "role" or "principal" has permission to perform a certain operation.
 
-By default, Pulsar provides an embedded authorization provider, though configuring a different one through a plugin is also a choice.
+By default, you can use the embedded authorization provider provided by Pulsar. You can also configure a different authorization provider through a plugin.
+Note that although the Authentication plugin is designed for use in both the Proxy and Broker,
+the Authorization plugin is designed only for use on the Broker however the Proxy does perform some simple Authorization checks of Roles if authorization is enabled.
 
 To provide a custom provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, put this class in the Pulsar broker classpath and configure the class in `conf/broker.conf`:
 
