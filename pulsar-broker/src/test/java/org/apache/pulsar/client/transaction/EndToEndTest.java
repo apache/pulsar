@@ -21,6 +21,8 @@ package org.apache.pulsar.client.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -35,17 +37,21 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
 
 /**
  * End to end transaction test.
@@ -189,7 +195,7 @@ public class EndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void batchDisableAndSharedSubTest() throws Exception {
+    public void txnAckTestNoBatchAndSharedSub() throws Exception {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
@@ -268,12 +274,107 @@ public class EndToEndTest extends TransactionTestBase {
         }
     }
 
+    @Test
+    public void txnMessageAckTest() throws Exception {
+        final String subName = "test";
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
+                .newConsumer()
+                .topic(TOPIC_OUTPUT)
+                .subscriptionName(subName)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        @Cleanup
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
+                .newProducer()
+                .topic(TOPIC_OUTPUT)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        Transaction txn = getTxn();
+
+        int messageCnt = 10;
+        for (int i = 0; i < messageCnt; i++) {
+            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+        }
+        log.info("produce transaction messages finished");
+
+        // Can't receive transaction messages before commit.
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+        log.info("transaction messages can't be received before transaction committed");
+
+        txn.commit().get();
+
+        Map<Integer, MessageIdImpl> messageIdMap = new HashMap<>();
+        int ackedMessageCount = 0;
+        int receiveCnt = 0;
+        for (int i = 0; i < messageCnt; i++) {
+            message = consumer.receive();
+            if (i % 2 == 0) {
+                consumer.acknowledge(message);
+                ackedMessageCount ++;
+            }
+            Assert.assertNotNull(message);
+            receiveCnt ++;
+
+            MessageIdImpl messageId;
+            if (message.getMessageId() instanceof TopicMessageIdImpl) {
+                messageId = (MessageIdImpl) ((TopicMessageIdImpl) message.getMessageId()).getInnerMessageId();
+            } else {
+                messageId = (MessageIdImpl) message.getMessageId();
+            }
+            messageIdMap.put(messageId.getPartitionIndex(), messageId);
+        }
+        Assert.assertEquals(messageCnt, receiveCnt);
+
+        Thread.sleep(1000);
+
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            Assert.assertEquals(
+                    messageIdMap.get(i).getLedgerId() + ":-1",
+                    getMarkDeletePosition(TOPIC_OUTPUT, i, subName));
+        }
+
+        consumer.redeliverUnacknowledgedMessages();
+
+        receiveCnt = 0;
+        for (int i = 0; i < messageCnt - ackedMessageCount; i++) {
+            message = consumer.receive(2, TimeUnit.SECONDS);
+            log.info("second receive messageId: {}", message.getMessageId());
+            Assert.assertNotNull(message);
+            consumer.acknowledge(message);
+            receiveCnt ++;
+        }
+        Assert.assertEquals(messageCnt - ackedMessageCount, receiveCnt);
+
+        message = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        for (int i = 0; i < TOPIC_PARTITION; i++) {
+            Assert.assertEquals(
+                    messageIdMap.get(i).getLedgerId() + ":" + messageIdMap.get(i).getEntryId(),
+                    getMarkDeletePosition(TOPIC_OUTPUT, i, subName));
+        }
+
+        log.info("receive transaction messages count: {}", receiveCnt);
+    }
+
     private Transaction getTxn() throws Exception {
         return ((PulsarClientImpl) pulsarClient)
                 .newTransaction()
                 .withTransactionTimeout(2, TimeUnit.SECONDS)
                 .build()
                 .get();
+    }
+
+    private String getMarkDeletePosition(String topic, Integer partition, String subName) throws Exception {
+        topic = TopicName.get(topic).getPartition(partition).toString();
+        PersistentTopicInternalStats stats = admin.topics().getInternalStats(topic);
+        return stats.cursors.get(subName).markDeletePosition;
     }
 
 }
