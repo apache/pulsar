@@ -193,24 +193,22 @@ secrets:
 
 ### Kubernetes Functions authentication
 
-When your Pulsar cluster uses authentication, the pod running your function needs a mechanism to authenticate with the broker.
+When you enable authentication for your Pulsar cluster, you need a mechanism for the pod running your function to authenticate with the broker.
 
-An interface, `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider`, is extended to provide support for any authentication mechanism. The `functionAuthProviderClassName` in `function-worker.yml` is used to specify your path to this implementation. 
+The `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider` interface provides support for any authentication mechanism. The `functionAuthProviderClassName` in `function-worker.yml` is used to specify your path to this implementation. 
 
-Pulsar includes an implementation of this interface that is suitable for token auth, and distributes the certificate authority via the same implementation. The configuration is similar as follows:
+Pulsar includes an implementation of this interface for token authentication, and distributes the certificate authority via the same implementation. The configuration is similar as follows:
 
 ```Yaml
 functionAuthProviderClassName: org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider
 ```
 
-For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. 
-
 For token authentication, the functions worker captures the token that is used to deploy (or update) the function. The token is saved as a secret and mounted into the pod.
+
+For custom authentication or TLS, you need to implement this interface or use an alternative mechanism to provide authentication. If you use token authentication and TLS encryption to secure the communication with the cluster, Pulsar passes your certificate authority (CA) to the client, so the client obtains what it needs to authenticate the cluster, and trusts the cluster with your signed certificate.
 
 > **Note**
 > If you use tokens that expire when deploying functions, these tokens will expire.
-
-If you use token authentication and TLS encryption to secure the communication with the cluster, Pulsar passes your certificate authority (CA) to the client, so the client obtains what it needs to authenticate the cluster, and trusts the cluster with your signed certificate.
 
 ### Customize Kubernetes Runtime
 
