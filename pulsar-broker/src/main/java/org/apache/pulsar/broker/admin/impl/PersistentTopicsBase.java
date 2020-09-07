@@ -2407,20 +2407,14 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected void internalGetPersistence(AsyncResponse asyncResponse){
+    protected Optional<PersistencePolicies> internalGetPersistence(){
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        Optional<PersistencePolicies> persistencePolicies = getTopicPolicies(topicName)
-                .map(TopicPolicies::getPersistence);
-        if (!persistencePolicies.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        }else {
-            asyncResponse.resume(persistencePolicies.get());
-        }
+        return getTopicPolicies(topicName).map(TopicPolicies::getPersistence);
     }
 
     protected CompletableFuture<Void> internalSetPersistence(PersistencePolicies persistencePolicies) {
@@ -2452,20 +2446,14 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected void internalGetMaxProducers(AsyncResponse asyncResponse) {
+    protected Optional<Integer> internalGetMaxProducers() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        Optional<Integer> maxProducers = getTopicPolicies(topicName)
-                .map(TopicPolicies::getMaxProducerPerTopic);
-        if (!maxProducers.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        } else {
-            asyncResponse.resume(maxProducers.get());
-        }
+        return getTopicPolicies(topicName).map(TopicPolicies::getMaxProducerPerTopic);
     }
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducers) {
@@ -2499,20 +2487,14 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies.get());
     }
 
-    protected void internalGetMaxConsumers(AsyncResponse asyncResponse) {
+    protected Optional<Integer> internalGetMaxConsumers() {
         validateAdminAccessForTenant(namespaceName.getTenant());
         validatePoliciesReadOnlyAccess();
         if (topicName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         checkTopicLevelPolicyEnable();
-        Optional<Integer> maxConsumers = getTopicPolicies(topicName)
-                .map(TopicPolicies::getMaxConsumerPerTopic);
-        if (!maxConsumers.isPresent()) {
-            asyncResponse.resume(Response.noContent().build());
-        } else {
-            asyncResponse.resume(maxConsumers.get());
-        }
+        return getTopicPolicies(topicName).map(TopicPolicies::getMaxConsumerPerTopic);
     }
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumers) {

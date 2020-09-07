@@ -56,11 +56,11 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
-import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
@@ -1558,7 +1558,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetPersistence(asyncResponse);
+            Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
+            if (!persistencePolicies.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(persistencePolicies.get());
+            }
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {
@@ -1640,7 +1645,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetMaxProducers(asyncResponse);
+            Optional<Integer> maxProducers = internalGetMaxProducers();
+            if (!maxProducers.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxProducers.get());
+            }
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {
@@ -1719,7 +1729,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetMaxConsumers(asyncResponse);
+            Optional<Integer> maxConsumers = internalGetMaxConsumers();
+            if (!maxConsumers.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxConsumers.get());
+            }
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {
