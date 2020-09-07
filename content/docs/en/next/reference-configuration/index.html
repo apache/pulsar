@@ -266,6 +266,8 @@
 <tr><td>bookkeeperClientHealthCheckQuarantineTimeInSeconds</td><td></td><td>1800</td></tr>
 <tr><td>bookkeeperClientRackawarePolicyEnabled</td><td>Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble</td><td>true</td></tr>
 <tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td>Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored</td><td>false</td></tr>
+<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td>Minimum number of racks per write quorum. BK rack-aware bookie selection policy will try to get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.</td><td>2</td></tr>
+<tr><td>bookkeeperClientEnforceMinNumRacksPerWriteQuorum</td><td>Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a writeQuorum. If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.</td><td>false</td></tr>
 <tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td>Enable/disable reordering read sequence on reading entries.</td><td>false</td></tr>
 <tr><td>bookkeeperClientIsolationGroups</td><td>Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker</td><td></td></tr>
 <tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
@@ -590,6 +592,8 @@
 <tr><td>bookkeeperGetBookieInfoRetryIntervalSeconds</td><td>Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.</td><td>60</td></tr>
 <tr><td>bookkeeperClientRackawarePolicyEnabled</td><td></td><td>true</td></tr>
 <tr><td>bookkeeperClientRegionawarePolicyEnabled</td><td></td><td>false</td></tr>
+<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>2</td></tr>
+<tr><td>bookkeeperClientMinNumRacksPerWriteQuorum</td><td></td><td>false</td></tr>
 <tr><td>bookkeeperClientReorderReadSequenceEnabled</td><td></td><td>false</td></tr>
 <tr><td>bookkeeperClientIsolationGroups</td><td></td><td></td></tr>
 <tr><td>bookkeeperClientSecondaryIsolationGroups</td><td>Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.</td><td></td></tr>
