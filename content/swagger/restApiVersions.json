@@ -1,17 +1,17 @@
 {
     "2.3.0": [
         {
-            "version": "v2",
-            "fileName": [
-                "swagger"
-            ]
-        },
-        {
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
                 "swaggersink",
                 "swaggersource"
+            ]
+        },
+        {
+            "version": "v2",
+            "fileName": [
+                "swagger"
             ]
         }
     ],
@@ -175,7 +175,7 @@
             ]
         }
     ],
-    "master": [
+    "2.7.0-SNAPSHOT": [
         {
             "version": "v2",
             "fileName": [
@@ -191,7 +191,7 @@
             ]
         }
     ],
-    "2.7.0-SNAPSHOT": [
+    "master": [
         {
             "version": "v2",
             "fileName": [
