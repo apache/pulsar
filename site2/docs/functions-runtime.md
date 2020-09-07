@@ -4,7 +4,7 @@ title: Configure Functions runtime
 sidebar_label: "Setup: Configure Functions runtime"
 ---
 
-Pulsar Functions support the following methods to run functions.
+You can use the following methods to run functions.
 
 - *Thread*: Invoke functions threads in functions worker.
 - *Process*: Invoke functions in processes forked by functions worker.
@@ -96,7 +96,7 @@ kubernetesContainerFactory:
 
 If you run functions worker embedded in a broker on Kubernetes, you can use the default settings. 
 
-### Standalone functions worker on K8S
+### Run standalone functions worker on K8S
 
 If you run functions worker standalone (that is, not embedded) on Kubernetes, you need to configure `pulsarSerivceUrl` to be the URL of the broker and `pulsarAdminUrl` as the URL to the functions worker.
 
@@ -107,9 +107,9 @@ pulsarServiceUrl: pulsar://broker.pulsar:6650 // or pulsar+ssl://broker.pulsar:6
 pulsarAdminUrl: http://func-worker.pulsar:8080 // or https://func-worker:8443 if using TLS
 ```
 
-### Kubernetes RBAC
+### Run RBAC in Kubernetes
 
-If you run RBAC in your Kubernetes cluster, make sure the service account you use for running functions workers (or brokers, if functions workers run along with brokers) have permissions on the following Kubernetes APIs.
+If you run RBAC in your Kubernetes cluster, make sure that the service account you use for running functions workers (or brokers, if functions workers run along with brokers) have permissions on the following Kubernetes APIs.
 
 - services
 - configmaps
@@ -254,8 +254,7 @@ Pulsar includes a built-in implementation. To use the basic implementation, set 
 
 ## Other configuration considerations
 
-
-### In a cluster with geo-replication
+### Run clusters with geo-replication
 
 If you run multiple clusters tied together with geo-replication, it is important to use a different function namespace for each cluster. Otherwise, the function shares a namespace and potentially schedule across clusters.
 
@@ -275,7 +274,7 @@ This ensures the two different Functions Workers use distinct sets of topics for
 
 ### Configure standalone functions worker
 
-You need to configure properties that the broker requires, especially when using TLS, when configuring a standalone functions worker, so Functions Worker can communicate with the broker. 
+When configuring a standalone functions worker, you need to configure properties that the broker requires, especially if you use TLS. And then Functions Worker can communicate with the broker. 
 
 You need to configure the following required properties.
 
@@ -291,7 +290,7 @@ useTls: true # when using TLS, critical!
 
 ```
 
-#### With authentication
+### Run clusters with authentication
 
 When running a functions worker in a standalone process (that is, not embedded in the broker) in a cluster with authentication, you must configure your functions worker to interact with the broker and authenticate incoming requests. So you need to configure properties that the broker requires for authentication or authorization.
 
