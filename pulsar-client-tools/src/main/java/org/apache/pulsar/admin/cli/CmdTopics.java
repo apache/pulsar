@@ -147,15 +147,15 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
-        jcommander.addCommand("get-maxProducers", new GetMaxProducers());
-        jcommander.addCommand("set-maxProducers", new SetMaxProducers());
-        jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+        jcommander.addCommand("get-max-producers", new GetMaxProducers());
+        jcommander.addCommand("set-max-producers", new SetMaxProducers());
+        jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
         jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
         jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
-        jcommander.addCommand("get-maxConsumers", new GetMaxConsumers());
-        jcommander.addCommand("set-maxConsumers", new SetMaxConsumers());
-        jcommander.addCommand("remove-maxConsumers", new RemoveMaxConsumers());
+        jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
+        jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
+        jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
