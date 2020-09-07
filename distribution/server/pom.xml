@@ -192,12 +192,16 @@
           <groupId>io.netty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
+        <!--      the next bk version, please remove the following content.-->
         <exclusion>
           <groupId>io.vertx</groupId>
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
+    <!--TODO: When pulsar uses https://github.com/apache/bookkeeper/pull/2410 in -->
+    <!--      the next bk version, please remove the following content.-->
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
@@ -222,6 +226,7 @@
       <artifactId>vertx-web</artifactId>
       <version>${vertx.version}</version>
     </dependency>
+
   </dependencies>
 
   <build>
