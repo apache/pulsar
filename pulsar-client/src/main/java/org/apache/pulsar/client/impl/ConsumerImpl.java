@@ -1409,7 +1409,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int skippedMessages = 0;
         try {
             int startBatchIndex = Math.max(messageId.getBatchIndex(), 0);
-            for (int i = startBatchIndex; i < batchSize; ++i) {
+            for (int i = 0; i < batchSize; ++i) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] processing message num - {} in batch", subscription, consumerName, i);
                 }
@@ -1449,7 +1449,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                        messageId.getEntryId(), getPartitionIndex(), i, batchSize, acker);
+                        messageId.getEntryId(), getPartitionIndex(), i + startBatchIndex, batchSize, acker);
                 final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), batchMessageIdImpl,
                         msgMetadata, singleMessageMetadataBuilder.build(), singleMessagePayload,
                         createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);

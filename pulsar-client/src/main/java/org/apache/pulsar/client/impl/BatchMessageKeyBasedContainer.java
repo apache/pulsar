@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -162,7 +163,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     }
 
     private String getKey(MessageImpl<?> msg) {
-        if (msg.hasOrderingKey()) {
+        if (msg.getMessageBuilder().hasTxnidMostBits() && msg.getMessageBuilder().hasTxnidLeastBits()) {
+            return new TxnID(
+                    msg.getMessageBuilder().getTxnidMostBits(),
+                    msg.getMessageBuilder().getTxnidLeastBits()
+            ).toString();
+        } else if (msg.hasOrderingKey()) {
             return Base64.getEncoder().encodeToString(msg.getOrderingKey());
         }
         return msg.getKey();
@@ -185,6 +191,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         private SendCallback firstCallback;
 
         private ByteBuf getCompressedBatchMetadataAndPayload() {
+            if (messages.get(0).getMessageBuilder().hasTxnidMostBits()
+                    && messages.get(0).getMessageBuilder().hasTxnidLeastBits()) {
+                messageMetadata.setTxnidMostBits(messages.get(0).getMessageBuilder().getTxnidMostBits());
+                messageMetadata.setTxnidLeastBits(messages.get(0).getMessageBuilder().getTxnidLeastBits());
+            }
+
             for (MessageImpl<?> msg : messages) {
                 PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
                 batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,

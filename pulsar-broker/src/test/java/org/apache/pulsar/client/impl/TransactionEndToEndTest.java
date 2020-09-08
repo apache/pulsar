@@ -101,6 +101,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         produceCommitTest(false);
     }
 
+    @Test
+    public void batchProduceCommitTest() throws Exception {
+        produceCommitTest(true);
+    }
+
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
