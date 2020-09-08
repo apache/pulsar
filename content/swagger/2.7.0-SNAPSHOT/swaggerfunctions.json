@@ -1397,25 +1397,40 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
+        "producerName" : {
+          "type" : "string"
         },
         "redeliveryCount" : {
           "type" : "integer",
           "format" : "int32"
         },
-        "replicatedFrom" : {
-          "type" : "string"
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
         "replicated" : {
           "type" : "boolean"
         },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "data" : {
           "type" : "array",
@@ -1431,33 +1446,18 @@
             "format" : "byte"
           }
         },
-        "eventTime" : {
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
         "topicName" : {
           "type" : "string"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "value" : {
           "type" : "object"
