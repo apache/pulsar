@@ -151,7 +151,7 @@ public class FunctionAssignmentTailerTest {
 
         functionAssignmentTailer.start();
 
-        // verify no errors occured
+        // verify no errors occurred
         verify(errorNotifier, times(0)).triggerError(any());
 
         messageList.add(message1);

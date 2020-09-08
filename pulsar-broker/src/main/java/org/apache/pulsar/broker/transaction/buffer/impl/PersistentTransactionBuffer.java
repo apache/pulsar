@@ -152,20 +152,15 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
 
     @Override
     public CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (PulsarApi.TxnAction.COMMIT_VALUE == txnAction) {
-            committingTxn(txnID).whenComplete((ignored, throwable) -> {
-                if (throwable != null) {
-                    completableFuture.completeExceptionally(throwable);
-                    return;
-                }
-                completableFuture.complete(null);
-            });
+            future = committingTxn(txnID);
         } else if (PulsarApi.TxnAction.ABORT_VALUE == txnAction) {
-            // TODO handle abort operation
-            completableFuture.complete(null);
+            future = abortTxn(txnID);
+        } else {
+            future.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
         }
-        return completableFuture;
+        return future;
     }
 
     private CompletableFuture<Void> committingTxn(TxnID txnID) {

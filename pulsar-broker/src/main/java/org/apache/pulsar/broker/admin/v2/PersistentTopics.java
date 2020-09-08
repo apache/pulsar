@@ -56,11 +56,14 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -250,6 +253,69 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
+    @ApiOperation(value = "Get offload policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isOffloadPoliciesSet()) {
+            asyncResponse.resume(topicPolicies.getOffloadPolicies());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
+    @ApiOperation(value = "Set offload policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                    @PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace,
+                                                    @PathParam("topic") @Encoded String encodedTopic,
+                                                    @ApiParam(value = "Offload policies for the specified topic")
+                                                            OffloadPolicies offloadPolicies) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetOffloadPolicies(offloadPolicies).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set offloadPolicies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set offloadPolicies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/offloadPolicies")
+    @ApiOperation(value = "Delete offload policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void removeOffloadPolicies(@Suspended final AsyncResponse asyncResponse,
+                                      @PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace,
+                                      @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setOffloadPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/maxUnackedMessagesOnConsumer")
     @ApiOperation(value = "Get max unacked messages per consumer config on a topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -310,6 +376,69 @@ public class PersistentTopics extends PersistentTopicsBase {
                                                        @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         setMaxUnackedMessagesOnConsumer(asyncResponse, tenant, namespace, encodedTopic, null);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Get inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error"),})
+    public void getInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                         @PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace,
+                                         @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        TopicPolicies topicPolicies = getTopicPolicies(topicName).orElse(new TopicPolicies());
+        if (topicPolicies.isInactiveTopicPoliciesSet()) {
+            asyncResponse.resume(topicPolicies.getInactiveTopicPolicies());
+        } else {
+            asyncResponse.resume(Response.noContent().build());
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Set inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void setInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace,
+                                                @PathParam("topic") @Encoded String encodedTopic,
+                                                @ApiParam(value = "inactive topic policies for the specified topic")
+                                                        InactiveTopicPolicies inactiveTopicPolicies) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateAdminAccessForTenant(tenant);
+        validatePoliciesReadOnlyAccess();
+        checkTopicLevelPolicyEnable();
+        if (topicName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        internalSetInactiveTopicPolicies(inactiveTopicPolicies).whenComplete((res, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed set InactiveTopicPolicies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed set InactiveTopicPolicies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/inactiveTopicPolicies")
+    @ApiOperation(value = "Delete inactive topic policies on a topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),})
+    public void deleteInactiveTopicPolicies(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("tenant") String tenant,
+                                                       @PathParam("namespace") String namespace,
+                                                       @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        setInactiveTopicPolicies(asyncResponse, tenant, namespace, encodedTopic, null);
     }
 
     @GET
@@ -1429,7 +1558,12 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic) {
         validateTopicName(tenant, namespace, encodedTopic);
         try {
-            internalGetPersistence(asyncResponse);
+            Optional<PersistencePolicies> persistencePolicies = internalGetPersistence();
+            if (!persistencePolicies.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(persistencePolicies.get());
+            }
         } catch (RestException e) {
             asyncResponse.resume(e);
         } catch (Exception e) {
@@ -1490,6 +1624,174 @@ public class PersistentTopics extends PersistentTopicsBase {
                 asyncResponse.resume(new RestException(ex));
             } else {
                 log.info("[{}] Successfully remove persistence policies: namespace={}, topic={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxProducers")
+    @ApiOperation(value = "Get maxProducers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getMaxProducers(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<Integer> maxProducers = internalGetMaxProducers();
+            if (!maxProducers.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxProducers.get());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxProducers")
+    @ApiOperation(value = "Set maxProducers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Invalid value of maxProducers")})
+    public void setMaxProducers(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @ApiParam(value = "The max producers of the topic") int maxProducers) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMaxProducers(maxProducers).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated persistence policies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed updated persistence policies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully updated max producers: namespace={}, topic={}, maxProducers={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName(),
+                        maxProducers);
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxProducers")
+    @ApiOperation(value = "Remove maxProducers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeMaxProducers(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("tenant") String tenant,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveMaxProducers().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove maxProducers", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove max producers: namespace={}, topic={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
+    @ApiOperation(value = "Get maxConsumers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getMaxConsumers(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<Integer> maxConsumers = internalGetMaxConsumers();
+            if (!maxConsumers.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxConsumers.get());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
+    @ApiOperation(value = "Set maxConsumers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "Invalid value of maxConsumers")})
+    public void setMaxConsumers(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @ApiParam(value = "The max consumers of the topic") int maxConsumers) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMaxConsumers(maxConsumers).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed updated persistence policies", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed updated persistence policies", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully updated max consumers: namespace={}, topic={}, maxConsumers={}",
+                        clientAppId(),
+                        namespaceName,
+                        topicName.getLocalName(),
+                        maxConsumers);
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumers")
+    @ApiOperation(value = "Remove maxConsumers config for specified topic.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeMaxConsumers(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("tenant") String tenant,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveMaxConsumers().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove maxConsumers", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove max consumers: namespace={}, topic={}",
                         clientAppId(),
                         namespaceName,
                         topicName.getLocalName());
@@ -1862,6 +2164,93 @@ public class PersistentTopics extends PersistentTopicsBase {
                 asyncResponse.resume(new RestException(ex));
             } else {
                 log.info("[{}] Successfully remove topic compaction threshold: tenant={}, namespace={}, topic={}",
+                    clientAppId(),
+                    tenant,
+                    namespace,
+                    topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/publishRate")
+    @ApiOperation(value = "Get publish rate configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getPublishRate(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<PublishRate> publishRate = internalGetPublishRate();
+            if (!publishRate.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(publishRate.get());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/publishRate")
+    @ApiOperation(value = "Set message publish rate configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setPublishRate(@Suspended final AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
+                                @PathParam("namespace") String namespace,
+                                @PathParam("topic") @Encoded String encodedTopic,
+                                @ApiParam(value = "Dispatch rate for the specified topic") PublishRate publishRate) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetPublishRate(publishRate).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed to set topic dispatch rate", ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed to set topic dispatch rate");
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                try {
+                    log.info("[{}] Successfully set topic publish rate: tenant={}, namespace={}, topic={}, publishRate={}",
+                        clientAppId(),
+                        tenant,
+                        namespace,
+                        topicName.getLocalName(),
+                        jsonMapper().writeValueAsString(publishRate));
+                } catch (JsonProcessingException ignore) {}
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/publishRate")
+    @ApiOperation(value = "Remove message publish rate configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Topic does not exist"),
+        @ApiResponse(code = 404, message = "Topic does not exist"),
+        @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+        @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removePublishRate(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("tenant") String tenant,
+                                   @PathParam("namespace") String namespace,
+                                   @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemovePublishRate().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove topic publish rate", ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove topic publish rate: tenant={}, namespace={}, topic={}",
                     clientAppId(),
                     tenant,
                     namespace,

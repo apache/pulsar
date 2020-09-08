@@ -222,6 +222,7 @@ public class BatchSourceExecutorTest {
     consumerBuilder = Mockito.mock(ConsumerBuilder.class);
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(Mockito.any());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(Mockito.any());
+    Mockito.doReturn(consumerBuilder).when(consumerBuilder).properties(Mockito.anyMap());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).topic(Mockito.any());
     discoveredTask = Mockito.mock(Message.class);
     consumer = Mockito.mock(org.apache.pulsar.client.api.Consumer.class);
