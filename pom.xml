@@ -165,6 +165,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.8.38</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <aspectj.version>1.9.2</aspectj.version>
+    <vertx.version>3.5.3</vertx.version>
     <rocksdb.version>5.13.3</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
