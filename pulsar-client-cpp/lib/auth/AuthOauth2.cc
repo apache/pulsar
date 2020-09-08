@@ -164,15 +164,13 @@ ClientCredentialFlow::ClientCredentialFlow(const std::string& issuerUrl,
     this->initialize();
 }
 
-
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
-   ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
-   return size * nmemb;
+    ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
+    return size * nmemb;
 }
 
-
 void ClientCredentialFlow::initialize() {
-    CURL *handle = curl_easy_init();
+    CURL* handle = curl_easy_init();
     CURLcode res;
     std::string responseData;
 
@@ -214,7 +212,7 @@ void ClientCredentialFlow::initialize() {
                     boost::property_tree::read_json(stream, root);
                 } catch (boost::property_tree::json_parser_error& e) {
                     LOG_ERROR("Failed to parse well-known configuration data response: "
-                                  << e.what() << "\nInput Json = " << responseData);
+                              << e.what() << "\nInput Json = " << responseData);
                     break;
                 }
 
@@ -222,12 +220,13 @@ void ClientCredentialFlow::initialize() {
 
                 LOG_DEBUG("Get token endpoint: " << this->tokenEndPoint_);
             } else {
-                LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_
-                <<". response Code " << response_code);
+                LOG_ERROR("Response failed for getting the well-known configuration "
+                          << issuerUrl_ << ". response Code " << response_code);
             }
             break;
         default:
-        LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_ << ". Error Code " << res);
+            LOG_ERROR("Response failed for getting the well-known configuration " << issuerUrl_
+                                                                                  << ". Error Code " << res);
             break;
     }
     // Free header list
@@ -235,7 +234,6 @@ void ClientCredentialFlow::initialize() {
     curl_easy_cleanup(handle);
 }
 void ClientCredentialFlow::close() {}
-
 
 Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     Oauth2TokenResultPtr resultPtr = Oauth2TokenResultPtr(new Oauth2TokenResult());
@@ -366,7 +364,7 @@ AuthenticationPtr AuthOauth2::create(const std::string& authParamsString) {
 
 AuthenticationPtr AuthOauth2::create(ParamMap& params) { return AuthenticationPtr(new AuthOauth2(params)); }
 
-const std::string AuthOauth2::getAuthMethodName() const { return "oauth2"; }
+const std::string AuthOauth2::getAuthMethodName() const { return "token"; }
 
 Result AuthOauth2::getAuthData(AuthenticationDataPtr& authDataContent) {
     if (cachedTokenPtr_ == nullptr || cachedTokenPtr_->isExpired()) {

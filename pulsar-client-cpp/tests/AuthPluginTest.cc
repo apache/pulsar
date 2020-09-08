@@ -351,7 +351,7 @@ TEST(AuthPluginTest, testOauth2) {
     LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
 
-    ASSERT_EQ(auth->getAuthMethodName(), "oauth2");
+    ASSERT_EQ(auth->getAuthMethodName(), "token");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForHttp(), true);
     ASSERT_EQ(data->hasDataFromCommand(), true);
@@ -372,7 +372,7 @@ TEST(AuthPluginTest, testOauth2WrongSecret) {
         int expectedTokenLength = 3379;
         LOG_INFO("PARAMS: " << params);
         pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
-        ASSERT_EQ(auth->getAuthMethodName(), "oauth2");
+        ASSERT_EQ(auth->getAuthMethodName(), "token");
 
         auth->getAuthData(data);
 
@@ -395,7 +395,7 @@ TEST(AuthPluginTest, testOauth2CredentialFile) {
     int expectedTokenLength = 3379;
     LOG_INFO("PARAMS: " << params);
     pulsar::AuthenticationPtr auth = pulsar::AuthOauth2::create(params);
-    ASSERT_EQ(auth->getAuthMethodName(), "oauth2");
+    ASSERT_EQ(auth->getAuthMethodName(), "token");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->hasDataForHttp(), true);
     ASSERT_EQ(data->hasDataFromCommand(), true);
