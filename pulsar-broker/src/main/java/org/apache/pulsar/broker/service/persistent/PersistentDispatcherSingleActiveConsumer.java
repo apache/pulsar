@@ -19,7 +19,9 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import javax.ws.rs.core.Response;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
 import java.util.Iterator;
@@ -53,7 +55,9 @@ import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -135,21 +139,31 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     protected boolean isConsumersExceededOnSubscription() {
-        Policies policies;
+        Policies policies = null;
+        Integer maxConsumersPerSubscription = null;
         try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+            maxConsumersPerSubscription = Optional.ofNullable(getTopicPolicies(TopicName.get(topicName)))
+                    .map(TopicPolicies::getMaxConsumersPerSubscription)
+                    .orElse(null);
+            if (maxConsumersPerSubscription == null) {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
 
-            if (policies == null) {
-                policies = new Policies();
+                if (policies == null) {
+                    policies = new Policies();
+                }
             }
         } catch (Exception e) {
             policies = new Policies();
         }
-        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                policies.max_consumers_per_subscription :
-                serviceConfig.getMaxConsumersPerSubscription();
+
+        if (maxConsumersPerSubscription == null) {
+            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                    policies.max_consumers_per_subscription :
+                    serviceConfig.getMaxConsumersPerSubscription();
+        }
+
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
             return true;
         }
@@ -535,6 +549,36 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         IS_CLOSED_UPDATER.set(this, TRUE);
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
         return disconnectAllConsumers();
+    }
+
+    /**
+     * Get {@link TopicPolicies} for this topic.
+     * @param topicName
+     * @return TopicPolicies is exist else return null.
+     */
+    private TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
+        try {
+            checkTopicLevelPolicyEnable();
+            return this.topic.getBrokerService().pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            return null;
+        } catch (RestException | NullPointerException e) {
+            log.warn("Topic level policies are not enabled. " +
+                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
+            return null;
+        }
+    }
+
+    private void checkTopicLevelPolicyEnable() {
+        if (!this.topic.getBrokerService().pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            throw new RestException(Response.Status.METHOD_NOT_ALLOWED,
+                    "Topic level policies is disabled, to enable the topic level policy and retry.");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherSingleActiveConsumer.class);
