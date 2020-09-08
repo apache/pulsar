@@ -563,7 +563,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 (ConcurrentMap) txnIndexField.get(recoverTB.getTxnCursor());
         Assert.assertEquals(recoverIndexMap.size(), 0);
 
-        recoverTB.recoverFromLog(PositionImpl.earliest);
+        recoverTB.recover();
 
         ConcurrentMap<TxnID, TransactionMetaImpl> originalIndexMap =
                 (ConcurrentMap) txnIndexField.get(transactionBuffer.getTxnCursor());

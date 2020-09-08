@@ -53,6 +53,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedMap;
@@ -106,7 +107,6 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             PositionImpl.earliest, "txn-buffer-retention");
         this.originTopic = originTopic;
         this.pendingCommitTxn = Queues.newConcurrentLinkedQueue();
-        recover();
     }
 
     public static String getTransactionBufferTopicName(String originTopicName) {
@@ -399,53 +399,49 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         return txnCursor;
     }
 
-    public void recover() {
+    public void recover() throws ManagedLedgerException, InterruptedException, IOException {
         // TODO recover from snapshot
         recoverFromLog(PositionImpl.earliest);
     }
 
-    public void recoverFromLog(PositionImpl startPosition) {
-        ReadOnlyCursorImpl readOnlyCursor = new ReadOnlyCursorImpl(brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig(), (ManagedLedgerImpl) ledger, startPosition, "tb-recover");
+    private void recoverFromLog(PositionImpl startPosition) throws ManagedLedgerException, InterruptedException, IOException {
+        ReadOnlyCursorImpl readOnlyCursor = new ReadOnlyCursorImpl(
+                brokerService.getPulsar().getBookKeeperClient(), new ManagedLedgerConfig(),
+                (ManagedLedgerImpl) ledger, startPosition, "tb-recover");
         while (readOnlyCursor.hasMoreEntries()) {
-            try {
-                List<Entry> entryList = readOnlyCursor.readEntries(1000);
-                entryList.forEach(entry -> {
-                    PulsarApi.MessageMetadata metadata = null;
-                    try {
-                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                        TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-                        TransactionMeta txnMeta = txnCursor.getTxnMeta(txnID, true).getNow(null);
-                        if (PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE == metadata.getMarkerType()) {
-                            txnMeta.committingTxn();
-                            pendingCommitTxn.add(txnID);
-                        } else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
-                            ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(entry.getDataBuffer());
-                            PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker
-                                    .newBuilder()
-                                    .mergeFrom(inStream, null)
-                                    .build();
+            List<Entry> entryList = readOnlyCursor.readEntries(1000);
+            for (Entry entry : entryList) {
+                PulsarApi.MessageMetadata metadata = null;
+                try {
+                    metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                    TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+                    TransactionMeta txnMeta = txnCursor.getTxnMeta(txnID, true).getNow(null);
+                    if (PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE == metadata.getMarkerType()) {
+                        txnMeta.committingTxn();
+                        pendingCommitTxn.add(txnID);
+                    } else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
+                        ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(entry.getDataBuffer());
+                        PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker
+                                .newBuilder()
+                                .mergeFrom(inStream, null)
+                                .build();
 
-                            txnCursor.commitTxn(
-                                    commitMarker.getMessageId().getLedgerId(),
-                                    commitMarker.getMessageId().getEntryId(), txnID, entry.getPosition());
-                            pendingCommitTxn.remove(txnID);
-                            commitMarker.recycle();
-                        } else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
-                            txnMeta.abortTxn();
-                        } else {
-                            txnMeta.appendEntry(metadata.getSequenceId(), entry.getPosition(), metadata.getNumMessagesInBatch());
-                        }
-                    } catch (Exception e) {
-                        log.error("Error to recover transaction buffer log.", e);
-                    } finally {
-                        if (metadata != null) {
-                            metadata.recycle();
-                        }
-                        entry.release();
+                        txnCursor.commitTxn(
+                                commitMarker.getMessageId().getLedgerId(),
+                                commitMarker.getMessageId().getEntryId(), txnID, entry.getPosition());
+                        pendingCommitTxn.remove(txnID);
+                        commitMarker.recycle();
+                    } else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
+                        txnMeta.abortTxn();
+                    } else {
+                        txnMeta.appendEntry(metadata.getSequenceId(), entry.getPosition(), metadata.getNumMessagesInBatch());
                     }
-                });
-            } catch (Exception e) {
-                log.error("Error to read transaction buffer log.", e);
+                } finally {
+                    if (metadata != null) {
+                        metadata.recycle();
+                    }
+                    entry.release();
+                }
             }
         }
     }
