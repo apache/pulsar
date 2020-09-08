@@ -20,11 +20,11 @@
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1ConfigMap;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.util.Config;
 import java.nio.file.Paths;
 
