@@ -303,11 +303,11 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
-
+        //wait for cache init
+        Thread.sleep(3000);
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
-        //wait for cache init
-        Thread.sleep(2000);
+
         InactiveTopicPolicies inactiveTopicPolicies = admin.topics().getInactiveTopicPolicies(topicName);
         assertNull(inactiveTopicPolicies);
 
