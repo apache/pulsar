@@ -165,21 +165,29 @@ public abstract class AbstractTopic implements Topic {
     }
 
     protected boolean isConsumersExceededOnTopic() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+        Integer maxConsumers = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null) {
+            maxConsumers = topicPolicies.getMaxConsumerPerTopic();
+        }
+        if (maxConsumers == null) {
+            Policies policies;
+            try {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
 
-            if (policies == null) {
+                if (policies == null) {
+                    policies = new Policies();
+                }
+            } catch (Exception e) {
+                log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
+                        e.getMessage());
                 policies = new Policies();
             }
-        } catch (Exception e) {
-            log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
-                    e.getMessage());
-            policies = new Policies();
+            maxConsumers = policies.max_consumers_per_topic;
         }
-        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?  policies.max_consumers_per_topic
+        final int maxConsumersPerTopic = maxConsumers > 0 ? maxConsumers
                 : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
             return true;

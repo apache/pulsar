@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -588,6 +589,123 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Publish Rate get on topic: {} after remove", getPublishRate, testTopic);
         Assert.assertNull(getPublishRate);
 
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckMaxConsumers() throws Exception {
+        Integer maxProducers = new Integer(-1);
+        log.info("MaxConsumers: {} will set to the topic: {}", maxProducers, testTopic);
+        try {
+            admin.topics().setMaxConsumers(testTopic, maxProducers);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetMaxConsumers() throws Exception {
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 1);
+        log.info("MaxConsumers: {} will set to the namespace: {}", 1, myNamespace);
+        Integer maxConsumers = 2;
+        log.info("MaxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
+        admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Consumer consumer1 = null;
+        Consumer consumer2 = null;
+        Consumer consumer3 = null;
+        try {
+            consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit");
+        }
+        Assert.assertNotNull(consumer1);
+        Assert.assertNotNull(consumer2);
+        Assert.assertNull(consumer3);
+        consumer1.close();
+        consumer2.close();
+
+        Integer getMaxConsumers = admin.topics().getMaxConsumers(persistenceTopic);
+        log.info("MaxConsumers {} get on topic: {}", getMaxConsumers, persistenceTopic);
+        Assert.assertEquals(getMaxConsumers, maxConsumers);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveMaxConsumers() throws Exception {
+        Integer maxConsumers = 2;
+        log.info("maxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
+        admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Consumer consumer1 = null;
+        Consumer consumer2 = null;
+        Consumer consumer3 = null;
+        Consumer consumer4 = null;
+        try {
+            consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit on topic level.");
+        }
+        Assert.assertNotNull(consumer1);
+        Assert.assertNotNull(consumer2);
+        Assert.assertNull(consumer3);
+
+        admin.topics().removeMaxConsumers(persistenceTopic);
+        Thread.sleep(3000);
+        Integer getMaxConsumers = admin.topics().getMaxConsumers(testTopic);
+        log.info("MaxConsumers: {} get on topic: {} after remove", getMaxConsumers, testTopic);
+        Assert.assertNull(getMaxConsumers);
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        Assert.assertNotNull(consumer3);
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
+        log.info("MaxConsumers: {} will set to the namespace: {}", 3, myNamespace);
+        try {
+            consumer4 = pulsarClient.newConsumer().subscriptionName("sub4").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit on namespace level.");
+        }
+        Assert.assertNull(consumer4);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 }
