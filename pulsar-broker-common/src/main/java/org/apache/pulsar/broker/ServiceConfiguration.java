@@ -1003,6 +1003,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean bookkeeperClientRegionawarePolicyEnabled = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "Minimum number of racks per write quorum. \n\nBK rack-aware bookie selection policy will try to"
+            + " get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.")
+    private int bookkeeperClientMinNumRacksPerWriteQuorum = 2;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for "
+            + "a writeQuorum. \n\nIf BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.")
+    private boolean bookkeeperClientEnforceMinNumRacksPerWriteQuorum = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
     private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     @FieldContext(

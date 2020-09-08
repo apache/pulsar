@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -82,7 +83,10 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedEx
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.PrecisPublishLimiter;
 import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.PublishRateLimiter;
+import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.StreamingStats;
@@ -1602,6 +1606,26 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.ledgers.add(info);
         });
 
+        // Add ledger info for compacted topic ledger if exist.
+        LedgerInfo info = new LedgerInfo();
+        info.ledgerId = -1;
+        info.entries = -1;
+        info.size = -1;
+
+        try {
+            Optional<CompactedTopicImpl.CompactedTopicContext> compactedTopicContext =
+                    ((CompactedTopicImpl)compactedTopic).getCompactedTopicContext();
+            if (compactedTopicContext.isPresent()) {
+                CompactedTopicImpl.CompactedTopicContext ledgerContext = compactedTopicContext.get();
+                info.ledgerId = ledgerContext.getLedger().getId();
+                info.entries = ledgerContext.getLedger().getLastAddConfirmed() + 1;
+                info.size = ledgerContext.getLedger().getLength();
+            }
+        } catch (ExecutionException | InterruptedException e) {
+            log.warn("[{}]Fail to get ledger information for compacted topic.", topic);
+        }
+        stats.compactedLedger = info;
+
         stats.cursors = Maps.newTreeMap();
         ml.getCursors().forEach(c -> {
             ManagedCursorImpl cursor = (ManagedCursorImpl) c;
@@ -1822,13 +1846,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             delayedDeliveryTickTimeMillis = data.delayed_delivery_policies.getTickTime();
             delayedDeliveryEnabled = data.delayed_delivery_policies.isActive();
         }
+        //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
         if (data.inactive_topic_policies != null) {
-            this.inactiveTopicPolicies = data.inactive_topic_policies;
+            if (topicPolicies == null || !topicPolicies.isInactiveTopicPoliciesSet()) {
+                this.inactiveTopicPolicies = data.inactive_topic_policies;
+            }
         } else {
             ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
             resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
                     , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
         }
+
 
         initializeDispatchRateLimiterIfNeeded(Optional.ofNullable(data));
 
@@ -2135,24 +2164,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     /**
-     * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
-     */
-    public TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        }
-    }
-
-    /**
      * Get message TTL for this topic.
      * @param topicPolicies TopicPolicies
      * @param policies      NameSpace policy
@@ -2359,19 +2370,50 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         if (log.isDebugEnabled()) {
             log.debug("[{}] update topic policy: {}", topic, policies);
         }
-
-        initializeTopicDispatchRateLimiterIfNeeded(Optional.ofNullable(policies));
-        if (this.dispatchRateLimiter.isPresent() && policies != null
-                && policies.getDispatchRate() != null) {
+        if (policies == null) {
+            return;
+        }
+        Optional<Policies> namespacePolicies = getNamespacePolicies();
+        initializeTopicDispatchRateLimiterIfNeeded(policies);
+        if (this.dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
             dispatchRateLimiter.ifPresent(dispatchRateLimiter ->
                 dispatchRateLimiter.updateDispatchRate(policies.getDispatchRate()));
         }
+
+        if (policies.getPublishRate() != null) {
+            topicPolicyPublishRate = policies.getPublishRate();
+            updateTopicPublishDispatcher();
+        }
+
+        if (policies.isInactiveTopicPoliciesSet()) {
+            inactiveTopicPolicies = policies.getInactiveTopicPolicies();
+        } else {
+            //topic-level policies is null , so use namespace-level or broker-level
+            namespacePolicies.ifPresent(nsPolicies -> {
+                if (nsPolicies.inactive_topic_policies != null) {
+                    inactiveTopicPolicies = nsPolicies.inactive_topic_policies;
+                } else {
+                    ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+                    resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                            , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), cfg.isBrokerDeleteInactiveTopicsEnabled());
+                }
+            });
+        }
     }
 
-    private void initializeTopicDispatchRateLimiterIfNeeded(Optional<TopicPolicies> policies) {
+    private Optional<Policies> getNamespacePolicies(){
+        try {
+            return Optional.ofNullable(brokerService.pulsar().getAdminClient().namespaces()
+                    .getPolicies(TopicName.get(topic).getNamespace()));
+        } catch (Exception e) {
+            log.error("get namespace policies fail", e);
+        }
+        return Optional.empty();
+    }
+
+    private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
         synchronized (dispatchRateLimiter) {
-            if (!dispatchRateLimiter.isPresent() && policies.isPresent() &&
-                policies.get().getDispatchRate() != null) {
+            if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
         }
@@ -2381,6 +2423,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return this;
     }
 
+    @Override
+    protected void updateTopicPublishDispatcher() {
+        if (topicPolicyPublishRate != null && (topicPolicyPublishRate.publishThrottlingRateInByte > 0
+            || topicPolicyPublishRate.publishThrottlingRateInMsg > 0)) {
+            log.info("Enabling topic policy publish rate limiting {} on topic {}", topicPolicyPublishRate, this.topic);
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupBrokerPublishRateLimiterMonitor();
+            }
+
+            if (this.topicPublishRateLimiter == null
+                || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
+                // create new rateLimiter if rate-limiter is disabled
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(topicPolicyPublishRate, ()-> this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(topicPolicyPublishRate);
+                }
+            } else {
+                this.topicPublishRateLimiter.update(topicPolicyPublishRate);
+            }
+        } else {
+            log.info("Disabling publish throttling for {}", this.topic);
+            this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
+            enableProducerReadForPublishRateLimiting();
+        }
+    }
 
     @VisibleForTesting
     public MessageDeduplication getMessageDeduplication() {

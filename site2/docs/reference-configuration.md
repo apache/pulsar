@@ -253,6 +253,8 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |bookkeeperClientHealthCheckQuarantineTimeInSeconds ||1800|
 |bookkeeperClientRackawarePolicyEnabled|  Enable rack-aware bookie selection policy. BK will chose bookies from different racks when forming a new bookie ensemble  |true|
 |bookkeeperClientRegionawarePolicyEnabled|  Enable region-aware bookie selection policy. BK will chose bookies from different regions and racks when forming a new bookie ensemble. If enabled, the value of bookkeeperClientRackawarePolicyEnabled is ignored  |false|
+|bookkeeperClientMinNumRacksPerWriteQuorum|  Minimum number of racks per write quorum. BK rack-aware bookie selection policy will try to get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.  |2|
+|bookkeeperClientEnforceMinNumRacksPerWriteQuorum|  Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a writeQuorum. If BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.  |false|
 |bookkeeperClientReorderReadSequenceEnabled|  Enable/disable reordering read sequence on reading entries.  |false|
 |bookkeeperClientIsolationGroups| Enable bookie isolation by specifying a list of bookie groups to choose from. Any bookie outside the specified groups will not be used by the broker  ||
 |bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||
@@ -339,7 +341,6 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |maxMessagePublishBufferSizeInMB|The maximum memory size for broker handling messages sent from producers. If the processing message size exceeds this value, broker stops reading data from the connection. The processing messages means messages are sent to broker but broker have not sent response to the client. Usually the message are waiting to be written to bookies. It's shared across all the topics running in the same broker. The value `-1` disables the memory limitation. By default, it is 50% of direct memory.|N/A|
 |messagePublishBufferCheckIntervalInMillis|Interval between checks to see if message publish buffer size exceeds the maximum. Use `0` or negative number to disable the max publish buffer limiting.|100|
 |retentionCheckIntervalInSeconds|Check between intervals to see if consumed ledgers need to be trimmed. Use 0 or negative number to disable the check.|120|
-
 | maxMessageSize | Set the maximum size of a message. | 5242880 |
 | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |
 
@@ -568,6 +569,8 @@ The value of 0 disables message-byte dispatch-throttling.|0|
 |bookkeeperGetBookieInfoRetryIntervalSeconds|Specify options for the GetBookieInfo check. This setting helps ensure the list of bookies that are up to date on the brokers.|60|
 |bookkeeperClientRackawarePolicyEnabled|    |true|
 |bookkeeperClientRegionawarePolicyEnabled|    |false|
+|bookkeeperClientMinNumRacksPerWriteQuorum|    |2|
+|bookkeeperClientMinNumRacksPerWriteQuorum|    |false|
 |bookkeeperClientReorderReadSequenceEnabled|    |false|
 |bookkeeperClientIsolationGroups|||
 |bookkeeperClientSecondaryIsolationGroups| Enable bookie secondary-isolation group if bookkeeperClientIsolationGroups doesn't have enough bookie available.  ||

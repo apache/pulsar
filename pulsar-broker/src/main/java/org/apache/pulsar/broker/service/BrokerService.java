@@ -48,6 +48,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +76,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -1069,6 +1071,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
             PersistencePolicies persistencePolicies = null;
             RetentionPolicies retentionPolicies = null;
+            OffloadPolicies topicLevelOffloadPolicies = null;
 
             if (pulsar.getConfig().isTopicLevelPoliciesEnabled()) {
                 TopicName cloneTopicName = topicName;
@@ -1080,6 +1083,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     if (topicPolicies != null) {
                         persistencePolicies = topicPolicies.getPersistence();
                         retentionPolicies = topicPolicies.getRetentionPolicies();
+                        topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                     }
                 } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
                     log.warn("Topic {} policies cache have not init.", topicName);
@@ -1158,10 +1162,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
-            managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
+            if (topicLevelOffloadPolicies != null) {
+                try {
+                    LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(topicLevelOffloadPolicies);
+                    managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);
+                } catch (PulsarServerException e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+            } else {
+                //If the topic level policy is null, use the namespace level
+                managedLedgerConfig.setLedgerOffloader(pulsar.getManagedLedgerOffloader(namespace, offloadPolicies));
+            }
 
             managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
             managedLedgerConfig.setNewEntriesCheckDelayInMillis(serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+
 
             future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
@@ -2208,7 +2224,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     @VisibleForTesting
     void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
-        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        foreachCnx(cnx -> currentMessagePublishBufferBytes.addAndGet(cnx.getMessagePublishBufferSize()));
         if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
             && !reachMessagePublishBufferThreshold) {
             reachMessagePublishBufferThreshold = true;
@@ -2221,11 +2237,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    private void foreachProducer(Consumer<Producer> consumer) {
+    private void foreachCnx(Consumer<ServerCnx> consumer) {
+        Set<ServerCnx> cnxSet = new HashSet<>();
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(consumer));
+            topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
         });
+        cnxSet.forEach(consumer);
     }
 
     public boolean isReachMessagePublishBufferThreshold() {
@@ -2235,7 +2253,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     @VisibleForTesting
     long getCurrentMessagePublishBufferSize() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
-        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        foreachCnx(cnx -> currentMessagePublishBufferBytes.addAndGet(cnx.getMessagePublishBufferSize()));
         return currentMessagePublishBufferBytes.get();
     }
 

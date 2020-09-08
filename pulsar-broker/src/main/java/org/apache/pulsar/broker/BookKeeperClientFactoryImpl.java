@@ -170,6 +170,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
+
+            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
+
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
                 conf.getProperties().getProperty(
                     REPP_DNS_RESOLVER_CLASS,

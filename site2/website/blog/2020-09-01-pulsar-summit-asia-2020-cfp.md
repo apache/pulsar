@@ -9,6 +9,8 @@ The Pulsar Summit is an annual conference dedicated to the Apache Pulsar communi
 
 After a very successful Pulsar Summit Virtual Conference in June, we have decided to present our Pulsar Summit Asia 2020 in the same way on November 28-29, 2020. The two-day conference will be free to attend! Are you interested in presenting? Suggested topics include Pulsar use cases, operations, technology deep dive, and ecosystem. CFP and registration are now open!
 
+![](../img/pulsar-summit-asia-2020.png)
+
 ## Speak at Pulsar Summit
 The opportunity to speak at the second global Pulsar Summit is a great chance to participate in the rapidly growing Apache Pulsar community. Join us for the opportunity to be on stage with top Pulsar thought-leaders, including Apache Pulsar PMC members Sijie Guo and Jia Zhai from [StreamNative](https://streamnative.io/), Penghui Li from Zhaopin.com, Nozomi Kurihara from [Yahoo Japan Corporation](https://about.yahoo.co.jp/), and other community leaders such as Dezhi Liu from [Tencent](https://www.tencent.com/en-us), Vincent Xie from [Orange Finance](https://www.bestpay.com.cn/). Proposals for speaker presentations are currently being accepted. Suggested topics include Pulsar use cases, operations, technology deep dive, and ecosystem. Submissions are open until **October 14, 2020**.
 
