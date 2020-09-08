@@ -346,8 +346,6 @@ public class EndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
-        Thread.sleep(1000);
-
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             Assert.assertEquals(
                     messageIdMap.get(i).getLedgerId() + ":-1",
