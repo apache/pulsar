@@ -19,9 +19,9 @@ To check whether the Docker image starts, you can use the `docker ps` command.
 
 To package a function in Java, complete the following steps.
 
-1. Create a new maven project with a pom file. In the following example, `mainClass` is your package name.
+1. Create a new maven project with a pom file. In the following code sample, `mainClass` is your package name.
 
-    ```text
+    ```Java
     <?xml version="1.0" encoding="UTF-8"?>
     <project xmlns="http://maven.apache.org/POM/4.0.0"
             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -93,34 +93,33 @@ To package a function in Java, complete the following steps.
         }
     }
     ```
+ 
+     For the package imported, you can use one of the following interfaces:
+    - Function interface provided by Java 8: `java.util.function.Function`
+    - Pulsar Function interface: `org.apache.pulsar.functions.api.Function`
 
+    The main difference between the two interfaces is that the `org.apache.pulsar.functions.api.Function` interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.
 
-For the package imported, you can use one of the following interfaces:
-- Function interface provided by Java 8: `java.util.function.Function`
-- Pulsar Function interface: `org.apache.pulsar.functions.api.Function`
-The main difference between the two interfaces is that the `org.apache.pulsar.functions.api.Function` interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.
+    The following example uses `org.apache.pulsar.functions.api.Function` interface with context.
 
-### Example 
-This example uses `org.apache.pulsar.functions.api.Function` interface with context.
-
-```
-package org.example.functions;
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-
-import java.util.Arrays;
-public class WordCountFunction implements Function<String, Void> {
-   // This function is invoked every time a message is published to the input topic
-    @Override
-    public Void process(String input, Context context) throws Exception {
-       Arrays.asList(input.split(" ")).forEach(word -> {
-           String counterKey = word.toLowerCase();
-           context.incrCounter(counterKey, 1);
-        });
-       return null;
-   }
- }
- ```
+    ```
+    package org.example.functions;
+    import org.apache.pulsar.functions.api.Context;
+    import org.apache.pulsar.functions.api.Function;
+    
+    import java.util.Arrays;
+    public class WordCountFunction implements Function<String, Void> {
+       // This function is invoked every time a message is published to the input topic
+        @Override
+        public Void process(String input, Context context) throws Exception {
+           Arrays.asList(input.split(" ")).forEach(word -> {
+               String counterKey = word.toLowerCase();
+               context.incrCounter(counterKey, 1);
+            });
+           return null;
+       }
+     }
+     ```
 
 3. Package the Java function.
 
@@ -128,7 +127,7 @@ public class WordCountFunction implements Function<String, Void> {
     mvn package
     ```
 
-    After the Java function is packaged, a `target` directory is automatically created. Open the `target` directory to see if there is a jar package similar to `java-function-1.0-SNAPSHOT.jar`.
+    After the Java function is packaged, a `target` directory is created automatically. Open the `target` directory to see if there is a jar package similar to `java-function-1.0-SNAPSHOT.jar`.
 
 
 4.  Run the Java function.
@@ -171,7 +170,7 @@ Python Function supports the following three formats:
 
 ### One python file
 
-To package a function by **one python file** in Python, complete the following steps.
+To package a function with **one python file** in Python, complete the following steps.
 
 1. Write a Python function.
 
@@ -236,27 +235,27 @@ To package a function by **one python file** in Python, complete the following s
 
 ### ZIP file
 
-To package a function by **ZIP file** in Python, complete the following steps.
+To package a function with **ZIP file** in Python, complete the following steps.
 
 1. Prepare the ZIP file.
 
-When packaging the ZIP file of the Python Function, the following requirements need to be met:
+    The following is required when packaging the ZIP file of the Python Function.
 
-```text
-Assuming the zip file is named as `func.zip`, unzip the `func.zip` folder:
-    "func/src"
-    "func/requirements.txt"
-    "func/deps"
-```
-Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples) as an example, of which the internal structure is as follows:
+    ```text
+    Assuming the zip file is named as `func.zip`, unzip the `func.zip` folder:
+        "func/src"
+        "func/requirements.txt"
+        "func/deps"
+    ```
+    Take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests/docker-images/latest-version-image/python-examples) as an example. The internal structure of the example is as follows.
 
-```text
-.
-├── deps
-│   └── sh-1.12.14-py2.py3-none-any.whl
-└── src
-    └── exclamation.py
-```
+    ```text
+    .
+    ├── deps
+    │   └── sh-1.12.14-py2.py3-none-any.whl
+    └── src
+        └── exclamation.py
+    ```
 
 2. Run the Python Function.
 
@@ -290,50 +289,50 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
 
 ### PIP
 
-The PIP method is only supported in Kubernetes runtime. To package a function by **PIP** in Python, complete the following steps.
+The PIP method is only supported in Kubernetes runtime. To package a function with **PIP** in Python, complete the following steps.
 
 1. Configure the `functions_worker.yml` file.
 
-```text
-#### Kubernetes Runtime ####
-installUserCodeDependencies: true
-```
+    ```text
+    #### Kubernetes Runtime ####
+    installUserCodeDependencies: true
+    ```
 
 2. Write your Python Function.
 
-```
-from pulsar import Function
-import js2xml
+    ```
+    from pulsar import Function
+    import js2xml
 
-# The classic ExclamationFunction that appends an exclamation at the end
-# of the input
-class ExclamationFunction(Function):
-  def __init__(self):
-    pass
+    # The classic ExclamationFunction that appends an exclamation at the end
+    # of the input
+    class ExclamationFunction(Function):
+     def __init__(self):
+       pass
 
-  def process(self, input, context):
-    // add your logic
-    return input + '!'
-```
+     def process(self, input, context):
+      // add your logic
+      return input + '!'
+    ```
 
-You can introduce additional dependencies. When Python Function detects that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system uses the `pip install` command to install the dependencies required in Python Function.
+    You can introduce additional dependencies. When Python Function detects that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system uses the `pip install` command to install the dependencies required in Python Function.
 
 3. Generate the `whl` file.
 
-```shell script
-$ cd $PULSAR_HOME/pulsar-functions/scripts/python
-$ chmod +x generate.sh
-$ ./generate.sh <path of your Python Function> <path of the whl output dir> <the version of whl>
-# e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
-```
+    ```shell script
+    $ cd $PULSAR_HOME/pulsar-functions/scripts/python
+    $ chmod +x generate.sh
+    $ ./generate.sh <path of your Python Function> <path of the whl output dir> <the version of whl>
+    # e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
+    ```
 
-The output is written in `/path/to/python/output`:
+    The output is written in `/path/to/python/output`:
 
-```text
--rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
--rw-r--r--  1 root  staff   1.4K  8 27 14:29 pulsarfunction-1.0.0.tar.gz
--rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
-```
+    ```text
+    -rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
+    -rw-r--r--  1 root  staff   1.4K  8 27 14:29 pulsarfunction-1.0.0.tar.gz
+    -rw-r--r--  1 root  staff     0B  8 27 14:29 pulsarfunction.whl
+    ```
 
 ## Go 
 
@@ -361,8 +360,7 @@ To package a function in Go, complete the following steps.
     }
     ```
 
-
-    You can use context to connect with the Go function.
+    You can use context to connect to the Go function.
     
     ```
     if fc, ok := pf.FromContext(ctx); ok {
@@ -371,23 +369,21 @@ To package a function in Go, complete the following steps.
      }
      ```
 
-    > **Note**
-    >
-    > - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name is received in `Start()`. 
-    >
-    > - Go function uses Go reflection based on the received function name to verify whether the parameter list and returned value list implemented are correct. The parameter list and returned value list specified **must be** one of the following sample functions:
-    >
-    >   ```
-    >   func ()
-    >   func () error
-    >   func (input) error
-    >   func () (output, error)
-    >   func (input) (output, error)
-    >   func (context.Context) error
-    >   func (context.Context, input) error
-    >   func (context.Context) (output, error)
-    >   func (context.Context, input) (output, error)
-    >   ```
+    When writing a Go function, remember that
+    - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name is received in `Start()`. 
+    - Go function uses Go reflection based on the received function name to verify whether the parameter list and returned value list implemented are correct. The parameter list and returned value list specified **must be** one of the following sample functions:
+    
+      ```
+       func ()
+       func () error
+       func (input) error
+       func () (output, error)
+       func (input) (output, error)
+       func (context.Context) error
+       func (context.Context, input) error
+       func (context.Context) (output, error)
+       func (context.Context, input) (output, error)
+       ```
 
 2. Build the Go function.
 
@@ -424,8 +420,8 @@ To package a function in Go, complete the following steps.
     ...
     ```
 
-## Verify
-If you want to start a function in cluster mode, replace `localrun` with `create` in the commands. The following log indicates that your function starts successfully.
+## Start Functions in cluster mode
+If you want to start a function in cluster mode, replace `localrun` with `create` in the commands above. The following log indicates that your function starts successfully.
 
  ```text
    "Created successfully"
