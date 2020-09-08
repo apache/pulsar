@@ -322,7 +322,16 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.11.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
- * Gson -- com.google.code.gson-gson-2.8.2.jar
+ * Joda -- org.joda-joda-convert-2.2.1.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
+ * Gson
+    - com.google.code.gson-gson-2.8.2.jar
+    - io.gsonfire-gson-fire-1.8.4.jar
+ * Sundrio
+    - io.sundr-builder-annotations-0.21.0.jar
+    - io.sundr-resourcecify-annotations-0.21.0.jar
+    - io.sundr-sundr-codegen-0.21.0.jar
+    - io.sundr-sundr-core-0.21.0.jar
  * Guava
     - com.google.guava-guava-25.1-jre.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.1.jar
@@ -371,7 +380,7 @@ The Apache Software License, Version 2.0
     - io.prometheus-simpleclient_servlet-0.5.0.jar
     - io.prometheus-simpleclient_log4j2-0.5.0.jar
     - io.prometheus-simpleclient_jetty-0.5.0.jar
-    - io.prometheus.jmx-collector-0.12.0.jar
+    - io.prometheus.jmx-collector-0.14.0.jar
     - io.prometheus-simpleclient_caffeine-0.5.0.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
@@ -468,12 +477,12 @@ The Apache Software License, Version 2.0
   * @FreeBuilder
     - org.inferred-freebuilder-1.14.9.jar
   * Squareup
-    - com.squareup.okhttp-logging-interceptor-2.7.5.jar
-    - com.squareup.okhttp-okhttp-ws-2.7.5.jar
+    - com.squareup.okhttp3-logging-interceptor-3.14.3.jar
+    - com.squareup.okhttp3-okhttp-3.14.3.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-2.0.0.jar
-    - io.kubernetes-client-java-api-2.0.0.jar
-    - io.kubernetes-client-java-proto-2.0.0.jar
+    - io.kubernetes-client-java-9.0.2.jar
+    - io.kubernetes-client-java-api-9.0.2.jar
+    - io.kubernetes-client-java-proto-9.0.2.jar
   * Joda Time
     - joda-time-2.10.1.jar
     - joda-time-joda-time-2.10.1.jar
