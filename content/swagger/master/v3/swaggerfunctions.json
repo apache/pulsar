@@ -1614,18 +1614,12 @@
         "Message": {
             "type": "object",
             "properties": {
-                "replicated": {
-                    "type": "boolean"
-                },
                 "orderingKey": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
                 },
                 "schemaVersion": {
                     "type": "array",
@@ -1640,6 +1634,12 @@
                 "redeliveryCount": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "topicName": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "sequenceId": {
                     "type": "integer",
@@ -1665,8 +1665,8 @@
                         "format": "byte"
                     }
                 },
-                "topicName": {
-                    "type": "string"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
                 "publishTime": {
                     "type": "integer",
