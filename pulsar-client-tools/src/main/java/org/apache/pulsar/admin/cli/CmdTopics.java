@@ -50,6 +50,8 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -145,9 +147,15 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-publish-rate", new GetPublishRate());
         jcommander.addCommand("set-publish-rate", new SetPublishRate());
         jcommander.addCommand("remove-publish-rate", new RemovePublishRate());
-        jcommander.addCommand("get-maxProducers", new GetMaxProducers());
-        jcommander.addCommand("set-maxProducers", new SetMaxProducers());
-        jcommander.addCommand("remove-maxProducers", new RemoveMaxProducers());
+        jcommander.addCommand("get-max-producers", new GetMaxProducers());
+        jcommander.addCommand("set-max-producers", new SetMaxProducers());
+        jcommander.addCommand("remove-max-producers", new RemoveMaxProducers());
+        jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
+        jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
+        jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
+        jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
+        jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
+        jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1466,7 +1474,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            admin.topics().getMaxProducers(persistentTopic);
+            print(admin.topics().getMaxProducers(persistentTopic));
         }
     }
 
@@ -1494,6 +1502,107 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxProducers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the inactive topic policies on a topic")
+    private class GetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getInactiveTopicPolicies(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the inactive topic policies on a topic")
+    private class SetInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable-delete-while-inactive", "-e" }, description = "Enable delete while inactive")
+        private boolean enableDeleteWhileInactive = false;
+
+        @Parameter(names = { "--disable-delete-while-inactive", "-d" }, description = "Disable delete while inactive")
+        private boolean disableDeleteWhileInactive = false;
+
+        @Parameter(names = {"--max-inactive-duration", "-t"}, description = "Max duration of topic inactivity in seconds" +
+                ",topics that are inactive for longer than this value will be deleted (eg: 1s, 10s, 1m, 5h, 3d)", required = true)
+        private String deleteInactiveTopicsMaxInactiveDuration;
+
+        @Parameter(names = { "--delete-mode", "-m" }, description = "Mode of delete inactive topic" +
+                ",Valid options are: [delete_when_no_subscriptions, delete_when_subscriptions_caught_up]", required = true)
+        private String inactiveTopicDeleteMode;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            long maxInactiveDurationInSeconds = TimeUnit.SECONDS.toSeconds(RelativeTimeUtil.parseRelativeTimeInSeconds(deleteInactiveTopicsMaxInactiveDuration));
+
+            if (enableDeleteWhileInactive == disableDeleteWhileInactive) {
+                throw new ParameterException("Need to specify either enable-delete-while-inactive or disable-delete-while-inactive");
+            }
+            InactiveTopicDeleteMode deleteMode = null;
+            try {
+                deleteMode = InactiveTopicDeleteMode.valueOf(inactiveTopicDeleteMode);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException("delete mode can only be set to delete_when_no_subscriptions or delete_when_subscriptions_caught_up");
+            }
+            admin.topics().setInactiveTopicPolicies(persistentTopic,
+                    new InactiveTopicPolicies(deleteMode, (int) maxInactiveDurationInSeconds, enableDeleteWhileInactive));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove inactive topic policies from a topic")
+    private class RemoveInactiveTopicPolicies extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeInactiveTopicPolicies(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get max number of consumers for a topic")
+    private class GetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getMaxConsumers(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set max number of consumers for a topic")
+    private class SetMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers", "-c" }, description = "Max consumers for a topic", required = true)
+        private int maxConsumers;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setMaxConsumers(persistentTopic, maxConsumers);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove max number of consumers for a topic")
+    private class RemoveMaxConsumers extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeMaxConsumers(persistentTopic);
         }
     }
 }

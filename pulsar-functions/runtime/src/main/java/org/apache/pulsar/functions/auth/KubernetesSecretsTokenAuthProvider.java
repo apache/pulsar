@@ -19,16 +19,16 @@
 package org.apache.pulsar.functions.auth;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.kubernetes.client.ApiException;
-import io.kubernetes.client.apis.CoreV1Api;
-import io.kubernetes.client.models.V1DeleteOptions;
-import io.kubernetes.client.models.V1ObjectMeta;
-import io.kubernetes.client.models.V1PodSpec;
-import io.kubernetes.client.models.V1Secret;
-import io.kubernetes.client.models.V1SecretVolumeSource;
-import io.kubernetes.client.models.V1StatefulSet;
-import io.kubernetes.client.models.V1Volume;
-import io.kubernetes.client.models.V1VolumeMount;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1Secret;
+import io.kubernetes.client.openapi.models.V1SecretVolumeSource;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1Volume;
+import io.kubernetes.client.openapi.models.V1VolumeMount;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -173,16 +173,12 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     try {
-                        V1DeleteOptions v1DeleteOptions = new V1DeleteOptions();
-                        v1DeleteOptions.setGracePeriodSeconds(0L);
-                        v1DeleteOptions.setPropagationPolicy("Foreground");
-
                         // make sure secretName is not null or empty string.
                         // If deleteNamespacedSecret is called and secret name is null or empty string
                         // it will delete all the secrets in the namespace
                         coreClient.deleteNamespacedSecret(secretName,
-                                kubeNamespace, v1DeleteOptions, "true",
-                                null, null, null);
+                                kubeNamespace, null, "true",
+                                0, null, "Foreground", null);
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -302,11 +298,11 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .data(buildSecretMap(token));
 
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, "true", null);
                     } catch (ApiException e) {
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
-                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null);
+                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, "true", null);
                                 return Actions.ActionResult.builder().success(true).build();
 
                             } catch (ApiException e1) {
@@ -358,7 +354,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(buildSecretMap(token));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, "true");
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, "true", null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {

@@ -35,6 +35,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -1711,6 +1712,52 @@ public interface Topics {
     CompletableFuture<Void> removeMaxUnackedMessagesOnConsumerAsync(String topic);
 
     /**
+     * get inactive topic policies of a topic.
+     * @param topic
+     * @return
+     * @throws PulsarAdminException
+     */
+    InactiveTopicPolicies getInactiveTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * get inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String topic);
+
+    /**
+     * set inactive topic policies of a topic.
+     * @param topic
+     * @param maxNum
+     * @throws PulsarAdminException
+     */
+    void setInactiveTopicPolicies(String topic
+            , InactiveTopicPolicies inactiveTopicPolicies) throws PulsarAdminException;
+
+    /**
+     * set inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @param maxNum
+     * @return
+     */
+    CompletableFuture<Void> setInactiveTopicPoliciesAsync(String topic, InactiveTopicPolicies inactiveTopicPolicies);
+
+    /**
+     * remove inactive topic policies of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeInactiveTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * remove inactive topic policies of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeInactiveTopicPoliciesAsync(String topic);
+
+    /**
      * get offload policies of a topic.
      * @param topic
      * @return
@@ -2165,4 +2212,57 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
+
+
+    /**
+     * Get the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic);
+
+
+    /**
+     * Set the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxConsumers(String topic, int maxConsumers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxConsumersAsync(String topic, int maxConsumers);
+
+    /**
+     * Remove the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersAsync(String topic);
 }
