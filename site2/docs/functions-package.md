@@ -4,56 +4,22 @@ title: Package Pulsar Functions
 sidebar_label: "How-to: Package"
 ---
 
-This section provides step-by-step instructions to package Pulsar functions in Java, Python, and Go. 
+You can package Pulsar functions in Java, Python, and Go. Packaging a window function in Java is the same as [packaging a function in Java](#java).
 
-> **Tip**
->
-> - Packaging a window function in Java is the same as [packaging a function in Java](#java) as below. 
->
-> - Currently, the window function is not available in Python and Go.
+> **Note**    
+> Currently, window function is not available in Python and Go.
 
 ## Prerequisite
 
-Before running a Pulsar function, you need to start Pulsar.
+Before running a Pulsar function, you need to start Pulsar. You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar cluster in Kubernetes](getting-started-helm.md).
 
-### Run a standalone Pulsar in Docker
-
-This example uses Docker to run a standalone Pulsar.
-
-```bash
-docker run -it \
-    -p 6650:6650 \
-    -p 8080:8080 \
-    -v $PWD/data:/pulsar/data \
-    apachepulsar/pulsar:latest \
-    bin/pulsar standalone
-```
-
-> **Tip**
->
-> - `$PWD/data` is the local directory. `-v` maps the `/pulsar/data` directory in the Docker image to the local `$PWD/data` directory.
->
-> - To check whether the image starts, use the command `docker ps`.
-
-### Run Pulsar cluster in k8s
-
-For details about how to deploy a Pulsar cluster in the k8s environment, For details, see [here](helm-overview.md).
-
+To check whether the Docker image starts, you can use the `docker ps` command.
 
 ## Java 
 
-This example demonstrates how to package a function in Java.
+To package a function in Java, complete the following steps.
 
-> **Note**
->
-> This example assumes that you have [run a standalone Pulsar in Docker](#run-a-standalone-pulsar-in-docker) successfully.
-
-
-1. Create a new maven project with a pom file.
-
-    > **Tip**
-    >
-    > `mainClass` is your package name.
+1. Create a new maven project with a pom file. In the following example, `mainClass` is your package name.
 
     ```text
     <?xml version="1.0" encoding="UTF-8"?>
@@ -128,40 +94,33 @@ This example demonstrates how to package a function in Java.
     }
     ```
 
-    > **Tip**
-    >
-    > For the package imported, you can use one of the following interfaces:
-    >
-    > - Function interface provided by Java 8: `java.util.function.Function`
-    >
-    > - Pulsar Function interface: `org.apache.pulsar.functions.api.Function`
-    >
-    > The main difference between the two interfaces is that the `org.apache.pulsar.functions.api.Function` interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.
-    > 
-    > **Example** 
-    >
-    > This example uses `org.apache.pulsar.functions.api.Function` interface with context.
-    >
-    > ```
-    > package org.example.functions;
-    >
-    > import org.apache.pulsar.functions.api.Context;
-    > import org.apache.pulsar.functions.api.Function;
-    > 
-    > import java.util.Arrays;
-    >
-    > public class WordCountFunction implements Function<String, Void> {
-    >    // This function is invoked every time a message is published to the input topic
-    >    @Override
-    >    public Void process(String input, Context context) throws Exception {
-    >       Arrays.asList(input.split(" ")).forEach(word -> {
-    >           String counterKey = word.toLowerCase();
-    >           context.incrCounter(counterKey, 1);
-    >        });
-    >       return null;
-    >   }
-    > }
-    > ```
+
+For the package imported, you can use one of the following interfaces:
+- Function interface provided by Java 8: `java.util.function.Function`
+- Pulsar Function interface: `org.apache.pulsar.functions.api.Function`
+The main difference between the two interfaces is that the `org.apache.pulsar.functions.api.Function` interface provides the context interface. When you write a function and want to interact with it, you can use context to obtain a wide variety of information and functionality for Pulsar Functions.
+
+### Example 
+This example uses `org.apache.pulsar.functions.api.Function` interface with context.
+
+```
+package org.example.functions;
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+import java.util.Arrays;
+public class WordCountFunction implements Function<String, Void> {
+   // This function is invoked every time a message is published to the input topic
+    @Override
+    public Void process(String input, Context context) throws Exception {
+       Arrays.asList(input.split(" ")).forEach(word -> {
+           String counterKey = word.toLowerCase();
+           context.incrCounter(counterKey, 1);
+        });
+       return null;
+   }
+ }
+ ```
 
 3. Package the Java function.
 
@@ -202,16 +161,6 @@ This example demonstrates how to package a function in Java.
     ...
     ```
 
-    > **Tip**
-    >
-    >  - For the description about the parameters (for example, `--classname`, `--jar`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
-    > 
-    > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Java function starts successfully.
-    >
-    >   ```text
-    >   "Created successfully"
-    >   ```
-
 ## Python 
 
 Python Function supports the following three formats:
@@ -222,11 +171,7 @@ Python Function supports the following three formats:
 
 ### One python file
 
-This example demonstrates how to package a function by **one python file** in Python.
-
-> **Note**
->
-> This example assumes that you have [run a standalone Pulsar in Docker](#run-a-standalone-pulsar-in-docker) successfully.
+To package a function by **one python file** in Python, complete the following steps.
 
 1. Write a Python function.
 
@@ -289,25 +234,11 @@ This example demonstrates how to package a function by **one python file** in Py
     ...
     ```
 
-    > **Tip**
-    >
-    > - For the description about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
-    > 
-    > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Python function starts successfully.
-    >
-    >   ```text
-    >   "Created successfully"
-    >   ```
-
 ### ZIP file
 
-This example demonstrates how to package a function by **ZIP file** in Python.
+To package a function by **ZIP file** in Python, complete the following steps.
 
-> **Note**
->
-> This example assumes that you have [run a standalone Pulsar in Docker](#run-a-standalone-pulsar-in-docker) successfully.
-
-1. Prepare the ZIP file
+1. Prepare the ZIP file.
 
 When packaging the ZIP file of the Python Function, the following requirements need to be met:
 
@@ -327,7 +258,7 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
     └── exclamation.py
 ```
 
-2. Run the Python Function
+2. Run the Python Function.
 
     (1) Copy the ZIP file to the Pulsar image.
 
@@ -357,33 +288,18 @@ Now we take [exclamation.zip](https://github.com/apache/pulsar/tree/master/tests
     ...
     ```
 
-    > **Tip**
-    >
-    > - For the description about the parameters (for example, `--classname`, `--py`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
-    > 
-    > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Python function starts successfully.
-    >
-    >   ```text
-    >   "Created successfully"
-    >   ```
-
 ### PIP
 
-This example demonstrates how to package a function by **PIP** in Python.
+The PIP method is only supported in Kubernetes runtime. To package a function by **PIP** in Python, complete the following steps.
 
-> **Note**
->
-> - The PIP method is only supported in the runtime of kubernetes.
-> - This example assumes that you have [run a Pulsar cluster in k8s](#run-pulsar-cluster-in-k8s) successfully.
-
-1. Config `functions_worker.yml`:
+1. Configure the `functions_worker.yml` file.
 
 ```text
 #### Kubernetes Runtime ####
 installUserCodeDependencies: true
 ```
 
-2. Write your Python Function
+2. Write your Python Function.
 
 ```
 from pulsar import Function
@@ -400,9 +316,9 @@ class ExclamationFunction(Function):
     return input + '!'
 ```
 
-Here we can introduce additional dependencies. When Python Function detects that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system will execute `pip install` to install the dependencies required in Python Function.
+You can introduce additional dependencies. When Python Function detects that the file currently used is `whl` and the `installUserCodeDependencies` parameter is specified, the system uses the `pip install` command to install the dependencies required in Python Function.
 
-3. Generate the `whl` file
+3. Generate the `whl` file.
 
 ```shell script
 $ cd $PULSAR_HOME/pulsar-functions/scripts/python
@@ -411,7 +327,7 @@ $ ./generate.sh <path of your Python Function> <path of the whl output dir> <the
 # e.g: ./generate.sh /path/to/python /path/to/python/output 1.0.0
 ```
 
-Output in `/path/to/python/output`:
+The output is written in `/path/to/python/output`:
 
 ```text
 -rw-r--r--  1 root  staff   1.8K  8 27 14:29 pulsarfunction-1.0.0-py2-none-any.whl
@@ -421,11 +337,7 @@ Output in `/path/to/python/output`:
 
 ## Go 
 
-This example demonstrates how to package a function in Go.
-
-> **Note**
->
-> This example assumes that you have [run a standalone Pulsar in Docker](#run-a-standalone-pulsar-in-docker) successfully.
+To package a function in Go, complete the following steps.
 
 1. Write a Go function.
 
@@ -449,20 +361,19 @@ This example demonstrates how to package a function in Go.
     }
     ```
 
-    > **Tip**
-    > 
-    > You can use context to connect with the Go function.
-    >
-    > ```
-    > if fc, ok := pf.FromContext(ctx); ok {
-    >    fmt.Printf("function ID is:%s, ", fc.GetFuncID())
-    >    fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
-    > }
-    > ```
+
+    You can use context to connect with the Go function.
+    
+    ```
+    if fc, ok := pf.FromContext(ctx); ok {
+        fmt.Printf("function ID is:%s, ", fc.GetFuncID())
+        fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
+     }
+     ```
 
     > **Note**
     >
-    > - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name can be received in `Start()`. 
+    > - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name is received in `Start()`. 
     >
     > - Go function uses Go reflection based on the received function name to verify whether the parameter list and returned value list implemented are correct. The parameter list and returned value list specified **must be** one of the following sample functions:
     >
@@ -513,12 +424,11 @@ This example demonstrates how to package a function in Go.
     ...
     ```
 
-    > **Tip**
-    >
-    >  - For the description about the parameters (for example, `--classname`, `--go`, `--inputs`, and so on), run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
-    > 
-    > - If you want to start a function in cluster mode, replace `localrun` with `create` in the command above. The following log indicates that the Go function starts successfully.
-    >
-    >   ```text
-    >   "Created successfully"
-    >   ```
+## Verify
+If you want to start a function in cluster mode, replace `localrun` with `create` in the commands. The following log indicates that your function starts successfully.
+
+ ```text
+   "Created successfully"
+   ```
+
+For information about parameters on `--classname`, `--jar`, `--py`, `--go`, `--inputs`, run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
