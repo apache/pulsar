@@ -278,35 +278,25 @@ $ <span class="hljs-built_in">echo</span> 1 &gt; data/zookeeper/myid
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zkServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
 <p>Once you've appropriately modified the <code>zkServers</code> parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters <a href="/docs/ko/2.2.1/reference-configuration#bookkeeper">here</a>, although we would recommend consulting the <a href="http://bookkeeper.apache.org/docs/latest/reference/config/">BookKeeper documentation</a> for a more in-depth guide.</p>
-<blockquote>
-<h5><a class="anchor" aria-hidden="true" id="notes"></a><a href="#notes" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>NOTES</h5>
-<p>Since Pulsar 2.1.0 release, Pulsar introduces <a href="/docs/ko/2.2.1/functions-state">stateful function</a> for Pulsar Functions. If you would like to enable that feature, you need to enable table service on BookKeeper by setting following setting in <code>conf/bookkeeper.conf</code> file.</p>
-<pre><code class="hljs css language-conf"></code></pre>
-</blockquote>
-<p>extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent</p>
-<pre><code class="hljs">
-Once you've applied the desired configuration in <span class="hljs-code">`conf/bookkeeper.conf`</span>, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [<span class="hljs-string">nohup</span>](<span class="hljs-link">https://en.wikipedia.org/wiki/Nohup</span>), or in the foreground.
-
-To start the bookie in the background, use the [<span class="hljs-string">`pulsar-daemon`</span>](<span class="hljs-link">reference-cli-tools.md#pulsar-daemon</span>) CLI tool:
-
-<span class="hljs-code">```bash
-$ bin/pulsar-daemon start bookie
-</span></code></pre>
+<p>Once you've applied the desired configuration in <code>conf/bookkeeper.conf</code>, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>, or in the foreground.</p>
+<p>To start the bookie in the background, use the <a href="/docs/ko/2.2.1/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-daemon start bookie
+</code></pre>
 <p>To start the bookie in the foreground:</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper bookie
 </code></pre>
-<p>You can verify that a bookie is working properly by running the <code>bookiesanity</code> command for the <a href="reference-cli-tools.md#shell">BookKeeper shell</a> on it:</p>
+<p>You can verify that a bookie is working properly by running the <code>bookiesanity</code> command for the <a href="/docs/ko/2.2.1/reference-cli-tools#shell">BookKeeper shell</a> on it:</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell bookiesanity
 </code></pre>
 <p>This will create an ephemeral BookKeeper ledger on the local bookie, write a few entries, read them back, and finally delete the ledger.</p>
-<p>After you have started all the bookies, you can use <code>simpletest</code> command for <a href="reference-cli-tools.md#shell">BookKeeper shell</a> on any bookie node, to verify all the bookies in the cluster are up running.</p>
+<p>After you have started all the bookies, you can use <code>simpletest</code> command for <a href="/docs/ko/2.2.1/reference-cli-tools#shell">BookKeeper shell</a> on any bookie node, to verify all the bookies in the cluster are up running.</p>
 <pre><code class="hljs css language-bash">$ bin/bookkeeper shell simpletest --ensemble &lt;num-bookies&gt; --writeQuorum &lt;num-bookies&gt; --ackQuorum &lt;num-bookies&gt; --numEntries &lt;num-entries&gt;
 </code></pre>
 <p>This command will create a <code>num-bookies</code> sized ledger on the cluster, write a few entries, and finally delete the ledger.</p>
 <h2><a class="anchor" aria-hidden="true" id="deploying-pulsar-brokers"></a><a href="#deploying-pulsar-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deploying Pulsar brokers</h2>
 <p>Pulsar brokers are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running <strong>3 brokers</strong>, one for each machine that's already running a BookKeeper bookie.</p>
 <h3><a class="anchor" aria-hidden="true" id="configuring-brokers"></a><a href="#configuring-brokers" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring Brokers</h3>
-<p>The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the <a href="reference-configuration.md#broker-zookeeperServers"><code>zookeeperServers</code></a> and <a href="reference-configuration.md#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameters. In this case, since we only have 1 cluster and no configuration store setup, the <code>configurationStoreServers</code> will point to the same <code>zookeeperServers</code>.</p>
+<p>The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the <a href="/docs/ko/2.2.1/reference-configuration#broker-zookeeperServers"><code>zookeeperServers</code></a> and <a href="/docs/ko/2.2.1/reference-configuration#broker-configurationStoreServers"><code>configurationStoreServers</code></a> parameters. In this case, since we only have 1 cluster and no configuration store setup, the <code>configurationStoreServers</code> will point to the same <code>zookeeperServers</code>.</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">zookeeperServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="hljs-attr">configurationStoreServers</span>=<span class="hljs-string">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 </code></pre>
@@ -326,7 +316,7 @@ $ bin/pulsar-daemon start bookie
 <pre><code class="hljs">
 <span class="hljs-section">### Enabling Pulsar Functions (optional)</span>
 
-If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">/docs/ko/2.2.1/functions-overview</span>), you can follow the instructions as below:
+If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span class="hljs-link">functions-overview.md</span>), you can follow the instructions as below:
 <span class="hljs-bullet">
 1. </span>Edit <span class="hljs-code">`conf/broker.conf`</span> to enable function worker, by setting <span class="hljs-code">`functionsWorkerEnabled`</span> to <span class="hljs-code">`true`</span>.
   
@@ -344,20 +334,20 @@ If you want to enable [<span class="hljs-string">Pulsar Functions</span>](<span 
 
 <span class="hljs-section">### Starting Brokers</span>
 
-You can then provide any other configuration changes that you'd like in the [<span class="hljs-string">`conf/broker.conf`</span>](<span class="hljs-link">/docs/ko/2.2.1/reference-configuration#broker</span>) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
+You can then provide any other configuration changes that you'd like in the [<span class="hljs-string">`conf/broker.conf`</span>](<span class="hljs-link">reference-configuration.md#broker</span>) file. Once you've decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.
 
-You can start a broker in the foreground using the [<span class="hljs-string">`pulsar broker`</span>](<span class="hljs-link">/docs/ko/2.2.1/reference-cli-tools#pulsar-broker</span>) command:
+You can start a broker in the foreground using the [<span class="hljs-string">`pulsar broker`</span>](<span class="hljs-link">reference-cli-tools.md#pulsar-broker</span>) command:
 
 <span class="hljs-code">```bash
 $ bin/pulsar broker
 </span></code></pre>
-<p>You can start a broker in the background using the <a href="/docs/ko/2.2.1/reference-cli-tools#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
+<p>You can start a broker in the background using the <a href="reference-cli-tools.md#pulsar-daemon"><code>pulsar-daemon</code></a> CLI tool:</p>
 <pre><code class="hljs css language-bash">$ bin/pulsar-daemon start broker
 </code></pre>
 <p>Once you've succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!</p>
 <h2><a class="anchor" aria-hidden="true" id="connecting-to-the-running-cluster"></a><a href="#connecting-to-the-running-cluster" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Connecting to the running cluster</h2>
-<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="/docs/ko/2.2.1/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code>pulsar-client</code> tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.</p>
-<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="/docs/ko/2.2.1/reference-configuration#client"><code>conf/client.conf</code></a> in your binary package. You'll need to change the values for <code>webServiceUrl</code> and <code>brokerServiceUrl</code>, substituting <code>localhost</code> (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:</p>
+<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="reference-cli-tools.md#pulsar-client"><code>pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code>pulsar-client</code> tool can publish messages to and consume messages from Pulsar topics and thus provides a simple way to make sure that your cluster is runnning properly.</p>
+<p>To use the <code>pulsar-client</code> tool, first modify the client configuration file in <a href="reference-configuration.md#client"><code>conf/client.conf</code></a> in your binary package. You'll need to change the values for <code>webServiceUrl</code> and <code>brokerServiceUrl</code>, substituting <code>localhost</code> (which is the default), with the DNS name that you've assigned to your broker/bookie hosts. Here's an example:</p>
 <pre><code class="hljs css language-properties"><span class="hljs-attr">webServiceUrl</span>=<span class="hljs-string">http://us-west.example.com:8080/</span>
 <span class="hljs-attr">brokerServiceurl</span>=<span class="hljs-string">pulsar://us-west.example.com:6650/</span>
 </code></pre>
@@ -385,7 +375,7 @@ $ bin/pulsar broker
   --namespace default \
   --name exclamation
 </code></pre>
-<p>Check if the function is running as expected by <a href="/docs/ko/2.2.1/functions-deploying#triggering-pulsar-functions">triggering</a> the function.</p>
+<p>Check if the function is running as expected by <a href="functions-deploying.md#triggering-pulsar-functions">triggering</a> the function.</p>
 <pre><code class="hljs css language-bash">bin/pulsar-admin <span class="hljs-built_in">functions</span> trigger --name exclamation --trigger-value <span class="hljs-string">"hello world"</span>
 </code></pre>
 <p>You will see output as below:</p>

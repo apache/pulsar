@@ -251,6 +251,13 @@ admin.persistentTopics().getStats(topic);
 <li><p><strong>size</strong>: Size of messages written to this ledger (in bytes)</p></li>
 <li><p><strong>offloaded</strong>: Whether this ledger is offloaded</p></li>
 </ul></li>
+<li><p><strong>compactedLedger</strong>: The ledgers holding un-acked messages after topic compaction.</p>
+<ul>
+<li><p><strong>ledgerId</strong>: Id of this ledger</p></li>
+<li><p><strong>entries</strong>: Total number of entries belong to this ledger</p></li>
+<li><p><strong>size</strong>: Size of messages written to this ledger (in bytes)</p></li>
+<li><p><strong>offloaded</strong>: Will always be false for compacted topic ledger.</p></li>
+</ul></li>
 <li><p><strong>cursors</strong>: The list of all cursors on this topic. There will be one for every subscription you saw in the topic stats.</p>
 <ul>
 <li><p><strong>markDeletePosition</strong>: All of messages before the markDeletePosition are acknowledged by the subscriber.</p></li>
@@ -281,9 +288,16 @@ admin.persistentTopics().getStats(topic);
         {
             <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711539</span>,
             <span class="hljs-attr">"entries"</span>: <span class="hljs-number">0</span>,
-            <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>
+            <span class="hljs-attr">"size"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">true</span>
         }
     ],
+    <span class="hljs-attr">"compactedLedger"</span>: {
+        <span class="hljs-attr">"ledgerId"</span>: <span class="hljs-number">324711540</span>,
+        <span class="hljs-attr">"entries"</span>: <span class="hljs-number">10</span>,
+        <span class="hljs-attr">"size"</span>: <span class="hljs-number">100</span>,
+        <span class="hljs-attr">"offloaded"</span>: <span class="hljs-literal">false</span>
+    },
     <span class="hljs-attr">"cursors"</span>: {
         <span class="hljs-attr">"my-subscription"</span>: {
             <span class="hljs-attr">"markDeletePosition"</span>: <span class="hljs-string">"324711539:3133"</span>,
