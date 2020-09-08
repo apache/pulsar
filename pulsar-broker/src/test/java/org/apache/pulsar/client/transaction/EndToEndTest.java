@@ -23,14 +23,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -97,66 +97,81 @@ public class EndToEndTest extends TransactionTestBase {
     }
 
     @Test
-    public void partitionCommitTest() throws Exception {
-        Transaction txn = getTxn();
+    public void noBatchProduceCommitTest() throws Exception {
+        produceCommitTest(false);
+    }
 
-        @Cleanup
-        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient
-                .newProducer()
-                .topic(TOPIC_OUTPUT)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .enableBatching(false)
-                .create();
-
-        int messageCnt = 10;
-        for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
-        }
-
+    private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient
                 .newConsumer()
                 .topic(TOPIC_OUTPUT)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient
+                .newProducer()
+                .topic(TOPIC_OUTPUT)
+                .enableBatching(enableBatch)
+                .sendTimeout(0, TimeUnit.SECONDS);
+        if (enableBatch) {
+            producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
+        }
+        @Cleanup
+        PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) producerBuilder.create();
+
+        Transaction txn1 = getTxn();
+        Transaction txn2 = getTxn();
+
+        int messageCnt = 20;
+        for (int i = 0; i < messageCnt; i++) {
+            if (i % 2 == 0) {
+                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+            } else {
+                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+            }
+        }
 
         // Can't receive transaction messages before commit.
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
-        txn.commit().get();
+        txn1.commit().get();
 
+        // txn1 messages could be received after txn1 committed
         int receiveCnt = 0;
-        Set<MessageId> firstReceivedMessageIdList = Sets.newHashSet();
-        for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive(5, TimeUnit.SECONDS);
+        for (int i = 0; i < messageCnt / 2; i++) {
+            message = consumer.receive();
             Assert.assertNotNull(message);
-            firstReceivedMessageIdList.add(message.getMessageId());
             log.info("receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
-        Assert.assertEquals(messageCnt, receiveCnt);
+        Assert.assertEquals(messageCnt / 2, receiveCnt);
 
-        consumer.redeliverUnacknowledgedMessages();
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
 
+        txn2.commit().get();
+
+        // txn2 messages could be received after txn2 committed
         receiveCnt = 0;
-        for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive(5, TimeUnit.SECONDS);
+        for (int i = 0; i < messageCnt / 2; i++) {
+            message = consumer.receive();
             Assert.assertNotNull(message);
-            Assert.assertTrue(firstReceivedMessageIdList.remove(message.getMessageId()));
-            log.info("second receive msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
+            log.info("receive second msgId: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
             receiveCnt ++;
         }
-        Assert.assertEquals(messageCnt, receiveCnt);
-        Assert.assertEquals(firstReceivedMessageIdList.size(), 0);
+        Assert.assertEquals(messageCnt / 2, receiveCnt);
 
-        log.info("receive transaction messages count: {}", receiveCnt);
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        log.info("message commit test enableBatch {}", enableBatch);
     }
 
     @Test
-    public void partitionAbortTest() throws Exception {
+    public void produceAbortTest() throws Exception {
         Transaction txn = getTxn();
 
         @Cleanup

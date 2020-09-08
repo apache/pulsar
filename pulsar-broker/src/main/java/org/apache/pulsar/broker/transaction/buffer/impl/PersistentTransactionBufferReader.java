@@ -56,7 +56,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
 
     PersistentTransactionBufferReader(TransactionMeta meta, ManagedLedger ledger)
         throws TransactionNotSealedException {
-        if (TxnStatus.OPEN == meta.status()) {
+        if (TxnStatus.COMMITTED != meta.status()) {
             throw new TransactionNotSealedException("Transaction `" + meta.id() + "` is not sealed yet");
         }
         this.meta = meta;
