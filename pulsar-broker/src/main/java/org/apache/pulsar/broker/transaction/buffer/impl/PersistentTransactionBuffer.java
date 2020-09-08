@@ -416,10 +416,14 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                     metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
                     TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
                     TransactionMeta txnMeta = txnCursor.getTxnMeta(txnID, true).getNow(null);
+
+                    // recover committing status
                     if (PulsarMarkers.MarkerType.TXN_COMMITTING_VALUE == metadata.getMarkerType()) {
                         txnMeta.committingTxn();
                         pendingCommitTxn.add(txnID);
-                    } else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
+                    }
+                    // recover commit status
+                    else if (PulsarMarkers.MarkerType.TXN_COMMIT_VALUE == metadata.getMarkerType()) {
                         ByteBufCodedInputStream inStream = ByteBufCodedInputStream.get(entry.getDataBuffer());
                         PulsarMarkers.TxnCommitMarker commitMarker = PulsarMarkers.TxnCommitMarker
                                 .newBuilder()
@@ -431,9 +435,13 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                                 commitMarker.getMessageId().getEntryId(), txnID, entry.getPosition());
                         pendingCommitTxn.remove(txnID);
                         commitMarker.recycle();
-                    } else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
+                    }
+                    // recover abort status
+                    else if (PulsarMarkers.MarkerType.TXN_ABORT_VALUE == metadata.getMarkerType()) {
                         txnMeta.abortTxn();
-                    } else {
+                    }
+                    // recover transaction message index
+                    else {
                         txnMeta.appendEntry(metadata.getSequenceId(), entry.getPosition(), metadata.getNumMessagesInBatch());
                     }
                 } finally {
