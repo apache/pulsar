@@ -2178,7 +2178,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    int getMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
+    Integer getMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
 
     /**
      * Get the maxConsumersPerSubscription for a topic asynchronously.

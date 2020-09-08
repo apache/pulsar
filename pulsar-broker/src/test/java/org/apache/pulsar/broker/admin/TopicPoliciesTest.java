@@ -556,14 +556,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGetSetMaxConsumersPerSubscription() throws Exception {
-        int maxConsumersPerSubscription = 10;
+        Integer maxConsumersPerSubscription = 10;
         log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
 
         admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
         Thread.sleep(3000);
-        int getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
+        Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
         log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
         Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
 
@@ -572,14 +572,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testRemoveMaxConsumersPerSubscription() throws Exception {
-        int maxConsumersPerSubscription = 10;
+        Integer maxConsumersPerSubscription = 10;
         log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
 
         admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
         Thread.sleep(3000);
-        int getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
+        Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
         log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
         Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
 
