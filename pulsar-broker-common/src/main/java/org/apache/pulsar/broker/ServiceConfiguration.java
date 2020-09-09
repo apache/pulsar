@@ -719,6 +719,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a " +
+            "managed ledger backing a persistent topic. It can improve write availability of topics.\n" +
+            "The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark " +
+            "delete position can be recovered or not.")
+    private boolean lazyCursorRecovery = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
