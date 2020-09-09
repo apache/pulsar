@@ -174,7 +174,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>bouncy-castle-bcfips</artifactId>
+      <artifactId>bouncy-castle-bc</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
