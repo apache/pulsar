@@ -207,6 +207,10 @@ public class PerformanceProducer {
         @Parameter(names = { "-ef",
                 "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
         public boolean exitOnFailure = false;
+
+        @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key" +
+                ", valid options are: [autoIncrement, random]")
+        public String messageKeyGenerationMode = null;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -287,6 +291,9 @@ public class PerformanceProducer {
 
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
+            }
+            if (isBlank(arguments.messageKeyGenerationMode)) {
+                arguments.messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
             }
             if (arguments.tlsAllowInsecureConnection == null) {
                 arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
@@ -494,7 +501,14 @@ public class PerformanceProducer {
             long startTime = System.nanoTime();
             long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
             long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-
+            MessageKeyGenerationMode msgKeyMode = null;
+            if (isNotBlank(arguments.messageKeyGenerationMode)) {
+                try {
+                    msgKeyMode = MessageKeyGenerationMode.valueOf(arguments.messageKeyGenerationMode);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("messageKeyGenerationMode only support [autoIncrement, random]");
+                }
+            }
             // Send messages on all topics/producers
             long totalSent = 0;
             while (true) {
@@ -534,6 +548,12 @@ public class PerformanceProducer {
                             .value(payloadData);
                     if (arguments.delay >0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    }
+                    //generate msg key
+                    if (msgKeyMode == MessageKeyGenerationMode.random) {
+                        messageBuilder.key(String.valueOf(random.nextInt()));
+                    } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
+                        messageBuilder.key(String.valueOf(totalSent));
                     }
                     messageBuilder.sendAsync().thenRun(() -> {
                         messagesSent.increment();
@@ -606,4 +626,8 @@ public class PerformanceProducer {
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
+
+    public enum MessageKeyGenerationMode {
+        autoIncrement,random;
+    }
 }
