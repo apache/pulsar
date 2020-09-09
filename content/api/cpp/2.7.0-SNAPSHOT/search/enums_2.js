@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['schematype',['SchemaType',['../namespacepulsar.html#abab5b1f233c9cc54c10d28cb5b973305',1,'pulsar']]]
+  ['result',['Result',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb',1,'pulsar']]]
 ];

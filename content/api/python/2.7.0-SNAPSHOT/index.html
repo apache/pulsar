@@ -1692,7 +1692,7 @@ class Client:
            published by the producer. First message will be using
            `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
            be assigned incremental sequence ids, if not otherwise specified.
-        * `send_timeout_seconds`:
+        * `send_timeout_millis`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
         * `compression_type`:
@@ -3049,7 +3049,7 @@ producers and consumers.</p></div>
            published by the producer. First message will be using
            `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
            be assigned incremental sequence ids, if not otherwise specified.
-        * `send_timeout_seconds`:
+        * `send_timeout_millis`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
         * `compression_type`:
@@ -3538,7 +3538,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_producer">
-    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f39e71a5350&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
+    <p>def <span class="ident">create_producer</span>(</p><p>self, topic, producer_name=None, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbbd788a350&gt;, initial_sequence_id=None, send_timeout_millis=30000, compression_type=_pulsar.CompressionType.NONE, max_pending_messages=1000, max_pending_messages_across_partitions=50000, block_if_queue_full=False, batching_enabled=False, batching_max_messages=1000, batching_max_allowed_size_in_bytes=131072, batching_max_publish_delay_ms=10, message_routing_mode=_pulsar.PartitionsRoutingMode.RoundRobinDistribution, properties=None)</p>
     </div>
     
 
@@ -3571,7 +3571,7 @@ producers and consumers.</p></div>
    published by the producer. First message will be using
    `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
    be assigned incremental sequence ids, if not otherwise specified.</li>
-<li><code>send_timeout_seconds</code>:
+<li><code>send_timeout_millis</code>:
   If a message is not acknowledged by the server before the
   <code>send_timeout</code> expires, an error will be reported.</li>
 <li><code>compression_type</code>:
@@ -3639,7 +3639,7 @@ producers and consumers.</p></div>
        published by the producer. First message will be using
        `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
        be assigned incremental sequence ids, if not otherwise specified.
-    * `send_timeout_seconds`:
+    * `send_timeout_millis`:
       If a message is not acknowledged by the server before the
       `send_timeout` expires, an error will be reported.
     * `compression_type`:
@@ -3711,7 +3711,7 @@ producers and consumers.</p></div>
             
   <div class="item">
     <div class="name def" id="pulsar.Client.create_reader">
-    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f39e71b1a10&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
+    <p>def <span class="ident">create_reader</span>(</p><p>self, topic, start_message_id, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbbd7896a10&gt;, reader_listener=None, receiver_queue_size=1000, reader_name=None, subscription_role_prefix=None, is_read_compacted=False)</p>
     </div>
     
 
@@ -3890,7 +3890,7 @@ instances directly on a particular partition.
             
   <div class="item">
     <div class="name def" id="pulsar.Client.subscribe">
-    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7f39e71b1990&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
+    <p>def <span class="ident">subscribe</span>(</p><p>self, topic, subscription_name, consumer_type=_pulsar.ConsumerType.Exclusive, schema=&lt;pulsar.schema.schema.BytesSchema object at 0x7fbbd7896990&gt;, message_listener=None, receiver_queue_size=1000, max_total_receiver_queue_size_across_partitions=50000, consumer_name=None, unacked_messages_timeout_ms=None, broker_consumer_stats_cache_time_ms=30000, negative_ack_redelivery_delay_ms=60000, is_read_compacted=False, properties=None, pattern_auto_discovery_period=60, initial_position=_pulsar.InitialPosition.Latest)</p>
     </div>
     
 

@@ -12,6 +12,7 @@ var searchData=
   ['setackgroupingtimems',['setAckGroupingTimeMs',['../classpulsar_1_1_consumer_configuration.html#af3f26276c9027a78b9e3243a3e2e38bb',1,'pulsar::ConsumerConfiguration']]],
   ['setallocatedcontent',['setAllocatedContent',['../classpulsar_1_1_message_builder.html#ae991bf6b34952c2ee0fee1c756b269cf',1,'pulsar::MessageBuilder']]],
   ['setauth',['setAuth',['../classpulsar_1_1_client_configuration.html#a16a85a3a43b649d3e45b4e998695b723',1,'pulsar::ClientConfiguration']]],
+  ['setbatchingtype',['setBatchingType',['../classpulsar_1_1_producer_configuration.html#a1509a82efcee33cf3555b985e4ef566f',1,'pulsar::ProducerConfiguration']]],
   ['setbrokerconsumerstatscachetimeinms',['setBrokerConsumerStatsCacheTimeInMs',['../classpulsar_1_1_consumer_configuration.html#a453a6af922fea7c45d56264d57925507',1,'pulsar::ConsumerConfiguration']]],
   ['setcompressiontype',['setCompressionType',['../classpulsar_1_1_producer_configuration.html#a2ad315297c101770a62209de5e5d5ad4',1,'pulsar::ProducerConfiguration']]],
   ['setconcurrentlookuprequest',['setConcurrentLookupRequest',['../classpulsar_1_1_client_configuration.html#a0b9226918b57122b0ceb446657746e1c',1,'pulsar::ClientConfiguration']]],

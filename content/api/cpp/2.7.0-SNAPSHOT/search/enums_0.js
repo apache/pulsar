@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['consumertype',['ConsumerType',['../namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40',1,'pulsar']]]
+  ['batchingtype',['BatchingType',['../classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5',1,'pulsar::ProducerConfiguration']]]
 ];

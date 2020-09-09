@@ -112,6 +112,10 @@ Public Types</h2></td></tr>
 <b>JavaStringHash</b>
  }</td></tr>
 <tr class="separator:ad6d6011184bb2da9f961e7a21e2e656c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:adeed584c68f90401147e31091e54c5e5"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">BatchingType</a> { <a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5af2acbf3fc9b0dc49d8af65a148d22e27">DefaultBatching</a>, 
+<a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5a291402f9cfb8e9f0fa888722930233ea">KeyBasedBatching</a>
+ }</td></tr>
+<tr class="separator:adeed584c68f90401147e31091e54c5e5"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -206,6 +210,11 @@ const unsigned long &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>
 <tr class="memitem:ada39d27bc25023391b5db195655a1d6b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ada39d27bc25023391b5db195655a1d6b"></a>
 const unsigned long &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getBatchingMaxPublishDelayMs</b> () const </td></tr>
 <tr class="separator:ada39d27bc25023391b5db195655a1d6b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1509a82efcee33cf3555b985e4ef566f"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a1509a82efcee33cf3555b985e4ef566f">setBatchingType</a> (<a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">BatchingType</a> batchingType)</td></tr>
+<tr class="separator:a1509a82efcee33cf3555b985e4ef566f"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ab7aa6e4ef2477b318a066d437c420313"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab7aa6e4ef2477b318a066d437c420313"></a>
+<a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">BatchingType</a>&#160;</td><td class="memItemRight" valign="bottom"><b>getBatchingType</b> () const </td></tr>
+<tr class="separator:ab7aa6e4ef2477b318a066d437c420313"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a9c929a4bf830c40d0763bb320a5830d7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a9c929a4bf830c40d0763bb320a5830d7"></a>
 const CryptoKeyReaderPtr&#160;</td><td class="memItemRight" valign="bottom"><b>getCryptoKeyReader</b> () const </td></tr>
 <tr class="separator:a9c929a4bf830c40d0763bb320a5830d7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -218,9 +227,9 @@ ProducerCryptoFailureAction&#160;</td><td class="memItemRight" valign="bottom"><
 <tr class="memitem:aba3cf7628c250b54e55bfbb89fa0cc4a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aba3cf7628c250b54e55bfbb89fa0cc4a"></a>
 <a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setCryptoFailureAction</b> (ProducerCryptoFailureAction action)</td></tr>
 <tr class="separator:aba3cf7628c250b54e55bfbb89fa0cc4a"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:afc7d3f5bfb423e9b29e2d580bcdb91be"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="afc7d3f5bfb423e9b29e2d580bcdb91be"></a>
-std::set&lt; std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getEncryptionKeys</b> ()</td></tr>
-<tr class="separator:afc7d3f5bfb423e9b29e2d580bcdb91be"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8c7199c505ae8ad922a428444f0393e2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a8c7199c505ae8ad922a428444f0393e2"></a>
+const std::set&lt; std::string &gt; &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getEncryptionKeys</b> () const </td></tr>
+<tr class="separator:a8c7199c505ae8ad922a428444f0393e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a552eb084a8c8a4e12b90c7cb247f7763"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a552eb084a8c8a4e12b90c7cb247f7763"></a>
 bool&#160;</td><td class="memItemRight" valign="bottom"><b>isEncryptionEnabled</b> () const </td></tr>
 <tr class="separator:a552eb084a8c8a4e12b90c7cb247f7763"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -246,7 +255,32 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Class that holds the configuration for a producer </p>
-</div><h2 class="groupheader">Member Function Documentation</h2>
+</div><h2 class="groupheader">Member Enumeration Documentation</h2>
+<a class="anchor" id="adeed584c68f90401147e31091e54c5e5"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">pulsar::ProducerConfiguration::BatchingType</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a class="anchor" id="adeed584c68f90401147e31091e54c5e5af2acbf3fc9b0dc49d8af65a148d22e27"></a>DefaultBatching&#160;</td><td class="fielddoc">
+<p>Default batching.</p>
+<p>incoming single messages: (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)</p>
+<p>batched into single batch message: [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)] </p>
+</td></tr>
+<tr><td class="fieldname"><a class="anchor" id="adeed584c68f90401147e31091e54c5e5a291402f9cfb8e9f0fa888722930233ea"></a>KeyBasedBatching&#160;</td><td class="fielddoc">
+<p>Key based batching.</p>
+<p>incoming single messages: (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)</p>
+<p>batched into single batch message: [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)] </p>
+</td></tr>
+</table>
+
+</div>
+</div>
+<h2 class="groupheader">Member Function Documentation</h2>
 <a class="anchor" id="a4791e6a58ba180382e9fdc1e349a4188"></a>
 <div class="memitem">
 <div class="memproto">
@@ -342,6 +376,23 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 <dl class="section return"><dt>Returns</dt><dd>true if the message has the specified property </dd>
 <dd>
 false if the property is not defined </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a1509a82efcee33cf3555b985e4ef566f"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setBatchingType </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">BatchingType</a>&#160;</td>
+          <td class="paramname"><em>batchingType</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="classpulsar_1_1_producer_configuration.html#adeed584c68f90401147e31091e54c5e5">BatchingType</a> </dd></dl>
 
 </div>
 </div>
