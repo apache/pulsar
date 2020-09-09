@@ -4,14 +4,14 @@ title: Package Pulsar Functions
 sidebar_label: "How-to: Package"
 ---
 
-You can package Pulsar functions in Java, Python, and Go. Packaging a window function in Java is the same as [packaging a function in Java](#java).
+You can package Pulsar functions in Java, Python, and Go. Packaging the window function in Java is the same as [packaging a function in Java](#java).
 
 > **Note**    
-> Currently, window function is not available in Python and Go.
+> Currently, the window function is not available in Python and Go.
 
 ## Prerequisite
 
-Before running a Pulsar function, you need to start Pulsar. You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar cluster in Kubernetes](getting-started-helm.md).
+Before running a Pulsar function, you need to start Pulsar. You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar in Kubernetes](getting-started-helm.md).
 
 To check whether the Docker image starts, you can use the `docker ps` command.
 
@@ -19,7 +19,7 @@ To check whether the Docker image starts, you can use the `docker ps` command.
 
 To package a function in Java, complete the following steps.
 
-1. Create a new maven project with a pom file. In the following code sample, `mainClass` is your package name.
+1. Create a new maven project with a pom file. In the following code sample, the value of `mainClass` is your package name.
 
     ```Java
     <?xml version="1.0" encoding="UTF-8"?>
@@ -94,7 +94,7 @@ To package a function in Java, complete the following steps.
     }
     ```
  
-     For the package imported, you can use one of the following interfaces:
+     For the imported package, you can use one of the following interfaces:
     - Function interface provided by Java 8: `java.util.function.Function`
     - Pulsar Function interface: `org.apache.pulsar.functions.api.Function`
 
@@ -127,7 +127,7 @@ To package a function in Java, complete the following steps.
     mvn package
     ```
 
-    After the Java function is packaged, a `target` directory is created automatically. Open the `target` directory to see if there is a jar package similar to `java-function-1.0-SNAPSHOT.jar`.
+    After the Java function is packaged, a `target` directory is created automatically. Open the `target` directory to check if there is a JAR package similar to `java-function-1.0-SNAPSHOT.jar`.
 
 
 4.  Run the Java function.
@@ -235,7 +235,7 @@ To package a function with **one python file** in Python, complete the following
 
 ### ZIP file
 
-To package a function with **ZIP file** in Python, complete the following steps.
+To package a function with the **ZIP file** in Python, complete the following steps.
 
 1. Prepare the ZIP file.
 
@@ -371,7 +371,7 @@ To package a function in Go, complete the following steps.
 
     When writing a Go function, remember that
     - In `main()`, you **only** need to register the function name to `Start()`. **Only** one function name is received in `Start()`. 
-    - Go function uses Go reflection based on the received function name to verify whether the parameter list and returned value list implemented are correct. The parameter list and returned value list specified **must be** one of the following sample functions:
+    - Go function uses Go reflection, which is based on the received function name, to verify whether the parameter list and returned value list are correct. The parameter list and returned value list **must be** one of the following sample functions:
     
       ```
        func ()
