@@ -62,7 +62,7 @@
 <li>Using ec2 instance metadata credentials</li>
 </ol>
 <p>If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials if no other mechanism is provided</p>
-<ol>
+<ol start="2">
 <li>Set the environment variables <strong>AWS_ACCESS_KEY_ID</strong> and <strong>AWS_SECRET_ACCESS_KEY</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
 <pre><code class="hljs css language-bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=ABC123456789
@@ -71,19 +71,19 @@
 <blockquote>
 <p>&quot;export&quot; is important so that the variables are made available in the environment of spawned processes.</p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>Add the Java system properties <em>aws.accessKeyId</em> and <em>aws.secretKey</em> to <strong>PULSAR_EXTRA_OPTS</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
 <pre><code class="hljs css language-bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"</span>
 </code></pre>
-<ol>
+<ol start="4">
 <li>Set the access credentials in <code>~/.aws/credentials</code>.</li>
 </ol>
 <pre><code class="hljs css language-conf"><span class="hljs-section">[default]</span>
 <span class="hljs-attr">aws_access_key_id</span>=ABC123456789
 <span class="hljs-attr">aws_secret_access_key</span>=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 </code></pre>
-<ol>
+<ol start="5">
 <li>Assuming an IAM role</li>
 </ol>
 <p>If you want to assume an IAM role, this can be done via specifying the following:</p>
@@ -97,10 +97,8 @@
 <h4><a class="anchor" aria-hidden="true" id="configuring-the-size-of-block-readwrite"></a><a href="#configuring-the-size-of-block-readwrite" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring the size of block read/write</h4>
 <p>Pulsar also provides some knobs to configure the size of requests sent to AWS S3.</p>
 <ul>
-<li><pre><code class="hljs">s3ManagedLedgerOffloadMaxBlockSizeInBytes configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-</code></pre></li>
-<li><pre><code class="hljs">s3ManagedLedgerOffloadReadBufferSizeInBytes configures the block size for each individual read when reading back data from AWS S3. Default is 1MB.
-</code></pre></li>
+<li><code>s3ManagedLedgerOffloadMaxBlockSizeInBytes</code>  configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.</li>
+<li><code>s3ManagedLedgerOffloadReadBufferSizeInBytes</code> configures the block size for each individual read when reading back data from AWS S3. Default is 1MB.</li>
 </ul>
 <p>In both cases, these should not be touched unless you know what you are doing.</p>
 <h3><a class="anchor" aria-hidden="true" id="google-cloud-storage-driver-configuration"></a><a href="#google-cloud-storage-driver-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;google-cloud-storage&quot; Driver configuration</h3>
@@ -129,10 +127,8 @@
 <h4><a class="anchor" aria-hidden="true" id="configuring-the-size-of-block-readwrite-1"></a><a href="#configuring-the-size-of-block-readwrite-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuring the size of block read/write</h4>
 <p>Pulsar also provides some knobs to configure the size of requests sent to GCS.</p>
 <ul>
-<li><pre><code class="hljs">gcsManagedLedgerOffloadMaxBlockSizeInBytes configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-</code></pre></li>
-<li><pre><code class="hljs">gcsManagedLedgerOffloadReadBufferSizeInBytes configures the block size for each individual read when reading back data from GCS. Default is 1MB.
-</code></pre></li>
+<li><code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code> configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.</li>
+<li><code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code> configures the block size for each individual read when reading back data from GCS. Default is 1MB.</li>
 </ul>
 <p>In both cases, these should not be touched unless you know what you are doing.</p>
 <h3><a class="anchor" aria-hidden="true" id="filesystem-driver-configuration"></a><a href="#filesystem-driver-configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;filesystem&quot; Driver configuration</h3>
@@ -146,7 +142,8 @@
 </code></pre>
 <p>The model for storing topic data uses <code>org.apache.hadoop.io.MapFile</code>. You can use all of the configurations in <code>org.apache.hadoop.io.MapFile</code> for Hadoop.</p>
 <p><strong>Example</strong></p>
-<pre><code class="hljs css language-conf"><span class="hljs-tag">&lt;<span class="hljs-name">br</span> /&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+<pre><code class="hljs css language-conf">
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
         <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
         <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
     <span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
@@ -200,8 +197,12 @@ Offload is currently running
 Offload was a success
 </code></pre>
 <p>If there is an error offloading, the error will be propagated to the offload-status command.</p>
-<pre><code class="hljs css language-bash $ bin/pulsar-admin topics offload-status persistent://public/default/topic1 Error in offload null">
-Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads. Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g= ````</code></pre>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
+Error <span class="hljs-keyword">in</span> offload
+null
+
+Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+</code></pre>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#when-should-i-use-tiered-storage">When should I use Tiered Storage?</a></li><li><a href="#the-offloading-mechanism">The offloading mechanism</a></li><li><a href="#configuring-the-offload-driver">Configuring the offload driver</a><ul class="toc-headings"><li><a href="#aws-s3-driver-configuration">&quot;aws-s3&quot; Driver configuration</a></li><li><a href="#google-cloud-storage-driver-configuration">&quot;google-cloud-storage&quot; Driver configuration</a></li><li><a href="#filesystem-driver-configuration">&quot;filesystem&quot; Driver configuration</a></li></ul></li><li><a href="#configuring-offload-to-run-automatically">Configuring offload to run automatically</a></li><li><a href="#triggering-offload-manually">Triggering offload manually</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Tiered Storage · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar 的 **层级存储** 功能允许将旧的积压数据卸载到长期存储，这样就可以腾出 BookKeeper 空间并降低储存成本。 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Tiered Storage · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar 的 **层级存储** 功能允许将旧的积压数据卸载到长期存储，这样就可以腾出 BookKeeper 空间并降低储存成本。 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>层级存储 · Apache Pulsar</title><meta name="viewport" content="width=device-width"/><meta name="generator" content="Docusaurus"/><meta name="description" content="Pulsar&#x27;s **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="层级存储 · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.incubator.apache.org/"/><meta property="og:description" content="Pulsar&#x27;s **Tiered Storage** feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.incubator.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.incubator.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.incubator.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
               (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
               (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
               m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
@@ -18,16 +18,16 @@
             languagesDropDown.className = "hide";
           }
         });
-      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Tiered Storage</h1></header><article><div><span><p>Pulsar 的 <strong>层级存储</strong> 功能允许将旧的积压数据卸载到长期存储，这样就可以腾出 BookKeeper 空间并降低储存成本。 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。</p>
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">层级存储</h1></header><article><div><span><p>Pulsar's <strong>Tiered Storage</strong> feature allows older backlog data to be offloaded to long term storage, thereby freeing up space in BookKeeper and reducing storage costs. 本文档会手把手教你在你的 Pulsar 集群中使用层级存储。</p>
 <ul>
 <li><p>分层存储使用 <a href="https://jclouds.apache.org">Apache jclouds</a> 来支持 <a href="https://aws.amazon.com/s3/">Amazon S3</a> 和 <a href="https://cloud.google.com/storage/">谷歌云存储</a>(简称 GCS)来进行长期存储。 With Jclouds, it is easy to add support for more <a href="https://jclouds.apache.org/reference/providers/#blobstore-providers">cloud storage providers</a> in the future.</p></li>
-<li><p>分层存储使用 <a href="http://hadoop.apache.org/">Apache Hadoop</a> 来支持文件系统进行长期存储。 使用 Hadoop，将来很容易添加对更多文件系统的支持。</p></li>
+<li><p>Tiered storage uses <a href="http://hadoop.apache.org/">Apache Hadoop</a> to support filesystem for long term storage. With Hadoop, it is easy to add support for more filesystem in the future.</p></li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="何时使用层级存储？"></a><a href="#何时使用层级存储？" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>何时使用层级存储？</h2>
 <p>Tiered storage should be used when you have a topic for which you want to keep a very long backlog for a long time. For example, if you have a topic containing user actions which you use to train your recommendation systems, you may want to keep that data for a long time, so that if you change your recommendation algorithm you can rerun it against your full user history.</p>
 <h2><a class="anchor" aria-hidden="true" id="卸载机制"></a><a href="#卸载机制" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>卸载机制</h2>
 <p>A topic in Pulsar is backed by a log, known as a managed ledger. This log is composed of an ordered list of segments. Pulsar only every writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable. This is known as a segment oriented architecture.</p>
-<p><img src="/docs/assets/pulsar-tiered-storage.png" alt="Tiered storage" title="Tiered Storage"></p>
+<p><img src="/docs/assets/pulsar-tiered-storage.png" alt="Tiered storage" title="层级存储"></p>
 <p>The Tiered Storage offloading mechanism takes advantage of this segment oriented architecture. When offloading is requested, the segments of the log are copied, one-by-one, to tiered storage. All segments of the log, apart from the segment currently being written to can be offloaded.</p>
 <p>On the broker, the administrator must configure the bucket and credentials for the cloud storage service. The configured bucket must exist before attempting to offload. If it does not exist, the offload operation will fail.</p>
 <p>Pulsar uses multi-part objects to upload the segment data. It is possible that a broker could crash while uploading the data. We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid getting charged for incomplete uploads.</p>
@@ -62,7 +62,7 @@
 <li>使用 ec2 实例元数据凭据</li>
 </ol>
 <p>If you are on AWS instance with an instance profile that provides credentials, Pulsar will use these credentials if no other mechanism is provided</p>
-<ol>
+<ol start="2">
 <li>Set the environment variables <strong>AWS_ACCESS_KEY_ID</strong> and <strong>AWS_SECRET_ACCESS_KEY</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
 <pre><code class="hljs css language-bash"><span class="hljs-built_in">export</span> AWS_ACCESS_KEY_ID=ABC123456789
@@ -71,19 +71,19 @@
 <blockquote>
 <p>&quot;export&quot; is important so that the variables are made available in the environment of spawned processes.</p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>Add the Java system properties <em>aws.accessKeyId</em> and <em>aws.secretKey</em> to <strong>PULSAR_EXTRA_OPTS</strong> in <code>conf/pulsar_env.sh</code>.</li>
 </ol>
 <pre><code class="hljs css language-bash">PULSAR_EXTRA_OPTS=<span class="hljs-string">"<span class="hljs-variable">${PULSAR_EXTRA_OPTS}</span> <span class="hljs-variable">${PULSAR_MEM}</span> <span class="hljs-variable">${PULSAR_GC}</span> -Daws.accessKeyId=ABC123456789 -Daws.secretKey=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c -Dio.netty.leakDetectionLevel=disabled -Dio.netty.recycler.maxCapacity.default=1000 -Dio.netty.recycler.linkCapacity=1024"</span>
 </code></pre>
-<ol>
+<ol start="4">
 <li>Set the access credentials in <code>~/.aws/credentials</code>.</li>
 </ol>
 <pre><code class="hljs css language-conf"><span class="hljs-section">[default]</span>
 <span class="hljs-attr">aws_access_key_id</span>=ABC123456789
 <span class="hljs-attr">aws_secret_access_key</span>=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 </code></pre>
-<ol>
+<ol start="5">
 <li>假定一个 IAM 角色</li>
 </ol>
 <p>If you want to assume an IAM role, this can be done via specifying the following:</p>
@@ -97,10 +97,8 @@
 <h4><a class="anchor" aria-hidden="true" id="配置块读写的大小"></a><a href="#配置块读写的大小" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置块读/写的大小</h4>
 <p>Pulsar also provides some knobs to configure the size of requests sent to AWS S3.</p>
 <ul>
-<li><pre><code class="hljs">s3ManagedLedgerOffloadMaxBlockSizeInBytes configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-</code></pre></li>
-<li><pre><code class="hljs">s3ManagedLedgerOffloadReadBufferSizeInBytes configures the block size for each individual read when reading back data from AWS S3. Default is 1MB.
-</code></pre></li>
+<li><code>s3ManagedLedgerOffloadMaxBlockSizeInBytes</code>  configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.</li>
+<li><code>s3ManagedLedgerOffloadReadBufferSizeInBytes</code> configures the block size for each individual read when reading back data from AWS S3. Default is 1MB.</li>
 </ul>
 <p>In both cases, these should not be touched unless you know what you are doing.</p>
 <h3><a class="anchor" aria-hidden="true" id="google-cloud-storage-驱动程序配置"></a><a href="#google-cloud-storage-驱动程序配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;google-cloud-storage&quot; 驱动程序配置</h3>
@@ -117,22 +115,20 @@
 <ol>
 <li>打开 <a href="https://console.developers.google.com/iam-admin/serviceaccounts">服务账户页面</a>。</li>
 <li>选择一个项目或创建一个新项目。</li>
-<li>点击 <strong>Create service account</strong>。</li>
-<li>在 <strong>Create service account</strong> 窗口中，输入服务账户的名称并选择 <strong>Furnish a new private key</strong>。 如果你想给服务账号 <a href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority">授予 G Suire domain-wide 权限</a> ，同时也选择 <strong>Enable G Suite Domain-wide Delegation</strong>。</li>
-<li>点击 <strong>Create</strong>。</li>
+<li>Click <strong>Create service account</strong>.</li>
+<li>In the <strong>Create service account</strong> window, type a name for the service account, and select <strong>Furnish a new private key</strong>. If you want to <a href="https://developers.google.com/identity/protocols/OAuth2ServiceAccount#delegatingauthority">grant G Suite domain-wide authority</a> to the service account, also select <strong>Enable G Suite Domain-wide Delegation</strong>.</li>
+<li>Click <strong>Create</strong>.</li>
 </ol>
 <blockquote>
-<p>注意: 确保你创建的服务账号拥有操作 GCS 的权限，你需要在 <a href="https://cloud.google.com/storage/docs/access-control/iam">这里</a>给你的服务账号指定<strong>Storage Admin</strong> 权限。</p>
+<p>Notes: Make ensure that the service account you create has permission to operate GCS, you need to assign <strong>Storage Admin</strong> permission to your service account in <a href="https://cloud.google.com/storage/docs/access-control/iam">here</a>.</p>
 </blockquote>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">gcsManagedLedgerOffloadServiceAccountKeyFile</span>=<span class="hljs-string">"/Users/hello/Downloads/project-804d5e6a6f33.json"</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="配置块读写的大小-1"></a><a href="#配置块读写的大小-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置块读/写的大小</h4>
 <p>Pulsar also provides some knobs to configure the size of requests sent to GCS.</p>
 <ul>
-<li><pre><code class="hljs">gcsManagedLedgerOffloadMaxBlockSizeInBytes configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.
-</code></pre></li>
-<li><pre><code class="hljs">gcsManagedLedgerOffloadReadBufferSizeInBytes configures the block size for each individual read when reading back data from GCS. Default is 1MB.
-</code></pre></li>
+<li><code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code> configures the maximum size of a &quot;part&quot; sent during a multipart upload. This cannot be smaller than 5MB. Default is 64MB.</li>
+<li><code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code> configures the block size for each individual read when reading back data from GCS. Default is 1MB.</li>
 </ul>
 <p>In both cases, these should not be touched unless you know what you are doing.</p>
 <h3><a class="anchor" aria-hidden="true" id="filesystem-驱动程序配置"></a><a href="#filesystem-驱动程序配置" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>&quot;filesystem&quot; 驱动程序配置</h3>
@@ -141,12 +137,13 @@
 <pre><code class="hljs css language-conf"><span class="hljs-attr">fileSystemURI</span>=<span class="hljs-string">"hdfs://127.0.0.1:9000"</span>
 </code></pre>
 <h4><a class="anchor" aria-hidden="true" id="配置-hadoop-配置路径"></a><a href="#配置-hadoop-配置路径" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 Hadoop 配置路径</h4>
-<p>配置文件存储在 Hadoop 配置文件路径。它包含各种设置，如基础路径、身份验证等等。</p>
+<p>The configuration file is stored in the Hadoop profile path. It contains various settings, such as base path, authentication, and so on.</p>
 <pre><code class="hljs css language-conf"><span class="hljs-attr">fileSystemProfilePath</span>=<span class="hljs-string">"../conf/filesystem_offload_core_site.xml"</span>
 </code></pre>
-<p>主题数据存储的模型使用 <code>org.apache.hadoop.io.MapFile</code>。你可以在 <code>org.apache.hadoop.io.MapFile</code> 中使用所有的 Hadoop 配置。</p>
+<p>The model for storing topic data uses <code>org.apache.hadoop.io.MapFile</code>. You can use all of the configurations in <code>org.apache.hadoop.io.MapFile</code> for Hadoop.</p>
 <p><strong>示例</strong></p>
-<pre><code class="hljs css language-conf"><span class="hljs-tag">&lt;<span class="hljs-name">br</span> /&gt;</span>    <span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
+<pre><code class="hljs css language-conf">
+    <span class="hljs-tag">&lt;<span class="hljs-name">property</span>&gt;</span>
         <span class="hljs-tag">&lt;<span class="hljs-name">name</span>&gt;</span>fs.defaultFS<span class="hljs-tag">&lt;/<span class="hljs-name">name</span>&gt;</span>
         <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span><span class="hljs-tag">&lt;/<span class="hljs-name">value</span>&gt;</span>
     <span class="hljs-tag">&lt;/<span class="hljs-name">property</span>&gt;</span>
@@ -200,8 +197,12 @@ Offload is currently running
 Offload was a success
 </code></pre>
 <p>If there is an error offloading, the error will be propagated to the offload-status command.</p>
-<pre><code class="hljs css language-bash $ bin/pulsar-admin topics offload-status persistent://public/default/topic1 Error in offload null">
-Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads. Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g= ````</code></pre>
+<pre><code class="hljs css language-bash">$ bin/pulsar-admin topics offload-status persistent://public/default/topic1
+Error <span class="hljs-keyword">in</span> offload
+null
+
+Reason: Error offloading: org.apache.bookkeeper.mledger.ManagedLedgerException: java.util.concurrent.CompletionException: com.amazonaws.services.s3.model.AmazonS3Exception: Anonymous users cannot initiate multipart uploads.  Please authenticate. (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: 798758DE3F1776DF; S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=), S3 Extended Request ID: dhBFz/lZm1oiG/oBEepeNlhrtsDlzoOhocuYMpKihQGXe6EG8puRGOkK6UwqzVrMXTWBxxHcS+g=
+</code></pre>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#何时使用层级存储？">何时使用层级存储？</a></li><li><a href="#卸载机制">卸载机制</a></li><li><a href="#配置卸载驱动">配置卸载驱动</a><ul class="toc-headings"><li><a href="#aws-s3驱动程序配置">&quot;aws-s3&quot;驱动程序配置</a></li><li><a href="#google-cloud-storage-驱动程序配置">&quot;google-cloud-storage&quot; 驱动程序配置</a></li><li><a href="#filesystem-驱动程序配置">&quot;filesystem&quot; 驱动程序配置</a></li></ul></li><li><a href="#配置卸载的自动运行">配置卸载的自动运行</a></li><li><a href="#手动触发卸载">手动触发卸载</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =

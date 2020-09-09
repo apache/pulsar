@@ -76,7 +76,7 @@
             });
         </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Tiered Storage</h1></header><article><div><span><p>Pulsar's segment oriented architecture allows for topic backlogs to grow very large, effectively without limit. However, this can become expensive over time.</p>
 <p>有一个降低消耗的办法，那就是使用分层存储（Tiered Storage） 通过分层存储，在 backlog 中的旧消息可以从 BookKeeper 转移到更廉价的存储中，不出其他问题，客户端将仍然可以访问 backlog。</p>
-<p><img src="/docs/assets/pulsar-tiered-storage.png" alt="Tiered Storage"></p>
+<p><img src="/docs/assets/pulsar-tiered-storage.png" alt="层级存储"></p>
 <blockquote>
 <p>默认情况下写入到 BookKeeper 的数据会复制三个物理机副本。 但是，一旦一个 segment 被BookKeep 封存（sealed），该 segment 就变得不可改变，此时就可以复制到长期存储中去了。 长期存储可以达到节省存储费用的目的。通过使用 <a href="https://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction">Reed-Solomon error correction</a> 机制，还可减少物理备份数量。</p>
 </blockquote>
