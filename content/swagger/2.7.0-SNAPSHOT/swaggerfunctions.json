@@ -1400,24 +1400,13 @@
         "replicated" : {
           "type" : "boolean"
         },
-        "replicatedFrom" : {
-          "type" : "string"
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
-        "producerName" : {
-          "type" : "string"
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "redeliveryCount" : {
           "type" : "integer",
@@ -1430,20 +1419,18 @@
             "format" : "byte"
           }
         },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
         },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
         },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
-          "type" : "string"
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
         },
         "keyBytes" : {
           "type" : "array",
@@ -1458,6 +1445,19 @@
             "type" : "string",
             "format" : "byte"
           }
+        },
+        "replicatedFrom" : {
+          "type" : "string"
+        },
+        "topicName" : {
+          "type" : "string"
+        },
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "producerName" : {
+          "type" : "string"
         },
         "value" : {
           "type" : "object"
