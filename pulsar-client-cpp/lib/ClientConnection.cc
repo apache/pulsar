@@ -135,6 +135,8 @@ static bool file_exists(const std::string& path) {
     return f.good();
 }
 
+std::atomic<int32_t> ClientConnection::maxMessageSize_{Commands::DefaultMaxMessageSize};
+
 ClientConnection::ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
                                    ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
@@ -143,7 +145,6 @@ ClientConnection::ClientConnection(const std::string& logicalAddress, const std:
       operationsTimeout_(seconds(clientConfiguration.getOperationTimeoutSeconds())),
       authentication_(authentication),
       serverProtocolVersion_(ProtocolVersion_MIN),
-      maxMessageSize_(Commands::DefaultMaxMessageSize),
       executor_(executor),
       resolver_(executor_->createTcpResolver()),
       socket_(executor_->createSocket()),
@@ -246,7 +247,7 @@ void ClientConnection::handlePulsarConnected(const CommandConnected& cmdConnecte
 
     if (cmdConnected.has_max_message_size()) {
         LOG_DEBUG("Connection has max message size setting: " << cmdConnected.max_message_size());
-        maxMessageSize_ = cmdConnected.max_message_size();
+        maxMessageSize_.store(cmdConnected.max_message_size(), std::memory_order_release);
         LOG_DEBUG("Current max message size is: " << maxMessageSize_);
     }
 
@@ -1477,7 +1478,7 @@ const std::string& ClientConnection::cnxString() const { return cnxString_; }
 
 int ClientConnection::getServerProtocolVersion() const { return serverProtocolVersion_; }
 
-int ClientConnection::getMaxMessageSize() const { return maxMessageSize_; }
+int32_t ClientConnection::getMaxMessageSize() { return maxMessageSize_.load(std::memory_order_acquire); }
 
 Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;

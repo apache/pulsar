@@ -57,7 +57,7 @@ class MessageCrypto {
      * @return ResultOk if succeeded
      *
      */
-    Result addPublicKeyCipher(std::set<std::string>& keyNames, const CryptoKeyReaderPtr keyReader);
+    Result addPublicKeyCipher(const std::set<std::string>& keyNames, const CryptoKeyReaderPtr keyReader);
 
     /*
      * Remove a key <p> Remove the key identified by the keyName from the list of keys.<p>
@@ -79,7 +79,7 @@ class MessageCrypto {
      *
      * @return true if success
      */
-    bool encrypt(std::set<std::string>& encKeys, const CryptoKeyReaderPtr keyReader,
+    bool encrypt(const std::set<std::string>& encKeys, const CryptoKeyReaderPtr keyReader,
                  proto::MessageMetadata& msgMetadata, SharedBuffer& payload, SharedBuffer& encryptedPayload);
 
     /*
