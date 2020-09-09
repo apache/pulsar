@@ -1082,6 +1082,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean bookkeeperClientExposeStatsToPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Throttle value for bookkeeper client"
+    )
+    private int bookkeeperClientThrottleValue = 0;
+
     /**** --- Managed Ledger --- ****/
     @FieldContext(
         minValue = 1,
