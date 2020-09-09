@@ -61,6 +61,7 @@ public class ManagedLedgerConfig {
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
@@ -79,6 +80,25 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    /**
+     * @return the lazyCursorRecovery
+     */
+    public boolean isLazyCursorRecovery() {
+        return lazyCursorRecovery;
+    }
+
+    /**
+     * Whether to recover cursors lazily when trying to recover a
+     * managed ledger backing a persistent topic. It can improve write availability of topics.
+     * The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark
+     * delete position can be recovered or not.
+     * @param lazyCursorRecovery if enable lazy cursor recovery.
+     */
+    public ManagedLedgerConfig setLazyCursorRecovery(boolean lazyCursorRecovery) {
+        this.lazyCursorRecovery = lazyCursorRecovery;
         return this;
     }
 

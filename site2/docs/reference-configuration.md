@@ -266,7 +266,7 @@ subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions fr
 |s3ManagedLedgerOffloadRoleSessionName| For Amazon S3 ledger offload, provide a role session name when using a role |pulsar-s3-offload|
 | acknowledgmentAtBatchIndexLevelEnabled | Enable or disable the batch index acknowledgement. | false |
 | maxMessageSize | Set the maximum size of a message. | 5 MB |
-
+| lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 
 
 
