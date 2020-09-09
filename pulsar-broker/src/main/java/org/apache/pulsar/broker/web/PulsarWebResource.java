@@ -309,10 +309,10 @@ public abstract class PulsarWebResource {
             tenantInfo = pulsar().getConfigurationCache().propertiesCache().get(path(POLICIES, tenant))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Tenant does not exist"));
         } catch (RestException e) {
-            log.warn("Failed to get tenant admin data for tenant {}", tenant, e);
+            log.warn("Failed to get tenant admin data for tenant {}", tenant);
             throw e;
         } catch (Exception e) {
-            log.error("Failed to get tenant admin data for tenant {}", tenant);
+            log.error("Failed to get tenant admin data for tenant {}", tenant, e);
             throw new RestException(e);
         }
 
