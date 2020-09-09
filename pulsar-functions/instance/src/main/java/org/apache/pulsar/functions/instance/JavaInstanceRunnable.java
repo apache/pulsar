@@ -420,7 +420,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void processResult(Record srcRecord, JavaExecutionResult result, Throwable throwable) throws Exception {
         throwable = throwable == null ? result.getUserException() : throwable;
-        if (result.getUserException() != null) {
+        if (throwable != null) {
             log.info("Encountered user exception when processing message {}", srcRecord, throwable);
             stats.incrUserExceptions(throwable);
             srcRecord.fail();
