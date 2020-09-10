@@ -127,7 +127,12 @@ public class NamespaceStatsAggregator {
                 stats.throughputIn += producer.getStats().msgThroughputIn;
             }
         });
-
+        topic.getSubscriptions().values().forEach(sub->{
+            sub.getConsumers().forEach(consumer -> {
+                stats.rateOut+=consumer.getStats().msgRateOut;
+                stats.throughputOut += consumer.getStats().msgThroughputOut;
+            });
+        });
         tStatus.subscriptions.forEach((subName, subscriptionStats) -> {
             stats.subscriptionsCount++;
             stats.msgBacklog += subscriptionStats.msgBacklog;
