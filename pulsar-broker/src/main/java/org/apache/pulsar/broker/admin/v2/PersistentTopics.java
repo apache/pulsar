@@ -2385,14 +2385,14 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
                                 @PathParam("topic") @Encoded String encodedTopic,
-                                @ApiParam(value = "Subscirbe rate for the specified topic") SubscribeRate subscribeRate) {
+                                @ApiParam(value = "Subscribe rate for the specified topic") SubscribeRate subscribeRate) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalSetSubscribeRate(subscribeRate).whenComplete((r, ex) -> {
             if (ex instanceof RestException) {
                 log.error("Failed to set topic {} subscribe rate", topicName.getLocalName(), ex);
                 asyncResponse.resume(ex);
             } else if (ex != null) {
-                log.error("Failed to set topic subscirbe rate");
+                log.error("Failed to set topic subscribe rate");
                 asyncResponse.resume(new RestException(ex));
             } else {
                 try {
