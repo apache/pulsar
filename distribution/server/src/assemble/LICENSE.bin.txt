@@ -321,7 +321,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.11.1.jar
      - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.11.1.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.6.2.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.12.0.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-1.17.0.jar
  * Joda -- org.joda-joda-convert-2.2.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.2.jar
  * Gson
@@ -445,26 +445,38 @@ The Apache Software License, Version 2.0
  * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.1.3.jar
- * OkHttp - com.squareup.okhttp-okhttp-2.5.0.jar
+ * OkHttp
+    - com.squareup.okhttp-okhttp-2.7.4.jar
  * Okio - com.squareup.okio-okio-1.13.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
   * gRPC
-    - io.grpc-grpc-all-1.18.0.jar
-    - io.grpc-grpc-auth-1.18.0.jar
-    - io.grpc-grpc-context-1.18.0.jar
-    - io.grpc-grpc-core-1.18.0.jar
-    - io.grpc-grpc-netty-1.18.0.jar
-    - io.grpc-grpc-okhttp-1.18.0.jar
-    - io.grpc-grpc-protobuf-1.18.0.jar
-    - io.grpc-grpc-protobuf-lite-1.18.0.jar
+    - io.grpc-grpc-all-1.30.2.jar
+    - io.grpc-grpc-alts-1.30.2.jar
+    - io.grpc-grpc-api-1.30.2.jar
+    - io.grpc-grpc-auth-1.30.2.jar
+    - io.grpc-grpc-context-1.30.2.jar
+    - io.grpc-grpc-core-1.30.2.jar
+    - io.grpc-grpc-grpclb-1.30.2.jar
+    - io.grpc-grpc-netty-1.30.2.jar
+    - io.grpc-grpc-netty-shaded-1.30.2.jar
+    - io.grpc-grpc-okhttp-1.30.2.jar
+    - io.grpc-grpc-protobuf-1.30.2.jar
+    - io.grpc-grpc-protobuf-lite-1.30.2.jar
+    - io.grpc-grpc-services-1.30.2.jar
+    - io.grpc-grpc-stub-1.30.2.jar
+    - io.grpc-grpc-xds-1.30.2.jar
     - io.grpc-grpc-protobuf-nano-1.18.0.jar
-    - io.grpc-grpc-stub-1.18.0.jar
     - io.grpc-grpc-testing-1.18.0.jar
   * OpenCensus
     - io.opencensus-opencensus-api-0.18.0.jar
     - io.opencensus-opencensus-contrib-grpc-metrics-0.18.0.jar
+    - io.opencensus-opencensus-contrib-http-util-0.24.0.jar
+    - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
+  * Apache HTTP
+    - org.apache.httpcomponents-httpclient-4.5.10.jar
+    - org.apache.httpcomponents-httpcore-4.4.12.jar
   * Apache Avro
     - org.apache.avro-avro-1.9.1.jar
     - org.apache.avro-avro-protobuf-1.9.1.jar
@@ -508,7 +520,9 @@ The Apache Software License, Version 2.0
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-0.9.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-0.20.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-0.20.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auto.value-auto-value-annotations-1.7.jar -- licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
  * JavaHamcrest -- org.hamcrest-hamcrest-core-1.3.jar -- licenses/LICENSE-Hamcrest.txt
@@ -524,15 +538,20 @@ MIT License
     - org.slf4j-jcl-over-slf4j-1.7.25.jar
  * Animal Sniffer Annotations
     - org.codehaus.mojo-animal-sniffer-annotations-1.14.jar
+    - org.conscrypt-conscrypt-openjdk-uber-2.2.1.jar
  * The Checker Framework
  	- org.checkerframework-checker-compat-qual-2.5.2.jar
     - org.checkerframework-checker-qual-2.0.0.jar
 
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.5.1.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.5.1.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.11.4.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.11.4.jar -- licenses/LICENSE-protobuf.txt
    - com.google.protobuf.nano-protobuf-javanano-3.0.0-alpha-5.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.auto.value-auto-value-annotations-1.7.jar
+   - com.google.http-client-google-http-client-1.34.0.jar
+   - com.google.http-client-google-http-client-jackson2-1.34.0.jar
+   - com.google.re2j-re2j-1.2.jar
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
