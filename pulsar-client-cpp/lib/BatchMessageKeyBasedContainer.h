@@ -16,32 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/*
- * \class BatchMessageContainer
- *
- * \brief This class is a container for holding individual messages being published until they are batched and
- * sent to broker.
- *
- * \note This class is not thread safe.
- */
+#ifndef LIB_BATCHMESSAGEKEYBASEDCONTAINER_H_
+#define LIB_BATCHMESSAGEKEYBASEDCONTAINER_H_
 
-#ifndef LIB_BATCHMESSAGECONTAINER_H_
-#define LIB_BATCHMESSAGECONTAINER_H_
+#include <unordered_map>
 
 #include "BatchMessageContainerBase.h"
 #include "MessageAndCallbackBatch.h"
 
 namespace pulsar {
 
-class BatchMessageContainer : public BatchMessageContainerBase {
+class BatchMessageKeyBasedContainer : public BatchMessageContainerBase {
    public:
-    BatchMessageContainer(const ProducerImpl& producer);
+    BatchMessageKeyBasedContainer(const ProducerImpl& producer);
 
-    ~BatchMessageContainer();
+    ~BatchMessageKeyBasedContainer();
 
-    size_t getNumBatches() const override { return 1; }
+    size_t getNumBatches() const override { return batches_.size(); }
 
-    bool isFirstMessageToAdd(const Message& msg) const override { return batch_.empty(); }
+    bool isFirstMessageToAdd(const Message& msg) const override;
 
     bool add(const Message& msg, const SendCallback& callback) override;
 
@@ -55,10 +48,15 @@ class BatchMessageContainer : public BatchMessageContainerBase {
     void serialize(std::ostream& os) const override;
 
    private:
-    MessageAndCallbackBatch batch_;
+    // key: message key, ordering key has higher priority than partitioned key
+    std::unordered_map<std::string, MessageAndCallbackBatch> batches_;
     size_t numberOfBatchesSent_ = 0;
     double averageBatchSize_ = 0;
+
+    Result createOpSendMsg(OpSendMsg& opSendMsg, const FlushCallback& flushCallback,
+                           MessageAndCallbackBatch& batch) const;
 };
 
 }  // namespace pulsar
-#endif /* LIB_BATCHMESSAGECONTAINER_H_ */
+
+#endif
