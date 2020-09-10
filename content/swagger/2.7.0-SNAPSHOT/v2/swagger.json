@@ -16986,41 +16986,41 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
+                "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "underLoaded": {
-                    "type": "boolean"
+                "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "overLoaded": {
-                    "type": "boolean"
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
-                "bandwidthOut": {
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "lastUpdate": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "underLoaded": {
+                    "type": "boolean"
                 },
                 "loadReportType": {
                     "type": "string"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
                 }
             }
         },
@@ -17201,13 +17201,13 @@
                     "type": "number",
                     "format": "double"
                 },
+                "producerName": {
+                    "type": "string"
+                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -18110,13 +18110,13 @@
                         "type": "string"
                     }
                 },
+                "producerName": {
+                    "type": "string"
+                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "producerName": {
                     "type": "string"
                 },
                 "address": {
