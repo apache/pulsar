@@ -71,6 +71,8 @@ class Commands {
     static SharedBuffer newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
                                    bool connectingThroughProxy);
 
+    static SharedBuffer newAuthResponse(const AuthenticationPtr& authentication);
+
     static SharedBuffer newPartitionMetadataRequest(const std::string& topic, uint64_t requestId);
 
     static SharedBuffer newLookup(const std::string& topic, const bool authoritative, uint64_t requestId);
@@ -95,6 +97,7 @@ class Commands {
 
     static SharedBuffer newAck(uint64_t consumerId, const proto::MessageIdData& messageId,
                                proto::CommandAck_AckType ackType, int validationError);
+    static SharedBuffer newMultiMessageAck(uint64_t consumerId, const std::set<MessageId>& msgIds);
 
     static SharedBuffer newFlow(uint64_t consumerId, uint32_t messagePermits);
 
@@ -112,8 +115,8 @@ class Commands {
 
     static void initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata);
 
-    static PULSAR_PUBLIC void serializeSingleMessageInBatchWithPayload(
-        const Message& msg, SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes);
+    static PULSAR_PUBLIC uint64_t serializeSingleMessageInBatchWithPayload(
+        const Message& msg, SharedBuffer& batchPayLoad, unsigned long maxMessageSizeInBytes);
 
     static Message deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex);
 
@@ -123,6 +126,12 @@ class Commands {
     static SharedBuffer newSeek(uint64_t consumerId, uint64_t requestId, uint64_t timestamp);
     static SharedBuffer newGetLastMessageId(uint64_t consumerId, uint64_t requestId);
     static SharedBuffer newGetTopicsOfNamespace(const std::string& nsName, uint64_t requestId);
+
+    static bool peerSupportsGetLastMessageId(int32_t peerVersion);
+    static bool peerSupportsActiveConsumerListener(int32_t peerVersion);
+    static bool peerSupportsMultiMessageAcknowledgement(int32_t peerVersion);
+    static bool peerSupportsJsonSchemaAvroFormat(int32_t peerVersion);
+    static bool peerSupportsGetOrCreateSchema(int32_t peerVersion);
 
    private:
     Commands();

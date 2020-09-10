@@ -215,6 +215,7 @@ public class MessageIdTest extends BrokerTestBase {
             MessageId topicMessageId = consumer.receive().getMessageId();
             MessageId messageId = ((TopicMessageIdImpl)topicMessageId).getInnerMessageId();
             log.info("Message ID Received = " + messageId);
+            Assert.assertEquals(topicMessageId.toString(), messageId.toString());
             Assert.assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
         log.info("Message IDs = " + messageIds);
@@ -257,13 +258,14 @@ public class MessageIdTest extends BrokerTestBase {
         for (int i = 0; i < numberOfMessages; i++) {
             MessageId topicMessageId = consumer.receive().getMessageId();
             MessageId messageId = ((TopicMessageIdImpl)topicMessageId).getInnerMessageId();
+            Assert.assertEquals(topicMessageId.toString(), messageId.toString());
             Assert.assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
         log.info("Message IDs = " + messageIds);
         Assert.assertEquals(messageIds.size(), 0, "Not all messages received successfully");
         // TODO - this statement causes the broker to hang - need to look into
         // it
-        // consumer.unsubscribe();;
+        // consumer.unsubscribe();
     }
 
     /**

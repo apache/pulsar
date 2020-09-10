@@ -31,7 +31,7 @@ MultiTopicsConsumerImpl::MultiTopicsConsumerImpl(ClientImplPtr client, const std
       topic_(topicName ? topicName->toString() : "EmptyTopics"),
       conf_(conf),
       state_(Pending),
-      messages_(1000),
+      messages_(conf.getReceiverQueueSize()),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
       pendingReceives_(),
@@ -104,8 +104,7 @@ void MultiTopicsConsumerImpl::handleOneTopicSubscribed(Result result, Consumer c
         } else {
             LOG_ERROR("Unable to create Consumer - " << consumerStr_ << " Error - " << result);
             // unsubscribed all of the successfully subscribed partitioned consumers
-            ResultCallback nullCallbackForCleanup = NULL;
-            closeAsync(nullCallbackForCleanup);
+            closeAsync(nullptr);
             multiTopicsConsumerCreatedPromise_.setFailed(result);
             return;
         }
@@ -372,17 +371,21 @@ void MultiTopicsConsumerImpl::closeAsync(ResultCallback callback) {
     if (state_ == Closing || state_ == Closed) {
         LOG_ERROR("TopicsConsumer already closed "
                   << " topic" << topic_ << " consumer - " << consumerStr_);
-        callback(ResultAlreadyClosed);
+        if (callback) {
+            callback(ResultAlreadyClosed);
+        }
         return;
     }
 
     setState(Closing);
 
     if (consumers_.empty()) {
-        LOG_ERROR("TopicsConsumer have no consumers to close "
+        LOG_DEBUG("TopicsConsumer have no consumers to close "
                   << " topic" << topic_ << " subscription - " << subscriptionName_);
         setState(Closed);
-        callback(ResultAlreadyClosed);
+        if (callback) {
+            callback(ResultAlreadyClosed);
+        }
         return;
     }
 
@@ -488,8 +491,8 @@ Result MultiTopicsConsumerImpl::receive(Message& msg) {
         LOG_ERROR("Can not receive when a listener has been set");
         return ResultInvalidConfiguration;
     }
-    messages_.pop(msg);
     lock.unlock();
+    messages_.pop(msg);
 
     unAckedMessageTrackerPtr_->add(msg.getMessageId());
     return ResultOk;
@@ -508,8 +511,8 @@ Result MultiTopicsConsumerImpl::receive(Message& msg, int timeout) {
         return ResultInvalidConfiguration;
     }
 
+    lock.unlock();
     if (messages_.pop(msg, std::chrono::milliseconds(timeout))) {
-        lock.unlock();
         unAckedMessageTrackerPtr_->add(msg.getMessageId());
         return ResultOk;
     } else {
@@ -745,4 +748,11 @@ void MultiTopicsConsumerImpl::seekAsync(const MessageId& msgId, ResultCallback c
 
 void MultiTopicsConsumerImpl::seekAsync(uint64_t timestamp, ResultCallback callback) {
     callback(ResultOperationNotSupported);
+}
+
+void MultiTopicsConsumerImpl::setNegativeAcknowledgeEnabledForTesting(bool enabled) {
+    Lock lock(mutex_);
+    for (auto&& c : consumers_) {
+        c.second->setNegativeAcknowledgeEnabledForTesting(enabled);
+    }
 }

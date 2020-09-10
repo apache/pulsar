@@ -27,119 +27,38 @@
 
 #ifndef LIB_BATCHMESSAGECONTAINER_H_
 #define LIB_BATCHMESSAGECONTAINER_H_
-#include <string>
-#include <vector>
-#include <utility>
-#include <pulsar/MessageBuilder.h>
-#include "MessageImpl.h"
-#include "CompressionCodec.h"
-#include "Commands.h"
-#include "LogUtils.h"
-#include "ObjectPool.h"
-#include "ExecutorService.h"
-#include <boost/asio.hpp>
-#include "ProducerImpl.h"
+
+#include "BatchMessageContainerBase.h"
+#include "MessageAndCallbackBatch.h"
 
 namespace pulsar {
 
-class BatchMessageContainer {
+class BatchMessageContainer : public BatchMessageContainerBase {
    public:
-    struct MessageContainer {
-        MessageContainer(Message message, SendCallback sendCallback)
-            : message_(message), sendCallback_(sendCallback) {}
-        Message message_;
-        SendCallback sendCallback_;
-        void callBack(Result r, const MessageId& messageId) { sendCallback_(r, messageId); }
-    };
-    typedef std::vector<MessageContainer> MessageContainerList;
-    typedef std::shared_ptr<MessageContainerList> MessageContainerListPtr;
-
-    BatchMessageContainer(ProducerImpl& producer);
+    BatchMessageContainer(const ProducerImpl& producer);
 
     ~BatchMessageContainer();
 
-    // It was only called in ProducerImpl::sendAsync, while the producer has reserved a spot of pending
-    // message queue before.
-    // It returns true to tell the producer not to release the spot because the spot would be released when
-    // the batched message was pushed to the queue successfully in ProducerImpl::sendMessage.
-    bool add(const Message& msg, SendCallback sendCallback, bool disableCheck = false);
+    size_t getNumBatches() const override { return 1; }
 
-    SharedBuffer getBatchedPayload();
+    bool isFirstMessageToAdd(const Message& msg) const override { return batch_.empty(); }
 
-    void clear();
+    bool add(const Message& msg, const SendCallback& callback) override;
 
-    static void batchMessageCallBack(Result r, const MessageId& messageId, MessageContainerListPtr messages,
-                                     FlushCallback callback);
+    void clear() override;
 
-    friend inline std::ostream& operator<<(std::ostream& os,
-                                           const BatchMessageContainer& batchMessageContainer);
-    friend class ProducerImpl;
+    Result createOpSendMsg(OpSendMsg& opSendMsg, const FlushCallback& flushCallback) const override;
+
+    std::vector<Result> createOpSendMsgs(std::vector<OpSendMsg>& opSendMsgs,
+                                         const FlushCallback& flushCallback) const override;
+
+    void serialize(std::ostream& os) const override;
 
    private:
-    const CompressionType compressionType_;
-
-    const unsigned int maxAllowedNumMessagesInBatch_;
-    const unsigned long maxAllowedMessageBatchSizeInBytes_;
-    unsigned long batchSizeInBytes_;
-
-    /// Topic Name is used for creating descriptors in log messages
-    const std::string topicName_;
-
-    /// Producer Name is used for creating descriptors in log messages
-    std::string producerName_;
-
-    Message::MessageImplPtr impl_;
-
-    // This copy (to vector) is needed since OpSendMsg no long holds the individual message and w/o a
-    // container
-    // the impl_ Shared Pointer will delete the data.
-    MessageContainerListPtr messagesContainerListPtr_;
-
-    ProducerImpl& producer_;
-
-    DeadlineTimerPtr timer_;
-
-    unsigned long numberOfBatchesSent_;
-
-    double averageBatchSize_;
-
-    void compressPayLoad();
-
-    inline bool isEmpty() const;
-
-    inline bool isFull() const;
-
-    inline bool hasSpaceInBatch(const Message& msg) const;
-
-    void startTimer();
-
-    // Returns true if a batch of messages was sent to producer's pending message queue
-    bool sendMessage(FlushCallback callback);
+    MessageAndCallbackBatch batch_;
+    size_t numberOfBatchesSent_ = 0;
+    double averageBatchSize_ = 0;
 };
 
-bool BatchMessageContainer::hasSpaceInBatch(const Message& msg) const {
-    return (msg.impl_->payload.readableBytes() + this->batchSizeInBytes_ <=
-            this->maxAllowedMessageBatchSizeInBytes_) &&
-           (this->messagesContainerListPtr_->size() < this->maxAllowedNumMessagesInBatch_);
-}
-
-bool BatchMessageContainer::isEmpty() const { return this->messagesContainerListPtr_->empty(); }
-
-bool BatchMessageContainer::isFull() const {
-    return (this->batchSizeInBytes_ >= this->maxAllowedMessageBatchSizeInBytes_ ||
-            this->messagesContainerListPtr_->size() >= this->maxAllowedNumMessagesInBatch_);
-}
-
-std::ostream& operator<<(std::ostream& os, const BatchMessageContainer& b) {
-    os << "{ BatchContainer [size = " << b.messagesContainerListPtr_->size()
-       << "] [batchSizeInBytes_ = " << b.batchSizeInBytes_
-       << "] [maxAllowedMessageBatchSizeInBytes_ = " << b.maxAllowedMessageBatchSizeInBytes_
-       << "] [maxAllowedNumMessagesInBatch_ = " << b.maxAllowedNumMessagesInBatch_
-       << "] [topicName = " << b.topicName_ << "] [producerName_ = " << b.producerName_
-       << "] [batchSizeInBytes_ = " << b.batchSizeInBytes_
-       << "] [numberOfBatchesSent = " << b.numberOfBatchesSent_
-       << "] [averageBatchSize = " << b.averageBatchSize_ << "]}";
-    return os;
-}
 }  // namespace pulsar
 #endif /* LIB_BATCHMESSAGECONTAINER_H_ */

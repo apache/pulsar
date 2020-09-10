@@ -24,6 +24,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 
 /**
@@ -40,6 +41,8 @@ public class SourceConfig {
     private String className;
 
     private String topicName;
+
+    private ProducerConfig producerConfig;
 
     private String serdeClassName;
 
@@ -63,4 +66,7 @@ public class SourceConfig {
     // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
     // interface
     private String customRuntimeOptions;
+
+    // If this is a BatchSource, its batch related configs are stored here
+    private BatchSourceConfig batchSourceConfig;
 }

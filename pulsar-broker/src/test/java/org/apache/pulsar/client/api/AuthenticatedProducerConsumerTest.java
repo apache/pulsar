@@ -96,7 +96,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
 
         conf.setClusterName("test");
-
+        conf.setNumExecutorThreadPoolSize(5);
         super.init();
     }
 

@@ -117,6 +117,12 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     @Override
     public SchemaDefinitionBuilder<T> withProperties(Map<String,String> properties) {
         this.properties = properties;
+        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
+            alwaysAllowNull = Boolean.parseBoolean(properties.get(ALWAYS_ALLOW_NULL));
+        }
+        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
+            jsr310ConversionEnabled = Boolean.parseBoolean(properties.get(JSR310_CONVERSION_ENABLED));
+        }
         return this;
     }
 

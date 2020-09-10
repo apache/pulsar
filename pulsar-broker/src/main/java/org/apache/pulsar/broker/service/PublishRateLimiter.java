@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.LongAdder;
-
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 
@@ -62,131 +60,14 @@ public interface PublishRateLimiter {
 
     /**
      * updates rate-limiting threshold based on passed in rate limiter.
-     * @param policies
-     * @param clusterName
+     * @param maxPublishRate
      */
     void update(PublishRate maxPublishRate);
-}
 
-class PublishRateLimiterImpl implements PublishRateLimiter {
-    protected volatile int publishMaxMessageRate = 0;
-    protected volatile long publishMaxByteRate = 0;
-    protected volatile boolean publishThrottlingEnabled = false;
-    protected volatile boolean publishRateExceeded = false;
-    protected volatile LongAdder currentPublishMsgCount = new LongAdder();
-    protected volatile LongAdder currentPublishByteCount = new LongAdder();
-
-    public PublishRateLimiterImpl(Policies policies, String clusterName) {
-        update(policies, clusterName);
-    }
-
-    public PublishRateLimiterImpl(PublishRate maxPublishRate) {
-        update(maxPublishRate);
-    }
-
-    @Override
-    public void checkPublishRate() {
-        if (this.publishThrottlingEnabled && !publishRateExceeded) {
-            long currentPublishMsgRate = this.currentPublishMsgCount.sum();
-            long currentPublishByteRate = this.currentPublishByteCount.sum();
-            if ((this.publishMaxMessageRate > 0 && currentPublishMsgRate > this.publishMaxMessageRate)
-                    || (this.publishMaxByteRate > 0 && currentPublishByteRate > this.publishMaxByteRate)) {
-                publishRateExceeded = true;
-            }
-        }
-    }
-
-    @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.add(numOfMessages);
-            this.currentPublishByteCount.add(msgSizeInBytes);
-        }
-    }
-
-    @Override
-    public boolean resetPublishCount() {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.reset();
-            this.currentPublishByteCount.reset();
-            this.publishRateExceeded = false;
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return publishRateExceeded;
-    }
-
-    @Override
-    public void update(Policies policies, String clusterName) {
-        final PublishRate maxPublishRate = policies.publishMaxMessageRate != null
-                ? policies.publishMaxMessageRate.get(clusterName)
-                : null;
-        if (maxPublishRate != null
-                && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-            resetPublishCount();
-        } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
-            resetPublishCount();
-        }
-    }
-
-    public void update(PublishRate maxPublishRate) {
-        if (maxPublishRate != null
-            && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-            resetPublishCount();
-        } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
-            resetPublishCount();
-        }
-    }
-}
-
-class PublishRateLimiterDisable implements PublishRateLimiter {
-
-    public static final PublishRateLimiterDisable DISABLED_RATE_LIMITER = new PublishRateLimiterDisable();
-
-    @Override
-    public void checkPublishRate() {
-        // No-op
-    }
-
-    @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        // No-op
-    }
-
-    @Override
-    public boolean resetPublishCount() {
-        // No-op
-        return false;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return false;
-    }
-
-    @Override
-    public void update(Policies policies, String clusterName) {
-        // No-op
-    }
-
-    @Override
-    public void update(PublishRate maxPublishRate) {
-        // No-op
-    }
+    /**
+     * try to acquire permit
+     * @param numbers
+     * @param bytes
+     * */
+    boolean tryAcquire(int numbers, long bytes);
 }

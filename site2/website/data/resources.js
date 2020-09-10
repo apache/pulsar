@@ -1,6 +1,90 @@
 module.exports = {
   articles: [
     {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Pulsar vs Kafka - Part 2 - Adoption, Use Cases, Differentiators, and Community",
+      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-2'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Pulsar vs Kafka - Part 1 - A More Accurate Perspective on Performance, Architecture, and Features",
+      link: 'https://streamnative.io/blog/tech/pulsar-vs-kafka-part-1'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Taking messaging and data ingestion systems to the next level",
+      link: 'https://streamnative.io/blog/tech/2020-07-08-podcast'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Announcing AMQP-on-Pulsar: bring native AMQP protocol support to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-06-15-announcing-aop-on-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to trace Pulsar messages with OpenTracing and Jaeger",
+      link: 'https://streamnative.io/blog/tech/2020-06-11-opentracing-instrumentation-for-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Introducing StreamNative Hub — Extend Pulsar Capabilities with Rich Integrations",
+      link: 'https://streamnative.io/blog/tech/2020-05-26-intro-to-hub'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 3",
+      link: 'https://streamnative.io/blog/tech/2020-05-12-distributed-database-bk3'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 2",
+      link: 'https://streamnative.io/blog/tech/2020-04-14-distributed-database-bk2'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How to Build a Distributed Database with Apache BookKeeper — Part 1",
+      link: 'https://streamnative.io/blog/tech/2020-02-04-how-to-build-database'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How Apache Pulsar Helps Streamline Message System and Reduces O&M Costs at Tuya Smart",
+      link: 'https://streamnative.io/blog/tech/2020-05-08-tuya-tech-blog'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Why Zhaopin Chooses Pulsar SQL for Search Log Analysis",
+      link: 'https://streamnative.io/blog/tech/2020-05-07-zhaopin-tech-blog'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Why we moved from Apache Kafka to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-04-21-from-apache-kafka-to-apache-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Announcing Kafka-on-Pulsar: bring native Kafka protocol support to Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2020-03-24-bring-native-kafka-protocol-support-to-apache-pulsar'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "Apache Pulsar® Helps Tencent Process Tens of Billions of Financial Transactions Efficiently with Virtually No Data Loss",
+      link: 'https://streamnative.io/blog/tech/2020-02-18-pulsar-help-tencent'
+    },
+    {
       forum: 'Yahoo Engineering blog',
       forum_link: 'https://yahooeng.tumblr.com/',
       title: 'Open sourcing Pulsar, pub-sub messaging at scale',
@@ -15,14 +99,14 @@ module.exports = {
     {
       forum: 'Streamlio blog',
       forum_link: 'https://streaml.io/blog',
-      title: 'Why Apache Pulsar? Part 1',
-      link: 'https://streaml.io/blog/why-apache-pulsar/'
+      title: 'Why Apache Pulsar? Part 2',
+      link: 'https://streaml.io/blog/why-apache-pulsar-part-2'
     },
     {
       forum: 'Streamlio blog',
       forum_link: 'https://streaml.io/blog',
-      title: 'Why Apache Pulsar? Part 2',
-      link: 'https://streaml.io/blog/why-apache-pulsar-part-2'
+      title: 'Why Apache Pulsar? Part 1',
+      link: 'https://streaml.io/blog/why-apache-pulsar/'
     },
     {
       forum: "Jack Vanlightly's blog",
@@ -47,6 +131,12 @@ module.exports = {
         forum_link: 'https://jack-vanlightly.com',
         title: 'How to (not) lose messages on an Apache Pulsar Cluster',
         link: 'https://jack-vanlightly.com/blog/2018/10/21/how-to-not-lose-messages-on-an-apache-pulsar-cluster'
+    },
+    {
+      forum: 'StreamNative blog',
+      forum_link: 'https://streamnative.io/',
+      title: "How Orange Financial combats financial fraud in over 50M transactions a day using Apache Pulsar",
+      link: 'https://streamnative.io/blog/tech/2019-11-11-how-orange-finaacial-combats-financial-fraud-over-50m-transactions-a-day-useing-apache-pulsar'
     },
     {
         forum: 'StreamNative blog',
@@ -243,6 +333,334 @@ module.exports = {
      }
   ],
   presentations: [
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Ludwig Pummer, Joe Francis',
+      date: 'June 2020',
+      title: "Five Years of Operating a Large Scale Globally Replicated Pulsar Installation",
+      link: 'https://www.slideshare.net/streamnative/five-years-of-operating-a-large-scale-globally-replicated-pulsar-installation'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Alexandre Duval',
+      date: 'June 2020',
+      title: "Building a FaaS with Pulsar",
+      link: 'https://www.slideshare.net/streamnative/building-a-faas-with-pulsar'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Greg Methvin',
+      date: 'June 2020',
+      title: "Scaling customer engagement with Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/scaling-customer-engagement-with-apache-pulsar'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'William MaLane',
+      date: 'June 2020',
+      title: "Finding your pulse for a global enterprise communications nervous system",
+      link: 'https://www.slideshare.net/streamnative/finding-your-pulse-for-a-global-enterprise-communications-nervous-systemwilliam-mclane'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'David Kjerrumgaard',
+      date: 'June 2020',
+      title: "Using Apache Pulsar to Provide Real-Time IoT Analytics on the Edge",
+      link: 'https://www.slideshare.net/streamnative/using-apache-pulsar-to-provide-realtime-iot-analytics-on-the-edgedavid'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Neng Lv',
+      date: 'June 2020',
+      title: "Stream or segment: what is the best way to access your events in Pulsar",
+      link: 'https://www.slideshare.net/streamnative/stream-or-segment-what-is-the-best-way-to-access-your-events-in-pulsarneng'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Simba Khadder',
+      date: 'June 2020',
+      title: "Feature Stories: Building Machine Learning Infrastructure on Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/feature-stores-building-machine-learning-infrastructure-on-apache-pulsarsimba-khadder'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Sanjeev Kulkarni',
+      date: 'June 2020',
+      title: "Pulsar Functions Deep Dive",
+      link: 'https://www.slideshare.net/streamnative/pulsar-functions-deep-divesanjeev-kulkarni'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Jesse Anderson',
+      date: 'June 2020',
+      title: "Pulsar for Kafka People",
+      link: 'https://www.slideshare.net/streamnative/pulsar-for-kafka-peoplejesse-anderson'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Jerry Peng',
+      date: 'June 2020',
+      title: "Interactive querying of streams using Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/interactive-querying-of-streams-using-apache-pulsarjerry-peng'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Anup Ghatage, Ankit Jain',
+      date: 'June 2020',
+      title: "The first step to Multi AZ architecture for Apache BookKeeper",
+      link: 'https://www.slideshare.net/streamnative/the-first-step-to-multi-az-architecture-for-apache-bookkeeperanup-ghatage'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Carolyn King, Matteo Merli, Sijie Guo',
+      date: 'June 2020',
+      title: "Messaging & Streaming Everywhere",
+      link: 'https://www.slideshare.net/streamnative/open-keynotecarolynmatteosijie'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Joe Francis, Rajan Dhabalia',
+      date: 'June 2020',
+      title: "Pulsar Storage on BookKeeper - Seamless Evolution",
+      link: 'https://www.slideshare.net/streamnative/pulsar-storage-on-bookkeeper-seamless-evolution'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Ningguo Chen',
+      date: 'June 2020',
+      title: "How Apache Pulsar Helps Tencent Process Tens of Billions of Transactions Efficiently",
+      link: 'https://www.slideshare.net/streamnative/how-apache-pulsar-helps-tencent-process-tens-of-billions-of-transactions-efficientlyningguo-chen'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Vincent Xie, Jia Zhai',
+      date: 'June 2020',
+      title: "Unify Storage Backend for Batch and Streaming Computation with Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/unify-storage-backend-for-batch-and-streaming-computation-with-apache-pulsarvincent'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Seth Wiesman',
+      date: 'June 2020',
+      title: "Unified Data Processing with Apache Flink and Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/unified-data-processing-with-apache-flink-and-apache-pulsarseth-wiesman'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Paige Roberts',
+      date: 'June 2020',
+      title: "Architecting Production IoT Analytics",
+      link: 'https://www.slideshare.net/streamnative/architecting-production-iot-analyticspaige-roberts'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Nozomi Kurihara',
+      date: 'June 2020',
+      title: "Large scale log pipeline using Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/large-scale-log-pipeline-using-apache-pulsarnozomi'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Robert van Mölken',
+      date: 'June 2020',
+      title: "Ten reasons to choose Apache Pulsar over Apache Kafka for Event Sourcing",
+      link: 'https://www.slideshare.net/streamnative/ten-reasons-to-choose-apache-pulsar-over-apache-kafka-for-event-sourcingrobert-van-mlken'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Simon Crosby',
+      date: 'June 2020',
+      title: "Easily Build a Smart Pulsar Stream Processor",
+      link: 'https://www.slideshare.net/streamnative/easily-build-a-smart-pulsar-stream-processorsimon-crosby'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Pranav Dharma',
+      date: 'June 2020',
+      title: "How Splunk Mission Control leverages various Pulsar subscription types",
+      link: 'https://www.slideshare.net/streamnative/how-splunk-mission-control-leverages-various-pulsar-subscription-typespranav-dharma'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Caito Scherr',
+      date: 'June 2020',
+      title: "Streaming, Fast and Slow",
+      link: 'https://www.slideshare.net/streamnative/streaming-fast-and-slowcaito-scherr'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Karthik Ramasamy',
+      date: 'June 2020',
+      title: "Why Splunk Chose Pulsar",
+      link: 'https://www.slideshare.net/streamnative/why-splunk-chose-pulsarkarthik-ramasamy'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Chris Kellogg',
+      date: 'June 2020',
+      title: "Securing your Pulsar Cluster with Vault",
+      link: 'https://www.slideshare.net/streamnative/securing-your-pulsar-cluster-with-vaultchris-kellogg-236137352'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Enrico Olivelli',
+      date: 'June 2020',
+      title: "Introducing HerdDB - a distributed JVM embeddable database built upon Apache BookKeeper",
+      link: 'https://www.slideshare.net/streamnative/introducing-herddb-a-distributed-jvm-embeddable-database-built-upon-apache-bookkeeperenrico-olivelli'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Pierre Zemb',
+      date: 'June 2020',
+      title: "Building a Messaging Solutions for OVHcloud with Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/building-a-messaging-solutions-for-ovhcloud-with-apache-pulsarpierre-zemb'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Devin Bost',
+      date: 'June 2020',
+      title: "Pulsar Architectural Patterns for CI/CD Automation and Self-Service",
+      link: 'https://www.slideshare.net/streamnative/pulsar-architectural-patterns-for-cicd-automation-and-selfservicedevin-bost-236083234'
+    },
+    {
+      forum: 'Pulsar Summit 2020',
+      forum_link: 'https://pulsar-summit.org/',
+      presenter: 'Addison Higham',
+      date: 'June 2020',
+      title: "Getting Pulsar Spinning",
+      link: 'https://www.slideshare.net/streamnative/getting-pulsar-spinningaddison-higham'
+    },
+    {
+      forum: 'StreamNative Academy',
+      forum_link: 'https://streamnative.io/academy',
+      presenter: 'Shivji Jha',
+      date: 'May 2020',
+      title: "Lessons from managing a Pulsar cluster (Nutanix)",
+      link: 'https://www.slideshare.net/streamnative/lessons-from-managing-a-pulsar-cluster-nutanix'
+    },
+    {
+      forum: '',
+      forum_link: '',
+      presenter: 'Sijie Guo',
+      date: 'May 2020',
+      title: "Building event streaming pipelines using Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/building-event-streaming-pipelines-using-apache-pulsar'
+    },
+    {
+      forum: 'TGIPulsar',
+      forum_link: 'https://streamnative.io/resource#tgip',
+      presenter: 'Sijie Guo',
+      date: 'April 2020',
+      title: "Lifecycle of a Pulsar message",
+      link: 'https://www.slideshare.net/streamnative/tgipulsar-ep-006-lifecycle-of-a-pulsar-message'
+    },
+    {
+      forum: '',
+      forum_link: '',
+      presenter: 'Sijie Guo, Pierre Zemb',
+      date: 'March 2020',
+      title: "Introducing Kafka-on-Pulsar: bring native Kafka protocol support to Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/introducing-kafkaonpulsar-bring-native-kafka-protocol-support-to-apache-pulsar'
+    },
+    {
+      forum: '2019 China Technical Communication Forum',
+      forum_link: 'http://www.tc-china.org/event/tcweekly/7454/',
+      presenter: 'Yu Liu',
+      date: 'December 2019',
+      title: "Code the docs",
+      link: 'https://www.slideshare.net/streamnative/code-the-docsyu-liu'
+    },
+    {
+      forum: 'Google DevFest 2019 in Beijing',
+      forum_link: 'https://devfest.withgoogle.com/?utm_source=devsite&utm_medium=events&utm_campaign=past&utm_content=DevSite_HPP',
+      presenter: 'Xiaolong Ran',
+      date: 'December 2019',
+      title: "Serverless Event Streaming with Pulsar Functions",
+      link: 'https://www.slideshare.net/streamnative/google-devfest-about-pulsar-by-xiaolong'
+    },
+    {
+      forum: 'Apache Pulsar Meetup x PingCAP Infra Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/7520647658000',
+      presenter: 'Xiaolong Ran',
+      date: 'December 2019',
+      title: "Apache Pulsar and GitHub",
+      link: 'https://www.slideshare.net/streamnative/apache-pulsar-and-githubxiaolong'
+    },
+    {
+      forum: 'Apache Pulsar Meetup x PingCAP Infra Meetup | Beijing',
+      forum_link: 'https://www.huodongxing.com/event/7520647658000',
+      presenter: 'Penghui Li, Yong Zhang',
+      date: 'December 2019',
+      title: "Transaction preview of Apache Pulsar",
+      link: 'https://www.slideshare.net/streamnative/transaction-preview-of-apache-pulsar'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Shanghai',
+      forum_link: 'https://www.huodongxing.com/event/5515876233300',
+      presenter: 'Xiaolong Ran, Guangning E',
+      date: 'November 2019',
+      title: "Pulsarctl & Pulsar Manager",
+      link: 'https://www.slideshare.net/streamnative/pulsarctl-pulsar-manager'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Shanghai',
+      forum_link: 'https://www.huodongxing.com/event/5515876233300',
+      presenter: 'Jennifer Huang',
+      date: 'November 2019',
+      title: "Apache Pulsar Community",
+      link: 'https://www.slideshare.net/streamnative/apache-pulsar-communityjennifer'
+    },
+    {
+      forum: 'Apache Pulsar Meetup | Shanghai',
+      forum_link: 'https://www.huodongxing.com/event/5515876233300',
+      presenter: 'Penghui Li, Bo Cong, Jia Zhai',
+      date: 'November 2019',
+      title: "Preview of Apache Pulsar 2.5.0",
+      link: 'https://www.slideshare.net/streamnative/preview-of-apache-pulsar-250'
+    },
+    {
+      forum: 'COSCon\'19',
+      forum_link: 'https://kaiyuanshe.cn/activity/summit/coscon-2019/',
+      presenter: 'Jennifer Huang',
+      date: 'November, 2019',
+      title: "Apache Pulsar: A borderless community",
+      link: 'https://www.slideshare.net/streamnative/apache-pulsaraborderlesscommunityjennifer'
+    },
+    {
+      forum: 'COSCon\'19',
+      forum_link: 'https://kaiyuanshe.cn/activity/summit/coscon-2019/',
+      presenter: 'Yu Liu',
+      date: 'November, 2019',
+      title: "Cos con19 about Pulsar",
+      link: 'https://www.slideshare.net/streamnative/cos-con19-pulsaryuliu'
+    },
     {
       forum: 'Flink Forward Europe',
       forum_link: 'https://europe-2019.flink-forward.org/',

@@ -122,6 +122,13 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name")
         public String authPluginClassName;
 
+        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+        String listenerName = null;
+
+        @Parameter(names = { "-ch",
+                "--chunking" }, description = "Should split the message and publish in chunks if message size is larger than allowed max size")
+        private boolean chunkingAllowed = false;
+
         @Parameter(
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation " +
@@ -160,7 +167,7 @@ public class PerformanceProducer {
         @Parameter(names = { "-b",
                 "--batch-time-window" }, description = "Batch messages in 'x' ms window (Default: 1ms)")
         public double batchTimeMillis = 1.0;
-        
+
         @Parameter(names = {
             "-bm", "--batch-max-messages"
         }, description = "Maximum number of messages per batch")
@@ -182,6 +189,10 @@ public class PerformanceProducer {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
 
+        @Parameter(names = {
+                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
+        public Boolean tlsAllowInsecureConnection = null;
+
         @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
         public String encKeyName = null;
 
@@ -192,10 +203,14 @@ public class PerformanceProducer {
         @Parameter(names = { "-d",
                 "--delay" }, description = "Mark messages with a given delay in seconds")
         public long delay = 0;
-        
+
         @Parameter(names = { "-ef",
                 "--exit-on-failure" }, description = "Exit from the process on publish failure (default: disable)")
         public boolean exitOnFailure = false;
+
+        @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key" +
+                ", valid options are: [autoIncrement, random]")
+        public String messageKeyGenerationMode = null;
     }
 
     static class EncKeyReader implements CryptoKeyReader {
@@ -276,6 +291,13 @@ public class PerformanceProducer {
 
             if (isBlank(arguments.tlsTrustCertsFilePath)) {
                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
+            }
+            if (isBlank(arguments.messageKeyGenerationMode)) {
+                arguments.messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
+            }
+            if (arguments.tlsAllowInsecureConnection == null) {
+                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
+                        .getProperty("tlsAllowInsecureConnection", ""));
             }
         }
 
@@ -412,6 +434,14 @@ public class PerformanceProducer {
                 clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
             }
 
+            if (arguments.tlsAllowInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+
+            if (isNotBlank(arguments.listenerName)) {
+                clientBuilder.listenerName(arguments.listenerName);
+            }
+
             client = clientBuilder.build();
             ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
                     .sendTimeout(0, TimeUnit.SECONDS) //
@@ -449,7 +479,12 @@ public class PerformanceProducer {
                 log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
                 for (int j = 0; j < arguments.numProducers; j++) {
-                    futures.add(producerBuilder.clone().topic(topic).createAsync());
+                    ProducerBuilder<byte[]> prodBuilder = producerBuilder.clone().topic(topic);
+                    if (arguments.chunkingAllowed) {
+                        prodBuilder.enableChunking(true);
+                        prodBuilder.enableBatching(false);
+                    }
+                    futures.add(prodBuilder.createAsync());
                 }
             }
 
@@ -466,7 +501,14 @@ public class PerformanceProducer {
             long startTime = System.nanoTime();
             long warmupEndTime = startTime + (long) (arguments.warmupTimeSeconds * 1e9);
             long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-
+            MessageKeyGenerationMode msgKeyMode = null;
+            if (isNotBlank(arguments.messageKeyGenerationMode)) {
+                try {
+                    msgKeyMode = MessageKeyGenerationMode.valueOf(arguments.messageKeyGenerationMode);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("messageKeyGenerationMode only support [autoIncrement, random]");
+                }
+            }
             // Send messages on all topics/producers
             long totalSent = 0;
             while (true) {
@@ -506,6 +548,12 @@ public class PerformanceProducer {
                             .value(payloadData);
                     if (arguments.delay >0) {
                         messageBuilder.deliverAfter(arguments.delay, TimeUnit.SECONDS);
+                    }
+                    //generate msg key
+                    if (msgKeyMode == MessageKeyGenerationMode.random) {
+                        messageBuilder.key(String.valueOf(random.nextInt()));
+                    } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
+                        messageBuilder.key(String.valueOf(totalSent));
                     }
                     messageBuilder.sendAsync().thenRun(() -> {
                         messagesSent.increment();
@@ -549,7 +597,7 @@ public class PerformanceProducer {
     }
 
     private static void printAggregatedThroughput(long start) {
-        double elapsed = (System.nanoTime() - start) / 1e9;;
+        double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
         log.info(
@@ -578,4 +626,8 @@ public class PerformanceProducer {
     static final DecimalFormat dec = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat totalFormat = new DecimalFormat("0.000");
     private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
+
+    public enum MessageKeyGenerationMode {
+        autoIncrement,random;
+    }
 }

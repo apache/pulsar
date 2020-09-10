@@ -296,10 +296,14 @@ public interface Context {
     String getFunctionVersion();
     Logger getLogger();
     void incrCounter(String key, long amount);
+    void incrCounterAsync(String key, long amount);
     long getCounter(String key);
+    long getCounterAsync(String key);
     void putState(String key, ByteBuffer value);
+    void putStateAsync(String key, ByteBuffer value);
     void deleteState(String key);
     ByteBuffer getState(String key);
+    ByteBuffer getStateAsync(String key);
     Map<String, Object> getUserConfigMap();
     Optional<Object> getUserConfigValue(String key);
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
@@ -644,10 +648,11 @@ The following Go Function example shows different log levels based on the functi
 
 ```
 import (
-	"context"
+    "context"
 
-	"github.com/apache/pulsar/pulsar-function-go/log"
-	"github.com/apache/pulsar/pulsar-function-go/pf"
+    "github.com/apache/pulsar/pulsar-function-go/pf"
+
+    log "github.com/apache/pulsar/pulsar-function-go/logutil"
 )
 
 func loggerFunc(ctx context.Context, input []byte) {
@@ -663,7 +668,7 @@ func main() {
 }
 ```
 
-When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/log`, and you do not have to use the `getLogger()` context object. 
+When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object. 
 
 <!--END_DOCUSAURUS_CODE_TABS-->
 
@@ -788,7 +793,7 @@ Since Pulsar 2.1.0 release, Pulsar integrates with Apache BookKeeper [table serv
 
 States are key-value pairs, where the key is a string and the value is arbitrary binary data - counters are stored as 64-bit big-endian binary values. Keys are scoped to an individual Pulsar Function, and shared between instances of that function.
 
-You can access states within Pulsar Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
+You can access states within Pulsar Java Functions using the `putState`, `putStateAsync`, `getState`, `getStateAsync`, `incrCounter`, `incrCounterAsync`,  `getCounter`, `getCounterAsync` and `deleteState` calls on the context object. You can access states within Pulsar Python Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
 
 > Note  
 > State storage is not available in Go.
@@ -810,7 +815,22 @@ Currently Pulsar Functions expose the following APIs for mutating and accessing 
     void incrCounter(String key, long amount);
 ```
 
-Application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
+The application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
+
+#### incrCounterAsync
+
+```java
+     /**
+     * Increment the builtin distributed counter referred by key
+     * but dont wait for the completion of the increment operation
+     *
+     * @param key The name of the key
+     * @param amount The amount to be incremented
+     */
+    CompletableFuture<Void> incrCounterAsync(String key, long amount);
+```
+
+The application can use `incrCounterAsync` to asynchronously change the counter of a given `key` by the given `amount`.
 
 #### getCounter
 
@@ -824,10 +844,25 @@ Application can use `incrCounter` to change the counter of a given `key` by the 
     long getCounter(String key);
 ```
 
-Application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
+The application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
 
 Except the `counter` API, Pulsar also exposes a general key/value API for functions to store
 general key/value state.
+
+#### getCounterAsync
+
+```java
+     /**
+     * Retrieve the counter value for the key, but don't wait
+     * for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the amount of the counter value for this key
+     */
+    CompletableFuture<Long> getCounterAsync(String key);
+```
+
+The application can use `getCounterAsync` to asynchronously retrieve the counter of a given `key` mutated by `incrCounterAsync`.
 
 #### putState
 
@@ -841,6 +876,20 @@ general key/value state.
     void putState(String key, ByteBuffer value);
 ```
 
+#### putStateAsync
+
+```java
+    /**
+     * Update the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key name of the key
+     * @param value state value of the key
+     */
+    CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
+```
+
+The application can use `putStateAsync` to asynchronously update the state of a given `key`.
+
 #### getState
 
 ```java
@@ -852,6 +901,20 @@ general key/value state.
      */
     ByteBuffer getState(String key);
 ```
+
+#### getStateAsync
+
+```java
+    /**
+     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     *
+     * @param key name of the key
+     * @return the state value for the key.
+     */
+    CompletableFuture<ByteBuffer> getStateAsync(String key);
+```
+
+The application can use `getStateAsync` to asynchronously retrieve the state of a given `key`.
 
 #### deleteState
 

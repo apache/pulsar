@@ -24,21 +24,29 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import com.google.common.base.MoreObjects;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -63,6 +71,9 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile boolean isFenced;
 
+    // Inactive topic policies
+    protected InactiveTopicPolicies inactiveTopicPolicies = new InactiveTopicPolicies();
+
     // Timestamp of when this topic was last seen active
     protected volatile long lastActive;
 
@@ -84,8 +95,15 @@ public abstract class AbstractTopic implements Topic {
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
+    protected boolean preciseTopicPublishRateLimitingEnable;
+
+    protected volatile PublishRate topicPolicyPublishRate = null;
+
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
+
+    protected CompletableFuture<TransactionBuffer> transactionBuffer;
+    protected ReentrantLock transactionBufferLock = new ReentrantLock();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -93,34 +111,113 @@ public abstract class AbstractTopic implements Topic {
         this.producers = new ConcurrentHashMap<>();
         this.isFenced = false;
         this.replicatorPrefix = brokerService.pulsar().getConfiguration().getReplicatorPrefix();
+        this.inactiveTopicPolicies.setDeleteWhileInactive(brokerService.pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled());
+        this.inactiveTopicPolicies.setMaxInactiveDurationSeconds(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds());
+        this.inactiveTopicPolicies.setInactiveTopicDeleteMode(brokerService.pulsar().getConfiguration().getBrokerDeleteInactiveTopicsMode());
         this.lastActive = System.nanoTime();
-        Policies policies = null;
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+        ServiceConfiguration brokerConfig = brokerService.pulsar().getConfiguration();
+        if (brokerConfig.isSystemTopicEnabled() && brokerConfig.isSystemTopicEnabled()) {
+            topicPolicyPublishRate = Optional.ofNullable(getTopicPolicies(TopicName.get(topic)))
+                    .map(TopicPolicies::getPublishRate)
+                    .orElse(null);
+        }
+        if (topicPolicyPublishRate != null) {
+            // update topic level publish dispatcher
+            updateTopicPublishDispatcher();
+        } else {
+            Policies policies = null;
+            try {
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+            } catch (Exception e) {
+                log.warn("[{}] Error getting policies {} and publish throttling will be disabled", topic, e.getMessage());
+            }
+            this.preciseTopicPublishRateLimitingEnable =
+                brokerService.pulsar().getConfiguration().isPreciseTopicPublishRateLimiterEnable();
+            updatePublishDispatcher(policies);
         }
-        updatePublishDispatcher(policies);
     }
 
     protected boolean isProducersExceeded() {
-        Policies policies;
-        try {
-            policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
-                    .orElseGet(() -> new Policies());
-        } catch (Exception e) {
-            policies = new Policies();
+        Integer maxProducers = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null) {
+            maxProducers = topicPolicies.getMaxProducerPerTopic();
         }
-        final int maxProducers = policies.max_producers_per_topic > 0 ?
-                policies.max_producers_per_topic :
-                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+
+        if (maxProducers == null) {
+            Policies policies;
+            try {
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                        .orElseGet(() -> new Policies());
+            } catch (Exception e) {
+                policies = new Policies();
+            }
+            maxProducers = policies.max_producers_per_topic;
+        }
+        maxProducers = maxProducers > 0 ? maxProducers : brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
         return false;
+    }
+
+    protected boolean isConsumersExceededOnTopic() {
+        Integer maxConsumers = null;
+        TopicPolicies topicPolicies = getTopicPolicies(TopicName.get(topic));
+        if (topicPolicies != null) {
+            maxConsumers = topicPolicies.getMaxConsumerPerTopic();
+        }
+        if (maxConsumers == null) {
+            Policies policies;
+            try {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks
+                policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()));
+
+                if (policies == null) {
+                    policies = new Policies();
+                }
+            } catch (Exception e) {
+                log.warn("[{}] Failed to get namespace policies that include max number of consumers: {}", topic,
+                        e.getMessage());
+                policies = new Policies();
+            }
+            maxConsumers = policies.max_consumers_per_topic;
+        }
+        final int maxConsumersPerTopic = maxConsumers > 0 ? maxConsumers
+                : brokerService.pulsar().getConfiguration().getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    public abstract int getNumberOfConsumers();
+
+    protected void addConsumerToSubscription(Subscription subscription, Consumer consumer)
+            throws BrokerServiceException {
+        if (isConsumersExceededOnTopic()) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", topic);
+            throw new ConsumerBusyException("Topic reached max consumers limit");
+        }
+        subscription.addConsumer(consumer);
+    }
+
+    @Override
+    public void disableCnxAutoRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().disableCnxAutoRead());
+        }
+    }
+
+    @Override
+    public void enableCnxAutoRead() {
+        if (producers != null) {
+            producers.values().forEach(producer -> producer.getCnx().enableCnxAutoRead());
+        }
     }
 
     protected boolean hasLocalProducers() {
@@ -373,6 +470,18 @@ public abstract class AbstractTopic implements Topic {
             getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
+    @Override
+    public boolean isTopicPublishRateExceeded(int numberMessages, int bytes) {
+        // whether topic publish rate exceed if precise rate limit is enable
+        return preciseTopicPublishRateLimitingEnable && !this.topicPublishRateLimiter.tryAcquire(numberMessages, bytes);
+    }
+
+    @Override
+    public boolean isBrokerPublishRateExceeded() {
+        // whether broker publish rate exceed
+        return  getBrokerPublishRateLimiter().isPublishRateExceeded();
+    }
+
     public PublishRateLimiter getTopicPublishRateLimiter() {
         return topicPublishRateLimiter;
     }
@@ -386,6 +495,12 @@ public abstract class AbstractTopic implements Topic {
     }
 
     private void updatePublishDispatcher(Policies policies) {
+        // if topic level publish rate policy is set, skip update publish rate on namespace level
+        if (topicPolicyPublishRate != null) {
+            log.info("Using topic policy publish rate instead of namespace level topic publish rate on topic {}", this.topic);
+            return;
+        }
+
         final String clusterName = brokerService.pulsar().getConfiguration().getClusterName();
         final PublishRate publishRate = policies != null && policies.publishMaxMessageRate != null
                 ? policies.publishMaxMessageRate.get(clusterName)
@@ -393,12 +508,21 @@ public abstract class AbstractTopic implements Topic {
         if (publishRate != null
                 && (publishRate.publishThrottlingRateInByte > 0 || publishRate.publishThrottlingRateInMsg > 0)) {
             log.info("Enabling publish rate limiting {} on topic {}", publishRate, this.topic);
-            // lazy init Publish-rateLimiting monitoring if not initialized yet
-            this.brokerService.setupTopicPublishRateLimiterMonitor();
+
+            // if not precise mode, lazy init Publish-rateLimiting monitoring if not initialized yet
+            if (!preciseTopicPublishRateLimitingEnable) {
+                this.brokerService.setupTopicPublishRateLimiterMonitor();
+            }
+
             if (this.topicPublishRateLimiter == null
                     || this.topicPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
                 // create new rateLimiter if rate-limiter is disabled
-                this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+                if (preciseTopicPublishRateLimitingEnable) {
+                    this.topicPublishRateLimiter = new PrecisPublishLimiter(policies, clusterName,
+                            () -> AbstractTopic.this.enableCnxAutoRead());
+                } else {
+                    this.topicPublishRateLimiter = new PublishRateLimiterImpl(policies, clusterName);
+                }
             } else {
                 this.topicPublishRateLimiter.update(policies, clusterName);
             }
@@ -415,5 +539,61 @@ public abstract class AbstractTopic implements Topic {
         return this.bytesInCounter.longValue();
     }
 
+    public long getMsgOutCounter() {
+        return getStats(false).msgOutCounter;
+    }
+
+    public long getBytesOutCounter() {
+        return getStats(false).bytesOutCounter;
+    }
+
+    public boolean isDeleteWhileInactive() {
+        return this.inactiveTopicPolicies.isDeleteWhileInactive();
+    }
+
+    public void setDeleteWhileInactive(boolean deleteWhileInactive) {
+        this.inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(AbstractTopic.class);
+
+    public InactiveTopicPolicies getInactiveTopicPolicies() {
+        return inactiveTopicPolicies;
+    }
+
+    public void resetInactiveTopicPolicies(InactiveTopicDeleteMode inactiveTopicDeleteMode
+            , int maxInactiveDurationSeconds, boolean deleteWhileInactive) {
+        inactiveTopicPolicies.setInactiveTopicDeleteMode(inactiveTopicDeleteMode);
+        inactiveTopicPolicies.setMaxInactiveDurationSeconds(maxInactiveDurationSeconds);
+        inactiveTopicPolicies.setDeleteWhileInactive(deleteWhileInactive);
+    }
+
+    /**
+     * Get {@link TopicPolicies} for this topic.
+     * @param topicName
+     * @return TopicPolicies is exist else return null.
+     */
+    public TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
+        try {
+            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            return null;
+        } catch (NullPointerException e) {
+            log.warn("Topic level policies are not enabled. " +
+                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
+            return null;
+        }
+    }
+
+    /**
+     * update topic publish dispatcher for this topic.
+     */
+    protected void updateTopicPublishDispatcher() {
+        // noop
+    }
 }

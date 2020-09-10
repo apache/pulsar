@@ -20,7 +20,6 @@
 #include "MessageImpl.h"
 #include "Version.h"
 #include "pulsar/MessageBuilder.h"
-#include "PulsarApi.pb.h"
 #include "LogUtils.h"
 #include "PulsarApi.pb.h"
 #include "Utils.h"
@@ -215,6 +214,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
+
+    FeatureFlags* flags = connect->mutable_feature_flags();
+    flags->set_supports_auth_refresh(true);
     if (connectingThroughProxy) {
         Url logicalAddressUrl;
         Url::parse(logicalAddress, logicalAddressUrl);
@@ -225,6 +227,23 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const
     if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
     }
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newAuthResponse(const AuthenticationPtr& authentication) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::AUTH_RESPONSE);
+    CommandAuthResponse* authResponse = cmd.mutable_authresponse();
+    authResponse->set_client_version(_PULSAR_VERSION_);
+
+    AuthData* authData = authResponse->mutable_response();
+    authData->set_auth_method_name(authentication->getAuthMethodName());
+
+    AuthenticationDataPtr authDataContent;
+    if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
+        authData->set_auth_data(authDataContent->getCommandData());
+    }
+
     return writeMessageWithSize(cmd);
 }
 
@@ -322,6 +341,20 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
         ack->set_validation_error((CommandAck_ValidationError)validationError);
     }
     *(ack->add_message_id()) = messageId;
+    return writeMessageWithSize(cmd);
+}
+
+SharedBuffer Commands::newMultiMessageAck(uint64_t consumerId, const std::set<MessageId>& msgIds) {
+    BaseCommand cmd;
+    cmd.set_type(BaseCommand::ACK);
+    CommandAck* ack = cmd.mutable_ack();
+    ack->set_consumer_id(consumerId);
+    ack->set_ack_type(CommandAck_AckType_Individual);
+    for (const auto& msgId : msgIds) {
+        auto newMsgId = ack->add_message_id();
+        newMsgId->set_ledgerid(msgId.ledgerId());
+        newMsgId->set_entryid(msgId.entryId());
+    }
     return writeMessageWithSize(cmd);
 }
 
@@ -584,21 +617,29 @@ std::string Commands::messageType(BaseCommand_Type type) {
 }
 
 void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {
-    if (msg.impl_->metadata.has_publish_time()) {
-        batchMetadata.set_publish_time(msg.impl_->metadata.publish_time());
-    }
+    // metadata has already been set in ProducerImpl::setMessageMetadata
+    const proto::MessageMetadata& metadata = msg.impl_->metadata;
 
-    if (msg.impl_->metadata.has_sequence_id()) {
-        batchMetadata.set_sequence_id(msg.impl_->metadata.sequence_id());
-    }
+    // required fields
+    batchMetadata.set_producer_name(metadata.producer_name());
+    batchMetadata.set_sequence_id(metadata.sequence_id());
+    batchMetadata.set_publish_time(metadata.publish_time());
 
-    if (msg.impl_->metadata.has_replicated_from()) {
-        batchMetadata.set_replicated_from(msg.impl_->metadata.replicated_from());
+    // optional fields
+    if (metadata.has_partition_key()) {
+        batchMetadata.set_partition_key(metadata.partition_key());
     }
+    if (metadata.has_ordering_key()) {
+        batchMetadata.set_ordering_key(metadata.ordering_key());
+    }
+    if (metadata.has_replicated_from()) {
+        batchMetadata.set_replicated_from(metadata.replicated_from());
+    }
+    // TODO: set other optional fields
 }
 
-void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
-                                                        const unsigned long& maxMessageSizeInBytes) {
+uint64_t Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                            unsigned long maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());
@@ -640,6 +681,8 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, Shar
     metadata.SerializeToArray(batchPayLoad.mutableData(), msgMetadataSize);
     batchPayLoad.bytesWritten(msgMetadataSize);
     batchPayLoad.write(msg.impl_->payload.data(), payloadSize);
+
+    return msg.impl_->metadata.sequence_id();
 }
 
 Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32_t batchIndex) {
@@ -667,5 +710,17 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage, int32
 
     return singleMessage;
 }
+
+bool Commands::peerSupportsGetLastMessageId(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsActiveConsumerListener(int32_t peerVersion) { return peerVersion >= proto::v12; }
+
+bool Commands::peerSupportsMultiMessageAcknowledgement(int32_t peerVersion) {
+    return peerVersion >= proto::v12;
+}
+
+bool Commands::peerSupportsJsonSchemaAvroFormat(int32_t peerVersion) { return peerVersion >= proto::v13; }
+
+bool Commands::peerSupportsGetOrCreateSchema(int32_t peerVersion) { return peerVersion >= proto::v15; }
 }  // namespace pulsar
 /* namespace pulsar */

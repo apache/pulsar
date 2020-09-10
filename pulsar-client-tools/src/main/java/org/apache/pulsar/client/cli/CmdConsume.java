@@ -101,7 +101,17 @@ public class CmdConsume {
 
     @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
     private boolean isRegex = false;
+    
+    @Parameter(names = { "-q", "--queue-size" }, description = "Consumer receiver queue size.")
+    private int receiverQueueSize = 0;
 
+    @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+    private int maxPendingChuckedMessage = 0;
+
+    @Parameter(names = { "-ac",
+            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+    private boolean autoAckOldestChunkedMessageOnQueueFull = false;
+    
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
@@ -194,6 +204,15 @@ public class CmdConsume {
             } else {
                 builder.topic(topic);
             }
+
+            if (this.maxPendingChuckedMessage > 0) {
+                builder.maxPendingChuckedMessage(this.maxPendingChuckedMessage);
+            }
+            if (this.receiverQueueSize > 0) {
+                builder.receiverQueueSize(this.receiverQueueSize);
+            }
+
+            builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
 
             Consumer<byte[]> consumer = builder.subscribe();
 

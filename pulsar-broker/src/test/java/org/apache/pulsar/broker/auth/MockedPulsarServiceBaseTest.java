@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -43,11 +44,12 @@ import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
-import org.apache.pulsar.broker.NoOpShutdownService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -55,7 +57,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
@@ -106,10 +107,21 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setBookkeeperClientExposeStatsToPrometheus(true);
+        this.conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected final void internalSetup() throws Exception {
         init();
+        lookupUrl = new URI(brokerUrl.toString());
+        if (isTcpLookup) {
+            lookupUrl = new URI(pulsar.getBrokerServiceUrl());
+        }
+        pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+    }
+
+    protected final void internalSetup(boolean isPreciseDispatcherFlowControl) throws Exception {
+        init(isPreciseDispatcherFlowControl);
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
             lookupUrl = new URI(pulsar.getBrokerServiceUrl());
@@ -130,12 +142,37 @@ public abstract class MockedPulsarServiceBaseTest {
         pulsarClient = newPulsarClient(lookupUrl, 1);
     }
 
-    protected final void init() throws Exception {
+    protected void doInitConf() throws Exception {
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(Optional.of(0));
         this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setNumExecutorThreadPoolSize(5);
+    }
+
+    protected final void init() throws Exception {
+        doInitConf();
+        sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
+        bkExecutor = Executors.newSingleThreadExecutor(
+                new ThreadFactoryBuilder().setNameFormat("mock-pulsar-bk")
+                    .setUncaughtExceptionHandler((thread, ex) -> log.info("Uncaught exception", ex))
+                    .build());
+
+        mockZooKeeper = createMockZooKeeper();
+        mockBookKeeper = createMockBookKeeper(mockZooKeeper, bkExecutor);
+
+        startBroker();
+    }
+
+    protected final void init(boolean isPreciseDispatcherFlowControl) throws Exception {
+        this.conf.setBrokerServicePort(Optional.of(0));
+        this.conf.setBrokerServicePortTls(Optional.of(0));
+        this.conf.setAdvertisedAddress("localhost");
+        this.conf.setWebServicePort(Optional.of(0));
+        this.conf.setWebServicePortTls(Optional.of(0));
+        this.conf.setPreciseDispatcherFlowControl(isPreciseDispatcherFlowControl);
+        this.conf.setNumExecutorThreadPoolSize(5);
 
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
         bkExecutor = Executors.newSingleThreadExecutor(
@@ -149,7 +186,7 @@ public abstract class MockedPulsarServiceBaseTest {
         startBroker();
     }
 
-    protected final void internalCleanup() throws Exception {
+    protected final void internalCleanup() {
         try {
             // if init fails, some of these could be null, and if so would throw
             // an NPE in shutdown, obscuring the real error
@@ -158,7 +195,7 @@ public abstract class MockedPulsarServiceBaseTest {
                 admin = null;
             }
             if (pulsarClient != null) {
-                pulsarClient.close();
+                pulsarClient.shutdown();
                 pulsarClient = null;
             }
             if (pulsar != null) {
@@ -170,11 +207,25 @@ public abstract class MockedPulsarServiceBaseTest {
             if (mockZooKeeper != null) {
                 mockZooKeeper.shutdown();
             }
-            if (sameThreadOrderedSafeExecutor != null) {
-                sameThreadOrderedSafeExecutor.shutdown();
+            if(sameThreadOrderedSafeExecutor != null) {
+                try {
+                    sameThreadOrderedSafeExecutor.shutdownNow();
+                    sameThreadOrderedSafeExecutor.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    log.error("sameThreadOrderedSafeExecutor shutdown had error", ex);
+                    Thread.currentThread().interrupt();
+                }
+                sameThreadOrderedSafeExecutor = null;
             }
-            if (bkExecutor != null) {
-                bkExecutor.shutdown();
+            if(bkExecutor != null) {
+                try {
+                    bkExecutor.shutdownNow();
+                    bkExecutor.awaitTermination(5, TimeUnit.SECONDS);
+                } catch (InterruptedException ex) {
+                    log.error("bkExecutor shutdown had error", ex);
+                    Thread.currentThread().interrupt();
+                }
+                bkExecutor = null;
             }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
@@ -210,7 +261,6 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
         PulsarService pulsar = spy(new PulsarService(conf));
-        pulsar.setShutdownService(new NoOpShutdownService());
 
         setupBrokerMocks(pulsar);
         boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
@@ -218,9 +268,6 @@ public abstract class MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         pulsar.start();
         conf.setAuthorizationEnabled(isAuthorizationEnabled);
-
-        Compactor spiedCompactor = spy(pulsar.getCompactor());
-        doReturn(spiedCompactor).when(pulsar).getCompactor();
 
         return pulsar;
     }
@@ -234,6 +281,11 @@ public abstract class MockedPulsarServiceBaseTest {
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
+        doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
+
+        doAnswer((invocation) -> {
+                return spy(invocation.callRealMethod());
+            }).when(pulsar).newCompactor();
     }
 
     public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
@@ -243,8 +295,7 @@ public abstract class MockedPulsarServiceBaseTest {
         }
         Set<String> allowedClusters = Sets.newHashSet();
         allowedClusters.add(configClusterName);
-        TenantInfo tenantInfo = new TenantInfo(Sets.newHashSet(), allowedClusters);
-        return tenantInfo;
+        return new TenantInfo(Sets.newHashSet(), allowedClusters);
     }
 
     public static MockZooKeeper createMockZooKeeper() throws Exception {
@@ -296,12 +347,20 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    private BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
+    private final BookKeeperClientFactory mockBookKeeperClientFactory = new BookKeeperClientFactory() {
 
         @Override
         public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                 Map<String, Object> properties) {
+            // Always return the same instance (so that we don't loose the mock BK content on broker restart
+            return mockBookKeeper;
+        }
+
+        @Override
+        public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient,
+                                 Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                 Map<String, Object> properties, StatsLogger statsLogger) {
             // Always return the same instance (so that we don't loose the mock BK content on broker restart
             return mockBookKeeper;
         }

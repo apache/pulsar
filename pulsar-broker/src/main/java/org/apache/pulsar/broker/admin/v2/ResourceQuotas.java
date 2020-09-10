@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.admin.impl.ResourceQuotasBase;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
@@ -51,7 +52,8 @@ public class ResourceQuotas extends ResourceQuotasBase {
     @POST
     @ApiOperation(value = "Set the default quota", response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDefaultResourceQuota(ResourceQuota quota) throws Exception {
+    public void setDefaultResourceQuota(
+            @ApiParam(value = "Default resource quota") ResourceQuota quota) throws Exception {
         super.setDefaultResourceQuota(quota);
     }
 
@@ -62,8 +64,13 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public ResourceQuota getNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
+    public ResourceQuota getNamespaceBundleResourceQuota(
+            @ApiParam(value = "Tenant name")
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Namespace name within the specified tenant")
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Namespace bundle range")
+            @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
         return internalGetNamespaceBundleResourceQuota(bundleRange);
     }
@@ -75,8 +82,14 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange, ResourceQuota quota) {
+    public void setNamespaceBundleResourceQuota(
+            @ApiParam(value = "Tenant name")
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Namespace name within the specified tenant")
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Namespace bundle range")
+            @PathParam("bundle") String bundleRange,
+            @ApiParam(value = "Resource quota for the specified namespace") ResourceQuota quota) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceBundleResourceQuota(bundleRange, quota);
     }
@@ -88,8 +101,13 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeNamespaceBundleResourceQuota(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
+    public void removeNamespaceBundleResourceQuota(
+            @ApiParam(value = "Tenant name")
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Namespace name within the specified tenant")
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Namespace bundle range")
+            @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
         internalRemoveNamespaceBundleResourceQuota(bundleRange);
     }

@@ -23,19 +23,23 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import lombok.experimental.UtilityClass;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.sink.PulsarSink;
-import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.common.util.Reflections;
 
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @UtilityClass
 public class InstanceUtils {
     public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
@@ -134,6 +138,11 @@ public class InstanceUtils {
         }
         properties.put("id", fullyQualifiedName);
         properties.put("instance_id", String.valueOf(instanceId));
+        try {
+            properties.put("instance_hostname", InetAddress.getLocalHost().getHostName());
+        } catch (UnknownHostException e) {
+            log.warn("[{}:{}] Failed to get hostname of instance", fullyQualifiedName, instanceId, e);
+        }
         return properties;
     }
 }

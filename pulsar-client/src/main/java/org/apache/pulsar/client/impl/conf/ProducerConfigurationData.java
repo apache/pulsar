@@ -77,6 +77,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean batchingEnabled = true; // enabled by default
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
+    private boolean chunkingEnabled = false;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
@@ -93,6 +94,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private Long initialSequenceId = null;
 
     private boolean autoUpdatePartitions = true;
+
+    private long autoUpdatePartitionsIntervalSeconds = 60;
 
     private boolean multiSchema = true;
 
@@ -162,4 +165,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
         return this.batchingPartitionSwitchFrequencyByPublishDelay * batchingMaxPublishDelayMicros;
     }
 
+    public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
+        checkArgument(interval > 0, "interval needs to be > 0");
+        this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);
+    }
 }

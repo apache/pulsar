@@ -21,14 +21,15 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -125,7 +126,7 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
-    void checkGC(int maxInactiveDurationInSec, InactiveTopicDeleteMode deleteMode);
+    void checkGC();
 
     void checkInactiveSubscriptions();
 
@@ -148,6 +149,14 @@ public interface Topic {
     void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
 
     boolean isPublishRateExceeded();
+
+    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
+
+    boolean isBrokerPublishRateExceeded();
+
+    void disableCnxAutoRead();
+
+    void enableCnxAutoRead();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
@@ -210,4 +219,38 @@ public interface Topic {
     default Optional<DispatchRateLimiter> getDispatchRateLimiter() {
         return Optional.empty();
     }
+
+    default boolean isSystemTopic() {
+        return false;
+    }
+
+    /* ------ Transaction related ------ */
+
+    /**
+     * Get the ${@link TransactionBuffer} of this Topic.
+     *
+     * @param createIfMissing Create the TransactionBuffer if missing.
+     * @return TransactionBuffer CompletableFuture
+     */
+    CompletableFuture<TransactionBuffer> getTransactionBuffer(boolean createIfMissing);
+
+    /**
+     * Publish Transaction message to this Topic's TransactionBuffer
+     *
+     * @param txnID Transaction Id
+     * @param headersAndPayload Message data
+     * @param batchSize messages number in a batch
+     * @param publishContext Publish context
+     */
+    void publishTxnMessage(TxnID txnID, ByteBuf headersAndPayload, long batchSize, PublishContext publishContext);
+
+    /**
+     * End the transaction in this topic.
+     *
+     * @param txnID Transaction id
+     * @param txnAction Transaction action.
+     * @return
+     */
+    CompletableFuture<Void> endTxn(TxnID txnID, int txnAction);
+
 }

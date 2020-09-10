@@ -22,12 +22,17 @@ on:
   pull_request:
     branches:
       - master
+  push:
+    branches:
+      - branch-*
 
 jobs:
 
   unit-tests:
     name:
     runs-on: ubuntu-latest
+    container:
+      image: apachepulsar/pulsar-build:latest
     timeout-minutes: 120
 
     steps:
@@ -41,31 +46,39 @@ jobs:
         id:   docs
         uses: apache/pulsar-test-infra/diff-only@master
         with:
-          args: site2 .github deployment .asf.yaml .ci ct.yaml
+          args: site2 deployment .asf.yaml .ci ct.yaml
 
-      - name: Set up JDK 1.8
-        uses: actions/setup-java@v1
-        if: steps.docs.outputs.changed_only == 'no'
+      - name: Cache local Maven repository
+        uses: actions/cache@v2
         with:
-          java-version: 1.8
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
 
-      - name: Set up Maven
-        uses: apache/pulsar-test-infra/setup-maven@master
+      - name: build modules pulsar-proxy
         if: steps.docs.outputs.changed_only == 'no'
-        with:
-          maven-version: 3.6.1
+        run: mvn -B -ntp -q install -Pcore-modules -DskipTests
 
-      - name: run unit tests install by skip tests
+      - name: run flaky test
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn clean install -DskipTests
+        run: mvn -B -ntp install -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dexclude="**/ProxyRolesEnforcementTest.java,**/ProxyAuthenticationTest.java,**/ProxyTest.java,**/MessagePublishBufferThrottleTest.java"
 
-      - name: run unit tests pulsar proxy
+      - name: run flaky test "**/ProxyRolesEnforcementTest.java"
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=!ProxyTest,!ProxyLookupThrottlingTest' -pl pulsar-proxy
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyRolesEnforcementTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
-      - name: run proxy lookup throttling test
+      - name: run flaky test "**/ProxyAuthenticationTest.java"
         if: steps.docs.outputs.changed_only == 'no'
-        run: mvn test -DfailIfNoTests=false '-Dtest=ProxyLookupThrottlingTest' -pl pulsar-proxy
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyAuthenticationTest.java" -DtestForkCount=1 -DtestReuseFork=true
+
+      - name: run flaky test "**/ProxyTest.java"
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/ProxyTest.java" -DtestForkCount=1 -DtestReuseFork=true
+
+      - name: run flaky test "**/MessagePublishBufferThrottleTest.java"
+        if: steps.docs.outputs.changed_only == 'no'
+        run: mvn -B -ntp test -pl pulsar-proxy -DtestForkCount=1 -DtestReuseFork=true -Dinclude="**/MessagePublishBufferThrottleTest.java" -DtestForkCount=1 -DtestReuseFork=true
 
       - name: package surefire artifacts
         if: failure()

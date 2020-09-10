@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONF
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +46,8 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -67,7 +70,9 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-
+/**
+ * Broker admin base.
+ */
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;
@@ -151,9 +156,12 @@ public class BrokersBase extends AdminResource {
     @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
     @ApiResponses(value = {
+        @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
     public Map<String, String> getAllDynamicConfigurations() throws Exception {
+        validateSuperUserAccess();
+
         ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar().getBrokerService()
                 .getDynamicConfigurationCache();
         Map<String, String> configurationMap = null;
@@ -173,7 +181,10 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/configuration")
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public List<String> getDynamicConfigurationName() {
+        validateSuperUserAccess();
         return BrokerService.getDynamicConfiguration();
     }
 
@@ -238,7 +249,9 @@ public class BrokersBase extends AdminResource {
     @GET
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public InternalConfigurationData getInternalConfigurationData() {
+        validateSuperUserAccess();
         return pulsar().getInternalConfigurationData();
     }
 
@@ -259,12 +272,19 @@ public class BrokersBase extends AdminResource {
         PulsarClient client = pulsar().getClient();
 
         String messageStr = UUID.randomUUID().toString();
-        // create non-partitioned topic manually
+        // create non-partitioned topic manually and close the previous reader if present.
         try {
-            pulsar().getBrokerService().getTopic(topic, true).get();
+            pulsar().getBrokerService().getTopic(topic, true).get().ifPresent(t -> {
+                for (Subscription value : t.getSubscriptions().values()) {
+                    try {
+                        value.deleteForcefully();
+                    } catch (Exception e) {
+                        LOG.warn("Failed to delete previous subscription {} for health check", value.getName(), e);
+                    }
+                }
+            });
         } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-            return;
+            LOG.warn("Failed to try to delete subscriptions for health check", e);
         }
         CompletableFuture<Producer<String>> producerFuture =
             client.newProducer(Schema.STRING).topic(topic).createAsync();

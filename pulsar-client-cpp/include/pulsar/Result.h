@@ -82,12 +82,13 @@ enum Result
                                                      /// Shared and Key_Shared subscription mode
     ResultTransactionCoordinatorNotFoundError,       /// Transaction coordinator not found
     ResultInvalidTxnStatusError,                     /// Invalid txn status error
+    ResultNotAllowedError,                           /// Not allowed
 };
 
 // Return string representation of result code
 PULSAR_PUBLIC const char* strResult(Result result);
-}  // namespace pulsar
 
 PULSAR_PUBLIC std::ostream& operator<<(std::ostream& s, pulsar::Result result);
+}  // namespace pulsar
 
 #endif /* ERROR_HPP_ */

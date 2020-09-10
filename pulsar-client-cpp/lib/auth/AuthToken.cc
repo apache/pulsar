@@ -20,6 +20,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <functional>
+#include <stdexcept>
 
 #include <sstream>
 #include <fstream>
@@ -52,7 +53,7 @@ static std::string readFromFile(const std::string &tokenFilePath) {
 static std::string readFromEnv(const std::string &envVarName) {
     char *value = getenv(envVarName.c_str());
     if (!value) {
-        throw "Failed to read environment variable " + envVarName;
+        throw std::runtime_error("Failed to read environment variable " + envVarName);
     }
     return std::string(value);
 }
@@ -74,7 +75,7 @@ AuthenticationPtr AuthToken::create(ParamMap &params) {
         std::string envVarName = params["env"];
         return create(std::bind(&readFromEnv, envVarName));
     } else {
-        throw "Invalid configuration for token provider";
+        throw std::runtime_error("Invalid configuration for token provider");
     }
 }
 
@@ -109,7 +110,7 @@ AuthenticationPtr AuthToken::create(const TokenSupplier &tokenSupplier) {
 
 const std::string AuthToken::getAuthMethodName() const { return "token"; }
 
-Result AuthToken::getAuthData(AuthenticationDataPtr &authDataContent) const {
+Result AuthToken::getAuthData(AuthenticationDataPtr &authDataContent) {
     authDataContent = authDataToken_;
     return ResultOk;
 }

@@ -76,16 +76,17 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@Test
 public class PulsarAdminToolTest {
 
     @Test
-    void brokers() throws Exception {
+    public void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Brokers mockBrokers = mock(Brokers.class);
         doReturn(mockBrokers).when(admin).brokers();
@@ -121,7 +122,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void brokerStats() throws Exception {
+    public void brokerStats() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         BrokerStats mockBrokerStats = mock(BrokerStats.class);
         doReturn(mockBrokerStats).when(admin).brokerStats();
@@ -142,7 +143,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void getOwnedNamespaces() throws Exception {
+    public void getOwnedNamespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Brokers mockBrokers = mock(Brokers.class);
         doReturn(mockBrokers).when(admin).brokers();
@@ -155,7 +156,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void clusters() throws Exception {
+    public void clusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Clusters mockClusters = mock(Clusters.class);
         when(admin.clusters()).thenReturn(mockClusters);
@@ -220,7 +221,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void tenants() throws Exception {
+    public void tenants() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Tenants mockTenants = mock(Tenants.class);
         when(admin.tenants()).thenReturn(mockTenants);
@@ -248,7 +249,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespaces() throws Exception {
+    public void namespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -407,6 +408,16 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-delayed-delivery myprop/clust/ns1"));
         verify(mockNamespaces).getDelayedDelivery("myprop/clust/ns1");
 
+        namespaces.run(split("set-inactive-topic-policies myprop/clust/ns1 -e -t 1s -m delete_when_no_subscriptions"));
+        verify(mockNamespaces).setInactiveTopicPolicies("myprop/clust/ns1"
+                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1,true));
+
+        namespaces.run(split("get-inactive-topic-policies myprop/clust/ns1"));
+        verify(mockNamespaces).getInactiveTopicPolicies("myprop/clust/ns1");
+
+        namespaces.run(split("remove-inactive-topic-policies myprop/clust/ns1"));
+        verify(mockNamespaces).removeInactiveTopicPolicies("myprop/clust/ns1");
+
         namespaces.run(split("clear-backlog myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBacklog("myprop/clust/ns1");
 
@@ -485,7 +496,7 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-dispatch-rate myprop/clust/ns1"));
         verify(mockNamespaces).getDispatchRate("myprop/clust/ns1");
-        
+
         namespaces.run(split("set-publish-rate myprop/clust/ns1 -m 10 -b 20"));
         verify(mockNamespaces).setPublishRate("myprop/clust/ns1", new PublishRate(10, 20));
 
@@ -536,7 +547,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespacesCreateV1() throws Exception {
+    public void namespacesCreateV1() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -547,7 +558,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespacesCreateV1WithBundlesAndClusters() throws Exception {
+    public void namespacesCreateV1WithBundlesAndClusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -559,7 +570,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespacesCreate() throws Exception {
+    public void namespacesCreate() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -573,7 +584,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespacesCreateWithBundlesAndClusters() throws Exception {
+    public void namespacesCreateWithBundlesAndClusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
@@ -588,7 +599,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void resourceQuotas() throws Exception {
+    public void resourceQuotas() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         ResourceQuotas mockResourceQuotas = mock(ResourceQuotas.class);
         when(admin.resourceQuotas()).thenReturn(mockResourceQuotas);
@@ -626,7 +637,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void namespaceIsolationPolicy() throws Exception {
+    public void namespaceIsolationPolicy() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Clusters mockClusters = mock(Clusters.class);
         when(admin.clusters()).thenReturn(mockClusters);
@@ -641,7 +652,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void topics() throws Exception {
+    public void topics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
         when(admin.topics()).thenReturn(mockTopics);
@@ -715,6 +726,48 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
 
+        cmdTopics.run(split("enable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("disable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10"));
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
+                , "endpoint", 8, 9, 10L, null);
+        verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
+
+        cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1 -m 999"));
+        verify(mockTopics).setMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1", 999);
+
+        cmdTopics.run(split("get-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
+        verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
+
+        cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
+        verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
+                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
         class TimestampMatcher implements ArgumentMatcher<Long> {
@@ -733,7 +786,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void persistentTopics() throws Exception {
+    public void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
         when(admin.topics()).thenReturn(mockTopics);
@@ -818,7 +871,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void nonPersistentTopics() throws Exception {
+    public void nonPersistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         NonPersistentTopics mockTopics = mock(NonPersistentTopics.class);
         when(admin.nonPersistentTopics()).thenReturn(mockTopics);
@@ -843,7 +896,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void bookies() throws Exception {
+    public void bookies() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Bookies mockBookies = mock(Bookies.class);
         doReturn(mockBookies).when(admin).bookies();
@@ -864,7 +917,35 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    void testAuthTlsWithJsonParam() throws Exception {
+    public void requestTimeout() throws Exception {
+        Properties properties = new Properties();
+        properties.put("webServiceUrl", "http://localhost:2181");
+        PulsarAdminTool tool = new PulsarAdminTool(properties);
+
+        try {
+            tool.run("--request-timeout 1".split(" "));
+        } catch (Exception e) {
+            //Ok
+        }
+
+        Field adminBuilderField = PulsarAdminTool.class.getDeclaredField("adminBuilder");
+        adminBuilderField.setAccessible(true);
+        PulsarAdminBuilderImpl builder = (PulsarAdminBuilderImpl) adminBuilderField.get(tool);
+        Field requestTimeoutField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeout");
+        requestTimeoutField.setAccessible(true);
+        int requestTimeout = (int) requestTimeoutField.get(builder);
+
+        Field requestTimeoutUnitField =
+                PulsarAdminBuilderImpl.class.getDeclaredField("requestTimeoutUnit");
+        requestTimeoutUnitField.setAccessible(true);
+        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(builder);
+        assertEquals(1, requestTimeout);
+        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
+    }
+
+    @Test
+    public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
         properties.put("authPlugin", AuthenticationTls.class.getName());

@@ -22,7 +22,9 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
  * A class represent a transaction buffer. The transaction buffer
@@ -64,12 +66,13 @@ public interface TransactionBuffer {
      *
      * @param txnId the transaction id
      * @param sequenceId the sequence id of the entry in this transaction buffer.
+     * @param batchSize
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
      * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
      *         has been sealed.
      */
-    CompletableFuture<Void> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
+    CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, long batchSize, ByteBuf buffer);
 
     /**
      * Open a {@link TransactionBufferReader} to read entries of a given transaction
@@ -82,6 +85,21 @@ public interface TransactionBuffer {
      *         is not in the buffer.
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
+
+    /**
+     * Handle TC endTxnOnPartition command
+     *
+     * @return
+     */
+    CompletableFuture<Void> endTxnOnPartition(TxnID txnID, int txnAction);
+
+    /**
+     * Append committed marker to the related origin topic partition.
+     *
+     * @param txnID transaction id
+     * @return a future represents the position of the committed marker in the origin topic partition.
+     */
+    CompletableFuture<Position> commitPartitionTopic(TxnID txnID);
 
     /**
      * Commit the transaction and seal the buffer for this transaction.

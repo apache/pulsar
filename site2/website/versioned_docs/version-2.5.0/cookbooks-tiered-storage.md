@@ -34,6 +34,8 @@ Pulsar uses multi-part objects to upload the segment data. It is possible that a
 We recommend you add a life cycle rule your bucket to expire incomplete multi-part upload after a day or two to avoid
 getting charged for incomplete uploads.
 
+When ledgers are offloaded to long term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
+
 ## Configuring the offload driver
 
 Offloading is configured in ```broker.conf```.

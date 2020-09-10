@@ -28,7 +28,8 @@
       "version-2.4.0-functions-metrics",
       "version-2.4.0-functions-worker",
       "version-2.4.0-functions-runtime",
-      "version-2.4.0-functions-debugging"
+      "version-2.4.0-functions-debugging",
+      "version-2.4.0-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.4.0-io-overview",

@@ -5,9 +5,15 @@ sidebar_label: C++
 original_id: client-libraries-cpp
 ---
 
+You can use Pulsar C++ client to create Pulsar producers and consumers in C++.
+
+All the methods in producer, consumer, and reader of a C++ client are thread-safe.
+
 ## Supported platforms
 
 Pulsar C++ client is supported on **Linux** and **MacOS** platforms.
+
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
 
 ## Linux
 
@@ -213,3 +219,35 @@ Client client("pulsar+ssl://my-broker.com:6651", config);
 ```
 
 For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
+
+## Schema
+
+This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
+
+### Create producer with Avro schema
+
+The following example shows how to create a producer with an Avro schema.
+
+```cpp
+static const std::string exampleSchema =
+    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+Producer producer;
+ProducerConfiguration producerConf;
+producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+client.createProducer("topic-avro", producerConf, producer);
+```
+
+### Create consumer with Avro schema
+
+The following example shows how to create a consumer with an Avro schema.
+
+```cpp
+static const std::string exampleSchema =
+    "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
+    "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
+ConsumerConfiguration consumerConf;
+Consumer consumer;
+consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
+client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+```

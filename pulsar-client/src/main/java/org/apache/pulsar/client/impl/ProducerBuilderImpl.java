@@ -96,6 +96,9 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public CompletableFuture<Producer<T>> createAsync() {
+        // config validation
+        checkArgument(!(conf.isBatchingEnabled() && conf.isChunkingEnabled()),
+                "Batching and chunking of messages can't be enabled together");
         if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
@@ -183,6 +186,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> enableBatching(boolean batchMessagesEnabled) {
         conf.setBatchingEnabled(batchMessagesEnabled);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> enableChunking(boolean chunkingEnabled) {
+        conf.setChunkingEnabled(chunkingEnabled);
         return this;
     }
 
@@ -282,6 +291,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
         conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+    public ProducerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        conf.setAutoUpdatePartitionsIntervalSeconds(interval, unit);
         return this;
     }
 
