@@ -81,6 +81,9 @@ TEST(BatchMessageTest, testProducerConfig) {
     } catch (const std::exception&) {
         // Ok
     }
+    ASSERT_EQ(ProducerConfiguration::DefaultBatching, conf.getBatchingType());
+    conf.setBatchingType(ProducerConfiguration::KeyBasedBatching);
+    ASSERT_EQ(ProducerConfiguration::KeyBasedBatching, conf.getBatchingType());
 }
 
 TEST(BatchMessageTest, testProducerTimeout) {
