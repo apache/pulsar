@@ -53,22 +53,6 @@
             <version>${exec-maven-plugin.version}</version>
             <executions>
               <execution>
-                <id>build-pulsar-clients-python-27</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
-                  <workingDirectory>${project.basedir}/target</workingDirectory>
-                  <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
-                  <arguments>
-                    <!-- build python 2.7 -->
-                    <argument>2.7 cp27-cp27mu</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-              <execution>
                 <id>build-pulsar-clients-python-35</id>
                 <phase>compile</phase>
                 <goals>
