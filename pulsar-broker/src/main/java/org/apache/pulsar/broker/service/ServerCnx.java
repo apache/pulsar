@@ -1748,8 +1748,9 @@ public class ServerCnx extends PulsarHandler {
         final long txnidLeastBits = command.getTxnidLeastBits();
         final String topic = command.getSubscription().getTopic();
         final String subName = command.getSubscription().getSubscription();
+        final int txnAction = command.getTxnAction().getNumber();
 
-        service.getTopics().get(command.getSubscription().getTopic())
+        service.getTopics().get(TopicName.get(command.getSubscription().getTopic()).toString())
             .thenAccept(optionalTopic -> {
                 if (!optionalTopic.isPresent()) {
                     log.error("The topic {} is not exist in broker.", command.getSubscription().getTopic());
@@ -1771,7 +1772,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 CompletableFuture<Void> completableFuture =
-                        subscription.endTxn(txnidMostBits, txnidLeastBits, command.getTxnAction().getNumber());
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction);
                 completableFuture.whenComplete((ignored, throwable) -> {
                     if (throwable != null) {
                         log.error("Handle end txn on subscription failed for request {}", requestId);

@@ -48,6 +48,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1160,6 +1161,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
             managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
             managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
+            managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
             OffloadPolicies offloadPolicies = policies.map(p -> p.offload_policies).orElse(null);
             if (topicLevelOffloadPolicies != null) {
                 try {
@@ -2223,7 +2225,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     @VisibleForTesting
     void checkMessagePublishBuffer() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
-        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        foreachCnx(cnx -> currentMessagePublishBufferBytes.addAndGet(cnx.getMessagePublishBufferSize()));
         if (currentMessagePublishBufferBytes.get() >= maxMessagePublishBufferBytes
             && !reachMessagePublishBufferThreshold) {
             reachMessagePublishBufferThreshold = true;
@@ -2236,11 +2238,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
-    private void foreachProducer(Consumer<Producer> consumer) {
+    private void foreachCnx(Consumer<ServerCnx> consumer) {
+        Set<ServerCnx> cnxSet = new HashSet<>();
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(consumer));
+            topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
         });
+        cnxSet.forEach(consumer);
     }
 
     public boolean isReachMessagePublishBufferThreshold() {
@@ -2250,7 +2254,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     @VisibleForTesting
     long getCurrentMessagePublishBufferSize() {
         AtomicLong currentMessagePublishBufferBytes = new AtomicLong();
-        foreachProducer(producer -> currentMessagePublishBufferBytes.addAndGet(producer.getCnx().getMessagePublishBufferSize()));
+        foreachCnx(cnx -> currentMessagePublishBufferBytes.addAndGet(cnx.getMessagePublishBufferSize()));
         return currentMessagePublishBufferBytes.get();
     }
 

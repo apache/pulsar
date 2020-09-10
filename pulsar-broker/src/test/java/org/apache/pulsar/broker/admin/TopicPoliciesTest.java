@@ -26,8 +26,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -42,6 +44,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.UUID;
 
 @Slf4j
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
@@ -515,6 +519,45 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
+    @Test(timeOut = 20000)
+    public void testPolicyOverwrittenByNamespaceLevel() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        //wait for cache init
+        Thread.sleep(2000);
+        DispatchRate dispatchRate = new DispatchRate(200, 20000, 1, true);
+        admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
+        //wait for zk
+        Thread.sleep(2000);
+        dispatchRate = new DispatchRate(100, 10000, 1, true);
+        admin.topics().setDispatchRate(topic, dispatchRate);
+        for (int i = 0; i < 10; i++) {
+            if (admin.topics().getDispatchRate(topic) != null) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+        //1 Set ns level policy, topic level should not be overwritten
+        dispatchRate = new DispatchRate(300, 30000, 2, true);
+        admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
+        //wait for zk
+        Thread.sleep(1000);
+        DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
+        Assert.assertEquals(limiter.getDispatchRateOnByte(), 10000);
+        Assert.assertEquals(limiter.getDispatchRateOnMsg(), 100);
+        admin.topics().removeDispatchRate(topic);
+        for (int i = 0; i < 10; i++) {
+            if (admin.topics().getDispatchRate(topic) == null) {
+                break;
+            }
+            Thread.sleep(500);
+        }
+        //2 Remove level policy ,DispatchRateLimiter should us ns level policy
+        limiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get().getDispatchRateLimiter().get();
+        Assert.assertEquals(limiter.getDispatchRateOnByte(), 30000);
+        Assert.assertEquals(limiter.getDispatchRateOnMsg(), 300);
+    }
+
     @Test
     public void testGetSetCompactionThreshold() throws Exception {
         long compactionThreshold = 100000;
@@ -588,6 +631,123 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Publish Rate get on topic: {} after remove", getPublishRate, testTopic);
         Assert.assertNull(getPublishRate);
 
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testCheckMaxConsumers() throws Exception {
+        Integer maxProducers = new Integer(-1);
+        log.info("MaxConsumers: {} will set to the topic: {}", maxProducers, testTopic);
+        try {
+            admin.topics().setMaxConsumers(testTopic, maxProducers);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testSetMaxConsumers() throws Exception {
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 1);
+        log.info("MaxConsumers: {} will set to the namespace: {}", 1, myNamespace);
+        Integer maxConsumers = 2;
+        log.info("MaxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
+        admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Consumer consumer1 = null;
+        Consumer consumer2 = null;
+        Consumer consumer3 = null;
+        try {
+            consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit");
+        }
+        Assert.assertNotNull(consumer1);
+        Assert.assertNotNull(consumer2);
+        Assert.assertNull(consumer3);
+        consumer1.close();
+        consumer2.close();
+
+        Integer getMaxConsumers = admin.topics().getMaxConsumers(persistenceTopic);
+        log.info("MaxConsumers {} get on topic: {}", getMaxConsumers, persistenceTopic);
+        Assert.assertEquals(getMaxConsumers, maxConsumers);
+
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveMaxConsumers() throws Exception {
+        Integer maxConsumers = 2;
+        log.info("maxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
+        admin.topics().setMaxConsumers(persistenceTopic, maxConsumers);
+        Thread.sleep(3000);
+
+        admin.topics().createPartitionedTopic(persistenceTopic, 2);
+        Consumer consumer1 = null;
+        Consumer consumer2 = null;
+        Consumer consumer3 = null;
+        Consumer consumer4 = null;
+        try {
+            consumer1 = pulsarClient.newConsumer().subscriptionName("sub1").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer2 = pulsarClient.newConsumer().subscriptionName("sub2").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit on topic level.");
+        }
+        Assert.assertNotNull(consumer1);
+        Assert.assertNotNull(consumer2);
+        Assert.assertNull(consumer3);
+
+        admin.topics().removeMaxConsumers(persistenceTopic);
+        Thread.sleep(3000);
+        Integer getMaxConsumers = admin.topics().getMaxConsumers(testTopic);
+        log.info("MaxConsumers: {} get on topic: {} after remove", getMaxConsumers, testTopic);
+        Assert.assertNull(getMaxConsumers);
+        try {
+            consumer3 = pulsarClient.newConsumer().subscriptionName("sub3").topic(persistenceTopic).subscribe();
+        } catch (PulsarClientException e) {
+            Assert.fail();
+        }
+        Assert.assertNotNull(consumer3);
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
+        log.info("MaxConsumers: {} will set to the namespace: {}", 3, myNamespace);
+        try {
+            consumer4 = pulsarClient.newConsumer().subscriptionName("sub4").topic(persistenceTopic).subscribe();
+            Assert.fail();
+        } catch (PulsarClientException e) {
+            log.info("Topic reached max consumers limit on namespace level.");
+        }
+        Assert.assertNull(consumer4);
+
+        consumer1.close();
+        consumer2.close();
+        consumer3.close();
+        admin.topics().deletePartitionedTopic(persistenceTopic, true);
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 }
