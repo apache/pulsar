@@ -16992,19 +16992,6 @@
                 "overLoaded": {
                     "type": "boolean"
                 },
-                "loadReportType": {
-                    "type": "string"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -17013,6 +17000,19 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "loadReportType": {
+                    "type": "string"
+                },
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "directMemory": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "msgThroughputIn": {
                     "type": "number",
@@ -17204,10 +17204,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "producerName": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -18113,10 +18113,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "producerName": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "producerName": {
                     "type": "string"
                 },
                 "address": {
@@ -18218,11 +18218,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },
