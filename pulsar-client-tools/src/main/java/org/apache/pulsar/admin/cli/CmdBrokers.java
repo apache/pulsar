@@ -124,6 +124,17 @@ public class CmdBrokers extends CmdBase {
 
     }
 
+    @Parameters(commandDescription = "Manually trigger backlogQuotaCheck")
+    private class BacklogQuotaCheckCmd extends CliCommand {
+
+        @Override
+        void run() throws Exception {
+            admin.brokers().backlogQuotaCheckAsync();
+            System.out.println("ok");
+        }
+
+    }
+
     public CmdBrokers(PulsarAdmin admin) {
         super("brokers", admin);
         jcommander.addCommand("list", new List());
@@ -135,5 +146,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
         jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
+        jcommander.addCommand("backlogQuotaCheck", new BacklogQuotaCheckCmd());
     }
 }
