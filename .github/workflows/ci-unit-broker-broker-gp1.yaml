@@ -61,9 +61,9 @@ jobs:
         if: steps.docs.outputs.changed_only == 'no'
         run: mvn -B -ntp -q clean install -Pcore-modules -DskipTests
 
-      - name: run flaky test '**/AdminApiOffloadTest.java'
+      - name: run txn test
         if: steps.docs.outputs.changed_only == 'no'
-        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='**/AdminApiOffloadTest.java' -DtestForkCount=1 -DtestReuseFork=true
+        run: ./build/retry.sh mvn -B -ntp test -pl pulsar-broker -Dinclude='org/apache/pulsar/broker/transaction/**/*.java,org/apache/pulsar/client/transaction/**/*.java'
 
       - name: run unit tests for pulsar-broker
         if: steps.docs.outputs.changed_only == 'no'

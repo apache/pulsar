@@ -108,9 +108,12 @@ public class TransactionReader {
         if (transactionBufferReader == null) {
             transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, -1);
         }
+        log.info("transactionBufferReader is not null");
         transactionBufferReader.thenAccept(reader -> {
+            log.info("readNext readMessageNum: {}", readMessageNum);
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
                 if (throwable != null && throwable.getCause() instanceof EndOfTransactionException) {
+                    log.info("transaction {} read finished.", txnID);
                     if (log.isDebugEnabled()) {
                         log.debug("transaction {} read finished.", txnID);
                     }
@@ -127,6 +130,7 @@ public class TransactionReader {
                 }
 
                 if (transactionEntries == null || transactionEntries.size() == 0) {
+                    log.info("transaction {} read empty transactionEntries.", txnID);
                     resetReader(txnID, reader);
                     readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
                     return;
@@ -143,6 +147,7 @@ public class TransactionReader {
         }).exceptionally(throwable -> {
             transactionBufferReader = null;
             if (throwable.getCause() instanceof TransactionNotSealedException) {
+                log.info("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
                 if (log.isDebugEnabled()) {
                     log.debug("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
                 }
