@@ -57,7 +57,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      *
      * If value is true, use JSR310 conversion in the Avro schema. Otherwise, use Joda time conversion.
      */
-    private boolean jsr310ConversionEnabled = false;
+    private boolean jsr310ConversionEnabled = true;
 
     /**
      * The schema info properties

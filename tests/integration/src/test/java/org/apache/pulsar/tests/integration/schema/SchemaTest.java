@@ -194,7 +194,7 @@ public class SchemaTest extends PulsarTestSuite {
 
         Producer<AvroLogicalType> producer = client
                 .newProducer(Schema.AVRO(SchemaDefinition.<AvroLogicalType>builder().withPojo(AvroLogicalType.class)
-                        .withJSR310ConversionEnabled(true).build()))
+                        .build()))
                 .topic(fqtn)
                 .create();
 

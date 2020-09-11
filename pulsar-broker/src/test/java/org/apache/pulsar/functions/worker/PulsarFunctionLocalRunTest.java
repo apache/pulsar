@@ -499,7 +499,6 @@ public class PulsarFunctionLocalRunTest {
 
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
                 .withAlwaysAllowNull(true)
-                .withJSR310ConversionEnabled(true)
                 .withPojo(AvroTestObject.class).build());
         //use AVRO schema
         admin.schemas().createSchema(sourceTopic, schema.getSchemaInfo());

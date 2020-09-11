@@ -38,17 +38,14 @@ public interface SchemaDefinitionBuilder<T> {
     /**
      * Set schema use JRS310 conversion or not.
      *
-     * <p>Before Avro 1.9 the Joda time library was used for handling the logical date(time) values.
-     * But since the introduction of Java8 the Java Specification Request (JSR) 310 has been included,
-     * which greatly improves the handling of date and time natively. To keep forwarding compatibility,
-     * default is use Joda time conversion.
-     *
-     * <p>JSR310 conversion is recommended here. Joda time conversion is has been marked deprecated.
-     * In future versions, joda time conversion may be removed
+     * In prior versions of Pulsar, we supported joda time. However since that has been deprecated in favor
+     * of Java time, we currently always use Java time. Thus this call has no impact. Just keeping here
+     * for backwards compabtibility
      *
      * @param jsr310ConversionEnabled use JRS310 conversion or not, default is false for keep forwarding compatibility
      * @return schema definition builder
      */
+    @Deprecated
     SchemaDefinitionBuilder<T> withJSR310ConversionEnabled(boolean jsr310ConversionEnabled);
 
     /**

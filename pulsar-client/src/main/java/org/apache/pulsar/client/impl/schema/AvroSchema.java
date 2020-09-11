@@ -107,7 +107,7 @@ public class AvroSchema<T> extends StructSchema<T> {
     private static boolean getJsr310ConversionEnabledFromSchemaInfo(SchemaInfo schemaInfo) {
         if (schemaInfo != null) {
             return Boolean.parseBoolean(schemaInfo.getProperties()
-                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "false"));
+                    .getOrDefault(SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED, "true"));
         }
         return false;
     }
@@ -118,9 +118,7 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
-        if (jsr310ConversionEnabled) {
-            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-        }
+        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
     }
 
 }

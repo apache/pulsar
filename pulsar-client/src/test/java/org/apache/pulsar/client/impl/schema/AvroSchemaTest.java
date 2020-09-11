@@ -272,7 +272,7 @@ public class AvroSchemaTest {
     @Test
     public void testLogicalType() {
         AvroSchema<SchemaLogicalType> avroSchema = AvroSchema.of(SchemaDefinition.<SchemaLogicalType>builder()
-                .withPojo(SchemaLogicalType.class).withJSR310ConversionEnabled(true).build());
+                .withPojo(SchemaLogicalType.class).build());
 
         SchemaLogicalType schemaLogicalType = new SchemaLogicalType();
         schemaLogicalType.setTimestampMicros(System.currentTimeMillis()*1000);
