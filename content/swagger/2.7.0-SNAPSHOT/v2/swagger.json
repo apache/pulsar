@@ -7549,6 +7549,153 @@
                 }
             }
         },
+        "/non-persistent/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription": {
+            "get": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Get max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "getMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Set max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "setMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Remove max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "removeMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
         "/non-persistent/{tenant}/{namespace}/{topic}/maxProducers": {
             "get": {
                 "tags": [
@@ -9496,7 +9643,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/TopicStats"
+                            "$ref": "#/definitions/NonPersistentTopicStats"
                         }
                     },
                     "307": {
@@ -12362,6 +12509,153 @@
                     },
                     "405": {
                         "description": "Topic level policy is disabled, to enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
+        "/persistent/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription": {
+            "get": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Get max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "getMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Set max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "setMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Remove max consumers per subscription configuration for specified topic.",
+                "description": "",
+                "operationId": "removeMaxConsumersPerSubscription",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
                     },
                     "409": {
                         "description": "Concurrent modification"
@@ -16570,10 +16864,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -16986,17 +17280,12 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
                 },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17005,9 +17294,18 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "msgThroughputIn": {
+                "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17017,10 +17315,6 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -17201,16 +17495,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "producerName": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -18110,16 +18404,16 @@
                         "type": "string"
                     }
                 },
-                "producerName": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "producerName": {
+                    "type": "string"
+                },
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -18218,11 +18512,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "availableResource": {
-                    "$ref": "#/definitions/ResourceDescription"
-                },
                 "resourceId": {
                     "type": "string"
+                },
+                "availableResource": {
+                    "$ref": "#/definitions/ResourceDescription"
                 }
             }
         },
