@@ -423,23 +423,23 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-http-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-io-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-security-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-server-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-util-9.4.29.v20200521.jar
-    - org.eclipse.jetty-jetty-xml-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.29.v20200521.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.29.v20200521.jar
+    - org.eclipse.jetty-jetty-client-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-http-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-io-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-security-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-server-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-util-9.4.31.v20200723.jar
+    - org.eclipse.jetty-jetty-xml-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.31.v20200723.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.31.v20200723.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.26.jar
  * RocksDB - org.rocksdb-rocksdbjni-5.13.3.jar
  * HttpClient
