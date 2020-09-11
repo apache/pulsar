@@ -152,24 +152,13 @@ public class FunctionConfigUtils {
         if (isNotBlank(functionConfig.getSubName())) {
             sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
         }
-        if (isNotBlank(functionConfig.getSubPosition())) {
-            try {
-                sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.valueOf(functionConfig.getSubPosition()));
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(String.format("Incorrect subscription position %s , options:[%s,%s]"
-                        , functionConfig.getOutput(), Function.SubscriptionPosition.EARLIEST.name(), Function.SubscriptionPosition.LATEST.name()));
-            }
-        }
 
         // Set subscription position
-        Function.SubscriptionPosition subPosition;
         if (functionConfig.getSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
-            subPosition = Function.SubscriptionPosition.EARLIEST;
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.EARLIEST);
         } else {
-            subPosition = Function.SubscriptionPosition.LATEST;
+            sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.LATEST);
         }
-
-        sourceSpecBuilder.setSubscriptionPosition(subPosition);
 
         if (typeArgs != null) {
             sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
@@ -357,8 +346,10 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
         }
-        if (functionDetails.getSource().getSubscriptionPosition() != null) {
-            functionConfig.setSubPosition(functionDetails.getSource().getSubscriptionPosition().name());
+        if (functionDetails.getSource().getSubscriptionPosition() == Function.SubscriptionPosition.EARLIEST) {
+            functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
+        } else {
+            functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
         }
         functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
         functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());

@@ -108,7 +108,6 @@ public class FunctionConfig {
     private Integer maxMessageRetries;
     private String deadLetterTopic;
     private String subName;
-    private String subPosition = "LATEST";
     private Integer parallelism;
     private Resources resources;
     private String fqfn;
@@ -127,5 +126,5 @@ public class FunctionConfig {
     // Only used in AsyncFunction. Default: 1000.
     private Integer maxPendingAsyncRequests;
 
-    private SubscriptionInitialPosition subscriptionPosition;
+    private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;
 }

@@ -82,6 +82,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -101,7 +102,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -539,7 +539,7 @@ public class PulsarFunctionE2ETest {
                 sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setTopicsPattern(null);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
-        functionConfig.setSubPosition(Function.SubscriptionPosition.LATEST.name());
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Latest);
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         //3 consumer should receive message from latest
@@ -579,7 +579,7 @@ public class PulsarFunctionE2ETest {
                 sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setTopicsPattern(null);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
-        functionConfig.setSubPosition(Function.SubscriptionPosition.EARLIEST.name());
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         Map<String, String> producerSpecs = new HashMap<>();
         producerSpecs.put("batchingMaxMessages", "10");
         producerSpecs.put("batchingEnabled", "true");
@@ -659,7 +659,7 @@ public class PulsarFunctionE2ETest {
                 sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setTopicsPattern(null);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
-        functionConfig.setSubPosition(Function.SubscriptionPosition.EARLIEST.name());
+        functionConfig.setSubscriptionPosition(SubscriptionInitialPosition.Earliest);
         String jarFilePathUrl = Utils.FILE + ":" + getClass().getClassLoader().getResource("pulsar-functions-api-examples.jar").getFile();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
         //3 consumer should receive message from earliest
