@@ -125,9 +125,9 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
             } else {
                 // can't receive transaction messages before commit
-                Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+                Message<byte[]> message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
                 Assert.assertNull(message);
-                message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+                message = sharedConsumer.receive(5, TimeUnit.SECONDS);
                 Assert.assertNull(message);
                 log.info("Can't receive message before commit.");
             }
@@ -141,13 +141,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
         Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
         // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
-            Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = exclusiveConsumer.receive();
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
             log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
 
-            message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+            message = sharedConsumer.receive();
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
