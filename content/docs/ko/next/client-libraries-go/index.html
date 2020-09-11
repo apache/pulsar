@@ -556,7 +556,7 @@ readerInclusive, err := client.CreateReader(ReaderOptions{
 <p>To use <a href="/docs/ko/next/security-oauth2">OAuth2 authentication</a>, you'll need to configure your client to perform the following operations. This example shows how to configure OAuth2 authentication.</p>
 <pre><code class="hljs css language-go">oauth := pulsar.NewAuthenticationOAuth2(<span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">"type"</span>:       <span class="hljs-string">"client_credentials"</span>,
-        <span class="hljs-string">"issuerUrl"</span>:  <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/oauth/token"</span>,
+        <span class="hljs-string">"issuerUrl"</span>:  <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com"</span>,
         <span class="hljs-string">"audience"</span>:   <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/api/v2/"</span>,
         <span class="hljs-string">"privateKey"</span>: <span class="hljs-string">"/path/to/privateKey"</span>,
         <span class="hljs-string">"clientId"</span>:   <span class="hljs-string">"0Xx...Yyxeny"</span>,

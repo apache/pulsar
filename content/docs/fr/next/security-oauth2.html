@@ -54,7 +54,7 @@
 <h3><a class="anchor" aria-hidden="true" id="typical-original-oauth2-request-mapping"></a><a href="#typical-original-oauth2-request-mapping" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Typical original Oauth2 request mapping</h3>
 <p>The following shows a typical original Oauth2 request, which is used to obtain the access token from the Oauth2 server.</p>
 <pre><code class="hljs css language-bash">curl --request POST \
-  --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
+  --url https://dev-kt-aa9ne.us.auth0.com \
   --header <span class="hljs-string">'content-type: application/json'</span> \
   --data <span class="hljs-string">'{
   "client_id":"Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
@@ -64,7 +64,7 @@
 </code></pre>
 <p>In the above example, the mapping relationship is shown as below.</p>
 <ul>
-<li>The <code>issuerUrl</code> parameter in this plugin is mapped to <code>--url https://dev-kt-aa9ne.us.auth0.com/oauth/token</code>.</li>
+<li>The <code>issuerUrl</code> parameter in this plugin is mapped to <code>--url https://dev-kt-aa9ne.us.auth0.com</code>.</li>
 <li>The <code>privateKey</code> file parameter in this plugin should at least contains the <code>client_id</code> and <code>client_secret</code> fields.</li>
 <li>The <code>audience</code> parameter in this plugin is mapped to  <code>&quot;audience&quot;:&quot;https://dev-kt-aa9ne.us.auth0.com/api/v2/&quot;</code>.</li>
 </ul>
@@ -72,7 +72,7 @@
 <p>You can use the Oauth2 authentication provider with the following Pulsar clients.</p>
 <h3><a class="anchor" aria-hidden="true" id="java"></a><a href="#java" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Java</h3>
 <p>You can use the factory method to configure authentication for Pulsar Java client.</p>
-<pre><code class="hljs css language-java">String issuerUrl = <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/oauth/token"</span>;
+<pre><code class="hljs css language-java">String issuerUrl = <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com"</span>;
 String credentialsUrl = <span class="hljs-string">"file:///path/to/KeyFile.json"</span>;
 String audience = <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/api/v2/"</span>;
 
@@ -96,7 +96,7 @@ PulsarClient client = PulsarClient.builder()
 
 pulsar::ClientConfiguration <span class="hljs-built_in">config</span>;
 <span class="hljs-built_in">std</span>::<span class="hljs-built_in">string</span> params = <span class="hljs-string">R"({
-    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
+    "issuer_url": "https://dev-kt-aa9ne.us.auth0.com",
     "private_key": "../../pulsar-broker/src/test/resources/authentication/token/cpp_credentials_file.json",
     "audience": "https://dev-kt-aa9ne.us.auth0.com/api/v2/"})"</span>;
 
@@ -108,7 +108,7 @@ pulsar::ClientConfiguration <span class="hljs-built_in">config</span>;
 <p>To enable OAuth2 authentication in Go client, you need to configure OAuth2 authentication. This example shows how to configure OAuth2 authentication in Go client.</p>
 <pre><code class="hljs css language-go">oauth := pulsar.NewAuthenticationOAuth2(<span class="hljs-keyword">map</span>[<span class="hljs-keyword">string</span>]<span class="hljs-keyword">string</span>{
         <span class="hljs-string">"type"</span>:       <span class="hljs-string">"client_credentials"</span>,
-        <span class="hljs-string">"issuerUrl"</span>:  <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/oauth/token"</span>,
+        <span class="hljs-string">"issuerUrl"</span>:  <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com"</span>,
         <span class="hljs-string">"audience"</span>:   <span class="hljs-string">"https://dev-kt-aa9ne.us.auth0.com/api/v2/"</span>,
         <span class="hljs-string">"privateKey"</span>: <span class="hljs-string">"/path/to/privateKey"</span>,
         <span class="hljs-string">"clientId"</span>:   <span class="hljs-string">"0Xx...Yyxeny"</span>,

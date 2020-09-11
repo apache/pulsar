@@ -22,7 +22,7 @@
 <p>To use compaction:</p>
 <ul>
 <li>You need to give messages keys, as topic compaction in Pulsar takes place on a <em>per-key basis</em> (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. <code>AAPL</code> or <code>GOOG</code>---could serve as the key (more on this <a href="#when-should-i-use-compacted-topics">below</a>). Messages without keys will be left alone by the compaction process.</li>
-<li>Compaction can be configured to run <a href="#configuring-compaction-to-run-automatically">automatically</a>, or you can manually <a href="#trigger">trigger</a> compaction using the Pulsar administrative API.</li>
+<li>Compaction can be configured to run <a href="#configuring-compaction-to-run-automatically">automatically</a>, or you can manually <a href="#triggering-compaction-manually">trigger</a> compaction using the Pulsar administrative API.</li>
 <li>Your consumers must be <a href="#consumer-configuration">configured</a> to read from compacted topics (<a href="#java">Java consumers</a>, for example, have a <code>readCompacted</code> setting that must be set to <code>true</code>). If this configuration is not set, consumers will still be able to read from the non-compacted topic.</li>
 </ul>
 <blockquote>
