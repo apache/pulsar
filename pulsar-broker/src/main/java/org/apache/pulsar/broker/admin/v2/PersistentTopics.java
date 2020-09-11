@@ -2174,6 +2174,93 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
+    @ApiOperation(value = "Get max consumers per subscription configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getMaxConsumersPerSubscription(@Suspended final AsyncResponse asyncResponse,
+                                       @PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
+                                       @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        try {
+            Optional<Integer> maxConsumersPerSubscription = internalGetMaxConsumersPerSubscription();
+            if (!maxConsumersPerSubscription.isPresent()) {
+                asyncResponse.resume(Response.noContent().build());
+            } else {
+                asyncResponse.resume(maxConsumersPerSubscription.get());
+            }
+        } catch (RestException e) {
+            asyncResponse.resume(e);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
+    @ApiOperation(value = "Set max consumers per subscription configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setMaxConsumersPerSubscription(@Suspended final AsyncResponse asyncResponse,
+                                       @PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
+                                       @PathParam("topic") @Encoded String encodedTopic,
+                                       @ApiParam(value = "Dispatch rate for the specified topic") int maxConsumersPerSubscription) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription).whenComplete((r, ex) -> {
+            if (ex instanceof RestException) {
+                log.error("Failed to set topic {} max consumers per subscription ", topicName.getLocalName(), ex);
+                asyncResponse.resume(ex);
+            } else if (ex != null) {
+                log.error("Failed to set topic max consumers per subscription");
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                try {
+                    log.info("[{}] Successfully set topic max consumers per subscription: tenant={}, namespace={}, topic={}, maxConsumersPerSubscription={}",
+                            clientAppId(),
+                            tenant,
+                            namespace,
+                            topicName.getLocalName(),
+                            jsonMapper().writeValueAsString(maxConsumersPerSubscription));
+                } catch (JsonProcessingException ignore) {}
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/maxConsumersPerSubscription")
+    @ApiOperation(value = "Remove max consumers per subscription configuration for specified topic.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Topic does not exist"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405, message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeMaxConsumersPerSubscription(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @PathParam("topic") @Encoded String encodedTopic) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalRemoveMaxConsumersPerSubscription().whenComplete((r, ex) -> {
+            if (ex != null) {
+                log.error("Failed to remove topic {} max consuners per subscription", topicName.getLocalName(), ex);
+                asyncResponse.resume(new RestException(ex));
+            } else {
+                log.info("[{}] Successfully remove topic max consumers per subscription: tenant={}, namespace={}, topic={}",
+                        clientAppId(),
+                        tenant,
+                        namespace,
+                        topicName.getLocalName());
+                asyncResponse.resume(Response.noContent().build());
+            }
+        });
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/publishRate")
     @ApiOperation(value = "Get publish rate configuration for specified topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),

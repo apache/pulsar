@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import javax.ws.rs.core.Response;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -149,6 +150,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -2359,6 +2361,36 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
     private boolean isSystemTopic(String topic) {
         return SystemTopicClient.isSystemTopic(TopicName.get(topic));
+    }
+
+    /**
+     * Get {@link TopicPolicies} for this topic.
+     * @param topicName
+     * @return TopicPolicies is exist else return null.
+     */
+    public TopicPolicies getTopicPolicies(TopicName topicName) {
+        TopicName cloneTopicName = topicName;
+        if (topicName.isPartitioned()) {
+            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        }
+        try {
+            checkTopicLevelPolicyEnable();
+            return pulsar.getTopicPoliciesService().getTopicPolicies(cloneTopicName);
+        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
+            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
+            return null;
+        } catch (RestException | NullPointerException e) {
+            log.warn("Topic level policies are not enabled. " +
+                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
+            return null;
+        }
+    }
+
+    private void checkTopicLevelPolicyEnable() {
+        if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            throw new RestException(Response.Status.METHOD_NOT_ALLOWED,
+                    "Topic level policies is disabled, to enable the topic level policy and retry.");
+        }
     }
 
     public void setInterceptor(BrokerInterceptor interceptor) {
