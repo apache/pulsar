@@ -672,4 +672,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @return
      */
     ConsumerBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
+
+    /**
+     * Cumulative ack only supports one of two ack with transaction and normal ack.
+     *
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> cumulativeAckWithTxn();
 }

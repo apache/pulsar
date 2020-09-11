@@ -23,6 +23,7 @@ import io.netty.channel.EventLoopGroup;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
@@ -78,7 +81,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private final ConcurrentSkipListSet<MessageIdImpl> pendingIndividualAcks;
     private final ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
 
+    private final ConcurrentHashMap<TransactionImpl, ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable>> pendingIndividualTransactionBatchIndexAcks;
+    private final ConcurrentSkipListSet<Triple<Long, Long, MessageIdImpl>> pendingIndividualTransactionAcks;
+
     private final ScheduledFuture<?> scheduledTask;
+
+    private final boolean isCumulativeAckWithTxn;
 
     public PersistentAcknowledgmentsGroupingTracker(ConsumerImpl<?> consumer, ConsumerConfigurationData<?> conf,
                                                     EventLoopGroup eventLoopGroup) {
@@ -86,6 +94,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         this.pendingIndividualAcks = new ConcurrentSkipListSet<>();
         this.pendingIndividualBatchIndexAcks = new ConcurrentHashMap<>();
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
+        this.pendingIndividualTransactionBatchIndexAcks = new ConcurrentHashMap<>();
+        this.pendingIndividualTransactionAcks = new ConcurrentSkipListSet<>();
+        this.isCumulativeAckWithTxn = conf.isCumulativeAckWithTxn();
 
         if (acknowledgementGroupTimeMicros > 0) {
             scheduledTask = eventLoopGroup.next().scheduleWithFixedDelay(this::flush, acknowledgementGroupTimeMicros,
@@ -135,13 +146,20 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @Override
     public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                  long txnidMostBits, long txnidLeastBits) {
-        if (txnidMostBits != -1 && txnidLeastBits != -1) {
-            doImmediateAck(msgId, ackType, properties, txnidMostBits, txnidLeastBits);
-        } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
+                                  TransactionImpl txn) {
+        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() || isCumulativeAckWithTxn) {
+            if (isCumulativeAckWithTxn) {
+                if (msgId instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
+                    doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
+                            batchMessageId.getBatchIndex(),
+                            ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
+                }
+                return;
+            }
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
-            doImmediateAck(msgId, ackType, properties, -1, -1);
+            doImmediateAck(msgId, ackType, properties, txn);
         } else if (ackType == AckType.Cumulative) {
             doCumulativeAck(msgId, null);
         } else {
@@ -150,7 +168,12 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 pendingIndividualAcks.add(new MessageIdImpl(msgId.getLedgerId(),
                         msgId.getEntryId(), msgId.getPartitionIndex()));
             } else {
-                pendingIndividualAcks.add(msgId);
+                if (txn != null) {
+                    pendingIndividualTransactionAcks
+                            .add(Triple.of(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits(), msgId));
+                } else {
+                    pendingIndividualAcks.add(msgId);
+                }
             }
             pendingIndividualBatchIndexAcks.remove(msgId);
             if (pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
@@ -159,31 +182,44 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    @Override
     public void addBatchIndexAcknowledgment(BatchMessageIdImpl msgId, int batchIndex, int batchSize, AckType ackType,
-                                            Map<String, Long> properties, long txnidMostBits, long txnidLeastBits) {
-        if (txnidMostBits != -1 && txnidLeastBits != -1) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txnidMostBits, txnidLeastBits);
-        } else if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
-            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, -1, -1);
+                                            Map<String, Long> properties, TransactionImpl txn) {
+        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty()) {
+            doImmediateBatchIndexAck(msgId, batchIndex, batchSize, ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
         } else if (ackType == AckType.Cumulative) {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
             bitSet.set(0, batchSize);
             bitSet.clear(0, batchIndex + 1);
             doCumulativeAck(msgId, bitSet);
         } else if (ackType == AckType.Individual) {
-            ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
-                    ConcurrentBitSetRecyclable value;
-                    if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
-                        value = ConcurrentBitSetRecyclable.create(msgId.getAcker().getBitSet());
-                    } else {
+            ConcurrentBitSetRecyclable bitSet;
+            if (txn != null) {
+                synchronized (txn) {
+                    ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable> transactionIndividualBatchIndexAcks =
+                            pendingIndividualTransactionBatchIndexAcks
+                                    .computeIfAbsent(txn, (v) -> new ConcurrentHashMap<>());
+                    bitSet = transactionIndividualBatchIndexAcks.computeIfAbsent(msgId, (v) -> {
+                        ConcurrentBitSetRecyclable value;
                         value = ConcurrentBitSetRecyclable.create();
                         value.set(0, batchSize);
-                    }
-                    return value;
-                });
-            bitSet.clear(batchIndex);
+                        return value;
+                    });
+                    bitSet.clear(batchIndex);
+                }
+            } else {
+                bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
+                        new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
+                            ConcurrentBitSetRecyclable value;
+                            if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
+                                value = ConcurrentBitSetRecyclable.create(msgId.getAcker().getBitSet());
+                            } else {
+                                value = ConcurrentBitSetRecyclable.create();
+                                value.set(0, batchSize);
+                            }
+                            return value;
+                        });
+                bitSet.clear(batchIndex);
+            }
             if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
                 flush();
             }
@@ -215,16 +251,46 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
+    private void doTransactionCumulativeAck(MessageIdImpl msgId, BitSetRecyclable bitSet) {
+        // Handle concurrent updates from different threads
+        while (true) {
+            MessageIdImpl lastCumlativeAck = this.lastCumulativeAck;
+            BitSetRecyclable lastBitSet = this.lastCumulativeAckSet;
+            if (msgId.compareTo(lastCumlativeAck) > 0) {
+                if (LAST_CUMULATIVE_ACK_UPDATER.compareAndSet(this, lastCumlativeAck, msgId) && LAST_CUMULATIVE_ACK_SET_UPDATER.compareAndSet(this, lastBitSet, bitSet)) {
+                    if (lastBitSet != null) {
+                        try {
+                            lastBitSet.recycle();
+                        } catch (Exception ignore) {
+                            // no-op
+                        }
+                    }
+                    // Successfully updated the last cumulative ack. Next flush iteration will send this to broker.
+                    cumulativeAckFlushRequired = true;
+                    return;
+                }
+            } else {
+                // message id acknowledging an before the current last cumulative ack
+                return;
+            }
+        }
+    }
+
     private boolean doImmediateAck(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
-                                   long txnidMostBits, long txnidLeastBits) {
+                                   TransactionImpl transaction) {
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
             return false;
         }
-
-        newAckCommand(consumer.consumerId, msgId, null, ackType, null,
-                properties, cnx, true /* flush */, txnidMostBits, txnidLeastBits);
+        if (transaction != null) {
+            newAckCommand(consumer.consumerId, msgId, null, ackType, null,
+                    properties, cnx, true /* flush */, transaction.getTxnIdMostBits(),
+                    transaction.getTxnIdLeastBits());
+        } else {
+            newAckCommand(consumer.consumerId, msgId, null, ackType, null,
+                    properties, cnx, true /* flush */, -1, -1);
+        }
         return true;
     }
 
@@ -235,15 +301,14 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (cnx == null) {
             return false;
         }
-        BitSetRecyclable bitSet;
-        if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
-            bitSet = BitSetRecyclable.valueOf(msgId.getAcker().getBitSet().toLongArray());
-        } else {
-            bitSet = BitSetRecyclable.create();
-            bitSet.set(0, batchSize);
-        }
+        BitSetRecyclable bitSet = BitSetRecyclable.create();
+        bitSet.set(0, batchSize);
         if (ackType == AckType.Cumulative) {
-            bitSet.clear(0, batchIndex + 1);
+            if (txnidLeastBits != -1 && txnidMostBits != -1) {
+                bitSet.clear(batchIndex);
+            } else {
+                bitSet.clear(0, batchIndex + 1);
+            }
         } else {
             bitSet.clear(batchIndex);
         }
@@ -278,6 +343,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
         // Flush all individual acks
         List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(pendingIndividualAcks.size() + pendingIndividualBatchIndexAcks.size());
+        HashMap<TransactionImpl, List<Triple<Long, Long, ConcurrentBitSetRecyclable>>> transactionEntriesToAck = new HashMap<>();
         if (!pendingIndividualAcks.isEmpty()) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
                 // We can send 1 single protobuf command with all individual acks
@@ -322,7 +388,87 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             while (iterator.hasNext()) {
                 Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable> entry = iterator.next();
                 entriesToAck.add(Triple.of(entry.getKey().ledgerId, entry.getKey().entryId, entry.getValue()));
-                iterator.remove();
+                entry.getValue().recycle();
+            }
+        }
+
+        if (!pendingIndividualTransactionAcks.isEmpty()) {
+            if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
+                // We can send 1 single protobuf command with all individual acks
+                while (true) {
+                    Triple<Long, Long, MessageIdImpl> entry = pendingIndividualTransactionAcks.pollFirst();
+                    if (entry == null) {
+                        break;
+                    }
+
+                    // if messageId is checked then all the chunked related to that msg also processed so, ack all of
+                    // them
+                    MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunckedMessageIdSequenceMap.get(entry.getRight());
+                    long mostSigBits = entry.getLeft();
+                    long leastSigBits = entry.getMiddle();
+                    MessageIdImpl messageId = entry.getRight();
+                    if (chunkMsgIds != null && chunkMsgIds.length > 1) {
+                        for (MessageIdImpl cMsgId : chunkMsgIds) {
+                            if (cMsgId != null) {
+                                newAckCommand(consumer.consumerId, cMsgId, null, AckType.Individual, null, Collections.emptyMap(), cnx, false, mostSigBits, leastSigBits);
+                            }
+                        }
+                        // messages will be acked so, remove checked message sequence
+                        this.consumer.unAckedChunckedMessageIdSequenceMap.remove(messageId);
+                    } else {
+                        newAckCommand(consumer.consumerId, messageId, null, AckType.Individual, null, Collections.emptyMap(), cnx, false, mostSigBits, leastSigBits);
+                    }
+                }
+            } else {
+                // When talking to older brokers, send the acknowledgements individually
+                while (true) {
+                    Triple<Long, Long, MessageIdImpl> entry = pendingIndividualTransactionAcks.pollFirst();
+                    if (entry == null) {
+                        break;
+                    }
+
+                    newAckCommand(consumer.consumerId, entry.getRight(), null, AckType.Individual,
+                            null, Collections.emptyMap(), cnx, false, entry.getLeft(), entry.getMiddle());
+                    shouldFlush = true;
+                }
+            }
+        }
+
+        if (!pendingIndividualTransactionBatchIndexAcks.isEmpty()) {
+            Iterator<Map.Entry<TransactionImpl, ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable>>> transactionIterator = pendingIndividualTransactionBatchIndexAcks.entrySet().iterator();
+            while (transactionIterator.hasNext()) {
+                Map.Entry<TransactionImpl, ConcurrentHashMap<MessageIdImpl, ConcurrentBitSetRecyclable>> transactionEntry = transactionIterator.next();
+                TransactionImpl txn = transactionEntry.getKey();
+                synchronized (txn) {
+                    if (pendingIndividualTransactionBatchIndexAcks.containsKey(txn)) {
+                        List<Triple<Long, Long, ConcurrentBitSetRecyclable>> messageIdBitSetList = new ArrayList<>();
+                        transactionEntriesToAck.put(txn, messageIdBitSetList);
+                        Iterator<Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable>> messageIdIterator = transactionEntry.getValue().entrySet().iterator();
+                        while (messageIdIterator.hasNext()) {
+                            Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable> messageIdEntry = messageIdIterator.next();
+                            ConcurrentBitSetRecyclable concurrentBitSetRecyclable =
+                                    ConcurrentBitSetRecyclable.create(messageIdEntry.getValue());
+                            MessageIdImpl messageId = messageIdEntry.getKey();
+                            messageIdBitSetList.add(Triple.of(messageId.ledgerId, messageId.entryId, concurrentBitSetRecyclable));
+                            messageIdEntry.getValue().set(0, messageIdEntry.getValue().size());
+                            messageIdIterator.remove();
+                        }
+                        transactionIterator.remove();
+                        pendingIndividualTransactionBatchIndexAcks.remove(transactionEntry.getKey());
+                    }
+                }
+            }
+        }
+
+        if (transactionEntriesToAck.size() > 0) {
+            Iterator<Map.Entry<TransactionImpl, List<Triple<Long, Long, ConcurrentBitSetRecyclable>>>> iterator =
+                    transactionEntriesToAck.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<TransactionImpl, List<Triple<Long, Long, ConcurrentBitSetRecyclable>>> entry = iterator.next();
+                cnx.ctx().write(Commands.newMultiTransactionMessageAck(consumer.consumerId,
+                        new TxnID(entry.getKey().getTxnIdMostBits(),
+                                entry.getKey().getTxnIdLeastBits()), entry.getValue()), cnx.ctx().voidPromise());
+                shouldFlush = true;
             }
         }
 
