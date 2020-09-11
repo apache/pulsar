@@ -912,6 +912,15 @@ public class NamespaceService {
         }
     }
 
+    public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
+        try {
+            NamespaceBundle bundle = getBundle(topicName);
+            return ownershipCache.checkOwnership(bundle);
+        } catch (Exception ex) {
+            return FutureUtil.failedFuture(ex);
+        }
+    }
+
     public void removeOwnedServiceUnit(NamespaceName nsName) throws Exception {
         ownershipCache.removeOwnership(getFullBundle(nsName))
                 .get(pulsar.getConfiguration().getZooKeeperOperationTimeoutSeconds(), SECONDS);

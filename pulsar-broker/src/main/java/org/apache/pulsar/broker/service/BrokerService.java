@@ -54,6 +54,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -949,7 +950,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      */
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(final String topic,
             boolean createIfMissing) throws RuntimeException {
-        checkTopicNsOwnership(topic);
         final CompletableFuture<Optional<Topic>> topicFuture = futureWithDeadline(pulsar.getConfiguration().getTopicLoadTimeoutSeconds(),
                 TimeUnit.SECONDS, new TimeoutException("Failed to load topic within timeout"));
         if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
@@ -960,22 +960,30 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return topicFuture;
         }
 
-        final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
-
-        if (topicLoadSemaphore.tryAcquire()) {
-            createPersistentTopic(topic, createIfMissing, topicFuture);
-            topicFuture.handle((persistentTopic, ex) -> {
-                // release permit and process pending topic
-                topicLoadSemaphore.release();
-                createPendingLoadTopic();
-                return null;
-            });
-        } else {
-            pendingTopicLoadingQueue.add(new ImmutablePair<String, CompletableFuture<Optional<Topic>>>(topic, topicFuture));
-            if (log.isDebugEnabled()) {
-                log.debug("topic-loading for {} added into pending queue", topic);
+        checkTopicNsOwnershipAsync(topic).whenComplete((ignored, throwable) -> {
+            if (throwable != null) {
+                topicFuture.completeExceptionally(throwable);
+                return;
             }
-        }
+
+            final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
+
+            if (topicLoadSemaphore.tryAcquire()) {
+                createPersistentTopic(topic, createIfMissing, topicFuture);
+                topicFuture.handle((persistentTopic, ex) -> {
+                    // release permit and process pending topic
+                    topicLoadSemaphore.release();
+                    createPendingLoadTopic();
+                    return null;
+                });
+            } else {
+                pendingTopicLoadingQueue.add(new ImmutablePair<String, CompletableFuture<Optional<Topic>>>(topic, topicFuture));
+                if (log.isDebugEnabled()) {
+                    log.debug("topic-loading for {} added into pending queue", topic);
+                }
+            }
+        });
+
         return topicFuture;
     }
 
@@ -1390,21 +1398,33 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return false;
     }
 
-    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
+    public CompletableFuture<Void> checkTopicNsOwnershipAsync(final String topic) {
         TopicName topicName = TopicName.get(topic);
-        boolean ownedByThisInstance;
-        try {
-            ownedByThisInstance = pulsar.getNamespaceService().isServiceUnitOwned(topicName);
-        } catch (Exception e) {
-            log.debug("Failed to check the ownership of the topic: {}", topicName, e);
-            throw new RuntimeException(new ServerMetadataException(e));
-        }
+        CompletableFuture<Void> checkFuture = new CompletableFuture<>();
+        pulsar.getNamespaceService().checkTopicOwnership(topicName).whenComplete((ownedByThisInstance, throwable) -> {
+            if (throwable != null) {
+                log.debug("Failed to check the ownership of the topic: {}", topicName, throwable);
+                checkFuture.completeExceptionally(new ServerMetadataException(throwable));
+            } else if (!ownedByThisInstance) {
+                String msg = String.format("Namespace bundle for topic (%s) not served by this instance. "
+                        + "Please redo the lookup. Request is denied: namespace=%s", topic, topicName.getNamespace());
+                log.warn(msg);
+                checkFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            } else {
+                checkFuture.complete(null);
+            }
+        });
+        return checkFuture;
+    }
 
-        if (!ownedByThisInstance) {
-            String msg = String.format("Namespace bundle for topic (%s) not served by this instance. Please redo the lookup. "
-                    + "Request is denied: namespace=%s", topic, topicName.getNamespace());
-            log.warn(msg);
-            throw new RuntimeException(new ServiceUnitNotReadyException(msg));
+    public void checkTopicNsOwnership(final String topic) throws RuntimeException {
+        try {
+            checkTopicNsOwnershipAsync(topic).join();
+        } catch (CompletionException ex) {
+            if (ex.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) ex.getCause();
+            }
+            throw new RuntimeException(ex.getCause());
         }
     }
 
