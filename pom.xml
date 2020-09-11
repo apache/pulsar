@@ -113,7 +113,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.25</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.10.0</log4j2.version>
-    <bouncycastle.version>1.64</bouncycastle.version>
+    <bouncycastle.version>1.66</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.11.2</jackson.version>
     <jackson.databind.version>2.11.2</jackson.databind.version>
