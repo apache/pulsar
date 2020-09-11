@@ -40,6 +40,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     void close();
 
    private:
+    std::string tokenEndPoint_;
     std::string issuerUrl_;
     std::string clientId_;
     std::string clientSecret_;
