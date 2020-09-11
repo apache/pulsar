@@ -37,7 +37,6 @@ public interface SchemaDefinitionBuilder<T> {
 
     /**
      * Set schema use JRS310 conversion or not.
-     *
      * In prior versions of Pulsar, we supported joda time. However since that has been deprecated in favor
      * of Java time, we currently always use Java time. Thus this call has no impact. Just keeping here
      * for backwards compabtibility
