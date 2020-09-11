@@ -180,6 +180,43 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         onResponse(op);
     }
 
+    public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<PulsarApi.Subscription> subscriptionList) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
+        }
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newAddSubscriptionToTxn(
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, completableFuture);
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+        cmd.retain();
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return completableFuture;
+    }
+
+    public void handleAddSubscriptionToTxnResponse(PulsarApi.CommandAddSubscriptionToTxnResponse response) {
+        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
+        if (op == null) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add subscription to txn timeout for request {}.", response.getRequestId());
+            }
+            return;
+        }
+        if (!response.hasError()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Add subscription to txn success for request {}.", response.getRequestId());
+            }
+            op.callback.complete(null);
+        } else {
+            LOG.error("Add subscription to txn failed for request {} error {}.",
+                    response.getRequestId(), response.getError());
+            op.callback.completeExceptionally(getExceptionByServerError(response.getError(), response.getMessage()));
+        }
+        onResponse(op);
+    }
+
     public CompletableFuture<Void> commitAsync(TxnID txnID) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Commit txn {}", txnID);
@@ -388,7 +425,7 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             RequestTime lastPolled = timeoutQueue.poll();
             if (lastPolled != null) {
                 OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                if (!op.callback.isDone()) {
+                if (op != null && !op.callback.isDone()) {
                     op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             "Could not get response from transaction meta store within given timeout."));
                     if (LOG.isDebugEnabled()) {

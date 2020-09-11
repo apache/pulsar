@@ -71,7 +71,8 @@ public class InMemTransactionBufferReader implements TransactionBufferReader {
                 entry.getKey(),
                 EntryImpl.create(-1L, -1L, entry.getValue()),
                 committedAtLedgerId,
-                committedAtEntryId
+                committedAtEntryId,
+                -1
             );
             txnEntries.add(txnEntry);
             ++i;

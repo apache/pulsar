@@ -64,13 +64,13 @@ class PULSAR_PUBLIC MessageBuilder {
     MessageBuilder& setProperties(const StringMap& properties);
 
     /**
-     * set partition key for the message routing
+     * set partition key for message routing and topic compaction
      * @param hash of this key is used to determine message's topic partition
      */
     MessageBuilder& setPartitionKey(const std::string& partitionKey);
 
     /**
-     * set ordering key for the message routing
+     * set ordering key used for key_shared subscriptions
      * @param the ordering key for the message
      */
     MessageBuilder& setOrderingKey(const std::string& orderingKey);

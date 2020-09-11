@@ -79,7 +79,7 @@ public interface TransactionMetadataStore {
      * @return a future represents the result of the operation
      */
     CompletableFuture<Void> addAckedPartitionToTxn(
-        TxnID txnid, List<String> partitions);
+        TxnID txnid, List<TransactionSubscription> partitions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.

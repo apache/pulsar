@@ -27,6 +27,7 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -62,6 +63,7 @@ public class ConfigurationDataUtilsTest {
         confData.setProducerName("unset");
         confData.setBatchingEnabled(true);
         confData.setBatchingMaxMessages(1234);
+        confData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MINUTES);
         Map<String, Object> config = new HashMap<>();
         config.put("producerName", "test-producer");
         config.put("batchingEnabled", false);
@@ -70,6 +72,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-producer", confData.getProducerName());
         assertFalse(confData.isBatchingEnabled());
         assertEquals(1234, confData.getBatchingMaxMessages());
+        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test
@@ -78,6 +81,7 @@ public class ConfigurationDataUtilsTest {
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
         confData.setConsumerName("unknown-consumer");
+        confData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MINUTES);
         Map<String, Object> config = new HashMap<>();
         config.put("subscriptionName", "test-subscription");
         config.put("priorityLevel", 100);
@@ -85,6 +89,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("test-subscription", confData.getSubscriptionName());
         assertEquals(100, confData.getPriorityLevel());
         assertEquals("unknown-consumer", confData.getConsumerName());
+        assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
     @Test

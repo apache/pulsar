@@ -54,6 +54,8 @@ public class BatchSourceExecutorTest {
     private static int discoverCount;
     @Getter
     private static int recordCount;
+    @Getter
+    private static int closeCount;
     private Record record = Mockito.mock(Record.class);
     public TestBatchSource() { }
 
@@ -87,7 +89,7 @@ public class BatchSourceExecutorTest {
 
     @Override
     public void close() throws Exception {
-
+      closeCount++;
     }
   }
 
@@ -98,6 +100,8 @@ public class BatchSourceExecutorTest {
     private static int discoverCount;
     @Getter
     private static int recordCount;
+    @Getter
+    private static int closeCount;
     private Record record = Mockito.mock(Record.class);
     public TestBatchPushSource() { }
 
@@ -127,7 +131,7 @@ public class BatchSourceExecutorTest {
 
     @Override
     public void close() throws Exception {
-
+      closeCount++;
     }
   }
 
@@ -218,6 +222,7 @@ public class BatchSourceExecutorTest {
     consumerBuilder = Mockito.mock(ConsumerBuilder.class);
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionName(Mockito.any());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).subscriptionType(Mockito.any());
+    Mockito.doReturn(consumerBuilder).when(consumerBuilder).properties(Mockito.anyMap());
     Mockito.doReturn(consumerBuilder).when(consumerBuilder).topic(Mockito.any());
     discoveredTask = Mockito.mock(Message.class);
     consumer = Mockito.mock(org.apache.pulsar.client.api.Consumer.class);
@@ -344,6 +349,8 @@ public class BatchSourceExecutorTest {
     discoveryBarrier.await();
     Assert.assertTrue(testBatchSource.getDiscoverCount() >= 2);
     Assert.assertTrue(testBatchSource.getDiscoverCount() <= 3);
+    batchSourceExecutor.close();
+    Assert.assertEquals(testBatchSource.getCloseCount(), 1);
   }
 
   @Test
@@ -362,5 +369,7 @@ public class BatchSourceExecutorTest {
     discoveryBarrier.await();
     Assert.assertTrue(testBatchPushSource.getDiscoverCount() >= 2);
     Assert.assertTrue(testBatchPushSource.getDiscoverCount() <= 3);
+    batchSourceExecutor.close();
+    Assert.assertEquals(testBatchPushSource.getCloseCount(), 1);
   }
 }
