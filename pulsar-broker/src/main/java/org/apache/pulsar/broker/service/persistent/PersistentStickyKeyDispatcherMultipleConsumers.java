@@ -166,8 +166,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Consumer consumer = current.getKey();
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-
-            int maxMessagesForC = Math.min(entriesWithSameKeyCount, consumer.getAvailablePermits());
+            final int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
+            int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC);
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
