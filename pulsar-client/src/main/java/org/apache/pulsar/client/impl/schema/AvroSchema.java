@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Conversions;
-import org.apache.avro.data.JodaTimeConversions;
 import org.apache.avro.data.TimeConversions;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
@@ -121,13 +120,6 @@ public class AvroSchema<T> extends StructSchema<T> {
         reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
-        } else {
-            try {
-                Class.forName("org.joda.time.DateTime");
-                reflectData.addLogicalTypeConversion(new JodaTimeConversions.TimestampConversion());
-            } catch (ClassNotFoundException e) {
-                // Skip if have not provide joda-time dependency.
-            }
         }
     }
 
