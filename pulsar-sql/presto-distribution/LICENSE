@@ -210,6 +210,7 @@ The Apache Software License, Version 2.0
     - jackson-annotations-2.11.1.jar
     - jackson-core-2.11.1.jar
     - jackson-databind-2.11.1.jar
+    - jackson-dataformat-smile-2.11.1.jar
     - jackson-datatype-guava-2.11.1.jar
     - jackson-datatype-jdk8-2.11.1.jar
     - jackson-datatype-joda-2.11.1.jar
@@ -357,8 +358,8 @@ The Apache Software License, Version 2.0
   * Apache XBean :: Reflect
     - xbean-reflect-3.4.jar
   * Avro
-    - avro-1.9.1.jar
-    - avro-protobuf-1.9.1.jar
+    - avro-1.10.0.jar
+    - avro-protobuf-1.10.0.jar
   * Caffeine
     - caffeine-2.6.2.jar
   * Javax
@@ -432,7 +433,7 @@ The Apache Software License, Version 2.0
     - gson-2.8.2.jar
   * Jackson
     - jackson-module-parameter-names-2.10.0.jar
-    - jackson-module-parameter-names-2.11.2.jar
+    - jackson-module-parameter-names-2.11.1.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
