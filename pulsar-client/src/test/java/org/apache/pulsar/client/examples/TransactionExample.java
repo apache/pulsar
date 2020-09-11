@@ -83,11 +83,7 @@ public class TransactionExample {
             CompletableFuture<MessageId> sendFuture2 = producer2.newMessage(txn)
                 .value(outputMessage2)
                 .sendAsync();
-
             CompletableFuture<Void> ackFuture = consumer.acknowledgeAsync(message.getMessageId(), txn);
-
-            txn.commit().get();
-
             // the message ids can be returned from the sendFuture1 and sendFuture2
 
             MessageId msgId1 = sendFuture1.get();

@@ -26,7 +26,8 @@
       "version-2.3.2-functions-guarantees",
       "version-2.3.2-functions-state",
       "version-2.3.2-functions-metrics",
-      "version-2.3.2-functions-worker"
+      "version-2.3.2-functions-worker",
+      "version-2.3.2-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.3.2-io-overview",

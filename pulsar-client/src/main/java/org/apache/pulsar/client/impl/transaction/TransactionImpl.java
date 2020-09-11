@@ -23,10 +23,14 @@ import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+
+import com.google.common.collect.Lists;
 import lombok.Data;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -39,6 +43,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * failures. This decouples the transactional operations from non-transactional operations as
  * much as possible.
  */
+@Slf4j
 @Getter
 public class TransactionImpl implements Transaction {
 
@@ -63,6 +68,7 @@ public class TransactionImpl implements Transaction {
     private final Set<String> producedTopics;
     private final Set<TransactionalAckOp> ackOps;
     private final Set<String> ackedTopics;
+    private final TransactionCoordinatorClientImpl tcClient;
 
     TransactionImpl(PulsarClientImpl client,
                     long transactionTimeoutMs,
@@ -76,6 +82,7 @@ public class TransactionImpl implements Transaction {
         this.producedTopics = new HashSet<>();
         this.ackOps = new HashSet<>();
         this.ackedTopics = new HashSet<>();
+        this.tcClient = client.getTcClient();
     }
 
     public long nextSequenceId() {
@@ -85,7 +92,8 @@ public class TransactionImpl implements Transaction {
     // register the topics that will be modified by this transaction
     public synchronized void registerProducedTopic(String topic) {
         if (producedTopics.add(topic)) {
-            // TODO: we need to issue the request to TC to register the produced topic
+            // we need to issue the request to TC to register the produced topic
+            tcClient.addPublishPartitionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), Lists.newArrayList(topic));
         }
     }
 
@@ -101,9 +109,10 @@ public class TransactionImpl implements Transaction {
     }
 
     // register the topics that will be modified by this transaction
-    public synchronized void registerAckedTopic(String topic) {
+    public synchronized void registerAckedTopic(String topic, String subscription) {
         if (ackedTopics.add(topic)) {
-            // TODO: we need to issue the request to TC to register the acked topic
+            // we need to issue the request to TC to register the acked topic
+            tcClient.addSubscriptionToTxnAsync(new TxnID(txnIdMostBits, txnIdLeastBits), topic, subscription);
         }
     }
 
@@ -119,11 +128,23 @@ public class TransactionImpl implements Transaction {
 
     @Override
     public CompletableFuture<Void> commit() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
+        return tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
+            sendOps.values().forEach(txnSendOp -> {
+                txnSendOp.sendFuture.whenComplete((messageId, t) -> {
+                    txnSendOp.transactionalSendFuture.complete(messageId);
+                });
+            });
+        });
     }
 
     @Override
     public CompletableFuture<Void> abort() {
-        return FutureUtil.failedFuture(new UnsupportedOperationException("Not Implemented Yet"));
+        return tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((ignored, throwable) -> {
+            sendOps.values().forEach(txnSendOp -> {
+                txnSendOp.sendFuture.whenComplete(((messageId, t) -> {
+                    txnSendOp.transactionalSendFuture.complete(messageId);
+                }));
+            });
+        });
     }
 }

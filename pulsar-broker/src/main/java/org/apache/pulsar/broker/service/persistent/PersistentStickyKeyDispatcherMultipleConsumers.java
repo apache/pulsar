@@ -25,6 +25,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,12 +65,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private final Map<Consumer, PositionImpl> recentlyJoinedConsumers;
 
+    private final Set<Consumer> stuckConsumers;
+    private final Set<Consumer> nextStuckConsumers;
+
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription);
 
         this.allowOutOfOrderDelivery = ksm.getAllowOutOfOrderDelivery();
         this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? Collections.emptyMap() : new HashMap<>();
+        this.stuckConsumers = new HashSet<>();
+        this.nextStuckConsumers = new HashSet<>();
 
         switch (ksm.getKeySharedMode()) {
         case AUTO_SPLIT:
@@ -93,7 +99,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         super.addConsumer(consumer);
-        selector.addConsumer(consumer);
+        try {
+            selector.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            consumerSet.removeAll(consumer);
+            consumerList.remove(consumer);
+            throw e;
+        }
 
         // If this was the 1st consumer, or if all the messages are already acked, then we
         // don't need to do anything special
@@ -136,6 +148,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             cursor.rewind();
             return;
         }
+
+        nextStuckConsumers.clear();
 
         final Map<Consumer, List<Entry>> groupedEntries = localGroupedEntries.get();
         groupedEntries.clear();
@@ -182,8 +196,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
                 SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
-                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get();
-                filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+                EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
+                filterEntriesForConsumer(entriesWithSameKey, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
+                        transactionReader);
 
                 consumer.sendMessages(entriesWithSameKey, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
@@ -210,11 +225,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             }
         }
 
+        stuckConsumers.clear();
+
         if (totalMessagesSent == 0 && recentlyJoinedConsumers.isEmpty()) {
             // This means, that all the messages we've just read cannot be dispatched right now.
             // This condition can only happen when:
             //  1. We have consumers ready to accept messages (otherwise the would not haven been triggered)
             //  2. All keys in the current set of messages are routing to consumers that are currently busy
+            //     and stuck is not caused by stuckConsumers
             //
             // The solution here is to move on and read next batch of messages which might hopefully contain
             // also keys meant for other consumers.
@@ -223,18 +241,31 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // ahead in the stream while the new consumers are not ready to accept the new messages,
             // therefore would be most likely only increase the distance between read-position and mark-delete
             // position.
-            isDispatcherStuckOnReplays = true;
+            if (!nextStuckConsumers.isEmpty()) {
+                isDispatcherStuckOnReplays = true;
+                stuckConsumers.addAll(nextStuckConsumers);
+            }
+            // readMoreEntries should run regardless whether or not stuck is caused by stuckConsumers for avoid stopping dispatch.
             readMoreEntries();
         }
     }
 
     private int getRestrictedMaxEntriesForConsumer(Consumer consumer, List<Entry> entries, int maxMessages) {
         if (maxMessages == 0) {
+            // the consumer was stuck
+            nextStuckConsumers.add(consumer);
             return 0;
         }
 
         PositionImpl maxReadPosition = recentlyJoinedConsumers.get(consumer);
         if (maxReadPosition == null) {
+            // stop to dispatch by stuckConsumers
+            if (stuckConsumers.contains(consumer)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] stop to dispatch by stuckConsumers, consumer: {}", name, consumer);
+                }
+                return 0;
+            }
             // The consumer has not recently joined, so we can send all messages
             return maxMessages;
         }

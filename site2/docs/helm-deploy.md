@@ -307,28 +307,27 @@ The Pulsar Helm chart uses the [cert-manager](https://github.com/jetstack/cert-m
 
 For details about how to install the cert-manager, follow the [official instructions](https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm).
 
-Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to the namespace `cert-manager`.
+Alternatively, we provide a bash script [install-cert-manager.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/cert-manager/install-cert-manager.sh) to install a cert-manager release to the namespace `cert-manager`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd pulsar/deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/cert-manager/install-cert-manager.sh
 ```
 
 ## Prepare Helm release
 
-Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar/blob/master/deployment/kubernetes/helm/scripts/pulsar/prepare_helm_release.sh) to prepare the Helm release.
+Once you have install all the dependent charts and collected all of your configuration options, you can run [prepare_helm_release.sh](https://github.com/apache/pulsar-helm-chart/blob/master/scripts/pulsar/prepare_helm_release.sh) to prepare the Helm release.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd pulsar/deployment/kubernetes/helm
+git clone https://github.com/apache/pulsar-helm-chart
+cd pulsar-helm-chart
 ./scripts/pulsar/prepare_helm_release.sh -n <k8s-namespace> -k <helm-release-name>
 ```
 
 The `prepare_helm_release` creates the following resources:
 
 - A Kubernetes namespace for installing the Pulsar release
-- A secret for storing the username and password of the control center administrator. The username and password can be passed to `prepare_helm_release.sh` through flags `--control-center-admin` and `--control-center-password`. The username and password is used for logging into the Grafana dashboard and Pulsar Manager.
 - JWT secret keys and tokens for three super users: `broker-admin`, `proxy-admin`, and `admin`. By default, it generates an asymmetric pubic/private key pair. You can choose to generate a symmetric secret key by specifying `--symmetric`.
     - `proxy-admin` role is used for proxies to communicate to brokers.
     - `broker-admin` role is used for inter-broker communications.
@@ -345,9 +344,9 @@ Once you have finished the following three things, you can install a Helm releas
 In this example, we name our Helm release `pulsar`.
 
 ```bash
-git clone https://github.com/apache/pulsar
-cd pulsar/deployment/kubernetes/helm
-helm upgrade --install pulsar pulsar \
+helm repo add apache https://pulsar.apache.org/charts
+helm repo update
+helm upgrade --install pulsar apache/pulsar \
     --timeout 10m \
     --set [your configuration options]
 ```

@@ -101,6 +101,8 @@ public interface Subscription {
         // Default is no-op
     }
 
+    CompletableFuture<Void> endTxn(long txnidMostBits, long txnidLeastBits, int txnAction);
+
     // Subscription utils
     static boolean isCumulativeAckMode(SubType subType) {
         return SubType.Exclusive.equals(subType) || SubType.Failover.equals(subType);

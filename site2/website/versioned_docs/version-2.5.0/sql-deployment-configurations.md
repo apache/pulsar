@@ -44,7 +44,7 @@ $ wget pulsar:binary_release_url
 
 ## Deploy a new cluster
 
-Since Pulsar SQL is powered by [Presto](https://prestodb.io), the configuration for deployment is the same for the Pulsar SQL worker. 
+Since Pulsar SQL is powered by [Presto](https://prestosql.io), the configuration for deployment is the same for the Pulsar SQL worker. 
 
 > Note  
 > For how to set up a standalone single node environment, refer to [Query data](sql-getting-started.md). 
@@ -153,4 +153,4 @@ presto> SELECT * FROM system.runtime.nodes;
  2       | http://192.168.2.3:8081 | testversion  | false       | active 
 ```
 
-For more information about deployment in Presto, refer to [Presto deployment](https://prestodb.io/docs/current/installation/deployment.html).
+For more information about deployment in Presto, refer to [Presto deployment](https://prestosql.io/docs/current/installation/deployment.html).

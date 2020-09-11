@@ -44,6 +44,8 @@ Result Producer::send(const Message& msg) {
 
     MessageId mi;
     Result result = promise.getFuture().get(mi);
+    msg.setMessageId(mi);
+
     return result;
 }
 

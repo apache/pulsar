@@ -33,6 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
@@ -76,6 +77,15 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
         List<TransactionEntry> txnEntries = new ArrayList<>(entries.size());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
+        int numMessageInTxn = -1;
+        try {
+            numMessageInTxn = meta.numMessageInTxn();
+        } catch (TransactionStatusException e) {
+            log.error("Get transaction totalBatchSize failed.", e);
+            readFuture.completeExceptionally(e);
+        }
+
+        final int finalNumMessageInTxn = numMessageInTxn;
         for (Map.Entry<Long, Position> longPositionEntry : entries.entrySet()) {
             CompletableFuture<Void> tmpFuture = new CompletableFuture<>();
             readEntry(longPositionEntry.getValue()).whenComplete((entry, throwable) -> {
@@ -83,9 +93,7 @@ public class PersistentTransactionBufferReader implements TransactionBufferReade
                     tmpFuture.completeExceptionally(throwable);
                 } else {
                     TransactionEntry txnEntry = new TransactionEntryImpl(meta.id(), longPositionEntry.getKey(),
-                                                                         entry.getDataBuffer(),
-                                                                         meta.committedAtLedgerId(),
-                                                                         meta.committedAtEntryId());
+                            entry, meta.committedAtLedgerId(), meta.committedAtEntryId(), finalNumMessageInTxn);
                     synchronized (txnEntries) {
                         txnEntries.add(txnEntry);
                     }

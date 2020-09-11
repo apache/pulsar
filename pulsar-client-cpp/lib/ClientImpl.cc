@@ -97,20 +97,18 @@ ClientImpl::ClientImpl(const std::string& serviceUrl, const ClientConfiguration&
       requestIdGenerator_(0),
       closingError(ResultOk) {
     std::unique_ptr<LoggerFactory> loggerFactory = clientConfiguration_.impl_->takeLogger();
-    if (!logger) {
 #ifdef USE_LOG4CXX
-        if (!clientConfiguration_.getLogConfFilePath().empty()) {
-            // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
-            loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
-        } else {
-            // Use default simple console logger
-            loggerFactory = SimpleLoggerFactory::create();
-        }
-#else
+    if (!clientConfiguration_.getLogConfFilePath().empty()) {
+        // A log4cxx log file was passed through deprecated parameter. Use that to configure Log4CXX
+        loggerFactory = Log4CxxLoggerFactory::create(clientConfiguration_.getLogConfFilePath());
+    } else {
         // Use default simple console logger
         loggerFactory = SimpleLoggerFactory::create();
-#endif
     }
+#else
+    // Use default simple console logger
+    loggerFactory = SimpleLoggerFactory::create();
+#endif
     LogUtils::setLoggerFactory(std::move(loggerFactory));
 
     if (serviceUrl_.compare(0, 4, "http") == 0) {

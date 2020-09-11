@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.6.0-SNAPSHOT</version>
+    <version>2.7.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -44,7 +44,7 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.parent.version}</version>
       <optional>true</optional>
@@ -69,7 +69,7 @@
             <configuration>
               <artifactItems>
                 <artifactItem>
-                  <groupId>org.apache.pulsar</groupId>
+                  <groupId>${project.groupId}</groupId>
                   <artifactId>pulsar-client-original</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
@@ -132,7 +132,7 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.glassfish.jersey*:*</include>
                   <include>javax.ws.rs:*</include>
-                  <include>javax.annotation:*</include>
+                  <include>jackarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
                   <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
@@ -141,7 +141,6 @@
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
-                  <include>org.apache.httpcomponents:*</include>
                   <include>org.eclipse.jetty:*</include>
                   <include>com.google.auth:*</include>
                   <include>org.jvnet.mimepull:*</include>
@@ -167,12 +166,6 @@
                   <includes>
                     <include>**</include>
                   </includes>
-                </filter>
-                <filter>
-                   <artifact>commons-logging:commons-logging</artifact>
-                   <includes>
-                       <include>**</include>
-                   </includes>
                 </filter>
               </filters>
               <relocations>
@@ -214,10 +207,6 @@
                 <relocation>
                   <pattern>com.yahoo</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>org.apache.http</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.eclipse.jetty</pattern>
@@ -282,10 +271,6 @@
                 <relocation>
                     <pattern>org.eclipse.jetty</pattern>
                     <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                </relocation>
-                <relocation>
-                    <pattern>org.apache.http</pattern>
-                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.objenesis</pattern>

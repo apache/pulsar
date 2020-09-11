@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-sql</artifactId>
-        <version>2.6.0-SNAPSHOT</version>
+        <version>2.7.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-presto-connector-original</artifactId>
@@ -33,7 +33,7 @@
     <name>Pulsar SQL :: Pulsar Presto Connector Packaging</name>
 
     <properties>
-        <dep.airlift.version>0.170</dep.airlift.version>
+        <dep.airlift.version>0.199</dep.airlift.version>
         <jctools.version>2.1.2</jctools.version>
         <dslJson.verson>1.8.4</dslJson.verson>
     </properties>
@@ -58,13 +58,13 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>pulsar-client-admin-original</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -81,12 +81,24 @@
             <version>${dslJson.verson}</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.prestosql</groupId>
+            <artifactId>presto-plugin-toolkit</artifactId>
+            <version>${presto.version}</version>
+        </dependency>
+
         <!-- Presto SPI -->
         <dependency>
-            <groupId>com.facebook.presto</groupId>
+            <groupId>io.prestosql</groupId>
             <artifactId>presto-spi</artifactId>
             <version>${presto.version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>joda-time</groupId>
+          <artifactId>joda-time</artifactId>
+          <version>${joda.version}</version>
         </dependency>
 
     </dependencies>
@@ -118,7 +130,6 @@
                                     <include>javax.annotation:*</include>
                                     <include>org.glassfish.hk2*:*</include>
 
-                                    <include>org.apache.httpcomponents:*</include>
                                     <include>org.eclipse.jetty:*</include>
 
                                 </includes>
@@ -151,10 +162,6 @@
                                 <relocation>
                                     <pattern>org.eclipse.jetty</pattern>
                                     <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.apache.http</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                                 </relocation>
 
                             </relocations>

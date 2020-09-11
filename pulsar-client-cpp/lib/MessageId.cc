@@ -25,6 +25,7 @@
 
 #include <iostream>
 #include <limits>
+#include <stdexcept>
 #include <tuple>
 #include <math.h>
 #include <memory>
@@ -76,7 +77,7 @@ void MessageId::serialize(std::string& result) const {
 MessageId MessageId::deserialize(const std::string& serializedMessageId) {
     proto::MessageIdData idData;
     if (!idData.ParseFromString(serializedMessageId)) {
-        throw "Failed to parse serialized message id";
+        throw std::invalid_argument("Failed to parse serialized message id");
     }
 
     return MessageId(idData.partition(), idData.ledgerid(), idData.entryid(), idData.batch_index());

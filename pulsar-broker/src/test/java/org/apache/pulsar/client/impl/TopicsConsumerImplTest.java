@@ -31,8 +31,10 @@ import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -42,6 +44,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -76,6 +79,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @BeforeMethod
     public void setup() throws Exception {
         super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @Override
@@ -452,6 +456,28 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testTopicNameValid() throws Exception{
+        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        TenantInfo tenantInfo = createDefaultTenantInfo();
+        admin.tenants().createTenant("prop", tenantInfo);
+        admin.topics().createPartitionedTopic(topicName, 3);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("subscriptionName")
+                .subscribe();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync("ns-abc/testTopicNameValid", 5).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Topic name not valid");
+            return null;
+        }).get();
+        ((MultiTopicsConsumerImpl) consumer).subscribeAsync(topicName, 3).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(((PulsarClientException.AlreadyClosedException) exception).getMessage(), "Already subscribed to " + topicName);
+            return null;
+        }).get();
+    }
+
+    @Test
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -577,6 +603,44 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+
+    @Test
+    public void testResubscribeSameTopic() throws Exception {
+        final String localTopicName = "TopicsConsumerResubscribeSameTopicTest";
+        final String localPartitionName = localTopicName + "-partition-0";
+        final String topicNameWithNamespace = "public/default/" + localTopicName;
+        final String topicNameWithDomain = "persistent://" + topicNameWithNamespace;
+
+        admin.topics().createPartitionedTopic(localTopicName, 2);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(localTopicName)
+                .subscriptionName("SubscriptionName")
+                .subscribe();
+
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+        MultiTopicsConsumerImpl<byte[]> multiTopicsConsumer = (MultiTopicsConsumerImpl<byte[]>) consumer;
+
+        multiTopicsConsumer.subscribeAsync(topicNameWithNamespace, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithNamespace);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(topicNameWithDomain, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + topicNameWithDomain);
+            return null;
+        }).get();
+        multiTopicsConsumer.subscribeAsync(localPartitionName, false).handle((res, exception) -> {
+            assertTrue(exception instanceof PulsarClientException.AlreadyClosedException);
+            assertEquals(exception.getMessage(), "Already subscribed to " + localPartitionName);
+            return null;
+        }).get();
+
+        consumer.unsubscribe();
+        consumer.close();
     }
 
 
@@ -1073,6 +1137,37 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer.close();
         producer1.close();
         producer2.close();
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .ioThreads(2)
+                .listenerThreads(3)
+                .operationTimeout(2, TimeUnit.MILLISECONDS) // Set this very small so the operation timeout can be triggered
+                .build();
+
+        String topic0 = "public/default/topic0";
+        String topic1 = "public/default/topic1";
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                client.newConsumer(Schema.STRING)
+                        .subscriptionName("subName")
+                        .topics(Lists.<String>newArrayList(topic0, topic1))
+                        .receiverQueueSize(2)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .ackTimeout(365, TimeUnit.DAYS)
+                        .ackTimeoutTickTime(36, TimeUnit.DAYS)
+                        .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+                Thread.sleep(3000);
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
+            }
+        }
     }
 
 }

@@ -7,7 +7,7 @@ original_id: sql-overview
 
 One of the common use cases of Pulsar is storing streams of event data. Often the event data is structured which predefined fields.  There is tremendous value for users to be able to query the existing data that is already stored in Pulsar topics.  With the implementation of the [Schema Registry](concepts-schema-registry.md), structured data can be stored in Pulsar and allows for the potential to query that data via SQL language.
 
-By leveraging [Presto](https://prestodb.io/), we have created a method for users to be able to query structured data stored within Pulsar in a very efficient and scalable manner. We will discuss why this very efficient and scalable in the [Performance](#performance) section below. 
+By leveraging [Presto](https://prestosql.io/), we have created a method for users to be able to query structured data stored within Pulsar in a very efficient and scalable manner. We will discuss why this very efficient and scalable in the [Performance](#performance) section below. 
 
 At the core of this Pulsar SQL is the Presto Pulsar connector which allows Presto workers within a Presto cluster to query data from Pulsar.
 

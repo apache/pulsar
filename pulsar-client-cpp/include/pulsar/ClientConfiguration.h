@@ -43,7 +43,7 @@ class PULSAR_PUBLIC ClientConfiguration {
     /**
      * @return the authentication data
      */
-    const Authentication& getAuth() const;
+    Authentication& getAuth() const;
 
     /**
      * Set timeout on client operations (subscribe, create producer, close, unsubscribe)

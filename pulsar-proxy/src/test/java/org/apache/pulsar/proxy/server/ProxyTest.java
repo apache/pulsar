@@ -75,7 +75,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
-
     @Data
     @ToString
     @EqualsAndHashCode
@@ -222,7 +221,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic1")
+                .topic("persistent://sample/test/local/regex-sub-topic1")
                 .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));
@@ -287,7 +286,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(msg);
         }
     }
-
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {

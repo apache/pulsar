@@ -85,6 +85,7 @@ import java.util.regex.Pattern;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
@@ -130,6 +131,7 @@ public class KubernetesRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final Map<String, String> customLabels;
+    private final Map<String, String> functionDockerImages;
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
@@ -156,6 +158,7 @@ public class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      Map<String, String> functionDockerImages,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -185,6 +188,7 @@ public class KubernetesRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
+        this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
@@ -977,8 +981,35 @@ public class KubernetesRuntime implements Runtime {
     V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        // set up the container images
-        container.setImage(pulsarDockerImageName);
+        Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
+
+        String imageName = null;
+        if (functionDockerImages != null) {
+            switch (runtime) {
+                case JAVA:
+                    if (functionDockerImages.get("JAVA") != null) {
+                        imageName = functionDockerImages.get("JAVA");
+                        break;
+                    }
+                case PYTHON:
+                    if (functionDockerImages.get("PYTHON") != null) {
+                        imageName = functionDockerImages.get("PYTHON");
+                        break;
+                    }
+                case GO:
+                    if (functionDockerImages.get("GO") != null) {
+                        imageName = functionDockerImages.get("GO");
+                        break;
+                    }
+                default:
+                    imageName = pulsarDockerImageName;
+                    break;
+            }
+            container.setImage(imageName);
+        } else {
+            container.setImage(pulsarDockerImageName);
+        }
+
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command
