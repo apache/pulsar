@@ -399,10 +399,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         createStateTable(tableNs, tableName, settings);
 
         log.info("Starting state table for function {}", instanceConfig.getFunctionDetails().getName());
-        this.storageClient = StorageClientBuilder.newBuilder()
-                .withSettings(settings)
-                .withNamespace(tableNs)
-                .build();
+        this.storageClient = new SimpleStorageClientImpl(tableNs,
+                StorageClientSettings.newBuilder()
+                	.serviceUri(stateStorageServiceUrl)
+                	.clientName("function-" + tableNs + "/" + tableName)
+                	.backoffPolicy(Jitter.of(
+                            Type.EXPONENTIAL,
+                            100,
+                            2000,
+                            60
+                        ))
+                	.build());
+        
         // NOTE: this is a workaround until we bump bk version to 4.9.0
         // table might just be created above, so it might not be ready for serving traffic
         Stopwatch openSw = Stopwatch.createStarted();
