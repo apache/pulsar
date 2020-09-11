@@ -43,7 +43,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.logging.log4j.util.Strings;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
@@ -65,6 +64,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.LongPairSet;
@@ -154,20 +154,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     private boolean isConsumersExceededOnSubscription() {
-        Policies policies;
+        Policies policies = null;
+        Integer maxConsumersPerSubscription = null;
         try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
+            maxConsumersPerSubscription = Optional.ofNullable(topic.getBrokerService()
+                    .getTopicPolicies(TopicName.get(topic.getName())))
+                    .map(TopicPolicies::getMaxConsumersPerSubscription)
+                    .orElse(null);
+
+            if (maxConsumersPerSubscription == null) {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+                if (policies == null) {
+                    policies = new Policies();
+                }
             }
         } catch (Exception e) {
             policies = new Policies();
         }
-        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                policies.max_consumers_per_subscription :
-                serviceConfig.getMaxConsumersPerSubscription();
+
+        if (maxConsumersPerSubscription == null) {
+            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                    policies.max_consumers_per_subscription :
+                    serviceConfig.getMaxConsumersPerSubscription();
+        }
+
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;
         }
