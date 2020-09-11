@@ -719,6 +719,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int messagePublishBufferCheckIntervalInMillis = 100;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a " +
+            "managed ledger backing a persistent topic. It can improve write availability of topics.\n" +
+            "The caveat is now when recovered ledger is ready to write we're not sure if all old consumers last mark " +
+            "delete position can be recovered or not.")
+    private boolean lazyCursorRecovery = false;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"
@@ -1003,6 +1009,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean bookkeeperClientRegionawarePolicyEnabled = false;
     @FieldContext(
         category = CATEGORY_STORAGE_BK,
+        doc = "Minimum number of racks per write quorum. \n\nBK rack-aware bookie selection policy will try to"
+            + " get bookies from at least 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for a write quorum.")
+    private int bookkeeperClientMinNumRacksPerWriteQuorum = 2;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
+        doc = "Enforces rack-aware bookie selection policy to pick bookies from 'bookkeeperClientMinNumRacksPerWriteQuorum' racks for "
+            + "a writeQuorum. \n\nIf BK can't find bookie then it would throw BKNotEnoughBookiesException instead of picking random one.")
+    private boolean bookkeeperClientEnforceMinNumRacksPerWriteQuorum = false;
+    @FieldContext(
+        category = CATEGORY_STORAGE_BK,
         doc = "Enable/disable reordering read sequence on reading entries")
     private boolean bookkeeperClientReorderReadSequenceEnabled = false;
     @FieldContext(
@@ -1071,6 +1087,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "whether expose managed ledger client stats to prometheus"
     )
     private boolean bookkeeperClientExposeStatsToPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Throttle value for bookkeeper client"
+    )
+    private int bookkeeperClientThrottleValue = 0;
 
     /**** --- Managed Ledger --- ****/
     @FieldContext(

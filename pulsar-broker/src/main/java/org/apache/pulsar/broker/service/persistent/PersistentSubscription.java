@@ -1255,7 +1255,12 @@ public class PersistentSubscription implements Subscription {
         if (PulsarApi.TxnAction.COMMIT.getNumber() == txnAction) {
             completableFuture = commitTxn(txnID, Collections.emptyMap());
         } else if (PulsarApi.TxnAction.ABORT.getNumber() == txnAction) {
-            completableFuture = abortTxn(txnID, null);
+            Consumer redeliverConsumer = null;
+            if (getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                redeliverConsumer = ((PersistentDispatcherSingleActiveConsumer)
+                        getDispatcher()).getActiveConsumer();
+            }
+            completableFuture = abortTxn(txnID, redeliverConsumer);
         } else {
             completableFuture.completeExceptionally(new Exception("Unsupported txnAction " + txnAction));
         }

@@ -55,6 +55,30 @@ class PULSAR_PUBLIC ProducerConfiguration {
         BoostHash,
         JavaStringHash
     };
+    enum BatchingType
+    {
+        /**
+         * Default batching.
+         *
+         * <p>incoming single messages:
+         * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+         *
+         * <p>batched into single batch message:
+         * [(k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)]
+         */
+        DefaultBatching,
+
+        /**
+         * Key based batching.
+         *
+         * <p>incoming single messages:
+         * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+         *
+         * <p>batched into single batch message:
+         * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+         */
+        KeyBasedBatching
+    };
 
     ProducerConfiguration();
     ~ProducerConfiguration();
@@ -152,13 +176,19 @@ class PULSAR_PUBLIC ProducerConfiguration {
     ProducerConfiguration& setBatchingMaxPublishDelayMs(const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
 
+    /**
+     * @see BatchingType
+     */
+    ProducerConfiguration& setBatchingType(BatchingType batchingType);
+    BatchingType getBatchingType() const;
+
     const CryptoKeyReaderPtr getCryptoKeyReader() const;
     ProducerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
 
     ProducerCryptoFailureAction getCryptoFailureAction() const;
     ProducerConfiguration& setCryptoFailureAction(ProducerCryptoFailureAction action);
 
-    std::set<std::string>& getEncryptionKeys();
+    const std::set<std::string>& getEncryptionKeys() const;
     bool isEncryptionEnabled() const;
     ProducerConfiguration& addEncryptionKey(std::string key);
 

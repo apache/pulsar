@@ -2159,7 +2159,95 @@ public interface Topics {
      */
     CompletableFuture<Void> removePublishRateAsync(String topic) throws PulsarAdminException;
 
+    /**
+     * Get the maxConsumersPerSubscription for a topic.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Integer getMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
 
+    /**
+     * Get the maxConsumersPerSubscription for a topic asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String topic);
+
+    /**
+     * Set maxConsumersPerSubscription for a topic.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerSubscription(String topic, int maxConsumersPerSubscription) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerSubscription for a topic asynchronously.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     */
+    CompletableFuture<Void> setMaxConsumersPerSubscriptionAsync(String topic, int maxConsumersPerSubscription);
+
+    /**
+     * Remove the maxConsumersPerSubscription for a topic.
+     * @param topic
+     *            Topic name
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    void removeMaxConsumersPerSubscription(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the maxConsumersPerSubscription for a topic asynchronously.
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersPerSubscriptionAsync(String topic);
 
     /**
      * Get the max number of producer for specified topic.
@@ -2212,4 +2300,57 @@ public interface Topics {
      * @param topic Topic name
      */
     CompletableFuture<Void> removeMaxProducersAsync(String topic);
+
+
+    /**
+     * Get the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    Integer getMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Get the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @return Configuration of bookkeeper persistence policies
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Integer> getMaxConsumersAsync(String topic);
+
+
+    /**
+     * Set the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    void setMaxConsumers(String topic, int maxConsumers) throws PulsarAdminException;
+
+    /**
+     * Set the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     * @param maxConsumers Max number of consumer
+     * @throws PulsarAdminException Unexpected error
+     */
+    CompletableFuture<Void> setMaxConsumersAsync(String topic, int maxConsumers);
+
+    /**
+     * Remove the max number of consumer for specified topic.
+     *
+     * @param topic Topic name
+     * @throws PulsarAdminException Unexpected error
+     */
+    void removeMaxConsumers(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove the max number of consumer for specified topic asynchronously.
+     *
+     * @param topic Topic name
+     */
+    CompletableFuture<Void> removeMaxConsumersAsync(String topic);
 }
