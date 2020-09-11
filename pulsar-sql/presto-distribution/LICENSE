@@ -207,19 +207,18 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.11.2.jar
-    - jackson-core-2.11.2.jar
-    - jackson-databind-2.11.2.jar
-    - jackson-dataformat-smile-2.11.2.jar
-    - jackson-datatype-guava-2.11.2.jar
-    - jackson-datatype-jdk8-2.11.2.jar
-    - jackson-datatype-joda-2.11.2.jar
-    - jackson-datatype-jsr310-2.11.2.jar
-    - jackson-dataformat-yaml-2.11.2.jar
-    - jackson-jaxrs-base-2.11.2.jar
-    - jackson-jaxrs-json-provider-2.11.2.jar
-    - jackson-module-jaxb-annotations-2.11.2.jar
-    - jackson-module-jsonSchema-2.11.2.jar
+    - jackson-annotations-2.11.1.jar
+    - jackson-core-2.11.1.jar
+    - jackson-databind-2.11.1.jar
+    - jackson-datatype-guava-2.11.1.jar
+    - jackson-datatype-jdk8-2.11.1.jar
+    - jackson-datatype-joda-2.11.1.jar
+    - jackson-datatype-jsr310-2.11.1.jar
+    - jackson-dataformat-yaml-2.11.1.jar
+    - jackson-jaxrs-base-2.11.1.jar
+    - jackson-jaxrs-json-provider-2.11.1.jar
+    - jackson-module-jaxb-annotations-2.11.1.jar
+    - jackson-module-jsonSchema-2.11.1.jar
  * Guava
     - guava-25.1-jre.jar
  * Google Guice
@@ -437,12 +436,12 @@ The Apache Software License, Version 2.0
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Jetty
-    - jetty-http-9.4.29.v20200521.jar
-    - jetty-io-9.4.29.v20200521.jar
-    - jetty-security-9.4.29.v20200521.jar
-    - jetty-server-9.4.29.v20200521.jar
-    - jetty-servlet-9.4.29.v20200521.jar
-    - jetty-util-9.4.29.v20200521.jar
+    - jetty-http-9.4.30.v20200611.jar
+    - jetty-io-9.4.30.v20200611.jar
+    - jetty-security-9.4.30.v20200611.jar
+    - jetty-server-9.4.30.v20200611.jar
+    - jetty-servlet-9.4.30.v20200611.jar
+    - jetty-util-9.4.30.v20200611.jar
   * Java Native Access
     - jna-4.2.0.jar
     - jna-5.3.1.jar
