@@ -16864,10 +16864,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 }
             }
@@ -17280,32 +17280,11 @@
                     "type": "number",
                     "format": "double"
                 },
-                "cpu": {
+                "memory": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
                 },
                 "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17313,8 +17292,29 @@
                 "bandwidthOut": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "memory": {
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 }
             }
         },
@@ -17495,16 +17495,16 @@
                     "type": "number",
                     "format": "double"
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
-                "address": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
+                "connectedSince": {
+                    "type": "string"
+                },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -17805,10 +17805,10 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
-                "s3Driver": {
+                "gcsDriver": {
                     "type": "boolean"
                 },
-                "gcsDriver": {
+                "s3Driver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
@@ -18404,16 +18404,16 @@
                         "type": "string"
                     }
                 },
-                "connectedSince": {
-                    "type": "string"
-                },
-                "address": {
-                    "type": "string"
-                },
                 "producerName": {
                     "type": "string"
                 },
+                "connectedSince": {
+                    "type": "string"
+                },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
