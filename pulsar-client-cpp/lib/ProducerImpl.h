@@ -31,32 +31,20 @@
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
 #include "PulsarApi.pb.h"
+#include "OpSendMsg.h"
+#include "BatchMessageContainerBase.h"
+#include "PendingFailures.h"
 
 using namespace pulsar;
 
 namespace pulsar {
 typedef bool bool_type;
 
-class BatchMessageContainer;
-
-typedef std::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
 typedef std::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
 
 class Producer;
-
-struct OpSendMsg {
-    Message msg_;
-    SendCallback sendCallback_;
-    uint64_t producerId_;
-    uint64_t sequenceId_;
-    boost::posix_time::ptime timeout_;
-
-    OpSendMsg();
-    OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& msg, const SendCallback& sendCallback,
-              const ProducerConfiguration& conf);
-};
 
 class ProducerImpl : public HandlerBase,
                      public std::enable_shared_from_this<ProducerImpl>,
@@ -65,8 +53,6 @@ class ProducerImpl : public HandlerBase,
     ProducerImpl(ClientImplPtr client, const std::string& topic,
                  const ProducerConfiguration& producerConfiguration, int32_t partition = -1);
     ~ProducerImpl();
-
-    int keepMaxMessageSize_;
 
     virtual const std::string& getTopic() const;
 
@@ -109,7 +95,7 @@ class ProducerImpl : public HandlerBase,
 
     void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
 
-    void sendMessage(const Message& msg, SendCallback callback);
+    void sendMessage(const OpSendMsg& opSendMsg);
 
     void batchMessageTimeoutHandler(const boost::system::error_code& ec);
 
@@ -117,6 +103,7 @@ class ProducerImpl : public HandlerBase,
 
     friend class Producer;
 
+    friend class BatchMessageContainerBase;
     friend class BatchMessageContainer;
 
     virtual void connectionOpened(const ClientConnectionPtr& connection);
@@ -158,13 +145,15 @@ class ProducerImpl : public HandlerBase,
     uint64_t producerId_;
     int64_t msgSequenceGenerator_;
     proto::BaseCommand cmd_;
-    BatchMessageContainerPtr batchMessageContainer;
+
+    std::unique_ptr<BatchMessageContainerBase> batchMessageContainer_;
+    DeadlineTimerPtr batchTimer_;
+    PendingFailures batchMessageAndSend(const FlushCallback& flushCallback = nullptr);
 
     volatile int64_t lastSequenceIdPublished_;
     std::string schemaVersion_;
 
-    typedef std::shared_ptr<boost::asio::deadline_timer> TimerPtr;
-    TimerPtr sendTimer_;
+    DeadlineTimerPtr sendTimer_;
     void handleSendTimeout(const boost::system::error_code& err);
 
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
@@ -178,7 +167,6 @@ class ProducerImpl : public HandlerBase,
     MessageCryptoPtr msgCrypto_;
     DeadlineTimerPtr dataKeyGenTImer_;
     uint32_t dataKeyGenIntervalSec_;
-    std::shared_ptr<Promise<Result, bool_type>> flushPromise_;
 };
 
 struct ProducerImplCmp {

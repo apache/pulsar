@@ -9,7 +9,7 @@ Pulsar's [topic compaction](concepts-topic-compaction.md#compaction) feature ena
 To use compaction:
 
 * You need to give messages keys, as topic compaction in Pulsar takes place on a *per-key basis* (i.e. messages are compacted based on their key). For a stock ticker use case, the stock symbol---e.g. `AAPL` or `GOOG`---could serve as the key (more on this [below](#when-should-i-use-compacted-topics)). Messages without keys will be left alone by the compaction process.
-* Compaction can be configured to run [automatically](#configuring-compaction-to-run-automatically), or you can manually [trigger](#trigger) compaction using the Pulsar administrative API.
+* Compaction can be configured to run [automatically](#configuring-compaction-to-run-automatically), or you can manually [trigger](#triggering-compaction-manually) compaction using the Pulsar administrative API.
 * Your consumers must be [configured](#consumer-configuration) to read from compacted topics ([Java consumers](#java), for example, have a `readCompacted` setting that must be set to `true`). If this configuration is not set, consumers will still be able to read from the non-compacted topic.
 
 

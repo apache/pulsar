@@ -16,22 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.exceptions;
+#ifndef LIB_PENDINGFAILURES_H_
+#define LIB_PENDINGFAILURES_H_
 
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.impl.common.TxnStatus;
+#include <functional>
+#include <vector>
 
-/**
- * Exceptions are thrown when operations are applied to a transaction which is not in expected txn status.
- */
-public class UnexpectedTxnStatusException extends TransactionBufferException {
+namespace pulsar {
 
-    private static final long serialVersionUID = 0L;
+class PendingFailures {
+   public:
+    void add(const std::function<void()>& failure) { failures.emplace_back(failure); }
 
-    public UnexpectedTxnStatusException(TxnID txnId,
-                                        TxnStatus expectedStatus,
-                                        TxnStatus actualStatus) {
-        super("Transaction `" + txnId + "` is not in an expected status `" + expectedStatus
-            + "`, but is in status `" + actualStatus + "`");
+    bool empty() const noexcept { return failures.empty(); }
+
+    void complete() {
+        for (auto& failure : failures) {
+            failure();
+        }
     }
-}
+
+   private:
+    std::vector<std::function<void()>> failures;
+};
+
+}  // namespace pulsar
+
+#endif

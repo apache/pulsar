@@ -43,7 +43,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.logging.log4j.util.Strings;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
@@ -65,6 +64,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.LongPairSet;
@@ -104,7 +104,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected final ServiceConfiguration serviceConfig;
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
 
-    private TransactionReader transactionReader;
+    protected TransactionReader transactionReader;
 
     enum ReadType {
         Normal, Replay
@@ -122,7 +122,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        this.transactionReader = new TransactionReader(this);
+        this.transactionReader = new TransactionReader(topic, cursor);
     }
 
     @Override
@@ -143,11 +143,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             messagesToRedeliver.clear();
         }
 
-        if (isConsumersExceededOnTopic()) {
-            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", name);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
-        }
-
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
@@ -158,43 +153,33 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         consumerSet.add(consumer);
     }
 
-    private boolean isConsumersExceededOnTopic() {
-        Policies policies;
-        try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-
-            if (policies == null) {
-                policies = new Policies();
-            }
-        } catch (Exception e) {
-            policies = new Policies();
-        }
-        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
-                policies.max_consumers_per_topic :
-                serviceConfig.getMaxConsumersPerTopic();
-        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
-            return true;
-        }
-        return false;
-    }
-
     private boolean isConsumersExceededOnSubscription() {
-        Policies policies;
+        Policies policies = null;
+        Integer maxConsumersPerSubscription = null;
         try {
-            // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
-            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
-            if (policies == null) {
-                policies = new Policies();
+            maxConsumersPerSubscription = Optional.ofNullable(topic.getBrokerService()
+                    .getTopicPolicies(TopicName.get(topic.getName())))
+                    .map(TopicPolicies::getMaxConsumersPerSubscription)
+                    .orElse(null);
+
+            if (maxConsumersPerSubscription == null) {
+                // Use getDataIfPresent from zk cache to make the call non-blocking and prevent deadlocks in addConsumer
+                policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                        .getDataIfPresent(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()));
+                if (policies == null) {
+                    policies = new Policies();
+                }
             }
         } catch (Exception e) {
             policies = new Policies();
         }
-        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
-                policies.max_consumers_per_subscription :
-                serviceConfig.getMaxConsumersPerSubscription();
+
+        if (maxConsumersPerSubscription == null) {
+            maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                    policies.max_consumers_per_subscription :
+                    serviceConfig.getMaxConsumersPerSubscription();
+        }
+
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;
         }
@@ -354,7 +339,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
                         totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
-            } else if (havePendingTxnToRead()) {
+            } else if (transactionReader.havePendingTxnToRead()) {
                 transactionReader.read(messagesToRead, ReadType.Normal, this);
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
@@ -535,7 +520,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor);
+                filterEntriesForConsumer(entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
+                        transactionReader);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);
