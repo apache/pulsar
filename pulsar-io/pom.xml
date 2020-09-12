@@ -67,6 +67,7 @@
         <module>solr</module>
         <module>influxdb</module>
         <module>dynamodb</module>
+        <module>rocketmq</module>
       </modules>
     </profile>
 
