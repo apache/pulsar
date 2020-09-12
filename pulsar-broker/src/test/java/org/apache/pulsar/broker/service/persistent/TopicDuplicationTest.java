@@ -69,6 +69,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(enabled);
 
         admin.topics().enableDeduplication(topicName, true);
+        Thread.sleep(1000);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getMaxUnackedMessagesOnSubscription(topicName) != null) {
                 break;
@@ -120,6 +121,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         }).get();
         //3) disable the deduplication check
         admin.topics().enableDeduplication(topicName, false);
+        Thread.sleep(1000);
         for (int i = 0; i < 50; i++) {
             if (admin.topics().getDeduplicationEnabled(topicName) != null) {
                 break;
