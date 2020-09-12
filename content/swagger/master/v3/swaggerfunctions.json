@@ -1621,23 +1621,19 @@
         "Message": {
             "type": "object",
             "properties": {
-                "sequenceId": {
+                "redeliveryCount": {
                     "type": "integer",
-                    "format": "int64"
-                },
-                "publishTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
+                    "format": "int32"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
@@ -1649,16 +1645,20 @@
                         "format": "byte"
                     }
                 },
-                "redeliveryCount": {
+                "publishTime": {
                     "type": "integer",
-                    "format": "int32"
+                    "format": "int64"
                 },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "topicName": {
+                    "type": "string"
                 },
                 "replicated": {
                     "type": "boolean"
@@ -1669,14 +1669,14 @@
                 "replicatedFrom": {
                     "type": "string"
                 },
-                "keyBytes": {
+                "data": {
                     "type": "array",
                     "items": {
                         "type": "string",
                         "format": "byte"
                     }
                 },
-                "data": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
