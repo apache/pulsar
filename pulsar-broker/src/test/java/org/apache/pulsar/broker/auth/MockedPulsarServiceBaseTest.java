@@ -288,6 +288,15 @@ public abstract class MockedPulsarServiceBaseTest {
             }).when(pulsar).newCompactor();
     }
 
+    protected void waitForZooKeeperWatchers() {
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
+
     public TenantInfo createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
