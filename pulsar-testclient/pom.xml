@@ -35,7 +35,7 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>org.apache.pulsar</groupId>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>testmocks</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
@@ -69,6 +69,14 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>pulsar-broker</artifactId>
 			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>pulsar-broker</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>

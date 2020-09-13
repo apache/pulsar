@@ -3,6 +3,7 @@ module.exports = [
         name: 'Kingsoft Cloud',
         url: 'https://www.ksyun.com/',
         logo: 'https://fe.ksyun.com/header/images/pc/logo.png?a048d39f',
+        logo_white: true
     },
     {
         name: 'Narvar',

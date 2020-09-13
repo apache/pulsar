@@ -58,8 +58,9 @@ public class CronTriggerer implements BatchSourceTriggerer {
 
   @Override
   public void stop() {
-    scheduler.shutdown();
+    if (scheduler != null) {
+      scheduler.shutdown();
+    }
   }
-
 }
 

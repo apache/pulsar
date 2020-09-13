@@ -189,14 +189,13 @@ public class PulsarBrokerStarter {
                 workerConfig.setZooKeeperSessionTimeoutMillis(brokerConfig.getZooKeeperSessionTimeoutMillis());
                 workerConfig.setZooKeeperOperationTimeoutSeconds(brokerConfig.getZooKeeperOperationTimeoutSeconds());
 
-                workerConfig.setTlsHostnameVerificationEnable(false);
-
                 workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
-                workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+                workerConfig.setTlsEnableHostnameVerification(false);
+                workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
                 // client in worker will use this config to authenticate with broker
-                workerConfig.setClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
-                workerConfig.setClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
+                workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
+                workerConfig.setBrokerClientAuthenticationParameters(brokerConfig.getBrokerClientAuthenticationParameters());
 
                 // inherit super users
                 workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());

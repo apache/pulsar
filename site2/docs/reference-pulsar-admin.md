@@ -450,7 +450,7 @@ Options
 |`--schema-type`|The builtin schema type or custom schema class name to be used for messages output by the function||
 |`--sliding-interval-count`|The number of messages after which the window slides||
 |`--sliding-interval-duration-ms`|The time duration after which the window slides||
-|`--state-storage-service-url`|The URL for the state storage service (by default Apache BookKeeper)||
+|`--state-storage-service-url`|The URL for the state storage service. By default, it it set to the service URL of the Apache BookKeeper. This service URL must be added manually when the Pulsar Function runs locally. ||
 |`--tenant`|The function’s tenant||
 |`--topics-pattern`|The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (supported for java fun only)||
 |`--user-config`|User-defined config key/values||
@@ -1787,6 +1787,9 @@ Subcommands
 * `reset-cursor`
 * `get-message-by-id`
 * `last-message-id`
+* `get-deduplication`
+* `set-deduplication`
+* `remove-deduplication`
 
 ### `compact`
 Run compaction on the specified topic (persistent topics only)
@@ -2202,6 +2205,35 @@ Options
 |`-l`, `--ledgerId`|The ledger id |0|
 |`-e`, `--entryId`|The entry id |0|
 
+### `get-deduplication`
+Get a deduplication policy for a topic.
+
+Usage
+```bash
+$ pulsar-admin topics get-deduplication tenant/namespace/topic
+```
+
+### `set-deduplication`
+Enable or disable message deduplication on a topic.
+
+Usage
+```bash
+$ pulsar-admin topics set-deduplication tenant/namespace/topic
+```
+
+Options
+|Flag|Description|Default|
+|---|---|---|
+|`--enable`, `-e`|Enable message deduplication on the specified topic.|false|
+|`--disable`, `-d`|Disable message deduplication on the specified topic.|false|
+
+### `remove-deduplication`
+Remove a deduplication policy from a topic.
+
+Usage
+```bash
+$ pulsar-admin topics remove-deduplication tenant/namespace/topic
+```
 
 ## `tenants`
 Operations for managing tenants

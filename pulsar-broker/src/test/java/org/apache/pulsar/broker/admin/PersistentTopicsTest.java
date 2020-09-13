@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -206,6 +207,18 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCreateSubscriptionForNonPersistentTopic() throws InterruptedException {
+        doReturn(TopicDomain.non_persistent.value()).when(persistentTopics).domain();
+        AsyncResponse response  = mock(AsyncResponse.class);
+        ArgumentCaptor<WebApplicationException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createSubscription(response, testTenant, testNamespace,
+                "testCreateSubscriptionForNonPersistentTopic", "sub",
+                true, (MessageIdImpl) MessageId.earliest, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
+    }
+
+    @Test
     public void testTerminatePartitionedTopic() {
         String testLocalTopicName = "topic-not-found";
 
@@ -232,7 +245,6 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNonPartitionedTopics() {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         final String nonPartitionTopic = "non-partitioned-topic";
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, nonPartitionTopic, "test", true,

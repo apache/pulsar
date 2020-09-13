@@ -92,6 +92,13 @@ struct AuthenticationAthenzWrapper : public AuthenticationWrapper {
     }
 };
 
+struct AuthenticationOauth2Wrapper : public AuthenticationWrapper {
+    AuthenticationOauth2Wrapper(const std::string& authParamsString) :
+            AuthenticationWrapper() {
+        this->auth = AuthOauth2::create(authParamsString);
+    }
+};
+
 void export_authentication() {
     using namespace boost::python;
 
@@ -107,6 +114,10 @@ void export_authentication() {
             ;
 
     class_<AuthenticationAthenzWrapper, bases<AuthenticationWrapper> >("AuthenticationAthenz",
+                                                                       init<const std::string&>())
+            ;
+
+    class_<AuthenticationOauth2Wrapper, bases<AuthenticationWrapper> >("AuthenticationOauth2",
                                                                        init<const std::string&>())
             ;
 }

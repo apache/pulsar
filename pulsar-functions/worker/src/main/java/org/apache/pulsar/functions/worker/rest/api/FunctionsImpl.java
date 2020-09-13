@@ -26,6 +26,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.Utils;
+import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.RestException;
@@ -45,6 +46,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -226,7 +228,7 @@ public class FunctionsImpl extends ComponentImpl {
             }
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (functionPkgUrl == null || !functionPkgUrl.startsWith(Utils.FILE)) {
@@ -417,7 +419,7 @@ public class FunctionsImpl extends ComponentImpl {
 
             functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
 
-            updateRequest(functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataBuilder.build());
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((functionPkgUrl != null && !functionPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
@@ -645,6 +647,64 @@ public class FunctionsImpl extends ComponentImpl {
         }
 
         return functionStatus;
+    }
+
+    public void updateFunctionOnWorkerLeader(final String tenant,
+                               final String namespace,
+                               final String functionName,
+                               final InputStream uploadedInputStream,
+                               final boolean delete,
+                               URI uri,
+                               final String clientRole) {
+
+        if (!isWorkerServiceAvailable()) {
+            throwUnavailableException();
+        }
+
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            if (!isSuperUser(clientRole)) {
+                log.error("{}/{}/{} Client [{}] is not superuser to update on worker leader {}", tenant, namespace,
+                        functionName, clientRole, ComponentTypeUtils.toString(componentType));
+                throw new RestException(Response.Status.UNAUTHORIZED, "client is not authorize to perform operation");
+            }
+        }
+
+        if (tenant == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Function name is not provided");
+        }
+        Function.FunctionMetaData functionMetaData;
+        try {
+            functionMetaData = Function.FunctionMetaData.parseFrom(uploadedInputStream);
+        } catch (IOException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Corrupt Function MetaData");
+        }
+
+        // Redirect if we are not the leader
+        if (!worker().getLeaderService().isLeader()) {
+            WorkerInfo workerInfo = worker().getMembershipManager().getLeader();
+            if (workerInfo.getWorkerId().equals(worker().getWorkerConfig().getWorkerId())) {
+                throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
+                        "Leader not yet ready. Please retry again");
+            }
+            URI redirect = UriBuilder.fromUri(uri).host(workerInfo.getWorkerHostname()).port(workerInfo.getPort()).build();
+            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+        }
+
+        // Its possible that we are not the leader anymore. That will be taken care of by FunctionMetaDataManager
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        try {
+            functionMetaDataManager.updateFunctionOnLeader(functionMetaData, delete);
+        } catch (IllegalStateException e) {
+            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
+        }
     }
 
     private Function.FunctionDetails validateUpdateRequestParams(final String tenant,

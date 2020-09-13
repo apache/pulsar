@@ -32,7 +32,6 @@
 
   <artifactId>protobuf-shaded</artifactId>
   <name>Apache Pulsar :: Protobuf shaded</name>
-  <version>2.7.0-SNAPSHOT</version>
 
   <dependencies>
     <dependency>

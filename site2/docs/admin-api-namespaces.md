@@ -178,11 +178,11 @@ admin.namespaces().getNamespaceReplicationClusters(namespace)
 
 #### set backlog quota policies
 
-Backlog quota helps broker to restrict bandwidth/storage of a namespace once it reach certain threshold limit . Admin can set this limit and one of the following action after the limit is reached.
+Backlog quota helps the broker to restrict bandwidth/storage of a namespace once it reaches a certain threshold limit. Admin can set the limit and take corresponding action after the limit is reached.
 
   1.  producer_request_hold: broker will hold and not persist produce request payload
 
-  2.  producer_exception: broker will disconnects with client by giving exception
+  2.  producer_exception: broker disconnects with the client by giving an exception.
 
   3.  consumer_backlog_eviction: broker will start discarding backlog messages
 
@@ -304,7 +304,7 @@ admin.namespaces().setPersistence(namespace,new PersistencePolicies(bookkeeperEn
 
 #### get persistence policies
 
-It shows configured persistence policies of a given namespace.
+It shows the configured persistence policies of a given namespace.
 
 ###### CLI
 
@@ -336,7 +336,7 @@ admin.namespaces().getPersistence(namespace)
 
 #### unload namespace bundle
 
-Namespace bundle is a virtual group of topics which belong to same namespace. If broker gets overloaded with number of bundles then this command can help to unload heavy bundle from that broker, so it can be served by some other less loaded broker. Namespace bundle is defined with it’s start and end range such as 0x00000000 and 0xffffffff.
+The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload heavy bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
 
 ###### CLI
 
@@ -444,7 +444,7 @@ admin.namespaces().splitNamespaceBundle(namespace, bundle)
 
 #### clear backlog
 
-It clears all message backlog for all the topics those belong to specific namespace. You can also clear backlog for a specific subscription as well.
+It clears all message backlog for all the topics that belong to a specific namespace. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -471,7 +471,7 @@ admin.namespaces().clearNamespaceBacklogForSubscription(namespace, subscription)
 
 #### clear bundle backlog
 
-It clears all message backlog for all the topics those belong to specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
+It clears all message backlog for all the topics that belong to a specific NamespaceBundle. You can also clear backlog for a specific subscription as well.
 
 ###### CLI
 
@@ -498,7 +498,7 @@ admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle,
 
 #### set retention
 
-Each namespace contains multiple topics and each topic’s retention size (storage size) should not exceed to a specific threshold or it should be stored till certain time duration. This command helps to configure retention size and time of topics in a given namespace.
+Each namespace contains multiple topics and the retention size (storage size) of each topic should not exceed a specific threshold or it should be stored for a certain period. This command helps configure the retention size and time of topics in a given namespace.
 
 ###### CLI
 
@@ -554,10 +554,17 @@ admin.namespaces().getRetention(namespace)
 
 #### set dispatch throttling
 
-It sets message dispatch rate for all the topics under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+It sets message dispatch rate for all the topics under a given namespace. 
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
+
+#### Note
+> - If neither `clusterDispatchRate` nor `topicDispatchRate` is configured, dispatch throttling is disabled.
+> >
+> - If `topicDispatchRate` is not configured, `clusterDispatchRate` takes effect.
+> > 
+> - If `topicDispatchRate` is configured, `topicDispatchRate` takes effect.
 
 ###### CLI
 
@@ -614,7 +621,7 @@ admin.namespaces().getDispatchRate(namespace)
 #### set dispatch throttling for subscription
 
 It sets message dispatch rate for all the subscription of topics under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 
@@ -669,10 +676,10 @@ $ pulsar-admin namespaces get-subscription-dispatch-rate test-tenant/ns1
 admin.namespaces().getSubscriptionDispatchRate(namespace)
 ```
 
-#### set dispatch throttling for subscription
+#### set dispatch throttling for replicator
 
 It sets message dispatch rate for all the replicator between replication clusters under a given namespace.
-Dispatch rate can be restricted by number of message per X seconds (`msg-dispatch-rate`) or by number of message-bytes per X second (`byte-dispatch-rate`).
+The dispatch rate can be restricted by the number of messages per X seconds (`msg-dispatch-rate`) or by the number of message-bytes per X second (`byte-dispatch-rate`).
 dispatch rate is in second and it can be configured with `dispatch-rate-period`. Default value of `msg-dispatch-rate` and `byte-dispatch-rate` is -1 which
 disables the throttling.
 

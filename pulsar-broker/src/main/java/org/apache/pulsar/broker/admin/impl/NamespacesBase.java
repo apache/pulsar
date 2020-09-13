@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 
+import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
@@ -41,15 +42,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-
-import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -63,6 +60,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
@@ -70,16 +68,16 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -94,12 +92,12 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -109,6 +107,12 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected List<String> internalGetTenantNamespaces(String tenant) {
         checkNotNull(tenant, "Tenant should not be null");
+        try {
+            NamedEntity.checkName(tenant);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Tenant name is invalid {}", clientAppId(), tenant, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+        }
         validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
 
         try {
@@ -935,7 +939,7 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    
+
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         validateSuperUserAccess();
         log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
@@ -1026,7 +1030,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    public void internalUnloadNamespaceBundle(String bundleRange, boolean authoritative) {
+    public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
         validateSuperUserAccess();
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -1060,18 +1064,23 @@ public abstract class NamespacesBase extends AdminResource {
         if (!isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)) {
             log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
                     bundleRange);
+            asyncResponse.resume(Response.noContent().build());
             return;
         }
 
         NamespaceBundle nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
-        try {
-            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle);
-            log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, e);
-            throw new RestException(e);
-        }
+
+        pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                .thenRun(() -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
+                            ex);
+                    asyncResponse.resume(new RestException(ex));
+                    return null;
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -1466,7 +1475,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetRetention(RetentionPolicies retention) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -1826,37 +1835,62 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
+    protected InactiveTopicPolicies internalGetInactiveTopic() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        if (policies.inactive_topic_policies == null) {
+            return new InactiveTopicPolicies(config().getBrokerDeleteInactiveTopicsMode()
+                    , config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds()
+                    , config().isBrokerDeleteInactiveTopicsEnabled());
+        } else {
+            return policies.inactive_topic_policies;
+        }
+    }
+
+    protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies){
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
+        internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
+    }
 
+    protected void internalSetPolicies(String fieldName, Object value){
         try {
             Stat nodeStat = new Stat();
             final String path = path(POLICIES, namespaceName.toString());
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
 
-            policies.delayed_delivery_policies = delayedDeliveryPolicies;
+            Field field = Policies.class.getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(policies, value);
+
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated delayed delivery messages configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(policies.retention_policies));
+            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
+                    namespaceName, jsonMapper().writeValueAsString(value));
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist", clientAppId(),
+                    fieldName, namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update delayed delivery messages configuration for namespace {}: concurrent modification",
-                    clientAppId(), namespaceName);
+            log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
+                    clientAppId(), fieldName, namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update delayed delivery messages configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update {} configuration for namespace {}", clientAppId(), fieldName
+                    , namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected void internalSetDelayedDelivery(DelayedDeliveryPolicies delayedDeliveryPolicies) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+        internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
 
     protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
@@ -1971,24 +2005,6 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private void validatePersistencePolicies(PersistencePolicies persistence) {
-        checkNotNull(persistence, "persistence policies should not be null");
-        final ServiceConfiguration config = pulsar().getConfiguration();
-        checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize(),
-                "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize());
-        checkArgument(persistence.getBookkeeperWriteQuorum() <= config.getManagedLedgerMaxWriteQuorum(),
-                "Bookkeeper-WriteQuorum must be <= " + config.getManagedLedgerMaxWriteQuorum());
-        checkArgument(persistence.getBookkeeperAckQuorum() <= config.getManagedLedgerMaxAckQuorum(),
-                "Bookkeeper-AckQuorum must be <= " + config.getManagedLedgerMaxAckQuorum());
-        checkArgument(
-                (persistence.getBookkeeperEnsemble() >= persistence.getBookkeeperWriteQuorum())
-                        && (persistence.getBookkeeperWriteQuorum() >= persistence.getBookkeeperAckQuorum()),
-                String.format("Bookkeeper Ensemble (%s) >= WriteQuorum (%s) >= AckQuoru (%s)",
-                persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
-                persistence.getBookkeeperAckQuorum()));
-
-    }
-
     protected RetentionPolicies internalGetRetention() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RETENTION, PolicyOperation.READ);
 
@@ -2002,21 +2018,12 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
-        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = policies.backlog_quota_map;
-        if (backlog_quota_map.isEmpty() || retention.getRetentionSizeInMB() == 0 || retention.getRetentionSizeInMB() == -1) {
+        Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlogQuotaMap = policies.backlog_quota_map;
+        if (backlogQuotaMap.isEmpty()) {
             return true;
         }
-        BacklogQuota quota = backlog_quota_map.get(BacklogQuotaType.destination_storage);
-        if (quota == null) {
-            quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
-        }
-        if (quota.getLimit() < 0 && (retention.getRetentionSizeInMB() > 0 || retention.getRetentionTimeInMinutes() > 0)) {
-            return false;
-        }
-        if (quota.getLimit() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
-            return false;
-        }
-        return true;
+        BacklogQuota quota = backlogQuotaMap.get(BacklogQuotaType.destination_storage);
+        return checkBacklogQuota(quota, retention);
     }
 
     private void clearBacklog(NamespaceName nsName, String bundleRange, String subscription) {

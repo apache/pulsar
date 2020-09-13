@@ -265,15 +265,6 @@ zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.
 
 Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide might be a better choice.
 
-> ##### NOTES
->
-> Since Pulsar 2.1.0 releases, Pulsar introduces [stateful function](functions-develop.md#state-storage) for Pulsar Functions. If you want to enable that feature,
-> you need to enable table service on BookKeeper by doing the following setting in `conf/bookkeeper.conf` file.
->
-> ```conf
-> extraServerComponents=org.apache.bookkeeper.stream.server.StreamStorageLifecycleComponent
-> ```
-
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
 To start the bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
@@ -285,7 +276,7 @@ $ bin/pulsar-daemon start bookie
 To start the bookie in the foreground:
 
 ```bash
-$ bin/bookkeeper bookie
+$ bin/pulsar bookie
 ```
 
 You can verify that a bookie works properly by running the `bookiesanity` command on the [BookKeeper shell](reference-cli-tools.md#shell):

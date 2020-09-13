@@ -33,7 +33,7 @@
     <name>Apache Pulsar :: Tiered Storage :: File System</name>
     <dependencies>
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>managed-ledger</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -54,7 +54,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.apache.pulsar</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>testmocks</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

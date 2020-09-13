@@ -47,7 +47,13 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         super.addConsumer(consumer);
-        selector.addConsumer(consumer);
+        try {
+            selector.addConsumer(consumer);
+        } catch (BrokerServiceException e) {
+            consumerSet.removeAll(consumer);
+            consumerList.remove(consumer);
+            throw e;
+        }
     }
 
     @Override
@@ -93,7 +99,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
 
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForConsumer.size());
-            filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null);
+            filterEntriesForConsumer(entriesForConsumer, batchSizes, sendMessageInfo, null, null, null);
             consumer.sendMessages(entriesForConsumer, batchSizes, null, sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());

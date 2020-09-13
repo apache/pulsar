@@ -158,6 +158,7 @@ Topic name component | Description
 
 > #### No need to explicitly create new topics
 > You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespaces) provided in the [topic name](#topics).
+> If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as `persistent://my-tenant/my-namespace/my-topic`. `persistent://my-tenant/my-namespace/my-topic` means the `my-topic` topic is created in the `my-namespace` namespace of the `my-tenant` tenant.
 
 
 ## Namespaces
@@ -182,9 +183,11 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 ### Failover
 
-In *failover* mode, multiple consumers can attach to the same subscription. In failover mode, the broker selects the master consumer based on the priority level and the lexicographical sorting of a consumer name. If two consumers have an identical priority level, the broker selects the master consumer based on the lexicographical sorting. If these two consumers have different priority levels, the broker selects the consumer with a higher priority level as the master consumer. The master consumer is initially the only one receiving messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *failover* mode, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-For partitioned topics, the broker assigns partitioned topics to the consumer with the highest priority level. If multiple consumers have the highest priority level, the broker evenly assigns topics to consumers with these consumers.
+For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
+
+For non-partitioned topic, broker will pick consumer in the order they subscribe to the non partitioned topic.
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 

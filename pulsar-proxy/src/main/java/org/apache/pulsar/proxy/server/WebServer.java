@@ -91,6 +91,7 @@ public class WebServer {
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
             connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(http_config));
+            connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
         }
@@ -122,6 +123,7 @@ public class WebServer {
                 }
                 connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
                 connectorTls.setPort(config.getWebServicePortTls().get());
+                connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new RuntimeException(e);

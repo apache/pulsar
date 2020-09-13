@@ -48,11 +48,11 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final String workerId;
     private final Map<String, TimerTaskInfo> tasks = new HashMap<>();
     private final ScheduledExecutorService executor;
-    private final MembershipManager membershipManager;
+    private final LeaderService leaderService;
 
-    public ClusterServiceCoordinator(String workerId, MembershipManager membershipManager) {
+    public ClusterServiceCoordinator(String workerId, LeaderService leaderService) {
         this.workerId = workerId;
-        this.membershipManager = membershipManager;
+        this.leaderService = leaderService;
         this.executor = Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
     }
@@ -62,11 +62,12 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     }
 
     public void start() {
+        log.info("/** Starting cluster service coordinator **/");
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
             this.executor.scheduleAtFixedRate(() -> {
-                boolean isLeader = membershipManager.isLeader();
+                boolean isLeader = leaderService.isLeader();
                 if (isLeader) {
                     try {
                         timerTaskInfo.getTask().run();

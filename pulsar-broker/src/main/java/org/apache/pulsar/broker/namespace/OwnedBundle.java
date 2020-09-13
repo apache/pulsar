@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,13 +80,13 @@ public class OwnedBundle {
 
     /**
      * It unloads the bundle by closing all topics concurrently under this bundle.
-     * 
+     *
      * <pre>
      * a. disable bundle ownership in memory and not in zk
      * b. close all the topics concurrently
      * c. delete ownership znode from zookeeper.
      * </pre>
-     * 
+     *
      * @param pulsar
      * @param timeout
      *            timeout for unloading bundle. It doesn't throw exception if it times out while waiting on closing all
@@ -91,68 +94,58 @@ public class OwnedBundle {
      * @param timeoutUnit
      * @throws Exception
      */
-    public void handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit) throws Exception {
-
+    public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit) {
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
-        while (!this.nsLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
-            // Using tryLock to avoid deadlocks caused by 2 threads trying to acquire 2 readlocks (eg: JMS replicators)
-            // while a handleUnloadRequest happens in the middle
-            LOG.warn("Contention on OwnedBundle rw lock. Retrying to acquire lock write lock");
-        }
-
         try {
-            // set the flag locally s.t. no more producer/consumer to this namespace is allowed
-            if (!IS_ACTIVE_UPDATER.compareAndSet(this, TRUE, FALSE)) {
-                // An exception is thrown when the namespace is not in active state (i.e. another thread is
-                // removing/have removed it)
-                throw new IllegalStateException(
-                        "Namespace is not active. ns:" + this.bundle + "; state:" + IS_ACTIVE_UPDATER.get(this));
+            while (!this.nsLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
+                // Using tryLock to avoid deadlocks caused by 2 threads trying to acquire 2 readlocks (eg: replicators)
+                // while a handleUnloadRequest happens in the middle
+                LOG.warn("Contention on OwnedBundle rw lock. Retrying to acquire lock write lock");
             }
-        } finally {
-            // no matter success or not, unlock
-            this.nsLock.writeLock().unlock();
-        }
 
-        int unloadedTopics = 0;
-        try {
-            LOG.info("Disabling ownership: {}", this.bundle);
-            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.bundle, false);
-
-            // close topics forcefully
             try {
-                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle, false).get(timeout, timeoutUnit);
-            } catch (TimeoutException e) {
-                // ignore topic-close failure to unload bundle
-                LOG.error("Failed to close topics in namespace {} in {}/{} timeout", bundle.toString(), timeout,
-                        timeoutUnit);
-                try {
-                    LOG.info("Forcefully close topics for bundle {}", bundle);
-                    pulsar.getBrokerService().unloadServiceUnit(bundle, true).get(timeout, timeoutUnit);
-                } catch (Exception e1) {
-                    LOG.error("Failed to close topics forcefully under bundle {}", bundle, e1);
+                // set the flag locally s.t. no more producer/consumer to this namespace is allowed
+                if (!IS_ACTIVE_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                    // An exception is thrown when the namespace is not in active state (i.e. another thread is
+                    // removing/have removed it)
+                    return FutureUtil.failedFuture(new IllegalStateException(
+                            "Namespace is not active. ns:" + this.bundle + "; state:" + IS_ACTIVE_UPDATER.get(this)));
                 }
-            } catch (Exception e) {
-                // ignore topic-close failure to unload bundle
-                LOG.error("Failed to close topics under namespace {}", bundle.toString(), e);
+            } finally {
+                // no matter success or not, unlock
+                this.nsLock.writeLock().unlock();
             }
-            // delete ownership node on zk
-            try {
-                pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle).get(timeout, timeoutUnit);
-            } catch (Exception e) {
-                // Failed to remove ownership node: enable namespace-bundle again so, it can serve new topics
-                pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.bundle, true);
-                throw new RuntimeException(String.format("Failed to delete ownership node %s", bundle.toString()),
-                        e.getCause());
-            }
-        } catch (Exception e) {
-            LOG.error("Failed to unload a namespace {}", bundle.toString(), e);
-            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            return FutureUtil.failedFuture(e);
         }
 
-        double unloadBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - unloadBundleStartTime));
-        LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle, unloadedTopics, unloadBundleTime);
+        AtomicInteger unloadedTopics = new AtomicInteger();
+        LOG.info("Disabling ownership: {}", this.bundle);
+
+        // close topics forcefully
+        return pulsar.getNamespaceService().getOwnershipCache()
+                .updateBundleState(this.bundle, false)
+                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(bundle, true, timeout, timeoutUnit))
+                .handle((numUnloadedTopics, ex) -> {
+                    if (ex != null) {
+                        // ignore topic-close failure to unload bundle
+                        LOG.error("Failed to close topics under namespace {}", bundle.toString(), ex);
+                    } else {
+                        unloadedTopics.set(numUnloadedTopics);
+                    }
+                    return null;
+                })
+                .thenCompose(v -> {
+                    // delete ownership node on zk
+                    return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                }).whenComplete((ignored, ex) -> {
+                    double unloadBundleTime = TimeUnit.NANOSECONDS
+                            .toMillis((System.nanoTime() - unloadBundleStartTime));
+                    LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle,
+                            unloadedTopics, unloadBundleTime, ex);
+                });
     }
 
     /**

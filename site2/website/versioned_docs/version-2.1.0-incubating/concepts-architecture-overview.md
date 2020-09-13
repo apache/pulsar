@@ -11,7 +11,7 @@ In a Pulsar cluster:
 
 * One or more brokers handles and load balances incoming messages from producers, dispatches messages to consumers, communicates with the Pulsar configuration store to handle various coordination tasks, stores messages in BookKeeper instances (aka bookies), relies on a cluster-specific ZooKeeper cluster for certain tasks, and more.
 * A BookKeeper cluster consisting of one or more bookies handles [persistent storage](#persistent-storage) of messages.
-* A ZooKeeper cluster specific to that cluster handles
+* A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.
 
 The diagram below provides an illustration of a Pulsar cluster:
 

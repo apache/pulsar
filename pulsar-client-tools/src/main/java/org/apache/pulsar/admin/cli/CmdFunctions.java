@@ -49,6 +49,8 @@ import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptions;
@@ -235,6 +237,8 @@ public class CmdFunctions extends CmdBase {
         protected String customSchemaInputString;
         @Parameter(names = "--custom-schema-outputs", description = "The map of input topics to Schema properties (as a JSON string)")
         protected String customSchemaOutputString;
+        @Parameter(names = "--input-specs", description = "The map of inputs to custom configuration (as a JSON string)")
+        protected String inputSpecs;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName", description = "The SerDe class to be used for messages output by the function", hidden = true)
         protected String DEPRECATED_outputSerdeClassName;
@@ -263,6 +267,8 @@ public class CmdFunctions extends CmdBase {
         protected Boolean forwardSourceMessageProperty = true;
         @Parameter(names = "--subs-name", description = "Pulsar source subscription name if user wants a specific subscription-name for input-topic consumer")
         protected String subsName;
+        @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to consume messages from the specified location")
+        protected SubscriptionInitialPosition subsPosition;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function (i.e. the number of function instances to run)")
         protected Integer parallelism;
         @Parameter(names = "--cpu", description = "The cpu in cores that need to be allocated per function instance(applicable only to docker runtime)")
@@ -375,6 +381,10 @@ public class CmdFunctions extends CmdBase {
                 Map<String, String> customSchemaOutputMap = new Gson().fromJson(customSchemaOutputString, type);
                 functionConfig.setCustomSchemaOutputs(customSchemaOutputMap);
             }
+            if (null != inputSpecs) {
+                Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
+                functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
+            }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
             }
@@ -408,6 +418,10 @@ public class CmdFunctions extends CmdBase {
 
             if (isNotBlank(subsName)) {
                 functionConfig.setSubName(subsName);
+            }
+
+            if (null != subsPosition) {
+                functionConfig.setSubscriptionPosition(subsPosition);
             }
 
             if (null != userConfigString) {
@@ -611,6 +625,8 @@ public class CmdFunctions extends CmdBase {
         protected Integer DEPRECATED_instanceIdOffset = null;
         @Parameter(names = "--instance-id-offset", description = "Start the instanceIds from this offset")
         protected Integer instanceIdOffset = 0;
+        @Parameter(names = "--runtime", description = "either THREAD or PROCESS. Only applies for Java functions")
+        protected String runtime;
 
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_stateStorageServiceUrl)) stateStorageServiceUrl = DEPRECATED_stateStorageServiceUrl;

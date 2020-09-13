@@ -74,7 +74,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
-
     @Data
     @ToString
     @EqualsAndHashCode
@@ -309,7 +308,6 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(msg);
         }
     }
-
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {

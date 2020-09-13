@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -64,6 +65,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -72,6 +74,7 @@ import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -119,6 +122,9 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final Clock clientClock;
 
+    @Getter
+    private TransactionCoordinatorClientImpl tcClient;
+
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
         this(conf, getEventLoopGroup(conf));
     }
@@ -147,6 +153,17 @@ public class PulsarClientImpl implements PulsarClient {
         timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
+
+        if (conf.isEnableTransaction()) {
+            tcClient = new TransactionCoordinatorClientImpl(this);
+            try {
+                tcClient.start();
+            } catch (Throwable e) {
+                log.error("Start transactionCoordinatorClient error.", e);
+                throw new PulsarClientException(e);
+            }
+        }
+
         state.set(State.Open);
     }
 
@@ -302,8 +319,10 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        if (!conf.getTopicNames().stream().allMatch(TopicName::isValid)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
+        for (String topic : conf.getTopicNames()) {
+            if (!TopicName.isValid(topic)) {
+                return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
         }
 
         if (isBlank(conf.getSubscriptionName())) {
@@ -469,7 +488,7 @@ public class PulsarClientImpl implements PulsarClient {
         String topic = conf.getTopicName();
 
         if (!TopicName.isValid(topic)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
 
         if (conf.getStartMessageId() == null) {
@@ -526,7 +545,7 @@ public class PulsarClientImpl implements PulsarClient {
             topicName = TopicName.get(topic);
         } catch (Throwable t) {
             return FutureUtil
-                    .failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: " + topic));
+                    .failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
 
         return lookup.getSchema(topicName);
@@ -821,7 +840,7 @@ public class PulsarClientImpl implements PulsarClient {
     // are completed.
     // @Override
     public TransactionBuilder newTransaction() {
-        return new TransactionBuilderImpl(this);
+        return new TransactionBuilderImpl(this, tcClient);
     }
 
 }

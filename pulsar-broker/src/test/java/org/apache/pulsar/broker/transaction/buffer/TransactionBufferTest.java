@@ -29,10 +29,10 @@ import io.netty.buffer.Unpooled;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
-import org.apache.pulsar.broker.transaction.buffer.exceptions.UnexpectedTxnStatusException;
-import org.apache.pulsar.transaction.impl.common.TxnID;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -174,7 +174,7 @@ public class TransactionBufferTest {
             buffer.abortTxn(txnId).get();
             fail("Should fail to abort a committed transaction");
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof UnexpectedTxnStatusException);
+            assertTrue(e.getCause() instanceof TransactionStatusException);
         }
         txnMeta = buffer.getTransactionMeta(txnId).get();
         assertEquals(txnId, txnMeta.id());
@@ -241,6 +241,7 @@ public class TransactionBufferTest {
             buffer.appendBufferToTxn(
                 txnId,
                 sequenceId,
+                1,
                 Unpooled.copiedBuffer("message-" + sequenceId, UTF_8)
             ).join();
         }
@@ -258,7 +259,7 @@ public class TransactionBufferTest {
                 assertEquals(txnEntry.txnId(), txnID);
                 assertEquals(txnEntry.sequenceId(), startSequenceId + i);
                 assertEquals(new String(
-                    ByteBufUtil.getBytes(txnEntry.getEntryBuffer()),
+                    ByteBufUtil.getBytes(txnEntry.getEntry().getDataBuffer()),
                     UTF_8
                 ), "message-" + i);
             }

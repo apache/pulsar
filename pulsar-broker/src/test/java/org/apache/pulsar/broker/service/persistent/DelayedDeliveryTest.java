@@ -19,21 +19,32 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import lombok.Cleanup;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -43,6 +54,9 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(true);
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setDelayedDeliveryTickTimeMillis(1024);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -270,5 +284,170 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
             assertTrue(receivedMsgs.contains("msg-" + i));
         }
         t.interrupt();
+    }
+
+    @Test
+    public void testOrderingDispatch() throws PulsarClientException {
+        String topic = "persistent://public/default/testOrderingDispatch-" + System.nanoTime();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("shared-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        final int N = 1000;
+
+        for (int i = 0; i < N; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        List<Message<String>> receives = new ArrayList<>(N);
+        for (int i = 0; i < N; i++) {
+            Message<String> received = consumer.receive();
+            receives.add(received);
+            consumer.acknowledge(received);
+        }
+
+        assertEquals(receives.size(), N);
+
+        for (int i = 0; i < N; i++) {
+            if (i < N - 1) {
+                assertTrue(receives.get(i).getMessageId().compareTo(receives.get(i + 1).getMessageId()) < 0);
+            }
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
+        String topicName = "persistent://public/default/topic-" + UUID.randomUUID().toString();
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, false);
+        admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
+                break;
+            }
+        }
+
+        assertFalse(admin.topics().getDelayedDeliveryPolicy(topicName).isActive());
+        assertEquals(2000, admin.topics().getDelayedDeliveryPolicy(topicName).getTickTime());
+
+        admin.topics().removeDelayedDeliveryPolicy(topicName);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
+                break;
+            }
+        }
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+    }
+
+    @Test(timeOut = 20000)
+    public void testEnableTopicDelayedDelivery() throws Exception {
+        final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+        assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
+        //1 Set topic policy
+        DelayedDeliveryPolicies delayedDeliveryPolicies = new DelayedDeliveryPolicies(2000, true);
+        admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) != null) {
+                break;
+            }
+        }
+        //2 Setup consumer and producer
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("test-sub" + System.currentTimeMillis())
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName).create();
+        //3 Send delay message
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .value("delayed-msg-" + i)
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .sendAsync();
+        }
+        producer.flush();
+
+        //4 There will be no message in the first 3 seconds
+        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+
+        Set<String> delayedMessages = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            Message<String> msg = consumer.receive(4, TimeUnit.SECONDS);
+            delayedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+        for (int i = 0; i < 10; i++) {
+            assertTrue(delayedMessages.contains("delayed-msg-" + i));
+        }
+        //5 Disable delayed delivery
+        delayedDeliveryPolicies.setActive(false);
+        admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (!admin.topics().getDelayedDeliveryPolicy(topicName).isActive()) {
+                break;
+            }
+        }
+        producer.newMessage().value("disabled-msg").deliverAfter(5, TimeUnit.SECONDS).send();
+        //6 Delay deliver is disabled, so we can receive message immediately
+        Message<String> msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        consumer.acknowledge(msg);
+        //7 Set a very long tick time, so that trackDelayedDelivery will fail. we can receive msg immediately.
+        delayedDeliveryPolicies.setActive(true);
+        delayedDeliveryPolicies.setTickTime(Integer.MAX_VALUE);
+        admin.topics().setDelayedDeliveryPolicy(topicName, delayedDeliveryPolicies);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topicName).isActive()) {
+                break;
+            }
+        }
+        producer.newMessage().value("long-tick-msg").deliverAfter(5, TimeUnit.SECONDS).send();
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        consumer.acknowledge(msg);
+        //8 remove topic policy, it will use namespace level policy
+        admin.topics().removeDelayedDeliveryPolicy(topicName);
+        //wait for update
+        for (int i = 0; i < 50; i++) {
+            Thread.sleep(100);
+            if (admin.topics().getDelayedDeliveryPolicy(topicName) == null) {
+                break;
+            }
+        }
+        producer.newMessage().value("long-tick-msg").deliverAfter(2, TimeUnit.SECONDS).send();
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+        msg = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(msg);
     }
 }

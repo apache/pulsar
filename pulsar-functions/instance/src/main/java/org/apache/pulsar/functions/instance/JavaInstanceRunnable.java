@@ -34,12 +34,14 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.SimpleStorageAdminClientImpl;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.ClientException;
 import org.apache.bookkeeper.clients.exceptions.InternalServerException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
+import org.apache.bookkeeper.clients.utils.ClientResources;
 import org.apache.bookkeeper.common.util.Backoff.Jitter;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
@@ -70,6 +72,7 @@ import org.apache.pulsar.functions.sink.PulsarSinkDisable;
 import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.io.core.Sink;
@@ -330,9 +333,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void createStateTable(String tableNs, String tableName, StorageClientSettings settings) throws Exception {
-        try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
-            .withSettings(settings)
-            .buildAdmin()) {
+    	try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
+             StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
+             ClientResources.create().scheduler())){
             StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
                 .setInitialNumRanges(4)
                 .setMinNumRanges(4)
@@ -683,6 +686,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
                 consumerConfig.setSchemaProperties(conf.getSchemaPropertiesMap());
+                consumerConfig.setConsumerProperties(conf.getConsumerPropertiesMap());
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
@@ -721,6 +725,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 case FAILOVER:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Failover);
                     break;
+                case KEY_SHARED:
+                    pulsarSourceConfig.setSubscriptionType(SubscriptionType.Key_Shared);
+                    break;
                 default:
                     pulsarSourceConfig.setSubscriptionType(SubscriptionType.Shared);
                     break;
@@ -741,9 +748,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
             object = new PulsarSource(this.client, pulsarSourceConfig, this.properties, this.functionClassLoader);
         } else {
-            object = Reflections.createInstance(
-                    sourceSpec.getClassName(),
-                    this.functionClassLoader);
+
+            // check if source is a batch source
+            if (sourceSpec.getClassName().equals(BatchSourceExecutor.class.getName())) {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.instanceClassLoader);
+            } else {
+                object = Reflections.createInstance(
+                  sourceSpec.getClassName(),
+                  this.functionClassLoader);
+            }
         }
 
         Class<?>[] typeArgs;
@@ -798,6 +813,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
                 pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
+
+                if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
+                    pulsarSinkConfig.setProducerSpec(this.instanceConfig.getFunctionDetails().getSink().getProducerSpec());
+                }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats, this.functionClassLoader);
             }

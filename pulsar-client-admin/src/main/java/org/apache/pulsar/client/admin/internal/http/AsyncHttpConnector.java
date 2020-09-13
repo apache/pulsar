@@ -240,8 +240,9 @@ public class AsyncHttpConnector implements Connector {
                                             retries - 1);
                                 } else {
                                     resultFuture.completeExceptionally(
-                                            new RetryException("Could not complete the operation. Number of retries "
-                                            + "has been exhausted.", throwable));
+                                        new RetryException("Could not complete the operation. Number of retries "
+                                            + "has been exhausted. Failed reason: " + throwable.getMessage(),
+                                            throwable));
                                 }
                             }
                         } else {
@@ -309,6 +310,7 @@ public class AsyncHttpConnector implements Connector {
     public void close() {
         try {
             httpClient.close();
+            delayer.shutdownNow();
         } catch (IOException e) {
             log.warn("Failed to close http client", e);
         }

@@ -22,6 +22,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -85,9 +86,9 @@ public class Worker {
             throws InterruptedException, PulsarAdminException, IOException {
         // initializing pulsar functions namespace
         PulsarAdmin admin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                 workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                workerConfig.isTlsHostnameVerificationEnable());
+                workerConfig.isTlsEnableHostnameVerification());
         InternalConfigurationData internalConf;
         // make sure pulsar broker is up
         log.info("Checking if pulsar service at {} is up...", workerConfig.getPulsarWebServiceUrl());
@@ -179,13 +180,13 @@ public class Worker {
             }
 
             this.configurationCacheService = new ConfigurationCacheService(this.globalZkCache, this.workerConfig.getPulsarFunctionsCluster());
-                return new AuthorizationService(PulsarConfigurationLoader.convertFrom(workerConfig), this.configurationCacheService);
+                return new AuthorizationService(getServiceConfiguration(), this.configurationCacheService);
             }
         return null;
     }
 
     private AuthenticationService getAuthenticationService() throws PulsarServerException {
-        return new AuthenticationService(PulsarConfigurationLoader.convertFrom(workerConfig));
+        return new AuthenticationService(getServiceConfiguration());
     }
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
@@ -222,5 +223,11 @@ public class Worker {
 
     public Optional<Integer> getListenPortHTTPS() {
         return this.server.getListenPortHTTPS();
+    }
+
+    private ServiceConfiguration getServiceConfiguration() {
+        ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(workerConfig);
+        serviceConfiguration.setClusterName(workerConfig.getPulsarFunctionsCluster());
+        return serviceConfiguration;
     }
 }

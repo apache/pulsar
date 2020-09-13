@@ -48,13 +48,25 @@ downloadDirectory: download/pulsar_functions
 
 # Configure the pulsar client used by function metadata management
 #
-# points 
+# points
+# Whether to enable TLS when clients connect to broker
+useTls: false
+# For TLS:
+# brokerServiceUrl=pulsar+ssl://localhost:6651/
 pulsarServiceUrl: pulsar://localhost:6650
+# For TLS:
+# webServiceUrl=https://localhost:8443/
 pulsarWebServiceUrl: http://localhost:8080
+
+############################################
+# security settings for pulsar broker client
+############################################
+# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
+# brokerClientTrustCertsFilePath:
 # the authentication plugin to be used by the pulsar client used in worker service
-# clientAuthenticationPlugin:
+# brokerClientAuthenticationPlugin:
 # the authentication parameter to be used by the pulsar client used in worker service
-# clientAuthenticationParameters:
+# brokerClientAuthenticationParameters:
 
 # Bookie Authentication
 #
@@ -72,6 +84,8 @@ pulsarFunctionsNamespace: public/functions
 pulsarFunctionsCluster: standalone
 functionMetadataTopicName: metadata
 clusterCoordinationTopicName: coordinate
+# Should the metadata topic be compacted? Defaulting it to false for backwards compatibility
+useCompactedMetadataTopic: false
 # Number of threads to use for HTTP requests processing. Default is set to 8
 numHttpServerThreads: 8
 
@@ -81,6 +95,8 @@ schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinSche
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000
 rescheduleTimeoutMs: 60000
+# frequency at which to check if cluster needs rebalancing (set to -1 to disable)
+rebalanceCheckFreqSec: -1
 initialBrokerReconnectMaxRetries: 60
 assignmentWriteMaxRetries: 60
 instanceLivenessCheckFreqMs: 30000
@@ -125,6 +141,14 @@ functionRuntimeFactoryConfigs:
 #  jobNamespace:
 #  # the docker image to run function instance. by default it is `apachepulsar/pulsar`
 #  pulsarDockerImageName:
+#  # the docker image to run function instance according to different configurations provided by users.
+#  # By default it is `apachepulsar/pulsar`.
+#  # e.g:
+#  # functionDockerImages:
+#  #   JAVA: JAVA_IMAGE_NAME
+#  #   PYTHON: PYTHON_IMAGE_NAME
+#  #   GO: GO_IMAGE_NAME
+#  functionDockerImages:
 #  # the root directory of pulsar home directory in `pulsarDockerImageName`. by default it is `/pulsar`.
 #  # if you are using your own built image in `pulsarDockerImageName`, you need to set this setting accordingly
 #  pulsarRootDir:
@@ -193,14 +217,10 @@ tlsKeyFilePath:
 tlsTrustCertsFilePath:
 # Accept untrusted TLS certificate from client 
 tlsAllowInsecureConnection: false
+# Whether server hostname must match the common name of the certificate
+tlsEnableHostnameVerification: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection) 
 tlsCertRefreshCheckDurationSec: 300
-
-############################################
-# security settings for pulsar broker client
-############################################
-# The path to trusted certificates used by the Pulsar client to authenticate with Pulsar brokers
-brokerClientTrustCertsFilePath:
 
 ########################
 # State Management
@@ -215,3 +235,6 @@ brokerClientTrustCertsFilePath:
 
 connectorsDirectory: ./connectors
 functionsDirectory: ./functions
+
+# Should connector config be validated during during submission
+validateConnectorConfig: false

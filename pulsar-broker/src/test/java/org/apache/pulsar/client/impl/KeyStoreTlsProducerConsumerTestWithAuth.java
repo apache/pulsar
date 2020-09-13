@@ -85,7 +85,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         super.internalCleanup();
     }
 
-    protected void internalSetUpForBroker() throws Exception {
+    protected void internalSetUpForBroker() {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsEnabledWithKeyStore(true);
@@ -108,6 +108,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
+        conf.setNumExecutorThreadPoolSize(5);
     }
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
@@ -169,7 +170,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage"
                            + System.currentTimeMillis();
 
@@ -200,12 +201,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 300000)
+    @Test
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol"
                            + System.currentTimeMillis();
 
@@ -225,20 +226,20 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
         // Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
 
-        try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-        } catch (Exception ex) {
-            Assert.fail("Should not fail since certs are sent.");
-        }
+        // Should not fail since certs are sent
+        pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
     }
 
-    @Test(timeOut = 30000)
+    @Test
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final int MESSAGE_SIZE = 16 * 1024 + 1;
-        log.info("-- message size --", MESSAGE_SIZE);
+        log.info("-- message size -- {}", MESSAGE_SIZE);
         String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol"
                            + System.currentTimeMillis();
 
@@ -256,12 +257,12 @@ public class KeyStoreTlsProducerConsumerTestWithAuth extends ProducerConsumerBas
 
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
-        try {
-            pulsarClient.newConsumer().topic(topicName)
-                    .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-        } catch (Exception ex) {
-            Assert.fail("Should not fail since certs are sent.");
-        }
+        // Should not fail since certs are sent
+        pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
     }
 
 }

@@ -35,7 +35,8 @@
       "version-2.4.1-functions-monitor",
       "version-2.4.1-functions-secure",
       "version-2.4.1-functions-troubleshoot",
-      "version-2.4.1-functions-cli"
+      "version-2.4.1-functions-cli",
+      "version-2.4.1-window-functions-context"
     ],
     "Pulsar IO": [
       "version-2.4.1-io-overview",

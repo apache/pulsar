@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Queues;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -195,6 +196,30 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected void failPendingReceives(ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives) {
+        while (!pendingReceives.isEmpty()) {
+            CompletableFuture<Message<T>> receiveFuture = pendingReceives.poll();
+            if (receiveFuture == null) {
+                break;
+            }
+            receiveFuture.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
+        }
+    }
+
+    protected void failPendingBatchReceives(ConcurrentLinkedQueue<OpBatchReceive<T>> pendingBatchReceives) {
+        while (!pendingBatchReceives.isEmpty()) {
+            OpBatchReceive<T> opBatchReceive = pendingBatchReceives.poll();
+            if (opBatchReceive == null || opBatchReceive.future == null) {
+                break;
+            }
+            opBatchReceive.future.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException(String.format("The consumer which subscribes the topic %s with subscription name %s " +
+                            "was already closed when cleaning and closing the consumers", topic, subscription)));
+        }
+    }
+
     abstract protected Messages<T> internalBatchReceive() throws PulsarClientException;
 
     abstract protected CompletableFuture<Messages<T>> internalBatchReceiveAsync();
@@ -218,6 +243,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
+    public void acknowledge(List<MessageId> messageIdList) throws PulsarClientException {
+        try {
+            acknowledgeAsync(messageIdList).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
     public void acknowledge(Messages<?> messages) throws PulsarClientException {
         try {
             acknowledgeAsync(messages).get();
@@ -228,7 +262,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public void reconsumeLater(Message<?> message, long delayTime, TimeUnit unit) throws PulsarClientException {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             throw new PulsarClientException("reconsumeLater method not support!");
         }
         try {
@@ -299,8 +333,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList) {
+        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), null);
+    }
+
+    @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
         try {
@@ -331,7 +370,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(Message<?> message, long delayTime, TimeUnit unit) {
-        if (conf.isRetryEnable() == false) {
+        if (!conf.isRetryEnable()) {
             return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
@@ -384,15 +423,27 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         negativeAcknowledge(message.getMessageId());
     }
 
+    protected CompletableFuture<Void> doAcknowledgeWithTxn(List<MessageId> messageIdList, AckType ackType,
+                                                           Map<String,Long> properties,
+                                                           TransactionImpl txn) {
+        CompletableFuture<Void> ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
+        if (txn != null) {
+            txn.registerAckedTopic(getTopic(), subscription);
+            return txn.registerAckOp(ackFuture);
+        } else {
+            return ackFuture;
+        }
+    }
+
     protected CompletableFuture<Void> doAcknowledgeWithTxn(MessageId messageId, AckType ackType,
                                                            Map<String,Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture = doAcknowledge(messageId, ackType, properties, txn);
-        if (txn != null) {
+        if (txn != null && (this instanceof ConsumerImpl)) {
             // it is okay that we register acked topic after sending the acknowledgements. because
             // the transactional ack will not be visiable for consumers until the transaction is
             // committed
-            txn.registerAckedTopic(getTopic());
+            txn.registerAckedTopic(getTopic(), subscription);
             // register the ackFuture as part of the transaction
             return txn.registerAckOp(ackFuture);
         } else {
@@ -404,8 +455,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                              Map<String,Long> properties,
                                                              TransactionImpl txn);
 
+    protected abstract CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
+                                                    Map<String, Long> properties,
+                                                    TransactionImpl txn);
+
     protected abstract CompletableFuture<Void> doReconsumeLater(Message<?> message, AckType ackType,
-                                                                Map<String,Long> properties, 
+                                                                Map<String,Long> properties,
                                                                 long delayTime,
                                                                 TimeUnit unit);
 

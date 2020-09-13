@@ -71,8 +71,6 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     protected abstract void cancelPendingRead();
 
-    protected abstract boolean isConsumersExceededOnTopic();
-
     protected abstract boolean isConsumersExceededOnSubscription();
 
     protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
@@ -145,17 +143,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             throw new ConsumerBusyException("Exclusive consumer is already connected");
         }
 
-        if (isConsumersExceededOnTopic()) {
-            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", this.topicName);
-            throw new ConsumerBusyException("Topic reached max consumers limit");
-        }
-
         if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", this.topicName);
             throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
-
-        consumers.add(consumer);
 
         if (subscriptionType == SubType.Exclusive
                 && consumer.getKeySharedMeta() != null
@@ -167,6 +158,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         } else {
             isKeyHashRangeFiltered = false;
         }
+
+        consumers.add(consumer);
 
         if (!pickAndScheduleActiveConsumer()) {
             // the active consumer is not changed
