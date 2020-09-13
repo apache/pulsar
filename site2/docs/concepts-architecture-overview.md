@@ -48,7 +48,7 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 Pulsar uses [Apache Zookeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. In a Pulsar instance:
 
 * A configuration store quorum stores configuration for tenants, namespaces, and other entities that need to be globally consistent.
-* Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.
+* Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.
 
 ## Persistent storage
 
@@ -150,3 +150,5 @@ from pulsar import Client
 
 client = Client('pulsar://pulsar-cluster.acme.com:6650')
 ```
+
+Note that in Pulsar, each topic is handled by only one broker. Therefore, for creating, reading, updating and deleting topics, requests are sent to any broker initially. If the broker finds that it cannot handle the request for this topic, it redirects the client to the correct broker. 

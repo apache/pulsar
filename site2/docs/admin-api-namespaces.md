@@ -336,7 +336,7 @@ admin.namespaces().getPersistence(namespace)
 
 #### unload namespace bundle
 
-The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload heavy bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
+The namespace bundle is a virtual group of topics which belong to the same namespace. If the broker gets overloaded with the number of bundles, this command can help unload a bundle from that broker, so it can be served by some other less-loaded brokers. The namespace bundle ID ranges from 0x00000000 to 0xffffffff.
 
 ###### CLI
 
@@ -417,7 +417,7 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 
 #### split bundle
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. If bundle gets heavy with multiple live topics in it then it creates load on that broker and in order to resolve this issue, admin can split bundle using this command.
+Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. If a bundle has multiple live heavily-used topics in it, then it creates load on that broker and in order to resolve this issue an admin can split the bundle using this command permitting the new bundles to be spread across the cluster.
 
 ###### CLI
 
