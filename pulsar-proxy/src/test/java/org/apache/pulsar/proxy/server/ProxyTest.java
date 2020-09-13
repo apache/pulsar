@@ -23,14 +23,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -189,6 +188,29 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    /**
+     * test auto create partitioned topic by proxy
+     **/
+    @Test
+    public void testAutoCreateTopic() throws Exception{
+        int defaultPartition=2;
+        int defaultNumPartitions=pulsar.getConfiguration().getDefaultNumPartitions();
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(defaultPartition);
+        try {
+            @Cleanup
+            PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+              .build();
+            String topic = "persistent://sample/test/local/partitioned-proxy-topic";
+            CompletableFuture<List<String>> partitionNamesFuture = client.getPartitionsForTopic(topic);
+            List<String> partitionNames = partitionNamesFuture.get(30000, TimeUnit.MILLISECONDS);
+            Assert.assertEquals(partitionNames.size(), defaultPartition);
+        }finally {
+            pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
+            pulsar.getConfiguration().setDefaultNumPartitions(defaultNumPartitions);
+        }
+    }
+
     @Test
     public void testRegexSubscription() throws Exception {
         @Cleanup
@@ -222,7 +244,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic1")
+                .topic("persistent://sample/test/local/regex-sub-topic1")
                 .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));

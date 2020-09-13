@@ -215,65 +215,57 @@ public class LookupProxyHandler {
         }
     }
 
+    /**
+     *   Always get partition metadata from broker service.
+     *
+     *
+     **/
     private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
             long clientRequestId) {
         TopicName topicName = TopicName.get(partitionMetadata.getTopic());
-        if (isBlank(brokerServiceURL)) {
-            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topicName,
-                    proxyConnection.clientAuthRole, proxyConnection.authenticationData).thenAccept(metadata -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Total number of partitions for topic {} is {}",
-                                    proxyConnection.clientAuthRole, topicName, metadata.partitions);
-                        }
-                        proxyConnection.ctx().writeAndFlush(
-                                Commands.newPartitionMetadataResponse(metadata.partitions, clientRequestId));
-                    }).exceptionally(ex -> {
-                        log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, topicName,
-                                ex.getMessage(), ex);
-                        proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(
-                                ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
-                        return null;
-                    });
-        } else {
-            URI brokerURI;
-            try {
-                brokerURI = new URI(brokerServiceURL);
-            } catch (URISyntaxException e) {
-                proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                        e.getMessage(), clientRequestId));
+        URI brokerURI;
+        try {
+            String availableBrokerServiceURL = getBrokerServiceUrl(clientRequestId);
+            if (availableBrokerServiceURL == null) {
+                log.warn("No available broker for {} to lookup partition metadata", topicName);
                 return;
             }
-            InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
-
-            if (log.isDebugEnabled()) {
-                log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
-                        topicName.getPartitionedTopicName(), clientRequestId);
-            }
-
-            proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
-                // Connected to backend broker
-                long requestId = proxyConnection.newRequestId();
-                ByteBuf command;
-                command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
-                clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
-                    if (t != null) {
-                        log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
-                            t.getMessage(), t);
-                        proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
-                            t.getMessage(), clientRequestId));
-                    } else {
-                        proxyConnection.ctx().writeAndFlush(
-                            Commands.newPartitionMetadataResponse(r.partitions, clientRequestId));
-                    }
-                    proxyConnection.getConnectionPool().releaseConnection(clientCnx);
-                });
-            }).exceptionally(ex -> {
-                // Failed to connect to backend broker
-                proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
-                        ex.getMessage(), clientRequestId));
-                return null;
-            });
+            brokerURI = new URI(availableBrokerServiceURL);
+        } catch (URISyntaxException e) {
+            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                    e.getMessage(), clientRequestId));
+            return;
         }
+        InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
+
+        if (log.isDebugEnabled()) {
+            log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
+                    topicName.getPartitionedTopicName(), clientRequestId);
+        }
+
+        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
+            // Connected to backend broker
+            long requestId = proxyConnection.newRequestId();
+            ByteBuf command;
+            command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
+            clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
+                if (t != null) {
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                        t.getMessage(), t);
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                        t.getMessage(), clientRequestId));
+                } else {
+                    proxyConnection.ctx().writeAndFlush(
+                        Commands.newPartitionMetadataResponse(r.partitions, clientRequestId));
+                }
+                proxyConnection.getConnectionPool().releaseConnection(clientCnx);
+            });
+        }).exceptionally(ex -> {
+            // Failed to connect to backend broker
+            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                    ex.getMessage(), clientRequestId));
+            return null;
+        });
     }
 
     public void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
@@ -301,7 +293,7 @@ public class LookupProxyHandler {
 
     private void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace,
                                             long clientRequestId) {
-        String serviceUrl = getServiceUrl(clientRequestId);
+        String serviceUrl = getBrokerServiceUrl(clientRequestId);
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
             return;
@@ -363,7 +355,7 @@ public class LookupProxyHandler {
         }
 
         final long clientRequestId = commandGetSchema.getRequestId();
-        String serviceUrl = getServiceUrl(clientRequestId);
+        String serviceUrl = getBrokerServiceUrl(clientRequestId);
         String topic = commandGetSchema.getTopic();
 
         if(!StringUtils.isNotBlank(serviceUrl)) {
@@ -410,7 +402,10 @@ public class LookupProxyHandler {
 
     }
 
-    private String getServiceUrl(long clientRequestId) {
+    /**
+     *  Get default broker service url or discovery an available broker
+     **/
+    private String getBrokerServiceUrl(long clientRequestId) {
         if (isBlank(brokerServiceURL)) {
             ServiceLookupData availableBroker;
             try {
