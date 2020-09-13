@@ -178,8 +178,8 @@ public final class ServiceUnitZkUtils {
      *
      * @param zkc
      *            the <code>ZooKeeper</code> connected session object
-     * @param nsname
-     *            the name space name
+     * @param path
+     *            the namespace path
      * @param value
      *            the broker url that serves the name space.
      * @return
