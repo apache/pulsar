@@ -151,4 +151,4 @@ from pulsar import Client
 client = Client('pulsar://pulsar-cluster.acme.com:6650')
 ```
 
-Note that in Pulsar, each topic is handled by only one broker. Therefore, for creating, reading, updating and deleting topics, requests are sent to any broker initially. If the broker finds that it cannot handle the request for this topic, it redirects the client to the correct broker. 
+Note: In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.

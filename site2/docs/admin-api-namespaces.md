@@ -415,9 +415,10 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ```
 
 
-#### split bundle
+#### Split bundle
 
-Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. If a bundle has multiple live heavily-used topics in it, then it creates load on that broker and in order to resolve this issue an admin can split the bundle using this command permitting the new bundles to be spread across the cluster.
+Each namespace bundle can contain multiple topics and each bundle can be served by only one broker. 
+If a single bundle is creating an excessive load on a broker an admin can split the bundle using this command permitting one or more of the new bundles to be unloaded thus spreading the load across the brokers.
 
 ###### CLI
 
