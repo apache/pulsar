@@ -64,9 +64,8 @@ class BatchMessageAcker {
         return bitSet.isEmpty();
     }
 
-    public synchronized boolean ackIndividualWithTransaction(int batchIndex) {
+    public synchronized boolean ackIndividualWithTransaction() {
         this.hasAckByTransaction = true;
-        bitSet.clear(batchIndex);
         return bitSet.isEmpty();
     }
 

@@ -493,6 +493,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         } else {
             isAllMsgsAcked = batchMessageId.ackCumulative();
+            if (txn != null) {
+                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties, txn);
+                batchMessageId.ackIndividualWithTransaction();
+                return true;
+            }
         }
         int outstandingAcks = 0;
         if (log.isDebugEnabled()) {

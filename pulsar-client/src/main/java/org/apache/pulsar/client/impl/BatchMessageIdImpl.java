@@ -133,7 +133,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     }
 
     public boolean ackIndividualWithTransaction() {
-        return acker.ackIndividualWithTransaction(batchIndex);
+        return acker.ackIndividualWithTransaction();
     }
 
     public boolean ackCumulative() {
