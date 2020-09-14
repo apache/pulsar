@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -590,6 +591,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
+        if (exception.getCause() instanceof TransactionStatusException) {
+            waitTimeMillis = 10;
+        }
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 if (!havePendingRead) {

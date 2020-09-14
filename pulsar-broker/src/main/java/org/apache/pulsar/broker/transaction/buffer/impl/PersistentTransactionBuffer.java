@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -52,6 +53,8 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -202,6 +205,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     private void handlePendingCommit() {
         pendingCommitHandling = true;
         TxnID txnID = pendingCommitTxn.peek();
+        log.info("handlePendingCommit txnId: {} start", txnID);
         txnCursor.getTxnMeta(txnID, false).thenAccept(meta -> {
             if (meta.status().equals(TxnStatus.COMMITTING)) {
                 commitPartitionTopic(txnID).thenCompose(position ->
@@ -212,7 +216,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                             if (throwable != null) {
                                 handlePendingCommit();
                             } else {
-                                log.info("handlePendingCommit txnId: {}", txnID);
+                                log.info("handlePendingCommit txnId: {} finished", txnID);
                                 pendingCommitTxn.remove(txnID);
                                 if (pendingCommitTxn.peek() != null) {
                                     handlePendingCommit();
@@ -237,7 +241,9 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
         ByteBuf commitMarker = Markers.newTxnCommitMarker(
                 ptSequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
 
+        log.info("commitPartitionTopic txnId {} start", txnID);
         originTopic.publishMessage(commitMarker, (e, ledgerId, entryId) -> {
+            log.info("commitPartitionTopic txnId {} finished", txnID);
             positionFuture.complete(new PositionImpl(ledgerId, entryId));
         });
 
