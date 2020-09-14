@@ -112,9 +112,6 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         checkNotNull(other.ackSet);
         BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
         BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
-        if (otherAckSet.size() < thisAckSet.size()) {
-            otherAckSet.set(otherAckSet.size(), thisAckSet.size());
-        }
         thisAckSet.flip(0, thisAckSet.size());
         otherAckSet.flip(0, otherAckSet.size());
         thisAckSet.and(otherAckSet);
@@ -124,16 +121,13 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         return isAckSetRepeated;
     }
 
-    public void andAckSet(PositionImpl other) {
+    public void orAckSet(PositionImpl other) {
         checkNotNull(other);
         checkNotNull(ackSet);
         checkNotNull(other.ackSet);
         BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
         BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
-        if (otherAckSet.size() < thisAckSet.size()) {
-            otherAckSet.set(otherAckSet.size(), thisAckSet.size());
-        }
-        thisAckSet.and(otherAckSet);
+        thisAckSet.or(otherAckSet);
         this.ackSet = thisAckSet.toLongArray();
     }
 
