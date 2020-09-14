@@ -238,7 +238,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
     @Test
-    public void testremoveOwnershipNamespaceBundle() throws Exception {
+    public void testRemoveOwnershipNamespaceBundle() throws Exception {
 
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
 
@@ -255,7 +255,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
 
         NamespaceBundle bundle = bundles.getBundles().get(0);
-        assertNotNull(ownershipCache.tryAcquiringOwnership(bundle));
+        ownershipCache.tryAcquiringOwnership(bundle).get();
         assertNotNull(ownershipCache.getOwnedBundle(bundle));
         ownershipCache.removeOwnership(bundles).get();
         assertNull(ownershipCache.getOwnedBundle(bundle));

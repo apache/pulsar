@@ -294,7 +294,7 @@ public class KubernetesRuntime implements Runtime {
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
                 channel[i] = ManagedChannelBuilder.forAddress(address, grpcPort)
-                        .usePlaintext(true)
+                        .usePlaintext()
                         .build();
                 stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
             }
