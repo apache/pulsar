@@ -116,7 +116,7 @@ public class Bookies extends AdminResource {
 
     @POST
     @Path("/racks-info/{bookie}")
-    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note: the -b format is `address:port` not `address` )")
+    @ApiOperation(value = "Updates the rack placement information for a specific bookie in the cluster (note: the -b format is `address:port` not `address`)")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void updateBookieRackInfo(@PathParam("bookie") String bookieAddress, @QueryParam("group") String group,
             BookieInfo bookieInfo) throws Exception {
