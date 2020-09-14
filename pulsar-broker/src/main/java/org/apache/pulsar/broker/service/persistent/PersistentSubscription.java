@@ -491,6 +491,12 @@ public class PersistentSubscription implements Subscription {
                     }
                     txnSet.add(txnId);
                 } else {
+                    if (this.pendingAckMessages.contains(position)) {
+                        String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
+                                " try to ack message:" + position + " in pending ack status.";
+                        log.error(errorMsg);
+                        throw new TransactionConflictException(errorMsg);
+                    }
                     pendingAckMessageForCurrentTxn.put(position, position);
                     this.pendingAckMessages.add(position);
                 }
