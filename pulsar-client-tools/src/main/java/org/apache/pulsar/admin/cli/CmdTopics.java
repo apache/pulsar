@@ -160,15 +160,14 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
         jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
-<<<<<<< HEAD
+
         jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
         jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
         jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
-=======
+
         jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
         jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
         jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
->>>>>>> add subscribe rate on topic level
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")

@@ -135,7 +135,6 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.Op;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,7 +230,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.backloggedCursorThresholdEntries = brokerService.pulsar().getConfiguration().getManagedLedgerCursorBackloggedThreshold();
 
         initializeDispatchRateLimiterIfNeeded(Optional.empty());
-        brokerService.getPulsar().getTopicPoliciesService().registerListener(TopicName.get(topic), this);
+        registerTopicPolicyListener();
+
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
@@ -582,6 +582,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 future.completeExceptionally(new NotAllowedException("Subscribe limited by subscribe rate limit per consumer."));
                 return future;
             }
+
         }
 
         lock.readLock().lock();
@@ -2467,6 +2468,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.info("Disabling publish throttling for {}", this.topic);
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
+        }
+    }
+
+    private void registerTopicPolicyListener() {
+        if (brokerService.pulsar().getConfig().isSystemTopicEnabled() &&
+                brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
+            TopicName topicName = TopicName.get(topic);
+            TopicName cloneTopicName = topicName;
+            if (topicName.isPartitioned()) {
+                cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
+            }
+
+            brokerService.getPulsar().getTopicPoliciesService().registerListener(cloneTopicName, this);
         }
     }
 

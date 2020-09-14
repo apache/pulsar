@@ -21,16 +21,13 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.base.MoreObjects;
 
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.RateLimiter;
-import org.apache.pulsar.common.util.RestException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +53,7 @@ public class SubscribeRateLimiter {
         subscribeRateLimiter = new ConcurrentHashMap<>();
         this.executorService = brokerService.pulsar().getExecutor();
         // get subscribeRate from topic level policies
-        this.subscribeRate = Optional.ofNullable(getTopicPolicies(TopicName.get(this.topicName)))
+        this.subscribeRate = Optional.ofNullable(brokerService.getTopicPolicies(TopicName.get(this.topicName)))
                 .map(TopicPolicies::getSubscribeRate)
                 .orElse(null);
 
@@ -110,9 +107,10 @@ public class SubscribeRateLimiter {
      * default broker subscribe-throttling-rate
      */
     private synchronized void addSubscribeLimiterIfAbsent(ConsumerIdentifier consumerIdentifier) {
-        if (subscribeRateLimiter.get(consumerIdentifier) != null) {
+        if (subscribeRateLimiter.get(consumerIdentifier) != null || !isSubscribeRateEnabled(this.subscribeRate)) {
             return;
         }
+
         updateSubscribeRate(consumerIdentifier, this.subscribeRate);
     }
 
@@ -150,11 +148,11 @@ public class SubscribeRateLimiter {
 
     public void onPoliciesUpdate(Policies data) {
         // if subscribe rate is set on topic policy, skip subscribe rate update
-        SubscribeRate subscribeRate = Optional.ofNullable(getTopicPolicies(TopicName.get(topicName)))
+        SubscribeRate subscribeRate = Optional.ofNullable(brokerService.getTopicPolicies(TopicName.get(topicName)))
                 .map(TopicPolicies::getSubscribeRate)
                 .orElse(null);
         if (subscribeRate != null) {
-            return ;
+            return;
         }
 
         String cluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -171,6 +169,7 @@ public class SubscribeRateLimiter {
                 brokerService.pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
                 brokerService.pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
                 );
+
         // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
         // cluster-throttling rate
         // if topic policy-throttling rate is disabled
@@ -179,13 +178,17 @@ public class SubscribeRateLimiter {
         }
 
         if (!isSubscribeRateEnabled(subscribeRate) && !isSubscribeRateEnabled(namespacePolicySubscribeRate)
-            && isSubscribeRateEnabled(newSubscribeRate)) {
+                && isSubscribeRateEnabled(newSubscribeRate)) {
             subscribeRate = newSubscribeRate;
         }
         this.subscribeRate = subscribeRate;
         stopResetTask();
         for (ConsumerIdentifier consumerIdentifier : this.subscribeRateLimiter.keySet()) {
-            updateSubscribeRate(consumerIdentifier, subscribeRate);
+            if (!isSubscribeRateEnabled(this.subscribeRate)) {
+                removeSubscribeLimiter(consumerIdentifier);
+            } else {
+                updateSubscribeRate(consumerIdentifier, subscribeRate);
+            }
         }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
             this.resetTask = createTask();
@@ -322,35 +325,5 @@ public class SubscribeRateLimiter {
         }
     }
 
-
-    /**
-     * Get {@link TopicPolicies} for this topic.
-     * @param topicName
-     * @return TopicPolicies is exist else return null.
-     */
-    private TopicPolicies getTopicPolicies(TopicName topicName) {
-        TopicName cloneTopicName = topicName;
-        if (topicName.isPartitioned()) {
-            cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        }
-        try {
-            checkTopicLevelPolicyEnable();
-            return brokerService.pulsar().getTopicPoliciesService().getTopicPolicies(cloneTopicName);
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.warn("Topic {} policies cache have not init.", topicName.getPartitionedTopicName());
-            return null;
-        } catch (RestException | NullPointerException e) {
-            log.warn("Topic level policies are not enabled. " +
-                    "Please refer to systemTopicEnabled and topicLevelPoliciesEnabled on broker.conf");
-            return null;
-        }
-    }
-
-    private void checkTopicLevelPolicyEnable() {
-        if (!this.brokerService.pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
-            throw new RestException(Response.Status.METHOD_NOT_ALLOWED,
-                    "Topic level policies is disabled, to enable the topic level policy and retry.");
-        }
-    }
     private static final Logger log = LoggerFactory.getLogger(SubscribeRateLimiter.class);
 }
