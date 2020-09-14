@@ -35,7 +35,7 @@ public class TransactionMetaImpl implements TransactionMeta {
 
     private final TxnID txnID;
     private SortedMap<Long, Position> entries;
-    private TxnStatus txnStatus;
+    private volatile TxnStatus txnStatus;
     private long committedAtLedgerId = -1L;
     private long committedAtEntryId = -1L;
     private int numMessageInTxn;

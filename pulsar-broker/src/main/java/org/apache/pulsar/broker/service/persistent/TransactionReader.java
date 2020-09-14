@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
@@ -47,15 +48,17 @@ public class TransactionReader {
     private final Topic topic;
     private final ManagedCursor managedCursor;
     private final ConcurrentLinkedQueue<TxnID> pendingTxnQueue;
+    private final Subscription subscription;
 
     private TransactionBuffer transactionBuffer;
     private CompletableFuture<TransactionBufferReader> transactionBufferReader;
     private int startBatchIndex = 0;
 
-    public TransactionReader(Topic topic, ManagedCursor managedCursor) {
+    public TransactionReader(Topic topic, ManagedCursor managedCursor, Subscription subscription) {
         this.topic = topic;
         this.managedCursor = managedCursor;
         this.pendingTxnQueue = Queues.newConcurrentLinkedQueue();
+        this.subscription = subscription;
     }
 
     public void addPendingTxn(long txnidMostBits, long txnidLatestBits) {
@@ -63,6 +66,7 @@ public class TransactionReader {
     }
 
     public boolean havePendingTxnToRead() {
+        log.info("[{}] havePendingTxnToRead pendingTxnQueue {}", subscription.getName(), pendingTxnQueue.size());
         return pendingTxnQueue.size() > 0;
     }
 
@@ -74,6 +78,7 @@ public class TransactionReader {
      * @param readEntriesCallback ReadEntriesCallback
      */
     public void read(int readMessageNum, Object ctx, AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
+        log.info("[{}] transactionReader read", subscription.getName());
         if (transactionBuffer == null) {
             topic.getTransactionBuffer(false).whenComplete((tb, throwable) -> {
                 if (throwable != null) {
@@ -106,14 +111,15 @@ public class TransactionReader {
             return;
         }
         if (transactionBufferReader == null) {
+            log.info("[{}] transactionBufferReader is null", subscription.getName());
             transactionBufferReader = transactionBuffer.openTransactionBufferReader(txnID, -1);
         }
-        log.info("transactionBufferReader is not null");
+        log.info("[{}] transactionBufferReader is not null", subscription.getName());
         transactionBufferReader.thenAccept(reader -> {
-            log.info("readNext readMessageNum: {}", readMessageNum);
+            log.info("[{}] readNext readMessageNum: {}", subscription.getName(), readMessageNum);
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
                 if (throwable != null && throwable.getCause() instanceof EndOfTransactionException) {
-                    log.info("transaction {} read finished.", txnID);
+                    log.info("[{}] transaction {} read finished.", subscription.getName(), txnID);
                     if (log.isDebugEnabled()) {
                         log.debug("transaction {} read finished.", txnID);
                     }
@@ -123,14 +129,14 @@ public class TransactionReader {
                 }
 
                 if (throwable != null) {
-                    log.error("Read transaction messages failed.", throwable);
+                    log.error("[{}] Read transaction messages failed.", subscription.getName(), throwable);
                     readEntriesCallback.readEntriesFailed(
                             ManagedLedgerException.getManagedLedgerException(throwable), ctx);
                     return;
                 }
 
                 if (transactionEntries == null || transactionEntries.size() == 0) {
-                    log.info("transaction {} read empty transactionEntries.", txnID);
+                    log.info("[{}] transaction {} read empty transactionEntries.", subscription.getName(), txnID);
                     resetReader(txnID, reader);
                     readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
                     return;
@@ -147,14 +153,15 @@ public class TransactionReader {
         }).exceptionally(throwable -> {
             transactionBufferReader = null;
             if (throwable.getCause() instanceof TransactionNotSealedException) {
-                log.info("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
+                log.info("[{}] transaction {} is not sealed, failed to open transactionBufferReader.",
+                        subscription.getName(), txnID);
                 if (log.isDebugEnabled()) {
                     log.debug("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
                 }
                 readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
                 return null;
             }
-            log.error("open transactionBufferReader failed.", throwable);
+            log.error("[{}] open transactionBufferReader failed.", subscription.getName(), throwable);
             readEntriesCallback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
             return null;
         });

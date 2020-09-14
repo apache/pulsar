@@ -185,6 +185,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
             MessageIdData messageIdData = MessageIdData.newBuilder().setLedgerId(-1L).setEntryId(-1L).build();
             ByteBuf committingMarker = Markers.newTxnCommittingMarker(
                     sequenceId, txnID.getMostSigBits(), txnID.getLeastSigBits(), messageIdData);
+            log.info("committingTxn txnId: {}", txnID);
             publishMessage(txnID, committingMarker, sequenceId)
                     .thenCompose(position -> meta.committingTxn()
                     .thenAccept(committingTxn -> {
@@ -211,6 +212,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                             if (throwable != null) {
                                 handlePendingCommit();
                             } else {
+                                log.info("handlePendingCommit txnId: {}", txnID);
                                 pendingCommitTxn.remove(txnID);
                                 if (pendingCommitTxn.peek() != null) {
                                     handlePendingCommit();
