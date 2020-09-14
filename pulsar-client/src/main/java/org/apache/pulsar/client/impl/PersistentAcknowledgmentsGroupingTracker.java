@@ -388,7 +388,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             while (iterator.hasNext()) {
                 Map.Entry<MessageIdImpl, ConcurrentBitSetRecyclable> entry = iterator.next();
                 entriesToAck.add(Triple.of(entry.getKey().ledgerId, entry.getKey().entryId, entry.getValue()));
-                entry.getValue().recycle();
+                iterator.remove();
             }
         }
 

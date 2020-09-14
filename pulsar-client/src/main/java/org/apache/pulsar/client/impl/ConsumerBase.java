@@ -413,7 +413,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "This consumer only support cumulative ack with transaction"));
         }
-        return acknowledgeCumulativeAsync(messageId, null);
+        return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), null);
     }
 
     // TODO: expose this method to consumer interface when the transaction feature is completed
