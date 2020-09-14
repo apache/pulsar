@@ -260,6 +260,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
     }
 
     private Marker createCommitMarker(TransactionMeta meta, long committedAtLedgerId, long committedAtEntryId) {
+        log.info("createCommitMarker txnId: {}", meta.id());
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} create a commit marker", meta.id());
         }

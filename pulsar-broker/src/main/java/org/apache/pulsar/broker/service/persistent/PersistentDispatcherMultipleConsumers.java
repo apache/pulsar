@@ -560,6 +560,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // Notify the consumer only if all the messages were already acknowledged
                 consumerList.forEach(Consumer::reachedEndOfTopic);
             }
+        } else if (exception.getCause() instanceof TransactionStatusException) {
+            waitTimeMillis = 10;
+            log.info("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
+                    cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
                     cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
@@ -591,9 +595,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
-        if (exception.getCause() instanceof TransactionStatusException) {
-            waitTimeMillis = 10;
-        }
         topic.getBrokerService().executor().schedule(() -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 if (!havePendingRead) {

@@ -25,6 +25,8 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionCursor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
@@ -32,6 +34,7 @@ import org.apache.pulsar.broker.transaction.buffer.exceptions.NoTxnsCommittedAtL
 import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
+@Slf4j
 public class TransactionCursorImpl implements TransactionCursor {
 
 
@@ -70,6 +73,7 @@ public class TransactionCursorImpl implements TransactionCursor {
     @Override
     public CompletableFuture<Void> commitTxn(long committedLedgerId, long committedEntryId, TxnID txnID,
                                              Position position) {
+        log.info("commitTxn txnId: {}", txnID);
         return getTxnMeta(txnID, false)
             .thenCompose(meta -> meta.commitTxn(committedLedgerId, committedEntryId))
             .thenAccept(meta -> addTxnToCommittedIndex(txnID, committedLedgerId));
