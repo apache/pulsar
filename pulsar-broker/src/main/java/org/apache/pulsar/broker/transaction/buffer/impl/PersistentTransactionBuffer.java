@@ -191,7 +191,7 @@ public class PersistentTransactionBuffer extends PersistentTopic implements Tran
                     .thenAccept(committingTxn -> {
                         pendingCommitTxn.add(txnID);
                         if (!pendingCommitHandling) {
-                            getBrokerService().getTopicOrderedExecutor().execute(this::handlePendingCommit);
+                            getBrokerService().executor().execute(this::handlePendingCommit);
                         }
                         completableFuture.complete(null);
                     }));
