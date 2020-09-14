@@ -79,7 +79,7 @@
             ]
         }
     ],
-    "2.5.0": [
+    "2.4.1": [
         {
             "version": "v2",
             "fileName": [
@@ -90,12 +90,12 @@
             "version": "v3",
             "fileName": [
                 "swaggerfunctions",
-                "swaggersource",
-                "swaggersink"
+                "swaggersink",
+                "swaggersource"
             ]
         }
     ],
-    "2.4.1": [
+    "2.5.0": [
         {
             "version": "v2",
             "fileName": [
