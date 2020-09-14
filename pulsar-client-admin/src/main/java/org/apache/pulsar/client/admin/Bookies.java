@@ -59,12 +59,12 @@ public interface Bookies {
     CompletableFuture<Void> deleteBookieRackInfoAsync(String bookieAddress);
 
     /**
-     * Updates the rack placement information for a specific bookie in the cluster.
+     * Updates the rack placement information for a specific bookie in the cluster (note: the -b format is `address:port` not `address` ).
      */
     void updateBookieRackInfo(String bookieAddress, String group, BookieInfo bookieInfo) throws PulsarAdminException;
 
     /**
-     * Updates the rack placement information for a specific bookie in the cluster asynchronously.
+     * Updates the rack placement information for a specific bookie in the cluster (note: the -b format is `address:port` not `address` ) asynchronously.
      */
     CompletableFuture<Void> updateBookieRackInfoAsync(String bookieAddress, String group, BookieInfo bookieInfo);
 }
