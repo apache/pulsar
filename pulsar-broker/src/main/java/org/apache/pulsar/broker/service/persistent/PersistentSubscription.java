@@ -33,7 +33,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -466,14 +465,22 @@ public class PersistentSubscription implements Subscription {
                         pendingAckMessagesMap.computeIfAbsent(txnId, txn -> new ConcurrentOpenHashMap<>());
 
                 if (((PositionImpl) position).isBatchPosition()) {
+                    if (pendingAckBatchMessageMap == null) {
+                        this.pendingAckBatchMessageMap = new ConcurrentOpenHashMap<>();
+                    }
+                    ConcurrentOpenHashSet<TxnID> txnSet = this.pendingAckBatchMessageMap
+                            .computeIfAbsent(position, txn -> new ConcurrentOpenHashSet<>());
                     PositionImpl currentPosition = (PositionImpl) position;
-                    if (pendingAckMessageForCurrentTxn.containsKey(position)) {
-                        if (((PositionImpl) pendingAckMessageForCurrentTxn.get(position)).isAckSetRepeated(currentPosition)) {
+                    List<TxnID> txnIDList = txnSet.values();
+                    for (int i = 0; i < txnIDList.size(); i++) {
+                        if (((PositionImpl) pendingAckMessagesMap.get(txnIDList.get(i)).get(position)).isAckSetRepeated(currentPosition)) {
                             String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnId +
                                     " try to ack batch message:" + position + " in pending ack status.";
                             log.error(errorMsg);
                             throw new TransactionConflictException(errorMsg);
                         }
+                    }
+                    if (pendingAckMessageForCurrentTxn.containsKey(position)) {
                         ((PositionImpl) pendingAckMessageForCurrentTxn
                                 .get(position)).orAckSet((PositionImpl) position);
                     } else {
@@ -482,11 +489,6 @@ public class PersistentSubscription implements Subscription {
                     if (!pendingAckMessages.contains(position)) {
                         this.pendingAckMessages.add(position);
                     }
-                    if (pendingAckBatchMessageMap == null) {
-                        this.pendingAckBatchMessageMap = new ConcurrentOpenHashMap<>();
-                    }
-                    ConcurrentOpenHashSet<TxnID> txnSet = this.pendingAckBatchMessageMap
-                            .computeIfAbsent(position, txn -> new ConcurrentOpenHashSet<>());
                     txnSet.add(txnId);
                 } else {
                     pendingAckMessageForCurrentTxn.put(position, position);
