@@ -554,6 +554,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         ReadType readType = (ReadType) ctx;
         long waitTimeMillis = readFailureBackoff.next();
 
+        log.info("readEntriesFailed exception class: {}", exception.getClass().getName());
+        log.info("readEntriesFailed exception cause class: {}", exception.getCause().getClass().getName());
+        log.info("readEntriesFailed exception.getCause instanceof TransactionNotSealedException: {}",
+                exception.getCause() instanceof TransactionNotSealedException);
+
         if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
                 // Topic has been terminated and there are no more entries to read

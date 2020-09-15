@@ -143,13 +143,13 @@ public class TransactionConsumeTest extends TransactionTestBase {
         Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
         // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
-            message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
+            message = exclusiveConsumer.receive();
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
             log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
 
-            message = sharedConsumer.receive(5, TimeUnit.SECONDS);
+            message = sharedConsumer.receive();
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
