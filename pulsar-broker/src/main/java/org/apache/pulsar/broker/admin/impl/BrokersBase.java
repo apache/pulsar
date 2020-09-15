@@ -257,7 +257,7 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/backlogQuotaCheck")
+    @Path("/backlog-quota-check")
     @ApiOperation(value = "An REST endpoint to trigger backlogQuotaCheck")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Everything is OK"),

@@ -146,6 +146,6 @@ public class CmdBrokers extends CmdBase {
         jcommander.addCommand("get-internal-config", new GetInternalConfigurationCmd());
         jcommander.addCommand("get-runtime-config", new GetRuntimeConfigCmd());
         jcommander.addCommand("healthcheck", new HealthcheckCmd());
-        jcommander.addCommand("backlogQuotaCheck", new BacklogQuotaCheckCmd());
+        jcommander.addCommand("backlog-quota-check", new BacklogQuotaCheckCmd());
     }
 }
