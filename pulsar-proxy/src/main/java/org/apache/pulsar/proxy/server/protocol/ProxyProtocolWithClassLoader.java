@@ -22,19 +22,12 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
-
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+package org.apache.pulsar.proxy.server.protocol;
 
 import java.io.IOException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 
@@ -44,9 +37,9 @@ import org.eclipse.jetty.servlet.ServletHolder;
 @Slf4j
 @Data
 @RequiredArgsConstructor
-public class ProxyInterceptorWithClassLoader implements ProxyInterceptor {
+public class ProxyProtocolWithClassLoader implements ProxyProtocol {
 
-    private final ProxyInterceptor interceptor;
+    private final ProxyProtocol interceptor;
     private final NarClassLoader classLoader;
 
     @Override

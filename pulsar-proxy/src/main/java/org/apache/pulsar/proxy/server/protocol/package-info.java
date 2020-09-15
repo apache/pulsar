@@ -20,19 +20,4 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
-
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
-import lombok.experimental.Accessors;
-
-/**
- * The collection of proxy interceptor.
- */
-@Data
-@Accessors(fluent = true)
-public class ProxyInterceptorDefinitions {
-
-    private final Map<String, ProxyInterceptorMetadata> interceptors = new TreeMap<>();
-}
+package org.apache.pulsar.proxy.server.protocol;

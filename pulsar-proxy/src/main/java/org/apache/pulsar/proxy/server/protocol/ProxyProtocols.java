@@ -20,12 +20,7 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
-
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+package org.apache.pulsar.proxy.server.protocol;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -33,14 +28,12 @@ import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 @Slf4j
-public class ProxyInterceptors implements AutoCloseable {
-    private final Map<String, ProxyInterceptorWithClassLoader> interceptors;
+public class ProxyProtocols implements AutoCloseable {
+    private final Map<String, ProxyProtocolWithClassLoader> interceptors;
 
-    public ProxyInterceptors(Map<String, ProxyInterceptorWithClassLoader> interceptors) {
+    public ProxyProtocols(Map<String, ProxyProtocolWithClassLoader> interceptors) {
         this.interceptors = interceptors;
     }
 
@@ -50,23 +43,23 @@ public class ProxyInterceptors implements AutoCloseable {
      * @param conf the pulsar broker service configuration
      * @return the collection of broker event interceptor
      */
-    public static ProxyInterceptors load(ServiceConfiguration conf) throws IOException {
-        ProxyInterceptorDefinitions definitions =
-                ProxyInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
+    public static ProxyProtocols load(ServiceConfiguration conf) throws IOException {
+        ProxyProtocolDefinitions definitions =
+                ProxyProtocolUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
 
-        ImmutableMap.Builder<String, ProxyInterceptorWithClassLoader> builder = ImmutableMap.builder();
+        ImmutableMap.Builder<String, ProxyProtocolWithClassLoader> builder = ImmutableMap.builder();
 
         conf.getBrokerInterceptors().forEach(interceptorName -> {
 
-            ProxyInterceptorMetadata definition = definitions.interceptors().get(interceptorName);
+            ProxyProtocolMetadata definition = definitions.interceptors().get(interceptorName);
             if (null == definition) {
                 throw new RuntimeException("No broker interceptor is found for name `" + interceptorName
                         + "`. Available broker interceptors are : " + definitions.interceptors());
             }
 
-            ProxyInterceptorWithClassLoader interceptor;
+            ProxyProtocolWithClassLoader interceptor;
             try {
-                interceptor = ProxyInterceptorUtils.load(definition, conf.getNarExtractionDirectory());
+                interceptor = ProxyProtocolUtils.load(definition, conf.getNarExtractionDirectory());
                 if (interceptor != null) {
                     builder.put(interceptorName, interceptor);
                 }
@@ -77,9 +70,9 @@ public class ProxyInterceptors implements AutoCloseable {
             }
         });
 
-        Map<String, ProxyInterceptorWithClassLoader> interceptors = builder.build();
+        Map<String, ProxyProtocolWithClassLoader> interceptors = builder.build();
         if (interceptors != null && !interceptors.isEmpty()) {
-            return new ProxyInterceptors(interceptors);
+            return new ProxyProtocols(interceptors);
         }
 
         return null;
@@ -87,6 +80,6 @@ public class ProxyInterceptors implements AutoCloseable {
 
     @Override
     public void close() {
-        interceptors.values().forEach(ProxyInterceptorWithClassLoader::close);
+        interceptors.values().forEach(ProxyProtocolWithClassLoader::close);
     }
 }

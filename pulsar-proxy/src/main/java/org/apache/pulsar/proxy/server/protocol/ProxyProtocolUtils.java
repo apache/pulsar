@@ -20,7 +20,7 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
+package org.apache.pulsar.proxy.server.protocol;
 
 import java.io.File;
 import java.io.IOException;
@@ -38,11 +38,11 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import static com.google.common.base.Preconditions.checkArgument;
 
 /**
- * Util class to search and load {@link ProxyInterceptors}.
+ * Util class to search and load {@link ProxyProtocols}.
  */
 @UtilityClass
 @Slf4j
-public class ProxyInterceptorUtils {
+public class ProxyProtocolUtils {
 
     final String PROXY_INTERCEPTOR_DEFINITION_FILE = "proxy_interceptor.yml";
 
@@ -53,17 +53,17 @@ public class ProxyInterceptorUtils {
      * @return the proxy interceptor definition
      * @throws IOException when fail to load the proxy interceptor or get the definition
      */
-    public ProxyInterceptorDefinition getProxyInterceptorDefinition(String narPath, String narExtractionDirectory) throws IOException {
+    public ProxyProtocolDefinition getProxyInterceptorDefinition(String narPath, String narExtractionDirectory) throws IOException {
         try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
             return getProxyInterceptorDefinition(ncl);
         }
     }
 
-    private ProxyInterceptorDefinition getProxyInterceptorDefinition(NarClassLoader ncl) throws IOException {
+    private ProxyProtocolDefinition getProxyInterceptorDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PROXY_INTERCEPTOR_DEFINITION_FILE);
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
-                configStr, ProxyInterceptorDefinition.class
+                configStr, ProxyProtocolDefinition.class
         );
     }
 
@@ -74,11 +74,11 @@ public class ProxyInterceptorUtils {
      * @return a collection of proxy interceptors
      * @throws IOException when fail to load the available proxy interceptors from the provided directory.
      */
-    public ProxyInterceptorDefinitions searchForInterceptors(String interceptorsDirectory, String narExtractionDirectory) throws IOException {
+    public ProxyProtocolDefinitions searchForInterceptors(String interceptorsDirectory, String narExtractionDirectory) throws IOException {
         Path path = Paths.get(interceptorsDirectory).toAbsolutePath();
         log.info("Searching for proxy interceptors in {}", path);
 
-        ProxyInterceptorDefinitions interceptors = new ProxyInterceptorDefinitions();
+        ProxyProtocolDefinitions interceptors = new ProxyProtocolDefinitions();
         if (!path.toFile().exists()) {
             log.warn("Pulsar proxy interceptors directory not found");
             return interceptors;
@@ -87,14 +87,14 @@ public class ProxyInterceptorUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-                    ProxyInterceptorDefinition def =
-                            ProxyInterceptorUtils.getProxyInterceptorDefinition(archive.toString(), narExtractionDirectory);
+                    ProxyProtocolDefinition def =
+                            ProxyProtocolUtils.getProxyInterceptorDefinition(archive.toString(), narExtractionDirectory);
                     log.info("Found proxy interceptors from {} : {}", archive, def);
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getInterceptorClass()));
 
-                    ProxyInterceptorMetadata metadata = new ProxyInterceptorMetadata();
+                    ProxyProtocolMetadata metadata = new ProxyProtocolMetadata();
                     metadata.setDefinition(def);
                     metadata.setArchivePath(archive);
 
@@ -116,13 +116,13 @@ public class ProxyInterceptorUtils {
      *
      * @param metadata the proxy interceptors definition.
      */
-    ProxyInterceptorWithClassLoader load(ProxyInterceptorMetadata metadata, String narExtractionDirectory) throws IOException {
+    ProxyProtocolWithClassLoader load(ProxyProtocolMetadata metadata, String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),
-                ProxyInterceptor.class.getClassLoader(), narExtractionDirectory);
+                ProxyProtocol.class.getClassLoader(), narExtractionDirectory);
 
-        ProxyInterceptorDefinition def = getProxyInterceptorDefinition(ncl);
+        ProxyProtocolDefinition def = getProxyInterceptorDefinition(ncl);
         if (StringUtils.isBlank(def.getInterceptorClass())) {
             throw new IOException("Proxy interceptors `" + def.getName() + "` does NOT provide a proxy"
                     + " interceptors implementation");
@@ -131,12 +131,12 @@ public class ProxyInterceptorUtils {
         try {
             Class interceptorClass = ncl.loadClass(def.getInterceptorClass());
             Object interceptor = interceptorClass.newInstance();
-            if (!(interceptor instanceof ProxyInterceptor)) {
+            if (!(interceptor instanceof ProxyProtocol)) {
                 throw new IOException("Class " + def.getInterceptorClass()
                         + " does not implement proxy interceptor interface");
             }
-            ProxyInterceptor pi = (ProxyInterceptor) interceptor;
-            return new ProxyInterceptorWithClassLoader(pi, ncl);
+            ProxyProtocol pi = (ProxyProtocol) interceptor;
+            return new ProxyProtocolWithClassLoader(pi, ncl);
         } catch (Throwable t) {
             rethrowIOException(t);
             return null;

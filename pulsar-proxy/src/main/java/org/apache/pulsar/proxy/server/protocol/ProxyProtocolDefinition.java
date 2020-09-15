@@ -20,24 +20,29 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
+package org.apache.pulsar.proxy.server.protocol;
 
-import org.eclipse.jetty.servlet.ServletHolder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public interface ProxyInterceptor extends AutoCloseable {
+/**
+ * Metadata information about a proxy interceptor.
+ */
+@Data
+@NoArgsConstructor
+public class ProxyProtocolDefinition {
     /**
-     * Get the base path of prometheus metrics
-     * @return the base path of prometheus metrics
+     * The name of the broker interceptor.
      */
-
-    String getBasePath();
+    private String name;
 
     /**
-     * Get the servlet holder
-     * @return the servlet holder
+     * The description of the broker interceptor to be used for user help.
      */
-    ServletHolder getServletHolder();
+    private String description;
 
-    @Override
-    void close();
+    /**
+     * The class name for the broker interceptor.
+     */
+    private String interceptorClass;
 }

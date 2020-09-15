@@ -20,4 +20,24 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
+package org.apache.pulsar.proxy.server.protocol;
+
+import org.eclipse.jetty.servlet.ServletHolder;
+
+public interface ProxyProtocol extends AutoCloseable {
+    /**
+     * Get the base path of prometheus metrics
+     * @return the base path of prometheus metrics
+     */
+
+    String getBasePath();
+
+    /**
+     * Get the servlet holder
+     * @return the servlet holder
+     */
+    ServletHolder getServletHolder();
+
+    @Override
+    void close();
+}

@@ -20,26 +20,19 @@
 /**
  * Pulsar broker interceptor.
  */
-package org.apache.pulsar.proxy.server.interceptor;
+package org.apache.pulsar.proxy.server.protocol;
 
-import java.nio.file.Path;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 /**
- * The metadata of proxy interceptor
+ * The collection of proxy interceptor.
  */
 @Data
-@NoArgsConstructor
-public class ProxyInterceptorMetadata {
+@Accessors(fluent = true)
+public class ProxyProtocolDefinitions {
 
-    /**
-     * The definition of the proxy interceptor.
-     */
-    private ProxyInterceptorDefinition definition;
-
-    /**
-     * The path to the handler package.
-     */
-    private Path archivePath;
+    private final Map<String, ProxyProtocolMetadata> interceptors = new TreeMap<>();
 }
