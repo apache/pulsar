@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.proxy.server.protocol.ProxyProtocols;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -86,6 +87,7 @@ public class ProxyService implements Closeable {
     private final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-proxy-io");
 
     private BrokerDiscoveryProvider discoveryProvider;
+    private ProxyProtocols proxyProtocols = null;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
 
@@ -234,6 +236,12 @@ public class ProxyService implements Closeable {
         if (statsExecutor != null) {
             statsExecutor.shutdown();
         }
+
+        if (proxyProtocols != null) {
+            proxyProtocols.close();
+            proxyProtocols = null;
+        }
+
         acceptorGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
     }

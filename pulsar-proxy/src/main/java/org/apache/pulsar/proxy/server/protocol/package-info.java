@@ -18,6 +18,6 @@
  */
 
 /**
- * Pulsar broker interceptor.
+ * Pulsar proxy protocol handler.
  */
 package org.apache.pulsar.proxy.server.protocol;

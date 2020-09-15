@@ -17,9 +17,6 @@
  * under the License.
  */
 
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
 import com.google.common.collect.ImmutableMap;
@@ -27,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 
 /**

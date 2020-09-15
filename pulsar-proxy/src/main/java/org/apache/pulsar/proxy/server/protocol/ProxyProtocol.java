@@ -17,13 +17,9 @@
  * under the License.
  */
 
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
 import com.google.common.annotations.Beta;
-
 import org.eclipse.jetty.servlet.ServletHolder;
 
 /**

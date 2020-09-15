@@ -17,9 +17,6 @@
  * under the License.
  */
 
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
 import java.nio.file.Path;

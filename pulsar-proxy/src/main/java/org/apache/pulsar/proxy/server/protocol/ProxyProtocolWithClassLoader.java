@@ -19,9 +19,6 @@
  * Pulsar broker interceptor.
  */
 
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
 import java.io.IOException;
