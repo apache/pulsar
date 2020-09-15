@@ -42,7 +42,21 @@ persistent://tenant/app1/topic-2
 
 persistent://tenant/app1/topic-3
 </code></pre>
-</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#テナント">テナント</a></li><li><a href="#ネームスペース">ネームスペース</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h3><a class="anchor" aria-hidden="true" id="namespace-change-events-and-topic-level-policies"></a><a href="#namespace-change-events-and-topic-level-policies" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Namespace change events and topic-level policies</h3>
+<p>Pulsar is a multi-tenant event streaming system. Administrators can manage the tenants and namespaces by setting policies at different levels. However, the policies, such as retention policy and storage quota policy, are only available at a namespace level. In many use cases, users need to set a policy at the topic level. The namespace change events approach is proposed for supporting topic-level policies in an efficient way. In this approach, Pulsar is used as an event log to store namespace change events (such as topic policy changes). This approach has a few benefits:</p>
+<ul>
+<li>Avoid using ZooKeeper and introduce more loads to ZooKeeper.</li>
+<li>Use Pulsar as an event log for propagating the policy cache. It can scale efficiently.</li>
+<li>Use Pulsar SQL to query the namespace changes and audit the system.</li>
+</ul>
+<p>Each namespace has a system topic <code>__change_events</code>. This system topic is used for storing change events for a given namespace. The following figure illustrates how to use namespace change events to implement a topic-level policy.</p>
+<ol>
+<li>Pulsar Admin clients communicate with the Admin Restful API to update topic level policies.</li>
+<li>Any broker that receives the Admin HTTP request publishes a topic policy change event to the corresponding <code>__change_events</code> topic of the namespace.</li>
+<li>Each broker that owns a namespace bundle(s) subscribes to the <code>__change_events</code> topic to receive change events of the namespace. It then applies the change events to the policy cache.</li>
+<li>Once the policy cache is updated, the broker sends the response back to the Pulsar Admin clients.</li>
+</ol>
+</span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#テナント">テナント</a></li><li><a href="#ネームスペース">ネームスペース</a><ul class="toc-headings"><li><a href="#namespace-change-events-and-topic-level-policies">Namespace change events and topic-level policies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
