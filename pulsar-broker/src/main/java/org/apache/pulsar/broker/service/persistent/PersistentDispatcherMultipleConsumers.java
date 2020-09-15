@@ -566,7 +566,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 consumerList.forEach(Consumer::reachedEndOfTopic);
             }
         } else if (exception.getCause() instanceof TransactionNotSealedException) {
-            waitTimeMillis = 10;
+            waitTimeMillis = 1;
             log.info("[{}] Error reading entries at {} : {}, Read Type {} - Retrying to read in {} seconds", name,
                     cursor.getReadPosition(), exception.getMessage(), readType, waitTimeMillis / 1000.0);
         } else if (!(exception instanceof TooManyRequestsException)) {

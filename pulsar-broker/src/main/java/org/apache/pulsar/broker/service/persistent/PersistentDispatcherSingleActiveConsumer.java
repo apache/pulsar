@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -467,6 +468,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 // Notify the consumer only if all the messages were already acknowledged
                 consumers.forEach(Consumer::reachedEndOfTopic);
             }
+        } else if (exception.getCause() instanceof TransactionNotSealedException) {
+            waitTimeMillis = 1;
+            log.info("[{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name,
+                    cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
         } else if (!(exception instanceof TooManyRequestsException)) {
             log.error("[{}-{}] Error reading entries at {} : {} - Retrying to read in {} seconds", name, c,
                     cursor.getReadPosition(), exception.getMessage(), waitTimeMillis / 1000.0);
