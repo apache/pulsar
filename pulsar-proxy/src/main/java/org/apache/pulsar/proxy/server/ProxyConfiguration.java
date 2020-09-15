@@ -483,6 +483,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
         )
     private double httpRequestsMaxPerSecond = 100.0;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory to locate proxy interceptors"
+    )
+    private String proxyInterceptorsDirectory = "./interceptors";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of proxy interceptor to load, which is a list of proxy interceptor names"
+    )
+    private Set<String> proxyInterceptors = Sets.newTreeSet();
+
     @PropertiesContext(
         properties = {
             @PropertyContext(
