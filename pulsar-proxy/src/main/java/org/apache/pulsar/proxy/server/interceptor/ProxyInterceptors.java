@@ -34,9 +34,10 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 @Slf4j
-public class ProxyInterceptors implements ProxyInterceptor {
+public class ProxyInterceptors implements AutoCloseable {
     private final Map<String, ProxyInterceptorWithClassLoader> interceptors;
 
     public ProxyInterceptors(Map<String, ProxyInterceptorWithClassLoader> interceptors) {
@@ -49,7 +50,7 @@ public class ProxyInterceptors implements ProxyInterceptor {
      * @param conf the pulsar broker service configuration
      * @return the collection of broker event interceptor
      */
-    public static ProxyInterceptor load(ServiceConfiguration conf) throws IOException {
+    public static ProxyInterceptors load(ServiceConfiguration conf) throws IOException {
         ProxyInterceptorDefinitions definitions =
                 ProxyInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
 
@@ -79,30 +80,9 @@ public class ProxyInterceptors implements ProxyInterceptor {
         Map<String, ProxyInterceptorWithClassLoader> interceptors = builder.build();
         if (interceptors != null && !interceptors.isEmpty()) {
             return new ProxyInterceptors(interceptors);
-        } else {
-            return DISABLED;
         }
-    }
 
-    @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws Exception {
-        for (ProxyInterceptorWithClassLoader value : interceptors.values()) {
-            value.onPulsarCommand(command, cnx);
-        }
-    }
-
-    @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        for (ProxyInterceptorWithClassLoader value : interceptors.values()) {
-            value.onWebServiceRequest(request, response, chain);
-        }
-    }
-
-    @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
-        for (ProxyInterceptorWithClassLoader v : interceptors.values()) {
-            v.initialize(conf);
-        }
+        return null;
     }
 
     @Override

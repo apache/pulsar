@@ -6,15 +6,17 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ * <p>
+ * Pulsar broker interceptor.
  */
 
 /**
@@ -34,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
  * A broker interceptor with it's classloader.
@@ -41,24 +44,19 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 @Slf4j
 @Data
 @RequiredArgsConstructor
-public class ProxyInterceptorWithClassLoader implements ProxyInterceptor{
+public class ProxyInterceptorWithClassLoader implements ProxyInterceptor {
 
     private final ProxyInterceptor interceptor;
     private final NarClassLoader classLoader;
 
     @Override
-    public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws Exception {
-        this.interceptor.onPulsarCommand(command, cnx);
+    public String getBasePath() {
+        return interceptor.getBasePath();
     }
 
     @Override
-    public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        this.interceptor.onWebServiceRequest(request, response, chain);
-    }
-
-    @Override
-    public void initialize(ServiceConfiguration conf) throws Exception {
-        this.interceptor.initialize(conf);
+    public ServletHolder getServletHolder() {
+        return interceptor.getServletHolder();
     }
 
     @Override

@@ -22,64 +22,22 @@
  */
 package org.apache.pulsar.proxy.server.interceptor;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import org.eclipse.jetty.servlet.ServletHolder;
 
-import java.io.IOException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.proto.PulsarApi;
-
-public interface ProxyInterceptor {
+public interface ProxyInterceptor extends AutoCloseable {
     /**
-     * Called by the broker while new command incoming.
+     * Get the base path of prometheus metrics
+     * @return the base path of prometheus metrics
      */
-    void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws Exception;
+
+    String getBasePath();
 
     /**
-     * Called by the web service while new request incoming.
+     * Get the servlet holder
+     * @return the servlet holder
      */
-    void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException;
+    ServletHolder getServletHolder();
 
-    /**
-     * Initialize the broker interceptor.
-     *
-     * @throws Exception when fail to initialize the broker interceptor.
-     */
-    void initialize(ServiceConfiguration conf) throws Exception;
-
-    ProxyInterceptor DISABLED = new BrokerInterceptorDisabled();
-
-    /**
-     * Broker interceptor disabled implementation.
-     */
-    class BrokerInterceptorDisabled implements ProxyInterceptor {
-
-        @Override
-        public void onPulsarCommand(PulsarApi.BaseCommand command, ServerCnx cnx) throws Exception {
-            //No-op
-        }
-
-        @Override
-        public void onWebServiceRequest(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-            chain.doFilter(request, response);
-        }
-
-        @Override
-        public void initialize(ServiceConfiguration conf) throws Exception {
-            //No-op
-        }
-
-        @Override
-        public void close() {
-            //No-op
-        }
-    }
-
-    /**
-     * Close this broker interceptor.
-     */
     @Override
     void close();
 }
