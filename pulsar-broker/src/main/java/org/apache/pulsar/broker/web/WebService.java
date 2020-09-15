@@ -164,6 +164,12 @@ public class WebService implements AutoCloseable {
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
+        if (pulsar.getConfiguration().isHttpRequestsLimitEnabled()) {
+            context.addFilter(
+                    new FilterHolder(new RateLimitingFilter(pulsar.getConfiguration().getHttpRequestsMaxPerSecond())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
         if (pulsar.getConfig().getHttpMaxRequestSize() > 0) {
             context.addFilter(new FilterHolder(
                     new MaxRequestSizeFilter(
