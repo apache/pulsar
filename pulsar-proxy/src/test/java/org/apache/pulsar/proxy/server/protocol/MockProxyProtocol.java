@@ -18,14 +18,6 @@
  */
 package org.apache.pulsar.proxy.server.protocol;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 public class MockProxyProtocol implements ProxyProtocol {
