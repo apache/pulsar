@@ -146,7 +146,8 @@ public class TransactionReader {
                 if (log.isDebugEnabled()) {
                     log.debug("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
                 }
-                readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
+                readEntriesCallback.readEntriesFailed(
+                        ManagedLedgerException.getManagedLedgerException(throwable.getCause()), ctx);
                 return null;
             }
             log.error("open transactionBufferReader failed.", throwable);
