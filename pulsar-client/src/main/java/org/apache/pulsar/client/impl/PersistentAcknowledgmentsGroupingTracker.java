@@ -86,8 +86,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private final ScheduledFuture<?> scheduledTask;
 
-    private final boolean isCumulativeAckWithTxn;
-
     public PersistentAcknowledgmentsGroupingTracker(ConsumerImpl<?> consumer, ConsumerConfigurationData<?> conf,
                                                     EventLoopGroup eventLoopGroup) {
         this.consumer = consumer;
@@ -96,7 +94,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         this.acknowledgementGroupTimeMicros = conf.getAcknowledgementsGroupTimeMicros();
         this.pendingIndividualTransactionBatchIndexAcks = new ConcurrentHashMap<>();
         this.pendingIndividualTransactionAcks = new ConcurrentSkipListSet<>();
-        this.isCumulativeAckWithTxn = conf.isCumulativeAckWithTxn();
 
         if (acknowledgementGroupTimeMicros > 0) {
             scheduledTask = eventLoopGroup.next().scheduleWithFixedDelay(this::flush, acknowledgementGroupTimeMicros,
@@ -147,14 +144,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public void addAcknowledgment(MessageIdImpl msgId, AckType ackType, Map<String, Long> properties,
                                   TransactionImpl txn) {
-        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() || isCumulativeAckWithTxn) {
-            if (isCumulativeAckWithTxn) {
+        if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() ||
+                (txn != null && ackType == AckType.Cumulative)) {
                 if (msgId instanceof BatchMessageIdImpl) {
                     BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
                     doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                             batchMessageId.getBatchIndex(),
                             ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
-                }
                 return;
             }
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
@@ -201,7 +197,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     bitSet = transactionIndividualBatchIndexAcks.computeIfAbsent(msgId, (v) -> {
                         ConcurrentBitSetRecyclable value;
                         value = ConcurrentBitSetRecyclable.create();
-                        value.set(0, batchSize);
+                        value.set(0, msgId.getAcker().getBatchSize());
                         return value;
                     });
                     bitSet.clear(batchIndex);

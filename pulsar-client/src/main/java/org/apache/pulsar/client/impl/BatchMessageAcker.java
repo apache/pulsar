@@ -43,7 +43,6 @@ class BatchMessageAcker {
     private final int batchSize;
     private final BitSet bitSet;
     private boolean prevBatchCumulativelyAcked = false;
-    private boolean hasAckByTransaction;
 
     BatchMessageAcker(BitSet bitSet, int batchSize) {
         this.bitSet = bitSet;
@@ -60,17 +59,6 @@ class BatchMessageAcker {
     }
 
     public synchronized boolean ackIndividual(int batchIndex) {
-        bitSet.clear(batchIndex);
-        return bitSet.isEmpty();
-    }
-
-    public synchronized boolean ackIndividualWithTransaction() {
-        this.hasAckByTransaction = true;
-        return bitSet.isEmpty();
-    }
-
-    public synchronized boolean ackIndividual(int batchIndex, boolean hasAckByTransaction) {
-        this.hasAckByTransaction = hasAckByTransaction;
         bitSet.clear(batchIndex);
         return bitSet.isEmpty();
     }
@@ -92,10 +80,6 @@ class BatchMessageAcker {
 
     public boolean isPrevBatchCumulativelyAcked() {
         return prevBatchCumulativelyAcked;
-    }
-
-    public boolean isHasAckByTransaction() {
-        return hasAckByTransaction;
     }
 
 }

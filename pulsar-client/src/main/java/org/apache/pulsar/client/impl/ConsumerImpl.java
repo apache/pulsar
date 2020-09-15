@@ -486,18 +486,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                    Map<String,Long> properties, TransactionImpl txn) {
         boolean isAllMsgsAcked;
         if (ackType == AckType.Individual) {
-            if (txn != null) {
-                isAllMsgsAcked = batchMessageId.ackIndividualWithTransaction();
-            } else {
-                isAllMsgsAcked = batchMessageId.ackIndividual();
-            }
+            isAllMsgsAcked = txn == null && batchMessageId.ackIndividual();
         } else {
             isAllMsgsAcked = batchMessageId.ackCumulative();
-            if (txn != null) {
-                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties, txn);
-                batchMessageId.ackIndividualWithTransaction();
-                return true;
-            }
         }
         int outstandingAcks = 0;
         if (log.isDebugEnabled()) {
@@ -544,10 +535,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
 
-        if (messageId instanceof BatchMessageIdImpl && !conf.isCumulativeAckWithTxn()) {
+        if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)
-                    && !batchMessageId.getAcker().isHasAckByTransaction()) {
+            if (ackType == AckType.Cumulative && txn != null) {
+                return sendAcknowledge(messageId, ackType, properties, txn);
+            }
+            if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] acknowledging message - {}, acktype {}", subscription, consumerName, messageId,

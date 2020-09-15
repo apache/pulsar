@@ -132,10 +132,6 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return acker.ackIndividual(batchIndex);
     }
 
-    public boolean ackIndividualWithTransaction() {
-        return acker.ackIndividualWithTransaction();
-    }
-
     public boolean ackCumulative() {
         return acker.ackCumulative(batchIndex);
     }

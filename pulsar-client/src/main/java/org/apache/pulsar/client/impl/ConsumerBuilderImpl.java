@@ -433,10 +433,4 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return null;
     }
 
-    @Override
-    public ConsumerBuilder<T> cumulativeAckWithTxn() {
-        conf.setCumulativeAckWithTxn(true);
-        return this;
-    }
-
 }

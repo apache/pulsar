@@ -289,9 +289,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
         try {
-            if (conf.isCumulativeAckWithTxn()) {
-                throw new PulsarClientException("This consumer only support cumulative ack with transaction");
-            }
             acknowledgeCumulative(message.getMessageId());
         } catch (NullPointerException npe) {
             throw new PulsarClientException.InvalidMessageException(npe.getMessage());
@@ -301,9 +298,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public void acknowledgeCumulative(MessageId messageId) throws PulsarClientException {
         try {
-            if (conf.isCumulativeAckWithTxn()) {
-                throw new PulsarClientException("This consumer only support cumulative ack with transaction");
-            }
             acknowledgeCumulativeAsync(messageId).get();
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
@@ -368,10 +362,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         try {
-            if (conf.isCumulativeAckWithTxn()) {
-                return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                        "This consumer only support cumulative ack with transaction"));
-            }
             return acknowledgeCumulativeAsync(message.getMessageId());
         } catch (NullPointerException npe) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidMessageException(npe.getMessage()));
@@ -409,17 +399,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId) {
-
-        if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
-        }
-
-        if (conf.isCumulativeAckWithTxn()) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "This consumer only support cumulative ack with transaction"));
-        }
-        return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), null);
+        return acknowledgeCumulativeAsync(messageId, null);
     }
 
     // TODO: expose this method to consumer interface when the transaction feature is completed
@@ -428,11 +408,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
                     "Cannot use cumulative acks on a non-exclusive/non-failover subscription"));
-        }
-
-        if (!conf.isCumulativeAckWithTxn()) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
-                    "This consumer only support normal ack"));
         }
 
         TransactionImpl txnImpl = null;
