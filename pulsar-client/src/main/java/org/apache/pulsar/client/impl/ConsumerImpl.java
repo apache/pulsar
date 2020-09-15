@@ -1145,6 +1145,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 msgMetadata.recycle();
                 return;
             }
+
+            if (isTxnMessage(msgMetadata)) {
+                BitSet ackBitSet = null;
+                if (ackSet != null && ackSet.size() > 0) {
+                    ackBitSet = BitSet.valueOf(SafeCollectionUtils.longListToArray(ackSet));
+                }
+                if (!ackBitSet.get(messageId.getBatchIndex())) {
+                    msgMetadata.recycle();
+                    return;
+                }
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
+            }
+
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
                     uncompressedPayload, createEncryptionContext(msgMetadata), cnx, schema, redeliveryCount);
             uncompressedPayload.release();
@@ -1179,6 +1192,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (listener != null) {
             triggerListener(numMessages);
         }
+    }
+
+    private boolean isTxnMessage(MessageMetadata messageMetadata) {
+        return messageMetadata.hasTxnidMostBits() && messageMetadata.hasTxnidLeastBits();
     }
 
     private ByteBuf processMessageChunk(ByteBuf compressedPayload, MessageMetadata msgMetadata, MessageIdImpl msgId,
