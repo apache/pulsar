@@ -16,23 +16,38 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
 
-/**
- * The collection of proxy protocol handler.
- */
-@Data
-@Accessors(fluent = true)
-public class ProxyProtocolDefinitions {
+import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.eclipse.jetty.servlet.ServletHolder;
 
-    private final Map<String, ProxyProtocolMetadata> protocols = new TreeMap<>();
+@Slf4j
+public class CounterProxyProtocol implements ProxyProtocol {
+
+
+    @Override
+    public String getBasePath() {
+        return "metrics/pulsar";
+    }
+
+    @Override
+    public ServletHolder getServletHolder() {
+        return null;
+    }
+
+    @Override
+    public void close() {
+
+    }
 }

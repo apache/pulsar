@@ -27,7 +27,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * The metadata of proxy interceptor
+ * The metadata of proxy protocol handler
  */
 @Data
 @NoArgsConstructor

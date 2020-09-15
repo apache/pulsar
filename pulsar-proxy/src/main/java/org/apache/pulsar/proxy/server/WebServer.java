@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import com.google.common.collect.Lists;
+
+import io.netty.handler.proxy.ProxyHandler;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -38,6 +40,8 @@ import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.apache.pulsar.proxy.server.protocol.ProxyProtocol;
+import org.apache.pulsar.proxy.server.protocol.ProxyProtocols;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -58,6 +62,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.plugin2.message.helper.ProxyHelper;
 
 /**
  * Manages web-service startup/stop on jetty server.
@@ -73,16 +78,19 @@ public class WebServer {
     private final List<Handler> handlers = Lists.newArrayList();
     private final ProxyConfiguration config;
     protected int externalServicePort;
+    private ProxyProtocols proxyProtocols;
     private URI serviceURI = null;
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
 
-    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
+    public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) throws IOException {
         this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
         this.server = new Server(webServiceExecutor);
         this.authenticationService = authenticationService;
         this.config = config;
+
+        this.proxyProtocols = ProxyProtocols.load(config);
 
         List<ServerConnector> connectors = Lists.newArrayList();
 

@@ -98,7 +98,7 @@ public class ProxyProtocolUtils {
                     metadata.setDefinition(def);
                     metadata.setArchivePath(archive);
 
-                    interceptors.interceptors().put(def.getName(), metadata);
+                    interceptors.protocols().put(def.getName(), metadata);
                 } catch (Throwable t) {
                     log.warn("Failed to load proxy interceptor from {}."
                             + " It is OK however if you want to use this proxy interceptor,"

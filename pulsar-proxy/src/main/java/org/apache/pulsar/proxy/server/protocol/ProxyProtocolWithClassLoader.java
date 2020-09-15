@@ -32,7 +32,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * A broker interceptor with it's classloader.
+ * A proxy protocol handler with it's classloader.
  */
 @Slf4j
 @Data

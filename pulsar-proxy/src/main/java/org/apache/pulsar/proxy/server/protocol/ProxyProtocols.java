@@ -27,52 +27,55 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
 
+/**
+ * A collection of loaded proxy handlers.
+ */
 @Slf4j
 public class ProxyProtocols implements AutoCloseable {
-    private final Map<String, ProxyProtocolWithClassLoader> interceptors;
+    private final Map<String, ProxyProtocolWithClassLoader> protocols;
 
     public ProxyProtocols(Map<String, ProxyProtocolWithClassLoader> interceptors) {
-        this.interceptors = interceptors;
+        this.protocols = interceptors;
     }
 
     /**
-     * Load the broker event interceptor for the given <tt>interceptor</tt> list.
+     * Load the proxy event protocol for the given <tt>protocol</tt> list.
      *
-     * @param conf the pulsar broker service configuration
-     * @return the collection of broker event interceptor
+     * @param conf the pulsar proxy service configuration
+     * @return the collection of proxy event protocol
      */
-    public static ProxyProtocols load(ServiceConfiguration conf) throws IOException {
+    public static ProxyProtocols load(ProxyConfiguration conf) throws IOException {
         ProxyProtocolDefinitions definitions =
-                ProxyProtocolUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(), conf.getNarExtractionDirectory());
+                ProxyProtocolUtils.searchForInterceptors(conf.getProxyProtocolsDirectory(), conf.getNarExtractionDirectory());
 
         ImmutableMap.Builder<String, ProxyProtocolWithClassLoader> builder = ImmutableMap.builder();
 
-        conf.getBrokerInterceptors().forEach(interceptorName -> {
+        conf.getProxyProtocols().forEach(protocolName -> {
 
-            ProxyProtocolMetadata definition = definitions.interceptors().get(interceptorName);
+            ProxyProtocolMetadata definition = definitions.protocols().get(protocolName);
             if (null == definition) {
-                throw new RuntimeException("No broker interceptor is found for name `" + interceptorName
-                        + "`. Available broker interceptors are : " + definitions.interceptors());
+                throw new RuntimeException("No proxy protocol is found for name `" + protocolName
+                        + "`. Available proxy protocols are : " + definitions.protocols());
             }
 
-            ProxyProtocolWithClassLoader interceptor;
+            ProxyProtocolWithClassLoader protocol;
             try {
-                interceptor = ProxyProtocolUtils.load(definition, conf.getNarExtractionDirectory());
-                if (interceptor != null) {
-                    builder.put(interceptorName, interceptor);
+                protocol = ProxyProtocolUtils.load(definition, conf.getNarExtractionDirectory());
+                if (protocol != null) {
+                    builder.put(protocolName, protocol);
                 }
-                log.info("Successfully loaded broker interceptor for name `{}`", interceptorName);
+                log.info("Successfully loaded proxy protocol for name `{}`", protocolName);
             } catch (IOException e) {
-                log.error("Failed to load the broker interceptor for name `" + interceptorName + "`", e);
-                throw new RuntimeException("Failed to load the broker interceptor for name `" + interceptorName + "`");
+                log.error("Failed to load the proxy protocol for name `" + protocolName + "`", e);
+                throw new RuntimeException("Failed to load the proxy protocol for name `" + protocolName + "`");
             }
         });
 
-        Map<String, ProxyProtocolWithClassLoader> interceptors = builder.build();
-        if (interceptors != null && !interceptors.isEmpty()) {
-            return new ProxyProtocols(interceptors);
+        Map<String, ProxyProtocolWithClassLoader> protocols = builder.build();
+        if (protocols != null && !protocols.isEmpty()) {
+            return new ProxyProtocols(protocols);
         }
 
         return null;
@@ -80,6 +83,6 @@ public class ProxyProtocols implements AutoCloseable {
 
     @Override
     public void close() {
-        interceptors.values().forEach(ProxyProtocolWithClassLoader::close);
+        protocols.values().forEach(ProxyProtocolWithClassLoader::close);
     }
 }

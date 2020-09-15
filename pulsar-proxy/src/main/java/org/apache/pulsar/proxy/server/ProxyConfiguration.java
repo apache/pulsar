@@ -38,6 +38,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Getter
@@ -164,6 +165,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "The port for serving https requests"
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The directory where nar Extraction of offloaders happens"
+    )
+    private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -472,6 +479,21 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
+<<<<<<< HEAD
+=======
+            category = CATEGORY_SERVER,
+            doc = "The directory to locate proxy protocols handler"
+    )
+    private String proxyProtocolsDirectory = "./protocols";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "List of proxy protocol handler to load, which is a list of proxy interceptor names"
+    )
+    private Set<String> proxyProtocols = Sets.newTreeSet();
+
+    @FieldContext(
+>>>>>>> 5730f60134... add test case
             category =  CATEGORY_HTTP,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
         )

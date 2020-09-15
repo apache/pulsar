@@ -16,23 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/**
- * Pulsar broker interceptor.
- */
 package org.apache.pulsar.proxy.server.protocol;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
-import lombok.experimental.Accessors;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.testng.annotations.Test;
+
+import static org.mockito.Mockito.*;
+import static org.testng.Assert.assertEquals;
 
 /**
- * The collection of proxy protocol handler.
+ * Unit test {@link ProxyProtocolWithClassLoader}.
  */
-@Data
-@Accessors(fluent = true)
-public class ProxyProtocolDefinitions {
+public class ProxyProtocolWithClassLoaderTest {
 
-    private final Map<String, ProxyProtocolMetadata> protocols = new TreeMap<>();
+    @Test
+    public void testWrapper() throws Exception {
+        ProxyProtocol h = mock(ProxyProtocol.class);
+        NarClassLoader loader = mock(NarClassLoader.class);
+        ProxyProtocolWithClassLoader wrapper = new ProxyProtocolWithClassLoader(h, loader);
+
+        String protocolBasePath = "metrics/pulsar";
+
+        when(h.getBasePath()).thenReturn(protocolBasePath);
+        assertEquals(protocolBasePath, wrapper.getBasePath());
+        verify(h, times(1)).getBasePath();
+    }
 }

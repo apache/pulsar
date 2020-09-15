@@ -113,7 +113,7 @@ public class BrokerInterceptorUtils {
      *
      * @param metadata the broker interceptors definition.
      */
-     BrokerInterceptorWithClassLoader load(BrokerInterceptorMetadata metadata, String narExtractionDirectory) throws IOException {
+    public BrokerInterceptorWithClassLoader load(BrokerInterceptorMetadata metadata, String narExtractionDirectory) throws IOException {
         NarClassLoader ncl = NarClassLoader.getFromArchive(
                 metadata.getArchivePath().toAbsolutePath().toFile(),
                 Collections.emptySet(),

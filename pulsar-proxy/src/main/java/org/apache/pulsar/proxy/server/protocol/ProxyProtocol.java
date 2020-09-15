@@ -22,8 +22,14 @@
  */
 package org.apache.pulsar.proxy.server.protocol;
 
+import com.google.common.annotations.Beta;
+
 import org.eclipse.jetty.servlet.ServletHolder;
 
+/**
+ * The protocol handler interface for support additional protocols on Pulsar proxy.
+ */
+@Beta
 public interface ProxyProtocol extends AutoCloseable {
     /**
      * Get the base path of prometheus metrics
