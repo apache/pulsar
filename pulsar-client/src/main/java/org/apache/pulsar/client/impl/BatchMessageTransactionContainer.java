@@ -23,35 +23,34 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.shaded.com.google.protobuf.v241.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Key based batch message container
+ * transaction batch message container
  *
  * incoming single messages:
- * (k1, v1), (k2, v1), (k3, v1), (k1, v2), (k2, v2), (k3, v2), (k1, v3), (k2, v3), (k3, v3)
+ * (txn1, v1), (txn2, v1), (txn3, v1), (txn1, v2), (txn2, v2), (txn3, v2), (txn1, v3), (txn2, v3), (txn3, v3)
  *
  * batched into multiple batch messages:
- * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
+ * [(txn1, v1), (txn1, v2), (txn1, v3)], [(txn2, v1), (txn2, v2), (txn2, v3)], [(txn3, v1), (txn3, v2), (txn3, v3)]
  */
-class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
+class BatchMessageTransactionContainer extends AbstractBatchMessageContainer {
 
-    private Map<String, KeyedBatch> batches = new HashMap<>();
+    private Map<TxnID, TxnBatch> batches = new HashMap<>();
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
@@ -61,17 +60,18 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         }
         numMessagesInBatch++;
         currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
-        String key = getKey(msg);
-        KeyedBatch part = batches.get(key);
+        TxnID txnID = getTxn(msg);
+        TxnBatch part = batches.get(txnID);
         if (part == null) {
-            part = new KeyedBatch();
+            part = new TxnBatch();
+            part.txnId = txnID;
             part.addMsg(msg, callback);
             part.compressionType = compressionType;
             part.compressor = compressor;
             part.maxBatchSize = maxBatchSize;
             part.topicName = topicName;
             part.producerName = producerName;
-            batches.putIfAbsent(key, part);
+            batches.putIfAbsent(txnID, part);
         } else {
             part.addMsg(msg, callback);
         }
@@ -107,24 +107,24 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         return true;
     }
 
-    private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
-        ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata, keyedBatch.getCompressedBatchMetadataAndPayload());
+    private ProducerImpl.OpSendMsg createOpSendMsg(TxnBatch TxnBatch) throws IOException {
+        ByteBuf encryptedPayload = producer.encryptMessage(TxnBatch.messageMetadata, TxnBatch.getCompressedBatchMetadataAndPayload());
         if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
+            TxnBatch.discard(new PulsarClientException.InvalidMessageException(
                     "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
             return null;
         }
 
-        final int numMessagesInBatch = keyedBatch.messages.size();
+        final int numMessagesInBatch = TxnBatch.messages.size();
         long currentBatchSizeBytes = 0;
-        for (MessageImpl<?> message : keyedBatch.messages) {
+        for (MessageImpl<?> message : TxnBatch.messages) {
             currentBatchSizeBytes += message.getDataBuffer().readableBytes();
         }
-        keyedBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
-        ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
-                keyedBatch.messageMetadata.build(), encryptedPayload);
+        TxnBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
+        ByteBufPair cmd = producer.sendMessage(producer.producerId, TxnBatch.sequenceId, numMessagesInBatch,
+                TxnBatch.messageMetadata.build(), encryptedPayload);
 
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(TxnBatch.messages, cmd, TxnBatch.sequenceId, TxnBatch.firstCallback);
 
         op.setNumMessagesInBatch(numMessagesInBatch);
         op.setBatchSizeByte(currentBatchSizeBytes);
@@ -134,12 +134,12 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
         List<ProducerImpl.OpSendMsg> result = new ArrayList<>();
-        List<KeyedBatch> list = new ArrayList<>(batches.values());
+        List<TxnBatch> list = new ArrayList<>(batches.values());
         list.sort(((o1, o2) -> ComparisonChain.start()
                 .compare(o1.sequenceId, o2.sequenceId)
                 .result()));
-        for (KeyedBatch keyedBatch : list) {
-            ProducerImpl.OpSendMsg op = createOpSendMsg(keyedBatch);
+        for (TxnBatch TxnBatch : list) {
+            ProducerImpl.OpSendMsg op = createOpSendMsg(TxnBatch);
             if (op != null) {
                 result.add(op);
             }
@@ -149,8 +149,8 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     @Override
     public boolean hasSameSchema(MessageImpl<?> msg) {
-        String key = getKey(msg);
-        KeyedBatch part = batches.get(key);
+        TxnID key = getTxn(msg);
+        TxnBatch part = batches.get(key);
         if (part == null || part.messages.isEmpty()) {
             return true;
         }
@@ -158,17 +158,15 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             return msg.getSchemaVersion() == null;
         }
         return Arrays.equals(msg.getSchemaVersion(),
-                             part.messageMetadata.getSchemaVersion().toByteArray());
+                part.messageMetadata.getSchemaVersion().toByteArray());
     }
 
-    private String getKey(MessageImpl<?> msg) {
-        if (msg.hasOrderingKey()) {
-            return Base64.getEncoder().encodeToString(msg.getOrderingKey());
-        }
-        return msg.getKey();
+    private TxnID getTxn(MessageImpl<?> msg) {
+        return new TxnID(msg.getMessageBuilder().getTxnidMostBits(), msg.getMessageBuilder().getTxnidLeastBits());
     }
 
-    private static class KeyedBatch {
+    private static class TxnBatch {
+        private TxnID txnId;
         private PulsarApi.MessageMetadata.Builder messageMetadata = PulsarApi.MessageMetadata.newBuilder();
         // sequence id for this batch which will be persisted as a single entry by broker
         private long sequenceId = -1;
@@ -185,6 +183,9 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         private SendCallback firstCallback;
 
         private ByteBuf getCompressedBatchMetadataAndPayload() {
+            messageMetadata.setTxnidMostBits(txnId.getMostSigBits());
+            messageMetadata.setTxnidLeastBits(txnId.getLeastSigBits());
+
             for (MessageImpl<?> msg : messages) {
                 PulsarApi.MessageMetadata.Builder msgBuilder = msg.getMessageBuilder();
                 batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(msgBuilder,
@@ -241,7 +242,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             batchedMessageMetadataAndPayload = null;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(BatchMessageKeyBasedContainer.class);
+    
+    private static final Logger log = LoggerFactory.getLogger(BatchMessageTransactionContainer.class);
 
 }

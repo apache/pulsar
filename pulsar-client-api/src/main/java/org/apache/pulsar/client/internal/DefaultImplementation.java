@@ -475,4 +475,10 @@ public class DefaultImplementation {
                 () -> (BatcherBuilder) getConstructor("org.apache.pulsar.client.impl.KeyBasedBatcherBuilder")
                         .newInstance());
     }
+
+    public static BatcherBuilder newTransactionBatcherBuilder() {
+        return catchExceptions(
+                () -> (BatcherBuilder) getConstructor(
+                        "org.apache.pulsar.client.impl.TransactionBatcherBuilder").newInstance());
+    }
 }

@@ -121,7 +121,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .enableBatching(enableBatch)
                 .sendTimeout(0, TimeUnit.SECONDS);
         if (enableBatch) {
-            producerBuilder.batcherBuilder(BatcherBuilder.KEY_BASED);
+            producerBuilder.batcherBuilder(BatcherBuilder.TRANSACTION);
         }
         @Cleanup
         PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) producerBuilder.create();

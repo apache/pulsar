@@ -49,6 +49,17 @@ public interface BatcherBuilder extends Serializable {
     BatcherBuilder KEY_BASED = DefaultImplementation.newKeyBasedBatcherBuilder();
 
     /**
+     * transaction batch message container
+     *
+     * <p>incoming single messages:
+     * (txn1, v1), (txn2, v1), (txn3, v1), (txn1, v2), (txn2, v2), (txn3, v2), (txn1, v3), (txn2, v3), (txn3, v3)
+     *
+     * <p>batched into multiple batch messages:
+     * [(txn1, v1), (txn1, v2), (txn1, v3)], [(txn2, v1), (txn2, v2), (txn2, v3)], [(txn3, v1), (txn3, v2), (txn3, v3)]
+     */
+    BatcherBuilder TRANSACTION = DefaultImplementation.newTransactionBatcherBuilder();
+
+    /**
      * Build a new batch message container.
      * @return new batch message container
      */
