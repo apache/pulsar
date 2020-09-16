@@ -160,6 +160,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
             dm.publishTime = DateFormatter.format(msg.getPublishTime());
+            dm.redeliveryCount = msg.getRedeliveryCount();
             if (msg.getEventTime() != 0) {
                 dm.eventTime = DateFormatter.format(msg.getEventTime());
             }
