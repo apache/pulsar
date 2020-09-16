@@ -513,14 +513,14 @@ message CommandAck {
 
 message CommandAckReceipt {
     required uint64 consumer_id = 1;
-    optional uint64 request_id = 2;
+    required uint64 request_id = 2;
 }
 
 message CommandAckError {
     required uint64 consumer_id = 1;
     required ServerError error  = 2;
-    required string message     = 3;
-    optional uint64 request_id = 4;
+    optional string message     = 3;
+    required uint64 request_id  = 4;
 }
 
 // changes on active consumer
@@ -874,6 +874,8 @@ message BaseCommand {
         GET_OR_CREATE_SCHEMA = 39;
         GET_OR_CREATE_SCHEMA_RESPONSE = 40;
 
+        ACK_ERROR = 41;
+
         // transaction related
         NEW_TXN = 50;
         NEW_TXN_RESPONSE = 51;
@@ -892,8 +894,6 @@ message BaseCommand {
 
         END_TXN_ON_SUBSCRIPTION = 60;
         END_TXN_ON_SUBSCRIPTION_RESPONSE = 61;
-
-        ACK_ERROR = 62;
 
     }
 
@@ -955,6 +955,7 @@ message BaseCommand {
 
     optional CommandGetOrCreateSchema getOrCreateSchema = 39;
     optional CommandGetOrCreateSchemaResponse getOrCreateSchemaResponse = 40;
+    optional CommandAckError ackError = 41;
 
     // transaction related
     optional CommandNewTxn newTxn = 50;
@@ -969,6 +970,4 @@ message BaseCommand {
     optional CommandEndTxnOnPartitionResponse endTxnOnPartitionResponse = 59;
     optional CommandEndTxnOnSubscription endTxnOnSubscription = 60;
     optional CommandEndTxnOnSubscriptionResponse endTxnOnSubscriptionResponse = 61;
-
-    optional CommandAckError ackError = 62;
 }

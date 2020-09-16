@@ -1720,6 +1720,7 @@ public class ServerCnx extends PulsarHandler {
             }).exceptionally(throwable -> {
                 log.error("Send response error for end txn request.", throwable);
                 ctx.writeAndFlush(Commands.newEndTxnResponse(command.getRequestId(), txnID.getMostSigBits(),
+                        txnID.getLeastSigBits(),
                         BrokerServiceException.getClientErrorCode(throwable), throwable.getMessage()));
                 return null;
         });

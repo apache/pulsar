@@ -981,7 +981,6 @@ public class Commands {
         commandAckReceiptBuilder.setConsumerId(consumerId);
         commandAckReceiptBuilder.setRequestId(requestId);
         CommandAckReceipt commandAckReceipt = commandAckReceiptBuilder.build();
-
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.ACK_RECEIPT).setAckReceipt(commandAckReceipt));
         commandAckReceiptBuilder.recycle();
@@ -1387,10 +1386,12 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits, ServerError error, String errorMsg) {
+    public static ByteBuf newEndTxnResponse(long requestId, long txnIdMostBits,
+                                            long txnIdLeastBits, ServerError error, String errorMsg) {
         CommandEndTxnResponse.Builder builder = CommandEndTxnResponse.newBuilder();
         builder.setRequestId(requestId);
         builder.setTxnidMostBits(txnIdMostBits);
+        builder.setTxnidLeastBits(txnIdLeastBits);
         builder.setError(error);
         if (errorMsg != null) {
             builder.setMessage(errorMsg);
@@ -1629,7 +1630,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        // write checksum at created checksum-placeholder
+        // write checksum at created checksum-placeholderƒ
         if (includeChecksum) {
             metadataAndPayload.markReaderIndex();
             metadataAndPayload.readerIndex(checksumReaderIndex + checksumSize);
