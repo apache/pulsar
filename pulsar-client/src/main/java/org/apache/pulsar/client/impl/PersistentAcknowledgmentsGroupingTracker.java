@@ -450,7 +450,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                             messageIdIterator.remove();
                         }
                         transactionIterator.remove();
-                        pendingIndividualTransactionBatchIndexAcks.remove(transactionEntry.getKey());
                     }
                 }
             }
