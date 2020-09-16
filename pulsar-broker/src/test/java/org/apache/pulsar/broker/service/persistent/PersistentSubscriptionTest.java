@@ -258,8 +258,6 @@ public class PersistentSubscriptionTest {
                     "while transaction:(1,1) already cumulative acked messages.");
             return null;
         });
-
-
         positions.clear();
         positions.add(new PositionImpl(1, 1));
         positions.add(new PositionImpl(1, 3));
