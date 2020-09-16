@@ -329,4 +329,18 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
             }
         }
     }
+
+    @Test
+    public void testAuthenticationFailedImmediately() throws PulsarClientException {
+        try {
+            @Cleanup
+            PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .authentication(AuthenticationFactory.token("invalid_token"))
+                .build();
+            client.newProducer().topic("test_token_topic" + randomName(4));
+        } catch (PulsarClientException.AuthenticationException pae) {
+            // expected error
+        }
+    }
 }
