@@ -55,7 +55,7 @@
 <p>Pulsar 利用 <a href="https://zookeeper.apache.org/">Apache Zookeeper</a> 進行元數據存儲，集群配置和協調。在一個 Pulsar 實例中：</p>
 <ul>
 <li><strong>配置與仲裁存儲</strong>: 存儲租戶，命名空間和其他需要全局一致的配置項。</li>
-<li>每個集群有自己獨立的 ZooKeeper 保存集群內部配置和協調信息，例如歸屬訊息、broker 負載報告、BookKeeper ledger 訊息（這個是 BookKeeper 本身所依賴的）等等。</li>
+<li>Each cluster has its own local ZooKeeper ensemble that stores cluster-specific configuration and coordination such as which brokers are responsible for which topics as well as ownership metadata, broker load reports, BookKeeper ledger metadata, and more.</li>
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="持久化存儲"></a><a href="#持久化存儲" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>持久化存儲</h2>
 <p>Pulsar 提供有保證的信息傳送。如果信息成功送到了 Pulsar broker，那麼這個信息一定會被送達至它設定的目的地。</p>
@@ -127,6 +127,9 @@
 
 client = Client(<span class="hljs-string">'pulsar://pulsar-cluster.acme.com:6650'</span>)
 </code></pre>
+<blockquote>
+<p><strong>Note</strong> In Pulsar, each topic is handled by only one broker. Initial requests from a client to read, update or delete a topic are sent to a broker that may not be the topic owner. If the broker cannot handle the request for this topic, it redirects the request to the appropriate broker.</p>
+</blockquote>
 </span></div></article></div><div class="docs-prevnext"></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#brokers">Brokers</a></li><li><a href="#集群">集群</a></li><li><a href="#元數據存儲">元數據存儲</a></li><li><a href="#持久化存儲">持久化存儲</a><ul class="toc-headings"><li><a href="#apache-bookkeeper">Apache BookKeeper</a></li><li><a href="#ledgers">Ledgers</a></li><li><a href="#日誌存儲">日誌存儲</a></li></ul></li><li><a href="#pulsar-proxy">Pulsar proxy</a></li><li><a href="#服務發現">服務發現</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
