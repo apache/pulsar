@@ -159,7 +159,8 @@ Server will push messages on the WebSocket session:
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785"
+  "publishTime": "2016-08-30 16:45:57.785",
+  "redeliveryCount": 4
 }
 ```
 
@@ -168,6 +169,7 @@ Key | Type | Required? | Explanation
 `messageId` | string | yes | Message ID
 `payload` | string | yes | Base-64 encoded payload
 `publishTime` | string | yes | Publish timestamp
+`redeliveryCount` | number | yes | Number of times this message was already delivered
 `properties` | key-value pairs | no | Application-defined properties
 `key` | string | no |  Original routing key set by producer
 
@@ -239,7 +241,8 @@ Server will push messages on the WebSocket session:
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785"
+  "publishTime": "2016-08-30 16:45:57.785",
+  "redeliveryCount": 4
 }
 ```
 
@@ -248,6 +251,7 @@ Key | Type | Required? | Explanation
 `messageId` | string | yes | Message ID
 `payload` | string | yes | Base-64 encoded payload
 `publishTime` | string | yes | Publish timestamp
+`redeliveryCount` | number | yes | Number of times this message was already delivered
 `properties` | key-value pairs | no | Application-defined properties
 `key` | string | no |  Original routing key set by producer
 
