@@ -1150,7 +1150,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgMetadata.recycle();
                     return;
                 }
-                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
+                BatchMessageAcker batchMessageAcker = BatchMessageAcker.newAcker(ackBitSet);
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, batchMessageAcker);
             }
 
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
