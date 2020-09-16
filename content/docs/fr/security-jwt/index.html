@@ -171,6 +171,10 @@
 <span class="hljs-attr">authorizationEnabled</span>=<span class="hljs-string">true</span>
 <span class="hljs-attr">authenticationProviders</span>=<span class="hljs-string">org.apache.pulsar.broker.authentication.AuthenticationProviderToken</span>
 <span class="hljs-comment">
+# If this flag is set then the broker authenticates the original Auth data</span>
+<span class="hljs-comment"># else it just accepts the originalPrincipal and authorizes it (if required).</span>
+<span class="hljs-attr">authenticateOriginalAuthData</span>=<span class="hljs-string">true</span>
+<span class="hljs-comment">
 # If using secret key</span>
 <span class="hljs-attr">tokenSecretKey</span>=<span class="hljs-string">file:///path/to/secret.key</span>
 <span class="hljs-comment"># The key can also be passed inline:</span>
@@ -193,6 +197,10 @@
 <span class="hljs-attr">brokerClientAuthenticationParameters</span>=<span class="hljs-string">token:eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw</span>
 <span class="hljs-comment"># Or, alternatively, read token from file</span>
 <span class="hljs-comment"># brokerClientAuthenticationParameters=file:///path/to/proxy-token.txt</span>
+<span class="hljs-comment">
+# Whether client authorization credentials are forwared to the broker for re-authorization.</span>
+<span class="hljs-comment"># Authentication must be enabled via authenticationEnabled=true for this to take effect.</span>
+<span class="hljs-attr">forwardAuthorizationCredentials</span>=<span class="hljs-string">true</span>
 </code></pre>
 </span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/fr/security-tls-keystore"><span class="arrow-prev">← </span><span class="function-name-prevnext">Using TLS with KeyStore configure</span></a><a class="docs-next button" href="/docs/fr/security-athenz"><span>Authentication using Athenz</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#token-authentication-overview">Token authentication overview</a><ul class="toc-headings"><li><a href="#cli-tools">CLI Tools</a></li><li><a href="#pulsar-client">Pulsar client</a></li></ul></li><li><a href="#enable-token-authentication">Enable token authentication</a><ul class="toc-headings"><li><a href="#create-a-secret-key">Create a secret key</a></li><li><a href="#create-a-key-pair">Create a key pair</a></li><li><a href="#generate-tokens">Generate tokens</a></li><li><a href="#authorization">Authorization</a></li><li><a href="#enable-token-authentication-on-brokers">Enable token authentication on Brokers</a></li><li><a href="#enable-token-authentication-on-proxies">Enable token authentication on Proxies</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2020 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
