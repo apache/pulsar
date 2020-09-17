@@ -308,7 +308,7 @@ elif [ $COMMAND == "bookie" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"bookkeeper.log"}
     # Pass BOOKIE_EXTRA_OPTS option defined in pulsar_env.sh
     OPTS="$OPTS $BOOKIE_EXTRA_OPTS"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.proto.BookieServer --conf $PULSAR_BOOKKEEPER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.bookkeeper.server.Main --conf $PULSAR_BOOKKEEPER_CONF $@
 elif [ $COMMAND == "zookeeper" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"zookeeper.log"}
     exec $JAVA ${ZK_OPTS} $OPTS $ASPECTJ_AGENT -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ZooKeeperStarter $PULSAR_ZK_CONF $@
