@@ -141,7 +141,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();
         Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
-        // receive transaction messages successfully after commitd
+        // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
             message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
