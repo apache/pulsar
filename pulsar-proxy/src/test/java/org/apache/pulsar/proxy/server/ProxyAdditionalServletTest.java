@@ -77,6 +77,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
+        // this is for nar package test
+//        addServletNar();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
