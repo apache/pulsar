@@ -197,7 +197,7 @@ public class ProxyServiceStarter {
         }
 
         // add proxy additional servlets
-        if (service.getProxyAdditionalServlets() != null) {
+        if (service != null && service.getProxyAdditionalServlets() != null) {
             Collection<ProxyAdditionalServletWithClassLoader> additionalServletCollection =
                     service.getProxyAdditionalServlets().getServlets().values();
             for (ProxyAdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
