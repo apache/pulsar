@@ -1629,21 +1629,21 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "replicatedFrom": {
+                    "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
+                },
                 "topicName": {
                     "type": "string"
                 },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "messageId": {
                     "$ref": "#/definitions/MessageId"
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1652,18 +1652,15 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "producerName": {
-                    "type": "string"
-                },
-                "replicatedFrom": {
-                    "type": "string"
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
                 "redeliveryCount": {
                     "type": "integer",
@@ -1682,6 +1679,9 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "producerName": {
+                    "type": "string"
                 },
                 "value": {
                     "type": "object"
