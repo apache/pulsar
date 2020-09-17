@@ -146,13 +146,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                   TransactionImpl txn) {
         if (acknowledgementGroupTimeMicros == 0 || !properties.isEmpty() ||
                 (txn != null && ackType == AckType.Cumulative)) {
-                if (msgId instanceof BatchMessageIdImpl) {
+                if (msgId instanceof BatchMessageIdImpl && txn != null) {
                     BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) msgId;
                     doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                             batchMessageId.getBatchIndex(),
                             ackType, properties, txn.getTxnIdMostBits(), txn.getTxnIdLeastBits());
-                return;
-            }
+                    return;
+                }
             // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
             // uncommon condition since it's only used for the compaction subscription.
             doImmediateAck(msgId, ackType, properties, txn);
