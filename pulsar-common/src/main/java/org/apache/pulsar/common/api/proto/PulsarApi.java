@@ -83,6 +83,9 @@ public final class PulsarApi {
     TransactionCoordinatorNotFound(20, 20),
     InvalidTxnStatus(21, 21),
     NotAllowedError(22, 22),
+    TransactionAckConflictException(23, 23),
+    TransactionCommitConflictException(24, 24),
+    TransactionAbortConflictException(25, 25),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -108,6 +111,9 @@ public final class PulsarApi {
     public static final int TransactionCoordinatorNotFound_VALUE = 20;
     public static final int InvalidTxnStatus_VALUE = 21;
     public static final int NotAllowedError_VALUE = 22;
+    public static final int TransactionAckConflictException_VALUE = 23;
+    public static final int TransactionCommitConflictException_VALUE = 24;
+    public static final int TransactionAbortConflictException_VALUE = 25;
     
     
     public final int getNumber() { return value; }
@@ -137,6 +143,9 @@ public final class PulsarApi {
         case 20: return TransactionCoordinatorNotFound;
         case 21: return InvalidTxnStatus;
         case 22: return NotAllowedError;
+        case 23: return TransactionAckConflictException;
+        case 24: return TransactionCommitConflictException;
+        case 25: return TransactionAbortConflictException;
         default: return null;
       }
     }
@@ -20485,7 +20494,7 @@ public final class PulsarApi {
     boolean hasError();
     org.apache.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
-    // required string message = 3;
+    // optional string message = 3;
     boolean hasMessage();
     String getMessage();
     
@@ -20548,7 +20557,7 @@ public final class PulsarApi {
       return error_;
     }
     
-    // required string message = 3;
+    // optional string message = 3;
     public static final int MESSAGE_FIELD_NUMBER = 3;
     private java.lang.Object message_;
     public boolean hasMessage() {
@@ -20606,10 +20615,6 @@ public final class PulsarApi {
         return false;
       }
       if (!hasError()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasMessage()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -20865,10 +20870,6 @@ public final class PulsarApi {
           
           return false;
         }
-        if (!hasMessage()) {
-          
-          return false;
-        }
         if (!hasRequestId()) {
           
           return false;
@@ -20973,7 +20974,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required string message = 3;
+      // optional string message = 3;
       private java.lang.Object message_ = "";
       public boolean hasMessage() {
         return ((bitField0_ & 0x00000004) == 0x00000004);

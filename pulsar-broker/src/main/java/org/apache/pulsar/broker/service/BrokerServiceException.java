@@ -22,6 +22,9 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.transaction.common.exception.TransactionAbortConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionCommitConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
 /**
@@ -214,6 +217,12 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof TransactionAckConflictException) {
+            return ServerError.TransactionAckConflictException;
+        } else if (t instanceof TransactionAbortConflictException) {
+            return ServerError.TransactionAbortConflictException;
+        } else if (t instanceof TransactionCommitConflictException) {
+            return ServerError.TransactionCommitConflictException;
         } else {
             if (checkCauseIfUnknown) {
                 return getClientErrorCode(t.getCause(), false);

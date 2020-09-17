@@ -63,7 +63,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
-import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
+import org.apache.pulsar.transaction.common.exception.TransactionAckConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -455,7 +455,7 @@ public class Consumer {
                 String errorMsg = "TxnID : " + txnID + " subscription : "
                         + subscription + " consumerId : " + consumerId + " received multi-message ack";
                 CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
                 return completableFuture;
             }
 
@@ -465,7 +465,7 @@ public class Consumer {
                         + subscription + " consumerId : " + consumerId
                         + " Received cumulative ack on shared subscription, ignoring";
                 CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
                 return completableFuture;
             }
             PositionImpl position = PositionImpl.earliest;
@@ -505,7 +505,7 @@ public class Consumer {
                             position + " - Reason: " + ack.getValidationError();
                     log.error(errorMsg);
                     CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                    completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                    completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
                     return completableFuture;
                 }
             }
@@ -520,7 +520,7 @@ public class Consumer {
             String errorMsg = "Transaction acknowledge only support the `PersistentSubscription`.";
             log.error(errorMsg);
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-            completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+            completableFuture.completeExceptionally(new TransactionAckConflictException(errorMsg));
             return completableFuture;
         }
     }
