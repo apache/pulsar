@@ -204,7 +204,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 }
             } else {
                 bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                        new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
+                new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), msgId.getPartitionIndex()), (v) -> {
                             ConcurrentBitSetRecyclable value;
                             if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
                                 value = ConcurrentBitSetRecyclable.create(msgId.getAcker().getBitSet());
@@ -297,14 +297,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (cnx == null) {
             return false;
         }
-        BitSetRecyclable bitSet = BitSetRecyclable.create();
-        bitSet.set(0, batchSize);
+        BitSetRecyclable bitSet;
+        if (msgId.getAcker() != null && !(msgId.getAcker() instanceof BatchMessageAckerDisabled)) {
+            bitSet = BitSetRecyclable.valueOf(msgId.getAcker().getBitSet().toLongArray());
+        } else {
+            bitSet = BitSetRecyclable.create();
+            bitSet.set(0, batchSize);
+        }
         if (ackType == AckType.Cumulative) {
-            if (txnidLeastBits != -1 && txnidMostBits != -1) {
-                bitSet.clear(batchIndex);
-            } else {
-                bitSet.clear(0, batchIndex + 1);
-            }
+            bitSet.clear(0, batchIndex + 1);
         } else {
             bitSet.clear(batchIndex);
         }
