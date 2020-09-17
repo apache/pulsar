@@ -39,7 +39,7 @@ public class AbstractWebSocketHandlerTest {
     private HttpServletRequest httpServletRequest;
 
     @Test
-    public void TopicNameUrlEncodingTest() throws Exception {
+    public void topicNameUrlEncodingTest() throws Exception {
         String producerV1 = "/ws/producer/persistent/my-property/my-cluster/my-ns/";
         String producerV1Topic = "my-topic[]<>";
         String consumerV1 = "/ws/consumer/persistent/my-property/my-cluster/my-ns/";
