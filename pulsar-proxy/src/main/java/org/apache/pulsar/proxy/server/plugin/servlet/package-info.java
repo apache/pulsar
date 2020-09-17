@@ -16,29 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
-
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test {@link ProxyProtocolWithClassLoader}.
+ * Pulsar proxy servlet plugin.
  */
-public class ProxyProtocolWithClassLoaderTest {
-
-    @Test
-    public void testWrapper() throws Exception {
-        ProxyProtocol h = mock(ProxyProtocol.class);
-        NarClassLoader loader = mock(NarClassLoader.class);
-        ProxyProtocolWithClassLoader wrapper = new ProxyProtocolWithClassLoader(h, loader);
-
-        String protocolBasePath = "metrics/pulsar";
-
-        when(h.getBasePath()).thenReturn(protocolBasePath);
-        assertEquals(protocolBasePath, wrapper.getBasePath());
-        verify(h, times(1)).getBasePath();
-    }
-}
+package org.apache.pulsar.proxy.server.plugin.servlet;

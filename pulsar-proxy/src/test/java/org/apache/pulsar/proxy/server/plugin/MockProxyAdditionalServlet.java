@@ -16,11 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
+package org.apache.pulsar.proxy.server.plugin;
 
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 
-public class MockProxyProtocol implements ProxyProtocol {
+public class MockProxyAdditionalServlet implements ProxyAdditionalServlet {
+
+    @Override
+    public void loadConfig(ProxyConfiguration proxyConfiguration) {
+
+    }
 
     @Override
     public String getBasePath() {

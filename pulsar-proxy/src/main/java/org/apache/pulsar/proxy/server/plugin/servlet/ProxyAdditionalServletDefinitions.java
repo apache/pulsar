@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
+package org.apache.pulsar.proxy.server.plugin.servlet;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -24,11 +24,11 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 /**
- * The collection of proxy protocol handler.
+ * The collection of proxy additional servlet definition.
  */
 @Data
 @Accessors(fluent = true)
-public class ProxyProtocolDefinitions {
+public class ProxyAdditionalServletDefinitions {
 
-    private final Map<String, ProxyProtocolMetadata> protocols = new TreeMap<>();
+    private final Map<String, ProxyAdditionalServletMetadata> servlets = new TreeMap<>();
 }

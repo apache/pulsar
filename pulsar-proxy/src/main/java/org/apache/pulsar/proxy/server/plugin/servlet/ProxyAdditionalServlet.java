@@ -16,27 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
+package org.apache.pulsar.proxy.server.plugin.servlet;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.annotations.Beta;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.eclipse.jetty.servlet.ServletHolder;
 
-@Slf4j
-public class CounterProxyProtocol implements ProxyProtocol {
+/**
+ * The additional servlet interface for support additional servlet on Pulsar proxy.
+ */
+@Beta
+public interface ProxyAdditionalServlet extends AutoCloseable {
 
+    /**
+     * load plugin config
+     *
+     * @param proxyConfiguration
+     */
+    void loadConfig(ProxyConfiguration proxyConfiguration);
+
+    /**
+     * Get the base path of prometheus metrics
+     *
+     * @return the base path of prometheus metrics
+     */
+    String getBasePath();
+
+    /**
+     * Get the servlet holder
+     *
+     * @return the servlet holder
+     */
+    ServletHolder getServletHolder();
 
     @Override
-    public String getBasePath() {
-        return "metrics/pulsar";
-    }
-
-    @Override
-    public ServletHolder getServletHolder() {
-        return null;
-    }
-
-    @Override
-    public void close() {
-
-    }
+    void close();
 }

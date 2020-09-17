@@ -68,6 +68,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private static final String CATEGORY_HTTP = "HTTP";
     @Category
     private static final String CATEGORY_SASL_AUTH = "SASL Authentication Provider";
+    @Category
+    private static final String CATEGORY_PLUGIN = "proxy plugin";
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -479,21 +481,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
 
     @FieldContext(
-<<<<<<< HEAD
-=======
-            category = CATEGORY_SERVER,
-            doc = "The directory to locate proxy protocols handler"
+            category = CATEGORY_PLUGIN,
+            doc = "The directory to locate proxy additional servlet"
     )
-    private String proxyProtocolsDirectory = "./protocols";
+    private String proxyAdditionalServletDirectory = "./proxyAdditionalServlet";
 
     @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "List of proxy protocol handler to load, which is a list of proxy interceptor names"
+            category = CATEGORY_PLUGIN,
+            doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
-    private Set<String> proxyProtocols = Sets.newTreeSet();
+    private Set<String> proxyAdditionalServlets = Sets.newTreeSet();
 
     @FieldContext(
->>>>>>> 5730f60134... add test case
             category =  CATEGORY_HTTP,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
         )
@@ -504,18 +503,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
         )
     private double httpRequestsMaxPerSecond = 100.0;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "The directory to locate proxy interceptors"
-    )
-    private String proxyInterceptorsDirectory = "./interceptors";
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "List of proxy interceptor to load, which is a list of proxy interceptor names"
-    )
-    private Set<String> proxyInterceptors = Sets.newTreeSet();
 
     @PropertiesContext(
         properties = {

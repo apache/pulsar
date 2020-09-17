@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
+package org.apache.pulsar.proxy.server.plugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +25,11 @@ import java.util.Set;
 import org.apache.pulsar.broker.intercept.*;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletDefinition;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletMetadata;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletUtils;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServletWithClassLoader;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -43,7 +48,7 @@ import static org.testng.AssertJUnit.assertTrue;
         BrokerInterceptorUtils.class, NarClassLoader.class
 })
 @PowerMockIgnore({"org.apache.logging.log4j.*"})
-public class ProxyProtocolUtilsTest {
+public class ProxyAdditionalServletUtilsTest {
 
     // Necessary to make PowerMockito.mockStatic work with TestNG.
     @ObjectFactory
@@ -53,21 +58,21 @@ public class ProxyProtocolUtilsTest {
 
     @Test
     public void testLoadProxyEventListener() throws Exception {
-        ProxyProtocolDefinition def = new ProxyProtocolDefinition();
-        def.setInterceptorClass(MockProxyProtocol.class.getName());
+        ProxyAdditionalServletDefinition def = new ProxyAdditionalServletDefinition();
+        def.setAdditionalServletClass(MockProxyAdditionalServlet.class.getName());
         def.setDescription("test-proxy-listener");
 
         String archivePath = "/path/to/proxy/listener/nar";
 
-        ProxyProtocolMetadata metadata = new ProxyProtocolMetadata();
+        ProxyAdditionalServletMetadata metadata = new ProxyAdditionalServletMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(ProxyProtocolUtils.PROXY_INTERCEPTOR_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(ProxyAdditionalServletUtils.PROXY_ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockProxyProtocol.class;
-        when(mockLoader.loadClass(eq(MockProxyProtocol.class.getName())))
+        Class listenerClass = MockProxyAdditionalServlet.class;
+        when(mockLoader.loadClass(eq(MockProxyAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);
@@ -78,29 +83,29 @@ public class ProxyProtocolUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        ProxyProtocolWithClassLoader returnedPhWithCL = ProxyProtocolUtils.load(metadata, "");
-        ProxyProtocol returnedPh = returnedPhWithCL.getInterceptor();
+        ProxyAdditionalServletWithClassLoader returnedPhWithCL = ProxyAdditionalServletUtils.load(metadata, "");
+        ProxyAdditionalServlet returnedPh = returnedPhWithCL.getServlet();
 
         assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockProxyProtocol);
+        assertTrue(returnedPh instanceof MockProxyAdditionalServlet);
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testLoadProxyEventListenerWithBlankListerClass() throws Exception {
-        ProxyProtocolDefinition def = new ProxyProtocolDefinition();
+        ProxyAdditionalServletDefinition def = new ProxyAdditionalServletDefinition();
         def.setDescription("test-proxy-listener");
 
         String archivePath = "/path/to/proxy/listener/nar";
 
-        ProxyProtocolMetadata metadata = new ProxyProtocolMetadata();
+        ProxyAdditionalServletMetadata metadata = new ProxyAdditionalServletMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(ProxyProtocolUtils.PROXY_INTERCEPTOR_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(ProxyAdditionalServletUtils.PROXY_ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockProxyProtocol.class;
-        when(mockLoader.loadClass(eq(MockProxyProtocol.class.getName())))
+        Class listenerClass = MockProxyAdditionalServlet.class;
+        when(mockLoader.loadClass(eq(MockProxyAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
 
         PowerMockito.mockStatic(NarClassLoader.class);
@@ -111,23 +116,23 @@ public class ProxyProtocolUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        ProxyProtocolUtils.load(metadata, "");
+        ProxyAdditionalServletUtils.load(metadata, "");
     }
 
     @Test(expectedExceptions = IOException.class)
     public void testLoadProxyEventListenerWithWrongListerClass() throws Exception {
-        ProxyProtocolDefinition def = new ProxyProtocolDefinition();
-        def.setInterceptorClass(Runnable.class.getName());
+        ProxyAdditionalServletDefinition def = new ProxyAdditionalServletDefinition();
+        def.setAdditionalServletClass(Runnable.class.getName());
         def.setDescription("test-proxy-listener");
 
         String archivePath = "/path/to/proxy/listener/nar";
 
-        ProxyProtocolMetadata metadata = new ProxyProtocolMetadata();
+        ProxyAdditionalServletMetadata metadata = new ProxyAdditionalServletMetadata();
         metadata.setDefinition(def);
         metadata.setArchivePath(Paths.get(archivePath));
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
-        when(mockLoader.getServiceDefinition(eq(ProxyProtocolUtils.PROXY_INTERCEPTOR_DEFINITION_FILE)))
+        when(mockLoader.getServiceDefinition(eq(ProxyAdditionalServletUtils.PROXY_ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
         Class listenerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
@@ -141,6 +146,6 @@ public class ProxyProtocolUtilsTest {
                 any(String.class)
         )).thenReturn(mockLoader);
 
-        ProxyProtocolUtils.load(metadata, "");
+        ProxyAdditionalServletUtils.load(metadata, "");
     }
 }

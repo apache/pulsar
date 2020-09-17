@@ -16,43 +16,51 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.proxy.server.protocol;
+package org.apache.pulsar.proxy.server.plugin.servlet;
 
 import java.io.IOException;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
+import org.apache.pulsar.proxy.server.plugin.servlet.ProxyAdditionalServlet;
 import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
- * A proxy protocol handler with it's classloader.
+ * A proxy additional servlet with it's classloader.
  */
 @Slf4j
 @Data
 @RequiredArgsConstructor
-public class ProxyProtocolWithClassLoader implements ProxyProtocol {
+public class ProxyAdditionalServletWithClassLoader implements ProxyAdditionalServlet {
 
-    private final ProxyProtocol interceptor;
+    private final ProxyAdditionalServlet servlet;
     private final NarClassLoader classLoader;
 
     @Override
+    public void loadConfig(ProxyConfiguration proxyConfiguration) {
+        servlet.loadConfig(proxyConfiguration);
+    }
+
+    @Override
     public String getBasePath() {
-        return interceptor.getBasePath();
+        return servlet.getBasePath();
     }
 
     @Override
     public ServletHolder getServletHolder() {
-        return interceptor.getServletHolder();
+        return servlet.getServletHolder();
     }
 
     @Override
     public void close() {
-        interceptor.close();
+        servlet.close();
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the broker interceptor class loader", e);
+            log.warn("Failed to close the broker additional servlet class loader", e);
         }
     }
 }
