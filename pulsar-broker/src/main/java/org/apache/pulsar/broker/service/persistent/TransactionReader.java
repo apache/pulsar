@@ -20,23 +20,21 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.google.common.collect.Queues;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
-import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.EndOfTransactionException;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotSealedException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -112,6 +110,15 @@ public class TransactionReader {
         }
         transactionBufferReader.thenAccept(reader -> {
             reader.readNext(readMessageNum).whenComplete((transactionEntries, throwable) -> {
+                if (throwable != null && throwable.getCause() instanceof EndOfTransactionException) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("transaction {} read finished.", txnID);
+                    }
+                    resetReader(txnID, reader);
+                    readEntriesCallback.readEntriesComplete(Collections.EMPTY_LIST, ctx);
+                    return;
+                }
+
                 if (throwable != null) {
                     log.error("Read transaction messages failed.", throwable);
                     readEntriesCallback.readEntriesFailed(
@@ -131,15 +138,20 @@ public class TransactionReader {
                                 transactionEntries.get(0).committedAtEntryId()),
                         transactionEntries.get(0).numMessageInTxn());
 
-                if (transactionEntries.size() < readMessageNum) {
-                    resetReader(txnID, reader);
-                }
                 readEntriesCallback.readEntriesComplete(new ArrayList<>(transactionEntries), ctx);
             });
         }).exceptionally(throwable -> {
-            log.error("Open transactionBufferReader failed.", throwable);
-            readEntriesCallback.readEntriesFailed(
-                    ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+            transactionBufferReader = null;
+            if (throwable.getCause() instanceof TransactionNotSealedException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("transaction {} is not sealed, failed to open transactionBufferReader.", txnID);
+                }
+                readEntriesCallback.readEntriesFailed(
+                        ManagedLedgerException.getManagedLedgerException(throwable.getCause()), ctx);
+                return null;
+            }
+            log.error("open transactionBufferReader failed.", throwable);
+            readEntriesCallback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
             return null;
         });
     }
