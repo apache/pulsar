@@ -124,6 +124,19 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Number of threads to use for HTTP requests processing"
     )
     private int numHttpServerThreads = 8;
+
+    @FieldContext(
+            category =  CATEGORY_WORKER,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_WORKER,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
+
     @FieldContext(
             category = CATEGORY_WORKER,
             required = false,

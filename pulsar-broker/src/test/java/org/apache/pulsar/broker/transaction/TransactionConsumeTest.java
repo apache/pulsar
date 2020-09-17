@@ -114,10 +114,11 @@ public class TransactionConsumeTest extends TransactionTestBase {
         appendTransactionMessages(txnID, transactionBuffer, transactionMessageCnt);
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn);
 
+        Message<byte[]> message;
         for (int i = 0; i < totalMsgCnt; i++) {
             if (i < (messageCntBeforeTxn + messageCntAfterTxn)) {
                 // receive normal messages successfully
-                Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 log.info("Receive exclusive normal msg: {}" + new String(message.getData(), UTF_8));
                 message = sharedConsumer.receive(2, TimeUnit.SECONDS);
@@ -125,33 +126,34 @@ public class TransactionConsumeTest extends TransactionTestBase {
                 log.info("Receive shared normal msg: {}" + new String(message.getData(), UTF_8));
             } else {
                 // can't receive transaction messages before commit
-                Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNull(message);
+                log.info("exclusive consumer can't receive message before commit.");
+
                 message = sharedConsumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNull(message);
-                log.info("Can't receive message before commit.");
+                log.info("shared consumer can't receive message before commit.");
             }
         }
 
-        transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.COMMIT.getNumber());
-        Thread.sleep(1000);
+        transactionBuffer.endTxnOnPartition(txnID, PulsarApi.TxnAction.COMMIT.getNumber()).get();
         log.info("Commit txn.");
 
         Map<String, Integer> exclusiveBatchIndexMap = new HashMap<>();
         Map<String, Integer> sharedBatchIndexMap = new HashMap<>();
         // receive transaction messages successfully after commit
         for (int i = 0; i < transactionMessageCnt; i++) {
-            Message<byte[]> message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+            message = exclusiveConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(exclusiveBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
             log.info("Receive txn exclusive id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
 
-            message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+            message = sharedConsumer.receive(5, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             Assert.assertTrue(message.getMessageId() instanceof BatchMessageIdImpl);
             checkBatchIndex(sharedBatchIndexMap, (BatchMessageIdImpl) message.getMessageId());
-            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData(), UTF_8));
+            log.info("Receive txn shared id: {}, msg: {}", message.getMessageId(), new String(message.getData()));
         }
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
