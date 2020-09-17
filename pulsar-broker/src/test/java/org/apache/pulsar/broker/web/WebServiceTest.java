@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.web;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
@@ -28,6 +30,7 @@ import com.google.common.io.Closeables;
 
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -97,7 +100,7 @@ public class WebServiceTest {
      */
     @Test
     public void testDefaultClientVersion() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false);
+        setupEnv(true, "1.0", true, false, false, false, -1);
 
         try {
             // Make an HTTP request to lookup a namespace. The request should
@@ -115,7 +118,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsEnabled() throws Exception {
-        setupEnv(false, "1.0", false, true, false, false);
+        setupEnv(false, "1.0", false, true, false, false, -1);
 
         // Make requests both HTTP and HTTPS. The requests should succeed
         try {
@@ -137,7 +140,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsDisabled() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false);
+        setupEnv(false, "1.0", false, false, false, false, -1);
 
         // Make requests both HTTP and HTTPS. Only the HTTP request should succeed
         try {
@@ -161,7 +164,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, true);
+        setupEnv(false, "1.0", false, true, true, true, -1);
 
         // Only the request with client certificate should succeed
         try {
@@ -184,7 +187,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthDisallowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, false);
+        setupEnv(false, "1.0", false, true, true, false, -1);
 
         // Only the request with trusted client certificate should succeed
         try {
@@ -201,6 +204,27 @@ public class WebServiceTest {
     }
 
     @Test
+    public void testRateLimiting() throws Exception {
+        setupEnv(false, "1.0", false, false, false, false, 10.0);
+
+        // Make requests without exceeding the max rate
+        for (int i = 0; i < 5; i++) {
+            makeHttpRequest(false, false);
+            Thread.sleep(200);
+        }
+
+        try {
+            for (int i = 0; i < 500; i++) {
+                makeHttpRequest(false, false);
+            }
+
+            fail("Some request should have failed");
+        } catch (IOException e) {
+            assertTrue(e.getMessage().contains("429"));
+        }
+    }
+
+    @Test
     public void testSplitPath() {
         String result = PulsarWebResource.splitPath("prop/cluster/ns/topic1", 4);
         Assert.assertEquals(result, "topic1");
@@ -208,7 +232,7 @@ public class WebServiceTest {
 
     @Test
     public void testMaxRequestSize() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false);
+        setupEnv(true, "1.0", true, false, false, false, -1);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -286,7 +310,7 @@ public class WebServiceTest {
     MockedZooKeeperClientFactoryImpl zkFactory = new MockedZooKeeperClientFactoryImpl();
 
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
-            boolean enableTls, boolean enableAuth, boolean allowInsecure) throws Exception {
+            boolean enableTls, boolean enableAuth, boolean allowInsecure, double rateLimit) throws Exception {
         Set<String> providers = new HashSet<>();
         providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
 
@@ -313,6 +337,12 @@ public class WebServiceTest {
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setZookeeperServers("localhost:2181");
         config.setHttpMaxRequestSize(10 * 1024);
+
+        if (rateLimit > 0) {
+            config.setHttpRequestsLimitEnabled(true);
+            config.setHttpRequestsMaxPerSecond(rateLimit);
+        }
+
         pulsar = spy(new PulsarService(config));
         doReturn(zkFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();

@@ -123,6 +123,7 @@ public class PulsarClientTool {
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
         clientBuilder.tlsTrustCertsFilePath(this.tlsTrustCertsFilePath);
+        clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(serviceURL);
 
         clientBuilder.useKeyStoreTls(useKeyStoreTls)
