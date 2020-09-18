@@ -36,7 +36,7 @@ curl \
     -d '{"name": "admin", "password": "apachepulsar", "description": "test", "email": "username@test.org"}'
 ```
 
-You can find the in the [Docker](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from scratch as well:
+You can find the in the [Docker](https://github.com/apache/pulsar-manager/tree/master/docker) directory and build an image from source code as well:
 
 ```
 git clone https://github.com/apache/pulsar-manager
