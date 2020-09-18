@@ -1621,6 +1621,29 @@
         "Message": {
             "type": "object",
             "properties": {
+                "topicName": {
+                    "type": "string"
+                },
+                "orderingKey": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "schemaVersion": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
+                },
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
+                },
+                "producerName": {
+                    "type": "string"
+                },
                 "publishTime": {
                     "type": "integer",
                     "format": "int64"
@@ -1629,18 +1652,16 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
-                },
-                "topicName": {
-                    "type": "string"
-                },
-                "replicated": {
-                    "type": "boolean"
-                },
-                "producerName": {
-                    "type": "string"
                 },
                 "replicatedFrom": {
                     "type": "string"
@@ -1659,29 +1680,8 @@
                         "format": "byte"
                     }
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
-                "schemaVersion": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
-                },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
-                },
-                "orderingKey": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
+                "replicated": {
+                    "type": "boolean"
                 },
                 "value": {
                     "type": "object"
