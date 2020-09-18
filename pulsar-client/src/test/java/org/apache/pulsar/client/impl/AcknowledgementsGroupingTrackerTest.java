@@ -74,12 +74,12 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg1));
         assertTrue(tracker.isDuplicate(msg2));
         assertTrue(tracker.isDuplicate(msg3));
@@ -99,7 +99,7 @@ public class AcknowledgementsGroupingTrackerTest {
         assertTrue(tracker.isDuplicate(msg5));
         assertFalse(tracker.isDuplicate(msg6));
 
-        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -188,7 +188,7 @@ public class AcknowledgementsGroupingTrackerTest {
 
         when(consumer.getClientCnx()).thenReturn(null);
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
         assertFalse(tracker.isDuplicate(msg1));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
@@ -196,7 +196,7 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap(), null);
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
         tracker.close();
@@ -248,12 +248,12 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg1));
 
         assertFalse(tracker.isDuplicate(msg2));
 
-        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg5, AckType.Cumulative, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg1));
         assertTrue(tracker.isDuplicate(msg2));
         assertTrue(tracker.isDuplicate(msg3));
@@ -273,7 +273,7 @@ public class AcknowledgementsGroupingTrackerTest {
         assertTrue(tracker.isDuplicate(msg5));
         assertFalse(tracker.isDuplicate(msg6));
 
-        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), -1, -1);
+        tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap(), null);
         assertTrue(tracker.isDuplicate(msg6));
 
         when(consumer.getClientCnx()).thenReturn(cnx);
