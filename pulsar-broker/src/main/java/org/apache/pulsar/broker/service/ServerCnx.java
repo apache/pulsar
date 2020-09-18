@@ -296,11 +296,11 @@ public class ServerCnx extends PulsarHandler {
         }
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
-                log.error("OriginalRole {} is not authorized to perform operation {} on topic {}",
+                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}",
                     originalPrincipal, operation, topicName);
             }
             if (!isAuthorized) {
-                log.error("Role {} is not authorized to perform operation {} on topic {}",
+                log.warn("Role {} is not authorized to perform operation {} on topic {}",
                     authRole, operation, topicName);
             }
             return isProxyAuthorized && isAuthorized;
