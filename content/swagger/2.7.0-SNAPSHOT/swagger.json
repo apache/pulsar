@@ -7906,7 +7906,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "307" : {
@@ -14068,10 +14068,10 @@
         "connectedSince" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -14456,20 +14456,18 @@
           "type" : "number",
           "format" : "double"
         },
-        "underLoaded" : {
-          "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "bandwidthOut" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
         "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -14485,12 +14483,14 @@
         "directMemory" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
+        "underLoaded" : {
+          "type" : "boolean"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
         }
       }
     },
@@ -14668,10 +14668,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }
@@ -15545,10 +15545,10 @@
         "producerName" : {
           "type" : "string"
         },
-        "address" : {
+        "clientVersion" : {
           "type" : "string"
         },
-        "clientVersion" : {
+        "address" : {
           "type" : "string"
         }
       }

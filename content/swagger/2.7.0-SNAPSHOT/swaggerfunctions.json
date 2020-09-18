@@ -1401,20 +1401,22 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "replicatedFrom" : {
+        "publishTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "eventTime" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "topicName" : {
           "type" : "string"
         },
         "replicated" : {
           "type" : "boolean"
         },
-        "producerName" : {
-          "type" : "string"
-        },
         "messageId" : {
           "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
         },
         "orderingKey" : {
           "type" : "array",
@@ -1423,11 +1425,28 @@
             "format" : "byte"
           }
         },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
         "sequenceId" : {
           "type" : "integer",
           "format" : "int64"
         },
-        "topicName" : {
+        "producerName" : {
+          "type" : "string"
+        },
+        "replicatedFrom" : {
           "type" : "string"
         },
         "data" : {
@@ -1438,25 +1457,6 @@
           }
         },
         "keyBytes" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "publishTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "eventTime" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
-        },
-        "schemaVersion" : {
           "type" : "array",
           "items" : {
             "type" : "string",
