@@ -52,6 +52,7 @@ public class TopicPolicies {
     private OffloadPolicies offloadPolicies;
     private InactiveTopicPolicies inactiveTopicPolicies = null;
     private DispatchRate dispatchRate = null;
+    private DispatchRate subscriptionDispatchRate = null;
     private Long compactionThreshold = null;
     private PublishRate publishRate = null;
 
@@ -113,6 +114,10 @@ public class TopicPolicies {
 
     public boolean isDispatchRateSet() {
         return dispatchRate != null;
+    }
+
+    public boolean isSubscriptionDispatchRateSet() {
+        return subscriptionDispatchRate != null;
     }
 
     public boolean isCompactionThresholdSet() {
