@@ -185,7 +185,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean createTopicIfDoesNotExist;
 
-
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
                                                ConsumerConfigurationData<T> conf,
@@ -484,10 +483,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType,
-                                   Map<String,Long> properties) {
+                                   Map<String,Long> properties, TransactionImpl txn) {
         boolean isAllMsgsAcked;
         if (ackType == AckType.Individual) {
-            isAllMsgsAcked = batchMessageId.ackIndividual();
+            isAllMsgsAcked = txn == null && batchMessageId.ackIndividual();
         } else {
             isAllMsgsAcked = batchMessageId.ackCumulative();
         }
@@ -523,7 +522,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties,
-                                                    TransactionImpl txnImpl) {
+                                                    TransactionImpl txn) {
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -537,7 +536,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
-            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties) && txnImpl == null) {
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            if (ackType == AckType.Cumulative && txn != null) {
+                return sendAcknowledge(messageId, ackType, properties, txn);
+            }
+            if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] acknowledging message - {}, acktype {}", subscription, consumerName, messageId,
@@ -545,17 +548,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             } else {
                 if (conf.isBatchIndexAckEnabled()) {
-                    BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                     acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
-                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(), ackType, properties,
-                            txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
-                            txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
+                            batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
+                            ackType, properties, txn);
                 }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
         }
-        return sendAcknowledge(messageId, ackType, properties, txnImpl);
+        return sendAcknowledge(messageId, ackType, properties, txn);
     }
 
     @Override
@@ -575,14 +576,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         for (MessageId messageId : messageIdList) {
             MessageIdImpl messageIdImpl;
             if (messageId instanceof BatchMessageIdImpl
-                    && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
+                    && !markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties, txn)) {
                 BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
                 acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                        batchMessageId.getBatchSize(), ackType, properties,
-                        txn == null ? -1 : txn.getTxnIdMostBits(),
-                        txn == null ? -1 : txn.getTxnIdLeastBits());
+                        batchMessageId.getBatchSize(), ackType, properties, txn);
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
@@ -600,6 +599,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         return CompletableFuture.completedFuture(null);
     }
+
 
     @SuppressWarnings("unchecked")
     @Override
@@ -755,9 +755,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties,
-                txnImpl == null ? -1 : txnImpl.getTxnIdMostBits(),
-                txnImpl == null ? -1 : txnImpl.getTxnIdLeastBits());
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties, txnImpl);
 
         // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
         // the messages will be re-delivered
@@ -1150,8 +1148,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     msgMetadata.recycle();
                     return;
                 }
-                BatchMessageAcker batchMessageAcker = BatchMessageAcker.newAcker(ackBitSet);
-                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, batchMessageAcker);
+                msgId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex(), messageId.getBatchIndex(), -1, BatchMessageAckerDisabled.INSTANCE);
             }
 
             final MessageImpl<T> message = new MessageImpl<>(topicName.toString(), msgId, msgMetadata,
