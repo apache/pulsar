@@ -1629,19 +1629,30 @@
                     "type": "integer",
                     "format": "int64"
                 },
+                "sequenceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
                 "topicName": {
                     "type": "string"
+                },
+                "replicated": {
+                    "type": "boolean"
                 },
                 "producerName": {
                     "type": "string"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "replicatedFrom": {
+                    "type": "string"
                 },
-                "encryptionCtx": {
-                    "$ref": "#/definitions/EncryptionContext"
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "byte"
+                    }
                 },
-                "orderingKey": {
+                "keyBytes": {
                     "type": "array",
                     "items": {
                         "type": "string",
@@ -1652,9 +1663,6 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "replicatedFrom": {
-                    "type": "string"
-                },
                 "schemaVersion": {
                     "type": "array",
                     "items": {
@@ -1662,21 +1670,13 @@
                         "format": "byte"
                     }
                 },
-                "replicated": {
-                    "type": "boolean"
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
                 },
-                "sequenceId": {
-                    "type": "integer",
-                    "format": "int64"
+                "encryptionCtx": {
+                    "$ref": "#/definitions/EncryptionContext"
                 },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "string",
-                        "format": "byte"
-                    }
-                },
-                "keyBytes": {
+                "orderingKey": {
                     "type": "array",
                     "items": {
                         "type": "string",
