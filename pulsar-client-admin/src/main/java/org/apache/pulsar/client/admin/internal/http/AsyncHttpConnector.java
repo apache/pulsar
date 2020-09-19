@@ -139,11 +139,15 @@ public class AsyncHttpConnector implements Connector {
                 } else {
                     SslContext sslCtx = null;
                     if (authData.hasDataForTls()) {
-                        sslCtx = SecurityUtility.createNettySslContextForClient(
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
-                                conf.getTlsTrustCertsFilePath(),
-                                authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
+                        sslCtx = authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(
+                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                        conf.getTlsTrustCertsFilePath(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey())
+                                : SecurityUtility.createNettySslContextForClient(
+                                        conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                        authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
+                                        authData.getTlsPrivateKey());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
