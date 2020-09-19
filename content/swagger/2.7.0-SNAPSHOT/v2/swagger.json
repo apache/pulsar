@@ -16861,13 +16861,13 @@
                         "type": "string"
                     }
                 },
-                "address": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -17289,12 +17289,6 @@
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
@@ -17312,6 +17306,12 @@
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
                 },
                 "loadReportType": {
                     "type": "string"
@@ -17498,13 +17498,13 @@
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -18407,13 +18407,13 @@
                 "producerName": {
                     "type": "string"
                 },
-                "address": {
-                    "type": "string"
-                },
                 "connectedSince": {
                     "type": "string"
                 },
                 "clientVersion": {
+                    "type": "string"
+                },
+                "address": {
                     "type": "string"
                 }
             }
@@ -18512,11 +18512,11 @@
         "ResourceUnit": {
             "type": "object",
             "properties": {
-                "resourceId": {
-                    "type": "string"
-                },
                 "availableResource": {
                     "$ref": "#/definitions/ResourceDescription"
+                },
+                "resourceId": {
+                    "type": "string"
                 }
             }
         },
