@@ -85,9 +85,13 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                     // Set client certificate if available
                     AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
-                        return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
-                                authData.getTlsPrivateKey());
+                        return authData.getTlsTrustStoreStream() == null
+                                ? SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        conf.getTlsTrustCertsFilePath(),
+                                        (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey())
+                                : SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                        authData.getTlsTrustStoreStream(),
+                                        (X509Certificate[]) authData.getTlsCertificates(), authData.getTlsPrivateKey());
                     } else {
                         return SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath());
