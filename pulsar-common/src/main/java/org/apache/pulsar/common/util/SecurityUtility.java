@@ -56,6 +56,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
@@ -165,8 +167,15 @@ public class SecurityUtility {
     public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
             Certificate[] certificates, PrivateKey privateKey)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
-            return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates, privateKey);
+
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates,
+                        privateKey);
+            }
+        } else {
+            return createNettySslContextForClient(allowInsecureConnection, (InputStream) null, certificates,
+                    privateKey);
         }
     }
 
@@ -189,8 +198,12 @@ public class SecurityUtility {
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
-        try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
-            setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
+        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+            try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
+                setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
+            }
+        } else {
+            setupTrustCerts(builder, allowInsecureConnection, null);
         }
         setupKeyManager(builder, privateKey, certificates);
         setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
