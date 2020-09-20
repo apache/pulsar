@@ -17280,40 +17280,40 @@
                     "type": "number",
                     "format": "double"
                 },
-                "bandwidthIn": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "lastUpdate": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "bandwidthOut": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "bandwidthIn": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
                 "loadReportType": {
                     "type": "string"
-                },
-                "directMemory": {
-                    "$ref": "#/definitions/ResourceUsage"
-                },
-                "lastUpdate": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "msgThroughputIn": {
-                    "type": "number",
-                    "format": "double"
                 },
                 "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
                 "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
+                },
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
                 }
             }
