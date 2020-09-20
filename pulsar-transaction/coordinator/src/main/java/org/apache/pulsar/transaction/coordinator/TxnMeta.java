@@ -55,12 +55,12 @@ public interface TxnMeta {
     List<String> producedPartitions();
 
     /**
-     * Return the the list of subscriptions that this transaction send to.
+     * Return the the list of partitions that this transaction acknowledges to.
      *
-     * @return the list of subscriptions that this transaction produced to.
+     * @return the list of partitions that this transaction acknowledges to.
      *         the returned list is sorted by partition name.
      */
-    List<TxnSubscription> ackedPartitions();
+    List<TransactionSubscription> ackedPartitions();
 
     /**
      * Return the the positions of add entry to bookkeeper.
@@ -80,15 +80,15 @@ public interface TxnMeta {
         throws InvalidTxnStatusException;
 
     /**
-     * Add the list of subscriptions to the transaction.
+     * Add the list of acked partitions to the transaction.
      *
      * @param subscriptions the ackd subscriptions add to the transaction
      * @return transaction meta
      * @throws InvalidTxnStatusException if the transaction is not in
      *         {@link TxnStatus#OPEN}
      */
-    TxnMeta addAckedPartitions(List<TxnSubscription> subscriptions)
-            throws InvalidTxnStatusException;
+    TxnMeta addAckedPartitions(List<TransactionSubscription> subscriptions)
+        throws InvalidTxnStatusException;
 
     /**
      * Update the transaction stats from the <tt>newStatus</tt> only when

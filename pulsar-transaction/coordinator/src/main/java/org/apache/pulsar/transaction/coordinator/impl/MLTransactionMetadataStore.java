@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry;
 import org.apache.pulsar.common.api.proto.PulsarApi.TransactionMetadataEntry.TransactionMetadataOp;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
@@ -39,8 +40,8 @@ import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
@@ -238,7 +239,7 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TxnSubscription> txnSubscriptions) {
+    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnID, List<TransactionSubscription> txnSubscriptions) {
         if (!checkIfReady()) {
             return FutureUtil.failedFuture(
                     new CoordinatorException.TransactionMetadataStoreStateException(tcID,
@@ -340,25 +341,30 @@ public class MLTransactionMetadataStore
         });
     }
 
-    public static List<PulsarApi.Subscription> txnSubscriptionToSubscription(List<TxnSubscription> tnxSubscriptions) {
+    public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
         List<PulsarApi.Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
-        for (TxnSubscription tnxSubscription : tnxSubscriptions) {
-            PulsarApi.Subscription subscription = PulsarApi.Subscription.newBuilder()
-                    .setSubscription(tnxSubscription.getSubscription())
-                    .setTopic(tnxSubscription.getTopic()).build();
+        for (TransactionSubscription transactionSubscription : tnxSubscriptions) {
+            Subscription.Builder subscriptionBuilder = PulsarApi.Subscription.newBuilder();
+            Subscription subscription = subscriptionBuilder
+                    .setSubscription(transactionSubscription.getSubscription())
+                    .setTopic(transactionSubscription.getTopic()).build();
             subscriptions.add(subscription);
+            subscriptionBuilder.recycle();
         }
         return subscriptions;
     }
 
-    public static List<TxnSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
-        List<TxnSubscription> txnSubscriptions = new ArrayList<>(subscriptions.size());
+    public static List<TransactionSubscription> subscriptionToTxnSubscription(List<PulsarApi.Subscription> subscriptions) {
+        List<TransactionSubscription> transactionSubscriptions = new ArrayList<>(subscriptions.size());
         for (PulsarApi.Subscription subscription : subscriptions) {
-            txnSubscriptions
-                    .add(new TxnSubscription(subscription.getTopic(), subscription.getSubscription()));
+            TransactionSubscription.TransactionSubscriptionBuilder transactionSubscriptionBuilder  = TransactionSubscription.builder();
+            transactionSubscriptionBuilder.subscription(subscription.getSubscription());
+            transactionSubscriptionBuilder.topic(subscription.getTopic());
+            transactionSubscriptions
+                    .add(transactionSubscriptionBuilder.build());
             subscription.recycle();
         }
-        return txnSubscriptions;
+        return transactionSubscriptions;
     }
 
     @VisibleForTesting

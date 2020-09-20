@@ -23,6 +23,7 @@ import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionStatusException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
 /**
@@ -51,6 +52,14 @@ public interface TransactionMeta {
      * @return the number of entries
      */
     int numEntries();
+
+    /**
+     * Return messages number in one transaction
+     *
+     * @return the number of transaction messages
+     * @throws TransactionStatusException
+     */
+    int numMessageInTxn() throws TransactionStatusException;
 
     /**
      * Return the committed ledger id at data ledger.
@@ -87,9 +96,10 @@ public interface TransactionMeta {
      *
      * @param sequenceId the message sequence id
      * @param position the position of transaction log
+     * @param batchSize
      * @return
      */
-    CompletableFuture<Position> appendEntry(long sequenceId, Position position);
+    CompletableFuture<Position> appendEntry(long sequenceId, Position position, int batchSize);
 
     /**
      * Mark the transaction status is committing.

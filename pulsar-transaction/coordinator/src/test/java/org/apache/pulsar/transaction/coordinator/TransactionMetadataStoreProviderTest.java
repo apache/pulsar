@@ -195,11 +195,14 @@ public class TransactionMetadataStoreProviderTest {
         TxnStatus txnStatus = this.store.getTxnStatusAsync(txnID).get();
         assertEquals(txnStatus, TxnStatus.OPEN);
 
-        List<TxnSubscription> partitions = new ArrayList<>();
-        partitions.add(new TxnSubscription("topic-0", "sub-0"));
-        partitions.add(new TxnSubscription("topic-1", "sub-1"));
-        partitions.add(new TxnSubscription("topic-2", "sub-2"));
-        partitions.add(new TxnSubscription("topic-3", "sub-3"));
+        String topicPartition1 = "persistent://public/default/txn-ack-partition-0";
+        String topicPartition2 = "persistent://public/default/txn-ack-partition-1";
+        String topicPartition3 = "persistent://public/default/txn-ack-partition-2";
+        List<TransactionSubscription> partitions = new ArrayList<>();
+        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
+        partitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
 
         // add the list of partitions to the transaction
         this.store.addAckedPartitionToTxnAsync(txnID, partitions).get();
@@ -207,36 +210,37 @@ public class TransactionMetadataStoreProviderTest {
         TxnMeta txn = this.store.getTxnMetaAsync(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
         assertEquals(txn.ackedPartitions().size(), partitions.size());
-        for (TxnSubscription partition : partitions) {
+        for (TransactionSubscription partition : partitions) {
             assertTrue(txn.ackedPartitions().contains(partition));
         }
 
         // add another list of partition. duplicated partitions should be removed
-        List<TxnSubscription> newPartitions = new ArrayList<>();
-        newPartitions.add(new TxnSubscription("topic-4", "sub-4"));
-        newPartitions.add(new TxnSubscription("topic-1", "sub-1"));
-        this.store.addAckedPartitionToTxnAsync(txnID, newPartitions);
+        List<TransactionSubscription> newPartitions = new ArrayList<>();
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
+        newPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
+        this.store.addAckedPartitionToTxnAsync(txnID, newPartitions).get();
 
         txn = this.store.getTxnMetaAsync(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);
-        List<TxnSubscription> finalPartitions = new ArrayList<>();
-        finalPartitions.add(new TxnSubscription("topic-0", "sub-0"));
-        finalPartitions.add(new TxnSubscription("topic-1", "sub-1"));
-        finalPartitions.add(new TxnSubscription("topic-2", "sub-2"));
-        finalPartitions.add(new TxnSubscription("topic-3", "sub-3"));
-        finalPartitions.add(new TxnSubscription("topic-4", "sub-4"));
-        assertEquals(txn.ackedPartitions().size(), finalPartitions.size());
-        for (TxnSubscription partition : finalPartitions) {
-            assertTrue(txn.ackedPartitions().contains(partition));
-        }
+        List<TransactionSubscription> finalPartitions = new ArrayList<>();
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-0").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition1).subscription("sub-1").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-2").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-5").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-4").build());
+        finalPartitions.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-6").build());
+        assertEquals(txn.ackedPartitions(), finalPartitions);
 
         // change the transaction to `COMMITTING`
         this.store.updateTxnStatusAsync(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN).get();
 
         // add partitions should fail if it is already committing.
-        List<TxnSubscription> newPartitions2 = new ArrayList<>();
-        newPartitions2.add(new TxnSubscription("topic-4", "sub-4"));
-        newPartitions2.add(new TxnSubscription("topic-5", "sub-5"));
+
+        List<TransactionSubscription> newPartitions2 = new ArrayList<>();
+        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition2).subscription("sub-7").build());
+        newPartitions2.add(TransactionSubscription.builder().topic(topicPartition3).subscription("sub-8").build());
         try {
             this.store.addAckedPartitionToTxnAsync(txnID, newPartitions2).get();
             fail("Should fail to add acked partitions if the transaction is not in OPEN status");
@@ -247,7 +251,7 @@ public class TransactionMetadataStoreProviderTest {
         txn = this.store.getTxnMetaAsync(txnID).get();
         assertEquals(txn.status(), TxnStatus.COMMITTING);
         assertEquals(txn.ackedPartitions().size(), finalPartitions.size());
-        for (TxnSubscription partition : finalPartitions) {
+        for (TransactionSubscription partition : finalPartitions) {
             assertTrue(txn.ackedPartitions().contains(partition));
         }
     }

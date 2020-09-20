@@ -24,7 +24,9 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -124,6 +126,129 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.topics().getPersistence(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testDispatchRateDisabled() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate();
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        try {
+            admin.topics().setDispatchRate(testTopic, dispatchRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getDispatchRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testCompactionThresholdDisabled() {
+        Long compactionThreshold = 10000L;
+        log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
+
+        try {
+            admin.topics().setCompactionThreshold(testTopic, compactionThreshold);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getCompactionThreshold(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testMaxConsumersPerSubscription() throws Exception {
+        int maxConsumersPerSubscription = 10;
+        log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
+
+        try {
+            admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getMaxConsumersPerSubscription(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().removeMaxConsumersPerSubscription(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testPublishRateDisabled() throws Exception {
+        PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
+        log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
+
+        try {
+            admin.topics().setPublishRate(testTopic, publishRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getPublishRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testMaxProducersDisabled() {
+        log.info("MaxProducers will set to the topic: {}", testTopic);
+        try {
+            admin.topics().setMaxProducers(testTopic, 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getMaxProducers(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
+    public void testMaxConsumersDisabled() {
+        log.info("MaxConsumers will set to the topic: {}", testTopic);
+        try {
+            admin.topics().setMaxConsumers(testTopic, 2);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getMaxConsumers(testTopic);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 405);

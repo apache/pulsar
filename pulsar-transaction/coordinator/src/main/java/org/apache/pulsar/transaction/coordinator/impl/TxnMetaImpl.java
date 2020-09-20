@@ -30,8 +30,8 @@ import java.util.Set;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.util.TransactionUtil;
 
@@ -43,7 +43,7 @@ class TxnMetaImpl implements TxnMeta {
 
     private TxnID txnID;
     private Set<String> producedPartitions = new HashSet<>();
-    private Set<TxnSubscription> ackedPartitions = new HashSet<>();
+    private Set<TransactionSubscription> ackedPartitions = new HashSet<>();
     private volatile TxnStatus txnStatus = TxnStatus.OPEN;
     private List<Position> positions = Collections.synchronizedList(new ArrayList<>());
     private Handle<TxnMetaImpl> recycleHandle;
@@ -97,13 +97,15 @@ class TxnMetaImpl implements TxnMeta {
         return returnedPartitions;
     }
 
-    public List<TxnSubscription> ackedPartitions() {
-        List<TxnSubscription> returnedSubscriptions;
+    @Override
+    public List<TransactionSubscription> ackedPartitions() {
+        List<TransactionSubscription> returnedPartitions;
         synchronized (this) {
-            returnedSubscriptions = new ArrayList<>(ackedPartitions.size());
-            returnedSubscriptions.addAll(ackedPartitions);
+            returnedPartitions = new ArrayList<>(ackedPartitions.size());
+            returnedPartitions.addAll(ackedPartitions);
         }
-        return returnedSubscriptions;
+        Collections.sort(returnedPartitions);
+        return returnedPartitions;
     }
 
     @Override
@@ -128,14 +130,29 @@ class TxnMetaImpl implements TxnMeta {
         return this;
     }
 
+    /**
+     * Remove the list partitions that the transaction acknowledges to.
+     *
+     * @param partitions the list of partitions that the txn acknowledges to
+     * @return the transaction itself.
+     * @throws InvalidTxnStatusException
+     */
     @Override
-    public synchronized TxnMeta addAckedPartitions(List<TxnSubscription> partitions) throws InvalidTxnStatusException {
+    public synchronized TxnMetaImpl addAckedPartitions(List<TransactionSubscription> partitions) throws InvalidTxnStatusException {
         checkTxnStatus(TxnStatus.OPEN);
-
         this.ackedPartitions.addAll(partitions);
         return this;
     }
 
+    /**
+     * Update the transaction stats from the <tt>newStatus</tt> only when
+     * the current status is the expected <tt>expectedStatus</tt>.
+     *
+     * @param newStatus the new transaction status
+     * @param expectedStatus the expected transaction status
+     * @return the transaction itself.
+     * @throws InvalidTxnStatusException
+     */
     @Override
     public synchronized TxnMetaImpl updateTxnStatus(TxnStatus newStatus,
                                                     TxnStatus expectedStatus)

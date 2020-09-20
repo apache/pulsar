@@ -76,11 +76,11 @@ public interface TransactionMetadataStore {
      * Add the acked subscriptions to transaction identified by <tt>txnId</tt>.
      *
      * @param txnID {@link TxnID} for add acked subscription
-     * @param txnSubscriptions the list of subscriptions that a transaction ack to
+     * @param transactionSubscriptions the list of partitions that a transaction acknowledge to
      * @return a future represents the result of this operation
      */
     CompletableFuture<Void> addAckedPartitionToTxnAsync(
-            TxnID txnID, List<TxnSubscription> txnSubscriptions);
+            TxnID txnID, List<TransactionSubscription> transactionSubscriptions);
 
     /**
      * Update the transaction from <tt>expectedStatus</tt> to <tt>newStatus</tt>.

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
@@ -27,10 +28,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -60,6 +64,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -129,6 +134,9 @@ public class FunctionActioner {
                     packageFile = pkgFile.getAbsolutePath();
                 }
             }
+
+            // Setup for batch sources if necessary
+            setupBatchSource(functionDetails);
 
             RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(), packageFile);
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
@@ -325,79 +333,134 @@ public class FunctionActioner {
                             ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails())
                             : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName();
 
-                    deleteSubscription(topic, consumerSpec, subscriptionName, fqfn);
+                    deleteSubscription(topic, consumerSpec, subscriptionName, String.format("Cleaning up subscriptions for function %s", fqfn));
                 }
             });
         }
-        if (InstanceUtils.calculateSubjectType(details) == FunctionDetails.ComponentType.SOURCE) {
-            // topicName -> subscriptions
-            Map<String, String> subscriptions =
-                    SourceConfigUtils.computeBatchSourceIntermediateTopicSubscriptions(details,
-                            FunctionCommon.getFullyQualifiedName(details));
-            if (subscriptions != null) {
-                subscriptions.forEach((topic, subscriptionName) -> {
-                    Function.ConsumerSpec consumerSpec = Function.ConsumerSpec.newBuilder().setIsRegexPattern(false).build();
-                    deleteSubscription(topic, consumerSpec, subscriptionName, fqfn);
-                });
-            }
-        }
+
+        // clean up done for batch sources if necessary
+        cleanupBatchSource(details);
     }
 
-    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec, String subscriptionName, String fqfn) {
+    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec, String subscriptionName, String msg) {
         try {
             Actions.newBuilder()
                     .addAction(
-                            Actions.Action.builder()
-                                    .actionName(String.format("Cleaning up subscriptions for function %s", fqfn))
-                                    .numRetries(10)
-                                    .sleepBetweenInvocationsMs(1000)
-                                    .supplier(() -> {
-                                        try {
-                                            if (consumerSpec.getIsRegexPattern()) {
-                                                pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
-                                                        .get(topic).getNamespace(), subscriptionName);
-                                            } else {
-                                                pulsarAdmin.topics().deleteSubscription(topic,
-                                                        subscriptionName);
-                                            }
-                                        } catch (PulsarAdminException e) {
-                                            if (e instanceof PulsarAdminException.NotFoundException) {
-                                                return Actions.ActionResult.builder()
-                                                        .success(true)
-                                                        .build();
-                                            } else {
-                                                // for debugging purposes
-                                                List<Map<String, String>> existingConsumers = Collections.emptyList();
-                                                try {
-                                                    TopicStats stats = pulsarAdmin.topics().getStats(topic);
-                                                    SubscriptionStats sub = stats.subscriptions.get(subscriptionName);
-                                                    if (sub != null) {
-                                                        existingConsumers = sub.consumers.stream()
-                                                                .map(consumerStats -> consumerStats.metadata)
-                                                                .collect(Collectors.toList());
-                                                    }
-                                                } catch (PulsarAdminException e1) {
-
-                                                }
-
-                                                String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
-                                                return Actions.ActionResult.builder()
-                                                        .success(false)
-                                                        .errorMsg(String.format("%s - existing consumers: %s", errorMsg, existingConsumers))
-                                                        .build();
-                                            }
-                                        }
-
-                                        return Actions.ActionResult.builder()
-                                                .success(true)
-                                                .build();
-
-                                    })
-                                    .build())
+                      Actions.Action.builder()
+                        .actionName(msg)
+                        .numRetries(10)
+                        .sleepBetweenInvocationsMs(1000)
+                        .supplier(
+                          getDeleteSubscriptionSupplier(topic,
+                            consumerSpec.getIsRegexPattern(),
+                            subscriptionName)
+                        )
+                        .build())
                     .run();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private Supplier<Actions.ActionResult> getDeleteSubscriptionSupplier(
+      String topic, boolean isRegex, String subscriptionName) {
+        return () -> {
+            try {
+                if (isRegex) {
+                    pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
+                      .get(topic).getNamespace(), subscriptionName);
+                } else {
+                    pulsarAdmin.topics().deleteSubscription(topic,
+                      subscriptionName);
+                }
+            } catch (PulsarAdminException e) {
+                if (e instanceof PulsarAdminException.NotFoundException) {
+                    return Actions.ActionResult.builder()
+                      .success(true)
+                      .build();
+                } else {
+                    // for debugging purposes
+                    List<Map<String, String>> existingConsumers = Collections.emptyList();
+                    SubscriptionStats sub = null;
+                    try {
+                        TopicStats stats = pulsarAdmin.topics().getStats(topic);
+                        sub = stats.subscriptions.get(subscriptionName);
+                        if (sub != null) {
+                            existingConsumers = sub.consumers.stream()
+                              .map(consumerStats -> consumerStats.metadata)
+                              .collect(Collectors.toList());
+                        }
+                    } catch (PulsarAdminException e1) {
+
+                    }
+
+                    String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
+                    String finalErrorMsg;
+                    if (sub != null) {
+                        try {
+                            finalErrorMsg = String.format("%s - existing consumers: %s",
+                              errorMsg, ObjectMapperFactory.getThreadLocal().writeValueAsString(sub));
+                        } catch (JsonProcessingException jsonProcessingException) {
+                            finalErrorMsg = errorMsg;
+                        }
+                    } else {
+                        finalErrorMsg = errorMsg;
+                    }
+                    return Actions.ActionResult.builder()
+                      .success(false)
+                      .errorMsg(finalErrorMsg)
+                      .build();
+                }
+            }
+
+            return Actions.ActionResult.builder()
+              .success(true)
+              .build();
+        };
+    }
+
+    private Supplier<Actions.ActionResult> getDeleteTopicSupplier(String topic) {
+        return () -> {
+            try {
+                pulsarAdmin.topics().delete(topic, true);
+            } catch (PulsarAdminException e) {
+                if (e instanceof PulsarAdminException.NotFoundException) {
+                    return Actions.ActionResult.builder()
+                      .success(true)
+                      .build();
+                } else {
+                    // for debugging purposes
+                    TopicStats stats = null;
+                    try {
+                        stats = pulsarAdmin.topics().getStats(topic);
+                    } catch (PulsarAdminException e1) {
+
+                    }
+
+                    String errorMsg = e.getHttpError() != null ? e.getHttpError() : e.getMessage();
+                    String finalErrorMsg;
+                    if (stats != null) {
+                        try {
+                            finalErrorMsg = String.format("%s - topic stats: %s",
+                              errorMsg, ObjectMapperFactory.getThreadLocal().writeValueAsString(stats));
+                        } catch (JsonProcessingException jsonProcessingException) {
+                            finalErrorMsg = errorMsg;
+                        }
+                    } else {
+                        finalErrorMsg = errorMsg;
+                    }
+
+                    return Actions.ActionResult.builder()
+                      .success(false)
+                      .errorMsg(finalErrorMsg)
+                      .build();
+                }
+            }
+
+            return Actions.ActionResult.builder()
+              .success(true)
+              .build();
+        };
     }
 
     private String getDownloadPackagePath(FunctionMetaData functionMetaData, int instanceId) {
@@ -507,5 +570,103 @@ public class FunctionActioner {
             default:
                 throw new RuntimeException("Unknown runtime " + FunctionDetails.getRuntime());
         }
+    }
+
+    private void setupBatchSource(Function.FunctionDetails functionDetails) {
+        if (isBatchSource(functionDetails)) {
+
+            String intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(
+              functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName()).toString();
+
+            String intermediateTopicSubscription = SourceConfigUtils.computeBatchSourceInstanceSubscriptionName(
+              functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
+            String fqfn = FunctionCommon.getFullyQualifiedName(
+              functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
+            try {
+                Actions.newBuilder()
+                  .addAction(
+                    Actions.Action.builder()
+                      .actionName(String.format("Creating intermediate topic %s with subscription %s for Batch Source %s",
+                        intermediateTopicName, intermediateTopicSubscription, fqfn))
+                      .numRetries(10)
+                      .sleepBetweenInvocationsMs(1000)
+                      .supplier(() -> {
+                          try {
+                              pulsarAdmin.topics().createSubscription(intermediateTopicName, intermediateTopicSubscription, MessageId.latest);
+                              return Actions.ActionResult.builder()
+                                .success(true)
+                                .build();
+                          } catch (PulsarAdminException.ConflictException e) {
+                              // topic and subscription already exists so just continue
+                              return Actions.ActionResult.builder()
+                                .success(true)
+                                .build();
+                          } catch (Exception e) {
+                              return Actions.ActionResult.builder()
+                                .errorMsg(e.getMessage())
+                                .success(false)
+                                .build();
+                          }
+                      })
+                      .build())
+                  .run();
+            } catch (InterruptedException e) {
+                log.error("Error setting up instance subscription for intermediate topic", e);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void cleanupBatchSource(Function.FunctionDetails functionDetails) {
+        if (isBatchSource(functionDetails)) {
+            // clean up intermediate topic
+            String intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(functionDetails.getTenant(),
+              functionDetails.getNamespace(), functionDetails.getName()).toString();
+            String intermediateTopicSubscription = SourceConfigUtils.computeBatchSourceInstanceSubscriptionName(
+              functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
+            String fqfn = FunctionCommon.getFullyQualifiedName(functionDetails);
+            try {
+                Actions.newBuilder()
+                  .addAction(
+                    // Unsubscribe and allow time for consumers to close
+                    Actions.Action.builder()
+                      .actionName(String.format("Removing intermediate topic subscription %s for Batch Source %s",
+                        intermediateTopicSubscription, fqfn))
+                      .numRetries(10)
+                      .sleepBetweenInvocationsMs(1000)
+                      .supplier(
+                        getDeleteSubscriptionSupplier(intermediateTopicName,
+                          false,
+                          intermediateTopicSubscription)
+                      )
+                      .build())
+                  .addAction(
+                    // Delete topic forcibly regardless whether unsubscribe succeeded or not
+                    Actions.Action.builder()
+                    .actionName(String.format("Deleting intermediate topic %s for Batch Source %s",
+                      intermediateTopicName, fqfn))
+                    .numRetries(10)
+                    .sleepBetweenInvocationsMs(1000)
+                    .supplier(getDeleteTopicSupplier(intermediateTopicName))
+                    .build())
+                  .run();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private static boolean isBatchSource(Function.FunctionDetails functionDetails) {
+        if (InstanceUtils.calculateSubjectType(functionDetails) == FunctionDetails.ComponentType.SOURCE) {
+            String fqfn = FunctionCommon.getFullyQualifiedName(functionDetails);
+            Map<String, Object> configMap = SourceConfigUtils.extractSourceConfig(functionDetails.getSource(), fqfn);
+            if (configMap != null) {
+                BatchSourceConfig batchSourceConfig = SourceConfigUtils.extractBatchSourceConfig(configMap);
+                if (batchSourceConfig != null) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

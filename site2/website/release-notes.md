@@ -7,7 +7,7 @@
 
 * [IO] If Function Authorization is enabled, users have to be given the source/sink entitlement to run them. See https://github.com/apache/pulsar/pull/7466
 
-### 2.6.1 &mdash; 2020-08-07 <a id=“2.6.1”></a>
+### 2.6.1 &mdash; 2020-08-21 <a id=“2.6.1”></a>
 
 The following lists fixes and enhancements in 2.6.1 release.
 

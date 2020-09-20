@@ -68,9 +68,9 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 Assert.assertEquals(transactionMetadataStore.getTxnMetaAsync(txnID).get().producedPartitions(),
                         partitions);
 
-                List<TxnSubscription> subscriptions = new ArrayList<>();
-                subscriptions.add(new TxnSubscription("topic1", "sub1"));
-                subscriptions.add(new TxnSubscription("topic2", "sub2"));
+                List<TransactionSubscription> subscriptions = new ArrayList<>();
+                subscriptions.add(new TransactionSubscription("topic1", "sub1"));
+                subscriptions.add(new TransactionSubscription("topic2", "sub2"));
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID, subscriptions).get();
                 Assert.assertTrue(transactionMetadataStore.getTxnMetaAsync(txnID).get().ackedPartitions().containsAll(subscriptions));
 
@@ -114,16 +114,16 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
                 transactionMetadataStore.addProducedPartitionToTxnAsync(txnID1, partitions).get();
                 transactionMetadataStore.addProducedPartitionToTxnAsync(txnID2, partitions).get();
 
-                List<TxnSubscription> subscriptions = new ArrayList<>();
-                subscriptions.add(new TxnSubscription("topic1", "sub1"));
-                subscriptions.add(new TxnSubscription("topic2", "sub2"));
+                List<TransactionSubscription> subscriptions = new ArrayList<>();
+                subscriptions.add(new TransactionSubscription("topic1", "sub1"));
+                subscriptions.add(new TransactionSubscription("topic2", "sub2"));
 
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID1, subscriptions).get();
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID2, subscriptions).get();
-                List<TxnSubscription> subscriptions1 = new ArrayList<>();
-                subscriptions1.add(new TxnSubscription("topic1", "sub1"));
-                subscriptions1.add(new TxnSubscription("topic3", "sub3"));
-                subscriptions1.add(new TxnSubscription("topic3", "sub3"));
+                List<TransactionSubscription> subscriptions1 = new ArrayList<>();
+                subscriptions1.add(new TransactionSubscription("topic1", "sub1"));
+                subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
+                subscriptions1.add(new TransactionSubscription("topic3", "sub3"));
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID1, subscriptions1).get();
                 transactionMetadataStore.addAckedPartitionToTxnAsync(txnID2, subscriptions1).get();
 
@@ -140,7 +140,7 @@ public class MLTransactionMetadataStoreTest extends BookKeeperClusterTestCase {
 
                 while (true) {
                     if (transactionMetadataStoreTest.checkIfReady()) {
-                        subscriptions.add(new TxnSubscription("topic3", "sub3"));
+                        subscriptions.add(new TransactionSubscription("topic3", "sub3"));
                         TxnMeta txnMeta1 = transactionMetadataStoreTest.getTxnMetaAsync(txnID1).get();
                         TxnMeta txnMeta2 = transactionMetadataStoreTest.getTxnMetaAsync(txnID2).get();
                         Assert.assertEquals(txnMeta1.producedPartitions(), partitions);

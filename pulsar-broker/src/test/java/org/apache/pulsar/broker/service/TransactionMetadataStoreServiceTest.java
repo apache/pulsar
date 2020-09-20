@@ -22,10 +22,8 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -104,10 +102,11 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
         TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
-        List<TxnSubscription> partitions = new ArrayList<>();
-        partitions.add(new TxnSubscription("topic1", "sub1"));
-        partitions.add(new TxnSubscription("topic2", "sub2"));
-        partitions.add(new TxnSubscription("topic3", "sub3"));
+
+        List<TransactionSubscription> partitions = new ArrayList<>();
+        partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic("ptn-3").subscription("sub-1").build());
         transactionMetadataStoreService.addAckedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
         Assert.assertEquals(txn.status(), TxnStatus.OPEN);

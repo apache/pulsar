@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -171,6 +172,13 @@ public class WorkerServer {
         if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(workerService.getAuthenticationService()));
             contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+        }
+
+        if (workerService.getWorkerConfig().isHttpRequestsLimitEnabled()) {
+            contextHandler.addFilter(
+                    new FilterHolder(
+                            new RateLimitingFilter(workerService.getWorkerConfig().getHttpRequestsMaxPerSecond())),
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
         return contextHandler;

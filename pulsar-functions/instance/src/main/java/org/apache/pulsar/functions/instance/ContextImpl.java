@@ -50,6 +50,7 @@ import org.slf4j.Logger;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkState;
@@ -59,7 +60,7 @@ import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 /**
  * This class implements the Context interface exposed to the user.
  */
-class ContextImpl implements Context, SinkContext, SourceContext {
+class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private InstanceConfig config;
     private Logger logger;
 
@@ -601,6 +602,29 @@ class ContextImpl implements Context, SinkContext, SourceContext {
 
         public void setUnderlyingBuilder(TypedMessageBuilder<O> underlyingBuilder) {
             this.underlyingBuilder = underlyingBuilder;
+        }
+    }
+
+    @Override
+    public void close() {
+        List<CompletableFuture> futures = new LinkedList<>();
+
+        if (publishProducers != null) {
+            for (Producer<?> producer : publishProducers.values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        if (tlPublishProducers != null) {
+            for (Producer<?> producer : tlPublishProducers.get().values()) {
+                futures.add(producer.closeAsync());
+            }
+        }
+
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+        } catch (InterruptedException | ExecutionException e) {
+            logger.warn("Failed to close producers", e);
         }
     }
 }

@@ -54,6 +54,10 @@ public interface SchemaDataValidator {
             case DATE:
             case TIME:
             case TIMESTAMP:
+            case INSTANT:
+            case LOCAL_DATE:
+            case LOCAL_TIME:
+            case LOCAL_DATE_TIME:
                 PrimitiveSchemaDataValidator.of().validate(schemaData);
                 break;
             case NONE:

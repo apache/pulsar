@@ -106,7 +106,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
         }
 
-        bkConf.setThrottleValue(0);
+        bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
@@ -170,6 +170,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             } else {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
+
+            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
+
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
                 conf.getProperties().getProperty(
                     REPP_DNS_RESOLVER_CLASS,

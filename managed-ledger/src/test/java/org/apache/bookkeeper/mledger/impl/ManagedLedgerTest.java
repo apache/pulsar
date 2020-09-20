@@ -56,6 +56,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,6 +64,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -2192,6 +2194,39 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
         assertEquals(c1.getMarkDeletedPosition(), ledger.lastConfirmedEntry);
+    }
+
+    @Test
+    public void testLazyRecoverCursor() throws Exception {
+        ManagedLedger ledger = factory.open("testLedger");
+        ManagedCursor cursor = ledger.openCursor("testCursor");
+
+        ledger.addEntry("entry-1".getBytes());
+        Position p1 = ledger.addEntry("entry-2".getBytes());
+        cursor.markDelete(p1);
+
+        // Re-open from a different factory trigger recovery.
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(bkc, zkc);
+
+        // Simulating time consuming cursor recovery.
+        CompletableFuture<Void> future = bkc.promiseAfter(2);
+        ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("lazyCursorRecovery"));
+        scheduledExecutorService.schedule(() -> {
+            future.complete(null);
+        }, 10, TimeUnit.SECONDS);
+
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setLazyCursorRecovery(true);
+        Long startLedgerRecovery = System.currentTimeMillis();
+
+        // Check ledger recovered before time consuming cursor recovery complete.
+        ledger = factory2.open("testLedger", managedLedgerConfig);
+        assertTrue(System.currentTimeMillis() - startLedgerRecovery < 5000);
+
+        // Check cursor recovered successfully.
+        cursor = ledger.openCursor("testCursor");
+        assertEquals(cursor.getMarkDeletedPosition(), p1);
+        factory2.shutdown();
     }
 
     @Test

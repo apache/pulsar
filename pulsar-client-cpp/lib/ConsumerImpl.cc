@@ -125,7 +125,20 @@ ConsumerImpl::~ConsumerImpl() {
     LOG_DEBUG(getName() << "~ConsumerImpl");
     incomingMessages_.clear();
     if (state_ == Ready) {
+        // this could happen at least in this condition:
+        //      consumer seek, caused reconnection, if consumer close happened before connection ready,
+        //      then consumer will not send closeConsumer to Broker side, and caused a leak of consumer in
+        //      broker.
         LOG_WARN(getName() << "Destroyed consumer which was not properly closed");
+
+        ClientConnectionPtr cnx = getCnx().lock();
+        ClientImplPtr client = client_.lock();
+        int requestId = client->newRequestId();
+        if (cnx) {
+            cnx->sendRequestWithId(Commands::newCloseConsumer(consumerId_, requestId), requestId);
+            cnx->removeConsumer(consumerId_);
+            LOG_INFO(getName() << "Closed consumer for race condition: " << consumerId_);
+        }
     }
 }
 
@@ -497,7 +510,7 @@ bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, con
     uint32_t uncompressedSize = metadata.uncompressed_size();
     uint32_t payloadSize = payload.readableBytes();
     if (cnx) {
-        if (payloadSize > cnx->getMaxMessageSize()) {
+        if (payloadSize > ClientConnection::getMaxMessageSize()) {
             // Uncompressed size is itself corrupted since it cannot be bigger than the MaxMessageSize
             LOG_ERROR(getName() << "Got corrupted payload message size " << payloadSize  //
                                 << " at  " << msg.message_id().ledgerid() << ":"

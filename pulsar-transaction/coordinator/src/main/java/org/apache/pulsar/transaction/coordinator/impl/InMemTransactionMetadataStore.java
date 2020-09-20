@@ -28,8 +28,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 
@@ -87,7 +87,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnid, List<TxnSubscription> partitions) {
+    public CompletableFuture<Void> addAckedPartitionToTxnAsync(TxnID txnid, List<TransactionSubscription> partitions) {
         return getTxnMetaAsync(txnid).thenCompose(txn -> {
             try {
                 txn.addAckedPartitions(partitions);

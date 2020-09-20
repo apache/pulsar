@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
@@ -108,7 +107,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.api.proto.PulsarApi.TxnStatus;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -126,7 +124,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.shaded.com.google.protobuf.v241.GeneratedMessageLite;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.apache.pulsar.transaction.coordinator.TxnSubscription;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -326,11 +323,11 @@ public class ServerCnx extends PulsarHandler {
         }
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
-                log.error("OriginalRole {} is not authorized to perform operation {} on topic {}, subscription {}",
+                log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}, subscription {}",
                     originalPrincipal, operation, topicName, subscriptionName);
             }
             if (!isAuthorized) {
-                log.error("Role {} is not authorized to perform operation {} on topic {}, subscription {}",
+                log.warn("Role {} is not authorized to perform operation {} on topic {}, subscription {}",
                     authRole, operation, topicName, subscriptionName);
             }
             return isProxyAuthorized && isAuthorized;
@@ -386,7 +383,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize lookup";
+                final String msg = "Exception occurred while trying to authorize lookup";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName, ex);
                 ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
@@ -461,7 +458,7 @@ public class ServerCnx extends PulsarHandler {
                 }
                 return null;
             }).exceptionally(ex -> {
-                final String msg = "Exception occured while trying to authorize get Partition Metadata";
+                final String msg = "Exception occurred while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
@@ -1720,7 +1717,7 @@ public class ServerCnx extends PulsarHandler {
         final int txnAction = command.getTxnAction().getNumber();
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
 
-        service.getTopics().get(command.getTopic()).whenComplete((topic, t) -> {
+        service.getTopics().get(TopicName.get(command.getTopic()).toString()).whenComplete((topic, t) -> {
             if (!topic.isPresent()) {
                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
                         command.getRequestId(), ServerError.TopicNotFound,
@@ -1743,7 +1740,49 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     protected void handleEndTxnOnSubscription(PulsarApi.CommandEndTxnOnSubscription command) {
-        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(), command.getTxnidLeastBits(), command.getTxnidMostBits()));
+        final long requestId = command.getRequestId();
+        final long txnidMostBits = command.getTxnidMostBits();
+        final long txnidLeastBits = command.getTxnidLeastBits();
+        final String topic = command.getSubscription().getTopic();
+        final String subName = command.getSubscription().getSubscription();
+        final int txnAction = command.getTxnAction().getNumber();
+
+        service.getTopics().get(TopicName.get(command.getSubscription().getTopic()).toString())
+            .thenAccept(optionalTopic -> {
+                if (!optionalTopic.isPresent()) {
+                    log.error("The topic {} is not exist in broker.", command.getSubscription().getTopic());
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "The topic " + topic + " is not exist in broker."));
+                    return;
+                }
+
+                Subscription subscription = optionalTopic.get().getSubscription(subName);
+                if (subscription == null) {
+                    log.error("Topic {} subscription {} is not exist.", optionalTopic.get().getName(), subName);
+                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            requestId, txnidLeastBits, txnidMostBits,
+                            ServerError.UnknownError,
+                            "Topic " + optionalTopic.get().getName() + " subscription " + subName + " is not exist."));
+                    return;
+                }
+
+                CompletableFuture<Void> completableFuture =
+                        subscription.endTxn(txnidMostBits, txnidLeastBits, txnAction);
+                completableFuture.whenComplete((ignored, throwable) -> {
+                    if (throwable != null) {
+                        log.error("Handle end txn on subscription failed for request {}", requestId);
+                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                requestId, txnidLeastBits, txnidMostBits,
+                                ServerError.UnknownError,
+                                "Handle end txn on subscription failed."));
+                        return;
+                    }
+                    ctx.writeAndFlush(
+                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                });
+            });
     }
 
     private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema) {
@@ -1781,7 +1820,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response success for add published partition to txn request {}",
                                     command.getRequestId());
                         }
-                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         log.info("handle add partition to txn finish.");
                     } else {
@@ -1789,7 +1828,7 @@ public class ServerCnx extends PulsarHandler {
                             log.debug("Send response error for add published partition to txn request {}",
                                     command.getRequestId(), ex);
                         }
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(command.getRequestId(),
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(command.getRequestId(),
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                     }

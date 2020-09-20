@@ -726,6 +726,48 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
 
+        cmdTopics.run(split("enable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", true);
+
+        cmdTopics.run(split("disable-deduplication persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).enableDeduplication("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("get-deduplication-enabled persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getDeduplicationEnabled("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("get-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("remove-offload-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10"));
+        OffloadPolicies offloadPolicies = OffloadPolicies.create("s3", "region", "bucket"
+                , "endpoint", 8, 9, 10L, null);
+        verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
+
+        cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1 -m 999"));
+        verify(mockTopics).setMaxUnackedMessagesOnConsumer("persistent://myprop/clust/ns1/ds1", 999);
+
+        cmdTopics.run(split("get-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-max-unacked-messages-on-subscription persistent://myprop/clust/ns1/ds1 -m 99"));
+        verify(mockTopics).setMaxUnackedMessagesOnSubscription("persistent://myprop/clust/ns1/ds1", 99);
+
+        cmdTopics.run(split("get-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).getInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("remove-inactive-topic-policies persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).removeInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("set-inactive-topic-policies persistent://myprop/clust/ns1/ds1 -e -t 1s -m delete_when_no_subscriptions"));
+        verify(mockTopics).setInactiveTopicPolicies("persistent://myprop/clust/ns1/ds1"
+                , new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
         // argument matcher for the timestamp in reset cursor. Since we can't verify exact timestamp, we check for a
         // range of +/- 1 second of the expected timestamp
         class TimestampMatcher implements ArgumentMatcher<Long> {

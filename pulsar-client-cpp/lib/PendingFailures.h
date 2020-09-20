@@ -16,20 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.transaction.coordinator;
+#ifndef LIB_PENDINGFAILURES_H_
+#define LIB_PENDINGFAILURES_H_
 
-import lombok.Data;
+#include <functional>
+#include <vector>
 
-/**
- * An class represents the subscription of a transaction in {@link TxnSubscription}.
- */
-@Data
-public class TxnSubscription {
-    private final String topic;
-    private final String subscription;
+namespace pulsar {
 
-    public TxnSubscription(String topic, String subscription) {
-        this.topic = topic;
-        this.subscription = subscription;
+class PendingFailures {
+   public:
+    void add(const std::function<void()>& failure) { failures.emplace_back(failure); }
+
+    bool empty() const noexcept { return failures.empty(); }
+
+    void complete() {
+        for (auto& failure : failures) {
+            failure();
+        }
     }
-}
+
+   private:
+    std::vector<std::function<void()>> failures;
+};
+
+}  // namespace pulsar
+
+#endif
