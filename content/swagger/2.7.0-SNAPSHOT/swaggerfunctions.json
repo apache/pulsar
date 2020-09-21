@@ -1401,8 +1401,36 @@
     "Message" : {
       "type" : "object",
       "properties" : {
-        "producerName" : {
-          "type" : "string"
+        "sequenceId" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "messageId" : {
+          "$ref" : "#/definitions/MessageId"
+        },
+        "encryptionCtx" : {
+          "$ref" : "#/definitions/EncryptionContext"
+        },
+        "orderingKey" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "schemaVersion" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string",
+            "format" : "byte"
+          }
+        },
+        "redeliveryCount" : {
+          "type" : "integer",
+          "format" : "int32"
+        },
+        "replicated" : {
+          "type" : "boolean"
         },
         "publishTime" : {
           "type" : "integer",
@@ -1412,25 +1440,13 @@
           "type" : "integer",
           "format" : "int64"
         },
-        "replicatedFrom" : {
+        "topicName" : {
           "type" : "string"
         },
-        "redeliveryCount" : {
-          "type" : "integer",
-          "format" : "int32"
+        "producerName" : {
+          "type" : "string"
         },
-        "schemaVersion" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "sequenceId" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "topicName" : {
+        "replicatedFrom" : {
           "type" : "string"
         },
         "data" : {
@@ -1446,22 +1462,6 @@
             "type" : "string",
             "format" : "byte"
           }
-        },
-        "messageId" : {
-          "$ref" : "#/definitions/MessageId"
-        },
-        "encryptionCtx" : {
-          "$ref" : "#/definitions/EncryptionContext"
-        },
-        "orderingKey" : {
-          "type" : "array",
-          "items" : {
-            "type" : "string",
-            "format" : "byte"
-          }
-        },
-        "replicated" : {
-          "type" : "boolean"
         },
         "value" : {
           "type" : "object"
