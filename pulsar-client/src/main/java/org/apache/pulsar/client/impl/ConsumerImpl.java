@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.protocol.Commands.hasChecksum;
 import static org.apache.pulsar.common.protocol.Commands.readChecksum;
@@ -49,6 +50,7 @@ import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -60,6 +62,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -77,6 +81,8 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -85,6 +91,9 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
 import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
@@ -102,8 +111,11 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,6 +196,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final BlockingQueue<String> pendingChunckedMessageUuidQueue;
 
     private final boolean createTopicIfDoesNotExist;
+
+    private final ConcurrentLongHashMap<OpForTransactionAckCallBack> pendingRequests =
+            new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLinkedQueue<ClientCnx.RequestTime> timeoutQueue;
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -325,6 +341,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
+        this.timeoutQueue = new ConcurrentLinkedQueue<>();
+        client.timer().newTimeout(new TransactionAckTimeoutTimer(),
+                client.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
 
         grabCnx();
     }
@@ -506,7 +525,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             if (AckType.Cumulative == ackType
                 && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
-                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties, null);
+                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
                 batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
             } else {
                 onAcknowledge(batchMessageId, null);
@@ -535,11 +554,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
 
+        if (txn != null) {
+            return doTransactionAcknowledge(messageId, ackType, properties, txn);
+        }
         if (messageId instanceof BatchMessageIdImpl) {
             BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            if (ackType == AckType.Cumulative && txn != null) {
-                return sendAcknowledge(messageId, ackType, properties, txn);
-            }
             if (markAckForBatchMessage(batchMessageId, ackType, properties, txn)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
@@ -550,13 +569,167 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (conf.isBatchIndexAckEnabled()) {
                     acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId,
                             batchMessageId.getBatchIndex(), batchMessageId.getBatchSize(),
-                            ackType, properties, txn);
+                            ackType, properties);
                 }
                 // other messages in batch are still pending ack.
                 return CompletableFuture.completedFuture(null);
             }
         }
-        return sendAcknowledge(messageId, ackType, properties, txn);
+        return sendAcknowledge(messageId, ackType, properties);
+    }
+
+    protected CompletableFuture<Void> doTransactionAcknowledge(MessageId messageId, AckType ackType,
+                                                               Map<String,Long> properties,
+                                                               TransactionImpl txn) {
+        checkNotNull(txn);
+        CompletableFuture<Void> callBack = new CompletableFuture<>();
+        BitSetRecyclable bitSetRecyclable = null;
+        long ledgerId;
+        long entryId;
+        if (messageId instanceof BatchMessageIdImpl) {
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            bitSetRecyclable = BitSetRecyclable.create();
+            ledgerId = batchMessageId.getLedgerId();
+            entryId = batchMessageId.getEntryId();
+            if (ackType == AckType.Cumulative) {
+                batchMessageId.ackCumulative();
+                bitSetRecyclable.set(0, batchMessageId.getAcker().getBatchSize());
+                bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
+            } else {
+                batchMessageId.ackIndividual();
+                bitSetRecyclable.set(0, batchMessageId.getAcker().getBatchSize());
+                bitSetRecyclable.clear(batchMessageId.getBatchIndex());
+            }
+            if (batchMessageId.getAcker().getBitSet().isEmpty()) {
+                unAckedMessageTracker.remove(messageId);
+            }
+        } else {
+            MessageIdImpl singleMessage = (MessageIdImpl) messageId;
+            ledgerId = singleMessage.getLedgerId();
+            entryId = singleMessage.getEntryId();
+            unAckedMessageTracker.remove(messageId);
+        }
+        long requestId = client.newRequestId();
+        ByteBuf cmd = Commands.newAck(consumerId, ledgerId, entryId,
+                bitSetRecyclable, ackType,
+                null, properties, txn.getTxnIdLeastBits(), txn.getTxnIdMostBits(), requestId);
+        OpForTransactionAckCallBack op = OpForTransactionAckCallBack.create(cmd, callBack, messageId,
+                new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
+        pendingRequests.put(requestId, op);
+        timeoutQueue.add(new ClientCnx.RequestTime(System.currentTimeMillis(), requestId));
+        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        return callBack;
+    }
+
+    private static class OpForTransactionAckCallBack  {
+        protected ByteBuf cmd;
+        protected CompletableFuture<Void> callback;
+        protected MessageIdImpl messageId;
+        protected TxnID txnID;
+
+        static OpForTransactionAckCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, MessageId messageId, TxnID txnID) {
+            OpForTransactionAckCallBack op = RECYCLER.get();
+            op.callback = callback;
+            op.cmd = cmd;
+            op.messageId = (MessageIdImpl) messageId;
+            op.txnID = txnID;
+            return op;
+        }
+        private OpForTransactionAckCallBack(Recycler.Handle<OpForTransactionAckCallBack> recyclerHandle) {
+            this.recyclerHandle = recyclerHandle;
+        }
+
+        void recycle() {
+            recyclerHandle.recycle(this);
+        }
+
+        private final Recycler.Handle<OpForTransactionAckCallBack> recyclerHandle;
+        private static final Recycler<OpForTransactionAckCallBack> RECYCLER = new Recycler<OpForTransactionAckCallBack>() {
+            @Override
+            protected OpForTransactionAckCallBack newObject(Handle<OpForTransactionAckCallBack> handle) {
+                return new OpForTransactionAckCallBack(handle);
+            }
+        };
+    }
+
+    private class TransactionAckTimeoutTimer implements TimerTask {
+        @Override
+        public void run(Timeout timeout) throws Exception {
+            if (timeout.isCancelled()) {
+                return;
+            }
+            long timeToWaitMs;
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+            ClientCnx.RequestTime peeked = timeoutQueue.peek();
+            while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
+                    - System.currentTimeMillis() <= 0) {
+                ClientCnx.RequestTime lastPolled = timeoutQueue.poll();
+                if (lastPolled != null) {
+                    OpForTransactionAckCallBack op = pendingRequests.remove(lastPolled.requestId);
+                    if (op != null && !op.callback.isDone()) {
+                        op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                                "Could not get response from broker within given timeout."));
+                        if (log.isDebugEnabled()) {
+                            log.debug("Transaction ack request {} is timeout.", lastPolled.requestId);
+                        }
+                        onResponse(op);
+                    }
+                } else {
+                    break;
+                }
+                peeked = timeoutQueue.peek();
+            }
+
+            if (peeked == null) {
+                timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+            } else {
+                long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()) - System.currentTimeMillis();
+                if (diff <= 0) {
+                    timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+                } else {
+                    timeToWaitMs = diff;
+                }
+            }
+            client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    protected void ackReceipt(CommandAckReceipt commandAckReceipt) {
+        checkArgument(commandAckReceipt.getRequestId() >= 0);
+        OpForTransactionAckCallBack callBackOp = pendingRequests.remove(commandAckReceipt.getRequestId());
+        if (callBackOp == null || callBackOp.callback.isDone()) {
+            log.error("Ack request has been handled requestId : {}", commandAckReceipt.getRequestId());
+        } else {
+            callBackOp.callback.complete(null);
+            if (log.isDebugEnabled()) {
+                log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
+                        + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
+            }
+            callBackOp.recycle();
+        }
+    }
+
+    protected void ackError(CommandAckError commandAckError) {
+        checkArgument(commandAckError.getRequestId() >= 0);
+        OpForTransactionAckCallBack callBackOp = pendingRequests.remove(commandAckError.getRequestId());
+        if (callBackOp == null || callBackOp.callback.isDone()) {
+            log.error("Ack request has been handled requestId : {}", commandAckError.getRequestId());
+        } else {
+            callBackOp.callback.completeExceptionally(new TransactionConflictException(commandAckError.getMessage()));
+            unAckedMessageTracker.add(callBackOp.messageId);
+            if (log.isDebugEnabled()) {
+                log.debug("MessageId : {} has ack by TxnId : {}", callBackOp.messageId.getLedgerId() + ":"
+                        + callBackOp.messageId.getEntryId(), callBackOp.txnID.toString());
+            }
+            callBackOp.recycle();
+        }
+    }
+
+    private void onResponse(OpForTransactionAckCallBack op) {
+        ReferenceCountUtil.safeRelease(op.cmd);
+        op.recycle();
     }
 
     @Override
@@ -581,7 +754,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 messageIdImpl = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId()
                         , batchMessageId.getPartitionIndex());
                 acknowledgmentsGroupingTracker.addBatchIndexAcknowledgment(batchMessageId, batchMessageId.getBatchIndex(),
-                        batchMessageId.getBatchSize(), ackType, properties, txn);
+                        batchMessageId.getBatchSize(), ackType, properties);
                 stats.incrementNumAcksSent(batchMessageId.getBatchSize());
             } else {
                 messageIdImpl = (MessageIdImpl) messageId;
@@ -726,8 +899,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     // TODO: handle transactional acknowledgements.
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
-                                                    Map<String,Long> properties,
-                                                    TransactionImpl txnImpl) {
+                                                    Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
 
         if (ackType == AckType.Individual) {
@@ -755,7 +927,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties, txnImpl);
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties);
 
         // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
         // the messages will be re-delivered

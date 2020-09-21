@@ -1264,7 +1264,18 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Consumer> consumerFuture = consumers.get(ack.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-            consumerFuture.getNow(null).messageAcked(ack);
+            if (ack.getTxnidMostBits() != -1 && ack.getTxnidLeastBits() != -1) {
+                consumerFuture.getNow(null).messageAckedWithTransaction(ack).thenRun(() ->
+                        ctx.writeAndFlush(Commands.newAckReceipt(ack.getRequestId(), ack.getConsumerId())))
+                        .exceptionally(e -> {
+                            ctx.writeAndFlush(Commands.newAckError(ack.getRequestId(),
+                                    BrokerServiceException.getClientErrorCode(e),
+                                    e.getMessage(), ack.getConsumerId()));
+                            return null;
+                        });
+            } else {
+                consumerFuture.getNow(null).messageAcked(ack);
+            }
         }
     }
 

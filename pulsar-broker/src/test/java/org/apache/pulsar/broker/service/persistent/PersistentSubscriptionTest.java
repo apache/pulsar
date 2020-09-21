@@ -165,7 +165,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() throws TransactionConflictException {
+    public void testCanAcknowledgeAndCommitForTransaction() {
         List<Position> expectedSinglePositions = new ArrayList<>();
         expectedSinglePositions.add(new PositionImpl(1, 1));
         expectedSinglePositions.add(new PositionImpl(1, 3));
@@ -208,7 +208,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndAbortForTransaction() throws TransactionConflictException, BrokerServiceException {
+    public void testCanAcknowledgeAndAbortForTransaction() throws BrokerServiceException {
         List<Position> positions = new ArrayList<>();
         positions.add(new PositionImpl(2, 1));
         positions.add(new PositionImpl(2, 3));
@@ -241,26 +241,24 @@ public class PersistentSubscriptionTest {
         positions.add(new PositionImpl(2, 1));
 
         // Can not single ack message already acked.
-        try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual);
-            fail("Single acknowledge for transaction2 should fail. ");
-        } catch (TransactionConflictException e) {
+        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Individual).exceptionally(e -> {
             assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
                     "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
-        }
+            return null;
+        });
+
 
         positions.clear();
         positions.add(new PositionImpl(2, 50));
 
         // Can not cumulative ack message for another txn.
-        try {
-            persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative);
-            fail("Cumulative acknowledge for transaction2 should fail. ");
-        } catch (TransactionConflictException e) {
-            System.out.println(e.getMessage());
+        persistentSubscription.acknowledgeMessage(txnID2, positions, AckType.Cumulative).exceptionally(e -> {
             assertEquals(e.getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                "Transaction:(1,2) try to cumulative ack message while transaction:(1,1) already cumulative acked messages.");
-        }
+                    "Transaction:(1,2) try to cumulative ack message " +
+                    "while transaction:(1,1) already cumulative acked messages.");
+            return null;
+        });
+
 
         positions.clear();
         positions.add(new PositionImpl(1, 1));

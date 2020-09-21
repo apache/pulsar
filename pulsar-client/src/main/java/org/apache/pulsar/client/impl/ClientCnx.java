@@ -64,6 +64,8 @@ import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
@@ -375,6 +377,24 @@ public class ClientCnx extends PulsarHandler {
         }
 
         producers.get(producerId).ackReceived(this, sequenceId, highestSequenceId, ledgerId, entryId);
+    }
+
+    @Override
+    protected void handleAckReceipt(CommandAckReceipt ackReceipt) {
+        checkArgument(state == State.Ready);
+
+        long consumerId = ackReceipt.getConsumerId();
+
+        consumers.get(consumerId).ackReceipt(ackReceipt);
+    }
+
+    @Override
+    protected void handleAckError(CommandAckError ackError) {
+        checkArgument(state == State.Ready);
+
+        long consumerId = ackError.getConsumerId();
+
+        consumers.get(consumerId).ackError(ackError);
     }
 
     @Override

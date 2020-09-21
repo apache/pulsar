@@ -43,7 +43,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Range;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -53,7 +52,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAckReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAddPartitionToTxnResponse;
@@ -894,17 +894,11 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID, List<Triple<Long, Long,
-            ConcurrentBitSetRecyclable>> entries) {
+    public static ByteBuf newMultiMessageAck(long consumerId,
+             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(AckType.Individual);
-        ackBuilder.setTxnidLeastBits(txnID.getLeastSigBits());
-        ackBuilder.setTxnidMostBits(txnID.getMostSigBits());
-        return newMultiMessageAckCommon(ackBuilder, entries);
-    }
-    public static ByteBuf newMultiMessageAckCommon(CommandAck.Builder ackBuilder,
-                                                   List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
@@ -936,22 +930,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newMultiMessageAck(long consumerId,
-             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
-        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
-        ackBuilder.setConsumerId(consumerId);
-        ackBuilder.setAckType(AckType.Individual);
-        return newMultiMessageAckCommon(ackBuilder, entries);
-    }
-
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties) {
-        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, -1, -1);
+        return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError, properties, -1, -1, -1);
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
-                                 long txnIdMostBits) {
+                                 long txnIdMostBits, long requestId) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(ackType);
@@ -960,6 +946,7 @@ public class Commands {
         messageIdDataBuilder.setEntryId(entryId);
         if (ackSet != null) {
             messageIdDataBuilder.addAllAckSet(SafeCollectionUtils.longArrayToList(ackSet.toLongArray()));
+            ackSet.recycle();
         }
         MessageIdData messageIdData = messageIdDataBuilder.build();
         ackBuilder.addMessageId(messageIdData);
@@ -968,6 +955,9 @@ public class Commands {
         }
         if (txnIdMostBits >= 0) {
             ackBuilder.setTxnidMostBits(txnIdMostBits);
+        }
+        if (requestId >= 0) {
+            ackBuilder.setRequestId(requestId);
         }
         if (txnIdLeastBits >= 0) {
             ackBuilder.setTxnidLeastBits(txnIdLeastBits);
@@ -986,34 +976,34 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newAckResponse(long consumerId, long txnIdLeastBits, long txnIdMostBits) {
-        CommandAckResponse.Builder commandAckResponseBuilder = CommandAckResponse.newBuilder();
-        commandAckResponseBuilder.setConsumerId(consumerId);
-        commandAckResponseBuilder.setTxnidLeastBits(txnIdLeastBits);
-        commandAckResponseBuilder.setTxnidMostBits(txnIdMostBits);
-        CommandAckResponse commandAckResponse = commandAckResponseBuilder.build();
+    public static ByteBuf newAckReceipt(long requestId, long consumerId) {
+        CommandAckReceipt.Builder commandAckReceiptBuilder = CommandAckReceipt.newBuilder();
+        commandAckReceiptBuilder.setConsumerId(consumerId);
+        commandAckReceiptBuilder.setRequestId(requestId);
+        CommandAckReceipt commandAckReceipt = commandAckReceiptBuilder.build();
 
         ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.ACK_RESPONSE).setAckResponse(commandAckResponse));
-        commandAckResponseBuilder.recycle();
-        commandAckResponse.recycle();
+                BaseCommand.newBuilder().setType(Type.ACK_RECEIPT).setAckReceipt(commandAckReceipt));
+        commandAckReceiptBuilder.recycle();
+        commandAckReceipt.recycle();
 
         return res;
     }
 
-    public static ByteBuf newAckErrorResponse(ServerError error, String errorMsg, long consumerId) {
-        CommandAckResponse.Builder ackErrorBuilder = CommandAckResponse.newBuilder();
-        ackErrorBuilder.setConsumerId(consumerId);
-        ackErrorBuilder.setError(error);
+    public static ByteBuf newAckError(long requestId, ServerError error, String errorMsg, long consumerId) {
+        CommandAckError.Builder commandAckErrorBuilder = CommandAckError.newBuilder();
+        commandAckErrorBuilder.setConsumerId(consumerId);
+        commandAckErrorBuilder.setError(error);
+        commandAckErrorBuilder.setRequestId(requestId);
         if (errorMsg != null) {
-            ackErrorBuilder.setMessage(errorMsg);
+            commandAckErrorBuilder.setMessage(errorMsg);
         }
 
-        CommandAckResponse response = ackErrorBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK_RESPONSE).setAckResponse(response));
+        CommandAckError commandAckError = commandAckErrorBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK_ERROR).setAckError(commandAckError));
 
-        ackErrorBuilder.recycle();
-        response.recycle();
+        commandAckErrorBuilder.recycle();
+        commandAckError.recycle();
 
         return res;
     }

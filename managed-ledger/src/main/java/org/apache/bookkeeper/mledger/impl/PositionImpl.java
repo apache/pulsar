@@ -25,6 +25,7 @@ import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
@@ -90,6 +91,52 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         }
     }
 
+    public int compareToWithAckSet(PositionImpl other) {
+        checkNotNull(other);
+        int result = ComparisonChain.start().compare(this.ledgerId, other.ledgerId).compare(this.entryId, other.entryId)
+                .result();
+        if (result == 0 && ackSet != null) {
+            BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
+            BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
+            int length = otherAckSet.length() - thisAckSet.length();
+            thisAckSet.recycle();
+            otherAckSet.recycle();
+            return length;
+        }
+        return result;
+    }
+
+    public boolean isAckSetRepeated(PositionImpl other) {
+        checkNotNull(other);
+        checkNotNull(ackSet);
+        checkNotNull(other.ackSet);
+        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
+        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
+        if (otherAckSet.size() < thisAckSet.size()) {
+            otherAckSet.set(otherAckSet.size(), thisAckSet.size());
+        }
+        thisAckSet.flip(0, thisAckSet.size());
+        otherAckSet.flip(0, otherAckSet.size());
+        thisAckSet.and(otherAckSet);
+        boolean isAckSetRepeated = thisAckSet.isEmpty();
+        thisAckSet.recycle();
+        otherAckSet.recycle();
+        return isAckSetRepeated;
+    }
+
+    public void andAckSet(PositionImpl other) {
+        checkNotNull(other);
+        checkNotNull(ackSet);
+        checkNotNull(other.ackSet);
+        BitSetRecyclable thisAckSet = BitSetRecyclable.valueOf(ackSet);
+        BitSetRecyclable otherAckSet = BitSetRecyclable.valueOf(other.ackSet);
+        if (otherAckSet.size() < thisAckSet.size()) {
+            otherAckSet.set(otherAckSet.size(), thisAckSet.size());
+        }
+        thisAckSet.and(otherAckSet);
+        this.ackSet = thisAckSet.toLongArray();
+    }
+
     /**
      * String representation of virtual cursor - LedgerId:EntryId.
      */
@@ -119,6 +166,10 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         }
 
         return false;
+    }
+
+    public boolean isBatchPosition() {
+        return ackSet != null;
     }
 
     public PositionInfo getPositionInfo() {

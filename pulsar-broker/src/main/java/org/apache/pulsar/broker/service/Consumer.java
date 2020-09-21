@@ -1,3 +1,4 @@
+
 /**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -34,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
@@ -199,11 +201,11 @@ public class Consumer {
 
         if (log.isDebugEnabled()) {
             log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
-                consumerId, topicName, subscription.getName(), activeConsumer);
+                    consumerId, topicName, subscription.getName(), activeConsumer);
         }
         cnx.ctx().writeAndFlush(
-            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
-            cnx.ctx().voidPromise());
+                Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
+                cnx.ctx().voidPromise());
     }
 
     public boolean readCompacted() {
@@ -218,7 +220,7 @@ public class Consumer {
      */
 
     public ChannelPromise sendMessages(final List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-               int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
+                                       int totalMessages, long totalBytes, long totalChunkedMessages, RedeliveryTracker redeliveryTracker) {
         this.lastConsumedTimestamp = System.currentTimeMillis();
         final ChannelHandlerContext ctx = cnx.ctx();
         final ChannelPromise writePromise = ctx.newPromise();
@@ -252,7 +254,7 @@ public class Consumer {
         // calculate avg message per entry
         int tmpAvgMessagesPerEntry = AVG_MESSAGES_PER_ENTRY.get(this);
         tmpAvgMessagesPerEntry = (int) Math.round(tmpAvgMessagesPerEntry * avgPercent +
-                    (1 - avgPercent) * totalMessages / entries.size());
+                (1 - avgPercent) * totalMessages / entries.size());
         AVG_MESSAGES_PER_ENTRY.set(this, tmpAvgMessagesPerEntry);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
@@ -288,10 +290,10 @@ public class Consumer {
                     messageIdBuilder.setBatchIndex(((TransactionEntryImpl) entry).getStartBatchIndex());
                 }
                 MessageIdData messageId = messageIdBuilder
-                    .setLedgerId(entry.getLedgerId())
-                    .setEntryId(entry.getEntryId())
-                    .setPartition(partitionIdx)
-                    .build();
+                        .setLedgerId(entry.getLedgerId())
+                        .setEntryId(entry.getEntryId())
+                        .setPartition(partitionIdx)
+                        .build();
 
                 ByteBuf metadataAndPayload = entry.getDataBuffer();
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
@@ -312,7 +314,7 @@ public class Consumer {
                     redeliveryCount = redeliveryTracker.incrementAndGetRedeliveryCount(position);
                 }
                 ctx.write(Commands.newMessage(consumerId, messageId, redeliveryCount, metadataAndPayload,
-                    batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
+                        batchIndexesAcks == null ? null : batchIndexesAcks.getAckSet(i)), ctx.voidPromise());
                 messageId.recycle();
                 messageIdBuilder.recycle();
                 entry.release();
@@ -393,8 +395,8 @@ public class Consumer {
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
-                .collect(Collectors.toMap((e) -> e.getKey(),
-                                          (e) -> e.getValue()));
+                    .collect(Collectors.toMap((e) -> e.getKey(),
+                            (e) -> e.getValue()));
         }
 
         if (ack.getAckType() == AckType.Cumulative) {
@@ -416,12 +418,7 @@ public class Consumer {
                     position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 }
             }
-            List<Position> positionsAcked = Collections.singletonList(position);
-            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Cumulative);
-            } else {
-                subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
-            }
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
         } else {
             // Individual ack
             List<Position> positionsAcked = new ArrayList<>();
@@ -444,25 +441,87 @@ public class Consumer {
                             consumerId, position, ack.getValidationError());
                 }
             }
-            if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
-                transactionAcknowledge(ack.getTxnidMostBits(), ack.getTxnidLeastBits(), positionsAcked, AckType.Individual);
-            } else {
-                subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-            }
+            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
         }
     }
 
-    private void transactionAcknowledge(long txnidMostBits, long txnidLeastBits,
-                                        List<Position> positionList, AckType ackType) {
-        if (subscription instanceof PersistentSubscription) {
-            TxnID txnID = new TxnID(txnidMostBits, txnidLeastBits);
-            try {
-                ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
-            } catch (TransactionConflictException e) {
-                log.error("Transaction acknowledge failed for txn " + txnID, e);
+    CompletableFuture<Void> messageAckedWithTransaction(CommandAck ack) {
+        this.lastAckedTimestamp = System.currentTimeMillis();
+        TxnID txnID = new TxnID(ack.getTxnidMostBits(), ack.getTxnidLeastBits());
+        if (ack.getAckType() == AckType.Cumulative) {
+            if (ack.getMessageIdCount() != 1) {
+                log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
+
+                String errorMsg = "TxnID : " + txnID + " subscription : "
+                        + subscription + " consumerId : " + consumerId + " received multi-message ack";
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                return completableFuture;
             }
+
+            if (Subscription.isIndividualAckMode(subType)) {
+                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
+                String errorMsg = "TxnID : " + txnID + " subscription : "
+                        + subscription + " consumerId : " + consumerId
+                        + " Received cumulative ack on shared subscription, ignoring";
+                CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                return completableFuture;
+            }
+            PositionImpl position = PositionImpl.earliest;
+            if (ack.getMessageIdCount() == 1) {
+                MessageIdData msgId = ack.getMessageId(0);
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
+                            SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
+            }
+            List<Position> positionsAcked = Collections.singletonList(position);
+            return transactionAcknowledge(txnID, positionsAcked, AckType.Cumulative);
         } else {
-            log.error("Transaction acknowledge only support the `PersistentSubscription`.");
+            // Individual ack
+            List<Position> positionsAcked = new ArrayList<>();
+            for (int i = 0; i < ack.getMessageIdCount(); i++) {
+                MessageIdData msgId = ack.getMessageId(i);
+                PositionImpl position;
+                if (msgId.getAckSetCount() > 0) {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(),
+                            SafeCollectionUtils.longListToArray(msgId.getAckSetList()));
+                } else {
+                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                }
+                positionsAcked.add(position);
+
+                if (Subscription.isIndividualAckMode(subType) && msgId.getAckSetCount() == 0) {
+                    removePendingAcks(position);
+                }
+
+                if (ack.hasValidationError()) {
+                    String errorMsg = "TxnID : " + txnID + " subscription : "
+                            + subscription + " consumerId : " + consumerId +
+                            " received ack for corrupted message at " +
+                            position + " - Reason: " + ack.getValidationError();
+                    log.error(errorMsg);
+                    CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+                    completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+                    return completableFuture;
+                }
+            }
+            return transactionAcknowledge(txnID, positionsAcked, AckType.Individual);
+        }
+    }
+
+    private CompletableFuture<Void> transactionAcknowledge(TxnID txnID, List<Position> positionList, AckType ackType) {
+        if (subscription instanceof PersistentSubscription) {
+            return ((PersistentSubscription) subscription).acknowledgeMessage(txnID, positionList, ackType);
+        } else {
+            String errorMsg = "Transaction acknowledge only support the `PersistentSubscription`.";
+            log.error(errorMsg);
+            CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+            completableFuture.completeExceptionally(new TransactionConflictException(errorMsg));
+            return completableFuture;
         }
     }
 
