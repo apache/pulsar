@@ -50,6 +50,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
@@ -98,9 +99,16 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyWebServer.start();
     }
 
+    // this is for nar package test
     private void addServletNar() {
+        Properties properties = new Properties();
+        properties.setProperty("basePath", "/metrics-prometheus/broker");
+        properties.setProperty("mappedPath", "/federate");
+        properties.setProperty("query", "match[]={job=\"prometheus\"}");
+        proxyConfig.setProperties(properties);
+
         // set protocol related config
-        URL testHandlerUrl = this.getClass().getClassLoader().getResource("pulsar-proxy-plugin-2.7.0-SNAPSHOT.nar");
+        URL testHandlerUrl = this.getClass().getClassLoader().getResource("proxy-additional-servlet-plugin-1.0-SNAPSHOT.nar");
         Path handlerPath;
         try {
             handlerPath = Paths.get(testHandlerUrl.toURI());
