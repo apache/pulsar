@@ -120,6 +120,11 @@ public class PulsarMetricsSender implements MetricsSender {
     }
 
     @Override
+    public String getComponentLabel() {
+        return this.pulsar.getAdvertisedAddress();
+    }
+
+    @Override
     public void close() throws Exception {
         this.metricsSenderExecutor.shutdown();
     }
