@@ -7906,7 +7906,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/NonPersistentTopicStats"
+              "$ref" : "#/definitions/TopicStats"
             }
           },
           "307" : {
@@ -14307,13 +14307,13 @@
             "type" : "string"
           }
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         }
       }
@@ -14698,27 +14698,20 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
         },
-        "directMemory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "overLoaded" : {
+          "type" : "boolean"
         },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
+        "loadReportType" : {
+          "type" : "string"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
         },
-        "bandwidthOut" : {
+        "memory" : {
           "$ref" : "#/definitions/ResourceUsage"
-        },
-        "lastUpdate" : {
-          "type" : "integer",
-          "format" : "int64"
         },
         "msgThroughputIn" : {
           "type" : "number",
@@ -14728,11 +14721,18 @@
           "type" : "number",
           "format" : "double"
         },
-        "overLoaded" : {
-          "type" : "boolean"
+        "directMemory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
-        "loadReportType" : {
-          "type" : "string"
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "lastUpdate" : {
+          "type" : "integer",
+          "format" : "int64"
         }
       }
     },
@@ -14907,13 +14907,13 @@
         "producerName" : {
           "type" : "string"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         }
       }
@@ -15784,13 +15784,13 @@
         "producerName" : {
           "type" : "string"
         },
+        "clientVersion" : {
+          "type" : "string"
+        },
         "connectedSince" : {
           "type" : "string"
         },
         "address" : {
-          "type" : "string"
-        },
-        "clientVersion" : {
           "type" : "string"
         }
       }
