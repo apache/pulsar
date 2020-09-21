@@ -33,6 +33,7 @@
             <scope>runtime</scope>
             <excludes>
               <exclude>jakarta.ws.rs:jakarta.ws.rs-api</exclude>
+              <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>
