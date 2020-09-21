@@ -417,6 +417,27 @@ public interface Namespaces {
     void deleteNamespace(String namespace) throws PulsarAdminException;
 
     /**
+     * Delete an existing namespace.
+     * <p/>
+     * Force flag deletes namespace forcefully by force deleting all topics under it.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param force
+     *            Delete namespace forcefully
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws ConflictException
+     *             Namespace is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespace(String namespace, boolean force) throws PulsarAdminException;
+
+    /**
      * Delete an existing namespace asynchronously.
      * <p/>
      * The namespace needs to be empty.
@@ -425,6 +446,18 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<Void> deleteNamespaceAsync(String namespace);
+
+    /**
+     * Delete an existing namespace asynchronously.
+     * <p/>
+     * Force flag deletes namespace forcefully by force deleting all topics under it.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param force
+     *            Delete namespace forcefully
+     */
+    CompletableFuture<Void> deleteNamespaceAsync(String namespace, boolean force);
 
     /**
      * Delete an existing bundle in a namespace.
@@ -448,6 +481,29 @@ public interface Namespaces {
     void deleteNamespaceBundle(String namespace, String bundleRange) throws PulsarAdminException;
 
     /**
+     * Delete an existing bundle in a namespace.
+     * <p/>
+     * Force flag deletes bundle forcefully.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundleRange
+     *            range of the bundle
+     * @param force
+     *            Delete bundle forcefully
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace/bundle does not exist
+     * @throws ConflictException
+     *             Bundle is not empty
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespaceBundle(String namespace, String bundleRange, boolean force) throws PulsarAdminException;
+
+    /**
      * Delete an existing bundle in a namespace asynchronously.
      * <p/>
      * The bundle needs to be empty.
@@ -460,6 +516,22 @@ public interface Namespaces {
      * @return a future that can be used to track when the bundle is deleted
      */
     CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange);
+
+    /**
+     * Delete an existing bundle in a namespace asynchronously.
+     * <p/>
+     * Force flag deletes bundle forcefully.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundleRange
+     *            range of the bundle
+     * @param force
+     *            Delete bundle forcefully
+     *
+     * @return a future that can be used to track when the bundle is deleted
+     */
+    CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange, boolean force);
 
     /**
      * Get permissions on a namespace.

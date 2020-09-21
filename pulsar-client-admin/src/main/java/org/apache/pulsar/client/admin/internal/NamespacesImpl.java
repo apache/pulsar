@@ -332,9 +332,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void deleteNamespace(String namespace, boolean force) throws PulsarAdminException {
+        try {
+            deleteNamespaceAsync(namespace, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> deleteNamespaceAsync(String namespace) {
+        return deleteNamespaceAsync(namespace, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteNamespaceAsync(String namespace, boolean force) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns);
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 
@@ -353,9 +373,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void deleteNamespaceBundle(String namespace, String bundleRange, boolean force) throws PulsarAdminException {
+        try {
+            deleteNamespaceBundleAsync(namespace, bundleRange, force).get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e);
+        } catch (TimeoutException e) {
+            throw new PulsarAdminException.TimeoutException(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange) {
+        return deleteNamespaceBundleAsync(namespace, bundleRange, false);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteNamespaceBundleAsync(String namespace, String bundleRange, boolean force) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundleRange);
+        path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
     }
 

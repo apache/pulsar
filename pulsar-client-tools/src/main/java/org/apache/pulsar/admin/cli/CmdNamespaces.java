@@ -165,15 +165,19 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Deletes a namespace. The namespace needs to be empty")
+    @Parameters(commandDescription = "Deletes a namespace.")
     private class Delete extends CliCommand {
         @Parameter(description = "tenant/namespace\n", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-f",
+                "--force" }, description = "Delete namespace forcefully by force deleting all topics under it")
+        private boolean force = false;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            admin.namespaces().deleteNamespace(namespace);
+            admin.namespaces().deleteNamespace(namespace, force);
         }
     }
 
