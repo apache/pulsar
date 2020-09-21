@@ -1075,9 +1075,9 @@ public class PersistentSubscription implements Subscription {
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positions.forEach(position -> {
-                if ((pendingAckMessages == null || !this.pendingAckMessages.containsKey(position)
+                if ((!this.pendingAckMessages.containsKey(position)
                         || !((PositionImpl) this.pendingAckMessages.get(position)).isAckSetRepeated(position))
-                        && (null == cumulativeAckPosition || position.compareTo(cumulativeAckPosition) > 0)) {
+                        || (null == cumulativeAckPosition || cumulativeAckPosition.isAckSetRepeated(position))) {
                     pendingPositions.add(position);
                 }
             });

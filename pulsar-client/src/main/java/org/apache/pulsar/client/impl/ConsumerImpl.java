@@ -709,6 +709,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             callBackOp.recycle();
         }
+        commandAckReceipt.recycle();
     }
 
     protected void ackError(CommandAckError commandAckError) {
@@ -725,6 +726,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             callBackOp.recycle();
         }
+        commandAckError.recycle();
     }
 
     private void onResponse(OpForTransactionAckCallBack op) {
