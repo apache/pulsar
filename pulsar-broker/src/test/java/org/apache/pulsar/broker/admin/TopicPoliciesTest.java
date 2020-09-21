@@ -589,9 +589,47 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().removeCompactionThreshold(testTopic);
         Thread.sleep(3000);
-        log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
         getCompactionThreshold = admin.topics().getCompactionThreshold(testTopic);
+        log.info("Compaction threshold get on topic: {} after remove", getCompactionThreshold, testTopic);
         Assert.assertNull(getCompactionThreshold);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testGetSetMaxConsumersPerSubscription() throws Exception {
+        Integer maxConsumersPerSubscription = 10;
+        log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
+
+        admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
+        log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
+        log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
+        Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
+
+        admin.topics().deletePartitionedTopic(testTopic, true);
+    }
+
+    @Test
+    public void testRemoveMaxConsumersPerSubscription() throws Exception {
+        Integer maxConsumersPerSubscription = 10;
+        log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
+
+        admin.topics().setMaxConsumersPerSubscription(testTopic, maxConsumersPerSubscription);
+        log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
+
+        Thread.sleep(3000);
+        Integer getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
+        log.info("MaxConsumersPerSubscription: {} get on topic: {}", getMaxConsumersPerSubscription, testTopic);
+        Assert.assertEquals(getMaxConsumersPerSubscription, maxConsumersPerSubscription);
+
+        admin.topics().removeMaxConsumersPerSubscription(testTopic);
+        Thread.sleep(3000);
+        getMaxConsumersPerSubscription = admin.topics().getMaxConsumersPerSubscription(testTopic);
+        log.info("MaxConsumersPerSubscription get on topic: {} after remove", getMaxConsumersPerSubscription, testTopic);
+        Assert.assertNull(getMaxConsumersPerSubscription);
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }

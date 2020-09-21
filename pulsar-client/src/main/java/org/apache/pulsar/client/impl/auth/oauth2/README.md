@@ -86,7 +86,7 @@ curl --request POST \
 ```
 
 In which,
-- `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com/oauth/token`
+- `issuerUrl` parameter in this plugin is mapped to `--url https://dev-kt-aa9ne.us.auth0.com`
 - `privateKey` file parameter in this plugin should at least contains fields `client_id` and `client_secret`.
 - `audience` parameter in this plugin is mapped to  `"audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"`
 
