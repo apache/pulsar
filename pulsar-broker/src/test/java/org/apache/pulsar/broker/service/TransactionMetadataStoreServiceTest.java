@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.service;
 
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
-import org.apache.pulsar.transaction.impl.common.TxnID;
 import org.apache.pulsar.transaction.impl.common.TxnStatus;
 import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
@@ -102,10 +103,10 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         transactionMetadataStoreService.addTransactionMetadataStore(TransactionCoordinatorID.get(0));
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 1);
         TxnID txnID = transactionMetadataStoreService.newTransaction(TransactionCoordinatorID.get(0)).get();
-        List<String> partitions = new ArrayList<>();
-        partitions.add("ptn-0");
-        partitions.add("ptn-1");
-        partitions.add("ptn-2");
+        List<TransactionSubscription> partitions = new ArrayList<>();
+        partitions.add(TransactionSubscription.builder().topic("ptn-1").subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic("ptn-2").subscription("sub-1").build());
+        partitions.add(TransactionSubscription.builder().topic("ptn-3").subscription("sub-1").build());
         transactionMetadataStoreService.addAckedPartitionToTxn(txnID, partitions);
         TxnMeta txn = transactionMetadataStoreService.getTxnMeta(txnID).get();
         assertEquals(txn.status(), TxnStatus.OPEN);

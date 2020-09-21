@@ -74,19 +74,22 @@ public class WorkerService {
     private URI dlogUri;
     private LeaderService leaderService;
     private FunctionAssignmentTailer functionAssignmentTailer;
+    private final WorkerStatsManager workerStatsManager;
 
     public WorkerService(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
+        workerStatsManager = new WorkerStatsManager(workerConfig);
     }
-
 
     public void start(URI dlogUri,
                       AuthenticationService authenticationService,
                       AuthorizationService authorizationService,
                       ErrorNotifier errorNotifier) throws InterruptedException {
+
+        workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
 
         try {
@@ -137,20 +140,20 @@ public class WorkerService {
                 }
 
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsHostnameVerificationEnable());
+                    workerConfig.isTlsEnableHostnameVerification());
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
-                    workerConfig.getClientAuthenticationPlugin(), workerConfig.getClientAuthenticationParameters(),
+                    workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsHostnameVerificationEnable());
+                    workerConfig.isTlsEnableHostnameVerification());
 
                 this.client = WorkerUtils.getPulsarClient(workerConfig.getPulsarServiceUrl(),
-                        workerConfig.getClientAuthenticationPlugin(),
-                        workerConfig.getClientAuthenticationParameters(),
+                        workerConfig.getBrokerClientAuthenticationPlugin(),
+                        workerConfig.getBrokerClientAuthenticationParameters(),
                         workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
-                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsHostnameVerificationEnable());
+                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsEnableHostnameVerification());
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
 
@@ -163,7 +166,7 @@ public class WorkerService {
             brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getClusterCoordinationTopic());
             brokerAdmin.topics().createNonPartitionedTopic(workerConfig.getFunctionMetadataTopic());
             //create scheduler manager
-            this.schedulerManager = new SchedulerManager(workerConfig, client, brokerAdmin, errorNotifier);
+            this.schedulerManager = new SchedulerManager(workerConfig, client, brokerAdmin, workerStatsManager, errorNotifier);
 
             //create function meta data manager
             this.functionMetaDataManager = new FunctionMetaDataManager(
@@ -188,6 +191,7 @@ public class WorkerService {
                     connectorsManager,
                     functionsManager,
                     functionMetaDataManager,
+                    workerStatsManager,
                     errorNotifier);
 
 
@@ -257,6 +261,20 @@ public class WorkerService {
                         }
                     });
 
+            if (workerConfig.getRebalanceCheckFreqSec() > 0) {
+                clusterServiceCoordinator.addTask("rebalance-periodic-check",
+                        workerConfig.getRebalanceCheckFreqSec() * 1000,
+                        () -> {
+                            try {
+                                schedulerManager.rebalanceIfNotInprogress().get();
+                            } catch (SchedulerManager.RebalanceInProgressException e) {
+                                log.info("Scheduled for rebalance but rebalance is already in progress. Ignoring.");
+                            } catch (Exception e) {
+                                log.warn("Encountered error when running scheduled rebalance", e);
+                            }
+                        });
+            }
+
             log.info("/** Starting Cluster Service Coordinator **/");
             clusterServiceCoordinator.start();
 
@@ -264,6 +282,11 @@ public class WorkerService {
             this.isInitialized = true;
 
             log.info("/** Started worker id={} **/", workerConfig.getWorkerId());
+
+            workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
+            workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
+            workerStatsManager.setLeaderService(leaderService);
+            workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error("Error Starting up in worker", t);
             throw new RuntimeException(t);

@@ -384,6 +384,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        conf.setAutoUpdatePartitionsIntervalSeconds(interval, unit);
+        return this;
+    }
+
+    @Override
 
     public ConsumerBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);
@@ -412,6 +418,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> enableRetry(boolean retryEnable) {
         conf.setRetryEnable(retryEnable);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> enableBatchIndexAcknowledgment(boolean batchIndexAcknowledgmentEnabled) {
+        conf.setBatchIndexAckEnabled(batchIndexAcknowledgmentEnabled);
         return this;
     }
 

@@ -58,8 +58,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
 
     public static final String WORDCOUNT_PYTHON_FILE = "wordcount_function.py";
 
-
-    @Test
+    @Test(groups = {"python_state", "state", "function", "python_function"})
     public void testPythonWordCountFunction() throws Exception {
         String inputTopicName = "test-wordcount-py-input-" + randomName(8);
         String outputTopicName = "test-wordcount-py-output-" + randomName(8);
@@ -94,7 +93,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test
+    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSourceState() throws Exception {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
@@ -135,7 +134,7 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
         getSourceInfoNotFound(sourceName);
     }
 
-    @Test
+    @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testSinkState() throws Exception {
         String inputTopicName = "test-state-sink-input-" + randomName(8);
         String sinkName = "test-state-sink-" + randomName(8);

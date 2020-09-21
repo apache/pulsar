@@ -478,4 +478,12 @@ public interface ClientBuilder extends Cloneable {
      * @return
      */
     ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
+
+    /**
+     * If enable transaction, start the transactionCoordinatorClient with pulsar client.
+     *
+     * @param enableTransaction whether enable transaction feature
+     * @return
+     */
+    ClientBuilder enableTransaction(boolean enableTransaction);
 }

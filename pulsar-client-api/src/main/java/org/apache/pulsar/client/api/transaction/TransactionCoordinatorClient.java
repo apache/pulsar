@@ -23,8 +23,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.transaction.impl.common.TxnID;
-
 /**
  * Transaction coordinator client.
  */
@@ -126,6 +124,27 @@ public interface TransactionCoordinatorClient extends Closeable {
      * @return a future represents the result of add publish partition to txn.
      */
     CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions);
+
+    /**
+     * Add ack subscription to txn.
+     *
+     * @param txnID transaction id
+     * @param topic topic name
+     * @param subscription subscription name
+     * @throws TransactionCoordinatorClientException
+     */
+    void addSubscriptionToTxn(TxnID txnID, String topic, String subscription)
+            throws TransactionCoordinatorClientException;
+
+    /**
+     * Add ack subscription to txn asynchronously.
+     *
+     * @param txnID transaction id
+     * @param topic topic name
+     * @param subscription subscription name
+     * @return
+     */
+    CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription);
 
     /**
      * Commit txn.

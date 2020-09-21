@@ -85,7 +85,13 @@ public class MessageIdImpl implements MessageId {
 
     @Override
     public String toString() {
-        return String.format("%d:%d:%d", ledgerId, entryId, partitionIndex);
+        return new StringBuilder()
+          .append(ledgerId)
+          .append(':')
+          .append(entryId)
+          .append(':')
+          .append(partitionIndex)
+          .toString();
     }
 
     // / Serialization

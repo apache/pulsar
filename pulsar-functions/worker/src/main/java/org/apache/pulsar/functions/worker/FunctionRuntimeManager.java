@@ -141,11 +141,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private final FunctionMetaDataManager functionMetaDataManager;
 
+    private final WorkerStatsManager workerStatsManager;
+
     private final ErrorNotifier errorNotifier;
 
     public FunctionRuntimeManager(WorkerConfig workerConfig, WorkerService workerService, Namespace dlogNamespace,
                                   MembershipManager membershipManager, ConnectorsManager connectorsManager, FunctionsManager functionsManager,
-                                  FunctionMetaDataManager functionMetaDataManager, ErrorNotifier errorNotifier) throws Exception {
+                                  FunctionMetaDataManager functionMetaDataManager, WorkerStatsManager workerStatsManager, ErrorNotifier errorNotifier) throws Exception {
         this.workerConfig = workerConfig;
         this.workerService = workerService;
         this.functionAdmin = workerService.getFunctionAdmin();
@@ -164,12 +166,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
         AuthenticationConfig authConfig = null;
         if (workerConfig.isAuthenticationEnabled()) {
             authConfig = AuthenticationConfig.builder()
-                    .clientAuthenticationPlugin(workerConfig.getClientAuthenticationPlugin())
-                    .clientAuthenticationParameters(workerConfig.getClientAuthenticationParameters())
+                    .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
+                    .clientAuthenticationParameters(workerConfig.getBrokerClientAuthenticationParameters())
                     .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
                     .useTls(workerConfig.isUseTls())
                     .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
-                    .tlsHostnameVerificationEnable(workerConfig.isTlsHostnameVerificationEnable())
+                    .tlsHostnameVerificationEnable(workerConfig.isTlsEnableHostnameVerification())
                     .build();
 
             //initialize function authentication provider
@@ -213,6 +215,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.membershipManager = membershipManager;
         this.functionMetaDataManager = functionMetaDataManager;
+        this.workerStatsManager = workerStatsManager;
         this.errorNotifier = errorNotifier;
     }
 
@@ -813,7 +816,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     private void startFunctionInstance(Assignment assignment) {
-        log.info("infos: {}", functionRuntimeInfos.getAll());
         String fullyQualifiedInstanceId = FunctionCommon.getFullyQualifiedInstanceId(assignment.getInstance());
         FunctionRuntimeInfo functionRuntimeInfo = _getFunctionRuntimeInfo(fullyQualifiedInstanceId);
 
@@ -921,19 +923,32 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private void conditionallyStartFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase) {
+            workerStatsManager.startInstanceProcessTimeStart();
             this.functionActioner.startFunction(functionRuntimeInfo);
+            workerStatsManager.startInstanceProcessTimeEnd();
         }
     }
 
     private void conditionallyStopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase) {
+            workerStatsManager.stopInstanceProcessTimeStart();
             this.functionActioner.stopFunction(functionRuntimeInfo);
+            workerStatsManager.stopInstanceProcessTimeEnd();
         }
     }
 
     private void conditionallyTerminateFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase) {
+            workerStatsManager.startInstanceProcessTimeStart();
             this.functionActioner.terminateFunction(functionRuntimeInfo);
+            workerStatsManager.startInstanceProcessTimeEnd();
         }
+    }
+
+    /** Methods for metrics **/
+
+    public int getMyInstances() {
+        Map<String, Assignment> myAssignments = workerIdToAssignments.get(workerConfig.getWorkerId());
+        return myAssignments == null ? 0 : myAssignments.size();
     }
 }

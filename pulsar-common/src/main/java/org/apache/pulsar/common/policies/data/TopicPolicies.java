@@ -37,7 +37,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TopicPolicies {
 
-    private Map<String, BacklogQuota> backLogQuotaMap =  Maps.newHashMap();
+    private Map<String, BacklogQuota> backLogQuotaMap = Maps.newHashMap();
     private PersistencePolicies persistence = null;
     private RetentionPolicies retentionPolicies = null;
     private Boolean deduplicationEnabled = null;
@@ -45,6 +45,40 @@ public class TopicPolicies {
     private Integer maxProducerPerTopic = null;
     private Integer maxConsumerPerTopic = null;
     private Integer maxConsumersPerSubscription = null;
+    private Integer maxUnackedMessagesOnConsumer = null;
+    private Integer maxUnackedMessagesOnSubscription = null;
+    private Long delayedDeliveryTickTimeMillis = null;
+    private Boolean delayedDeliveryEnabled = null;
+    private OffloadPolicies offloadPolicies;
+    private InactiveTopicPolicies inactiveTopicPolicies = null;
+    private DispatchRate dispatchRate = null;
+    private Long compactionThreshold = null;
+    private PublishRate publishRate = null;
+    private SubscribeRate subscribeRate = null;
+
+    public boolean isInactiveTopicPoliciesSet() {
+        return inactiveTopicPolicies != null;
+    }
+
+    public boolean isOffloadPoliciesSet() {
+        return offloadPolicies != null;
+    }
+
+    public boolean isMaxUnackedMessagesOnConsumerSet() {
+        return maxUnackedMessagesOnConsumer != null;
+    }
+
+    public boolean isDelayedDeliveryTickTimeMillisSet(){
+        return delayedDeliveryTickTimeMillis != null;
+    }
+
+    public boolean isDelayedDeliveryEnabledSet(){
+        return delayedDeliveryEnabled != null;
+    }
+
+    public boolean isMaxUnackedMessagesOnSubscriptionSet() {
+        return maxUnackedMessagesOnSubscription != null;
+    }
 
     public boolean isBacklogQuotaSet() {
         return !backLogQuotaMap.isEmpty();
@@ -76,5 +110,21 @@ public class TopicPolicies {
 
     public boolean isMaxConsumersPerSubscriptionSet() {
         return maxConsumersPerSubscription != null;
+    }
+
+    public boolean isDispatchRateSet() {
+        return dispatchRate != null;
+    }
+
+    public boolean isCompactionThresholdSet() {
+        return compactionThreshold != null;
+    }
+
+    public boolean isPublishRateSet() {
+        return publishRate != null;
+    }
+
+    public boolean isSubscribeRateSet() {
+        return subscribeRate != null;
     }
 }

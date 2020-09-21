@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.*;
+import io.kubernetes.client.openapi.models.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

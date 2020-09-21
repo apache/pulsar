@@ -133,8 +133,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Hostname or IP address the service binds on"
+    )
+    private String bindAddress = "0.0.0.0";
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Hostname or IP address the service advertises to the outside world."
-            + " If not set, the value of `InetAddress.getLocalHost().getHostname()` is used."
+            + " If not set, the value of `InetAddress.getLocalHost().getCanonicalHostName()` is used."
     )
     private String advertisedAddress;
     @FieldContext(
@@ -464,6 +470,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
            doc = "Number of threads to use for HTTP requests processing"
     )
     private int httpNumThreads = Math.max(8, 2 * Runtime.getRuntime().availableProcessors());
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Enable the enforcement of limits on the incoming HTTP requests"
+        )
+    private boolean httpRequestsLimitEnabled = false;
+
+    @FieldContext(
+            category =  CATEGORY_HTTP,
+            doc = "Max HTTP requests per seconds allowed. The excess of requests will be rejected with HTTP code 429 (Too many requests)"
+        )
+    private double httpRequestsMaxPerSecond = 100.0;
 
     @PropertiesContext(
         properties = {

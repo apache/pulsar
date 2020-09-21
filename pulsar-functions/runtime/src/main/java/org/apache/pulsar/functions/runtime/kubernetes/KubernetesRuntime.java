@@ -26,33 +26,34 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
 import com.google.protobuf.Empty;
-import com.squareup.okhttp.Response;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import io.kubernetes.client.ApiException;
-import io.kubernetes.client.apis.AppsV1Api;
-import io.kubernetes.client.apis.CoreV1Api;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.models.V1Container;
-import io.kubernetes.client.models.V1ContainerPort;
-import io.kubernetes.client.models.V1DeleteOptions;
-import io.kubernetes.client.models.V1EnvVar;
-import io.kubernetes.client.models.V1EnvVarSource;
-import io.kubernetes.client.models.V1LabelSelector;
-import io.kubernetes.client.models.V1ObjectFieldSelector;
-import io.kubernetes.client.models.V1ObjectMeta;
-import io.kubernetes.client.models.V1PodList;
-import io.kubernetes.client.models.V1PodSpec;
-import io.kubernetes.client.models.V1PodTemplateSpec;
-import io.kubernetes.client.models.V1ResourceRequirements;
-import io.kubernetes.client.models.V1Service;
-import io.kubernetes.client.models.V1ServicePort;
-import io.kubernetes.client.models.V1ServiceSpec;
-import io.kubernetes.client.models.V1StatefulSet;
-import io.kubernetes.client.models.V1StatefulSetSpec;
-import io.kubernetes.client.models.V1Toleration;
+import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1DeleteOptions;
+import io.kubernetes.client.openapi.models.V1EnvVar;
+import io.kubernetes.client.openapi.models.V1EnvVarSource;
+import io.kubernetes.client.openapi.models.V1LabelSelector;
+import io.kubernetes.client.openapi.models.V1ObjectFieldSelector;
+import io.kubernetes.client.openapi.models.V1ObjectMeta;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
+import io.kubernetes.client.openapi.models.V1ResourceRequirements;
+import io.kubernetes.client.openapi.models.V1Service;
+import io.kubernetes.client.openapi.models.V1ServicePort;
+import io.kubernetes.client.openapi.models.V1ServiceSpec;
+import io.kubernetes.client.openapi.models.V1StatefulSet;
+import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
+import io.kubernetes.client.openapi.models.V1Toleration;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Response;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -130,6 +131,7 @@ public class KubernetesRuntime implements Runtime {
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final Map<String, String> customLabels;
+    private final Map<String, String> functionDockerImages;
     private final String pulsarDockerImageName;
     private final String imagePullPolicy;
     private final String pulsarRootDir;
@@ -156,6 +158,7 @@ public class KubernetesRuntime implements Runtime {
                       String pythonDependencyRepository,
                       String pythonExtraDependencyRepository,
                       String pulsarDockerImageName,
+                      Map<String, String> functionDockerImages,
                       String imagePullPolicy,
                       String pulsarRootDir,
                       InstanceConfig instanceConfig,
@@ -185,6 +188,7 @@ public class KubernetesRuntime implements Runtime {
         this.instanceConfig = instanceConfig;
         this.jobNamespace = jobNamespace;
         this.customLabels = customLabels;
+        this.functionDockerImages = functionDockerImages;
         this.pulsarDockerImageName = pulsarDockerImageName;
         this.imagePullPolicy = imagePullPolicy;
         this.pulsarRootDir = pulsarRootDir;
@@ -290,7 +294,7 @@ public class KubernetesRuntime implements Runtime {
             for (int i = 0; i < instanceConfig.getFunctionDetails().getParallelism(); ++i) {
                 String address = getServiceUrl(jobName, jobNamespace, i);
                 channel[i] = ManagedChannelBuilder.forAddress(address, grpcPort)
-                        .usePlaintext(true)
+                        .usePlaintext()
                         .build();
                 stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
             }
@@ -418,7 +422,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -503,7 +507,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -554,8 +558,8 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = appsClient.deleteNamespacedStatefulSetCall(
                                 statefulSetName,
-                                jobNamespace, options, null,
-                                null, null, null,
+                                jobNamespace, null, null,
+                                5, null, "Foreground",
                                 null, null)
                                 .execute();
                     } catch (ApiException e) {
@@ -705,9 +709,9 @@ public class KubernetesRuntime implements Runtime {
                         // https://github.com/kubernetes-client/java/issues/86
                         response = coreClient.deleteNamespacedServiceCall(
                                 serviceName,
-                                jobNamespace, options, null,
-                                null, null,
-                                null, null, null).execute();
+                                jobNamespace, null, null,
+                                0, null,
+                                "Foreground", null, null).execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -977,8 +981,35 @@ public class KubernetesRuntime implements Runtime {
     V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        // set up the container images
-        container.setImage(pulsarDockerImageName);
+        Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
+
+        String imageName = null;
+        if (functionDockerImages != null) {
+            switch (runtime) {
+                case JAVA:
+                    if (functionDockerImages.get("JAVA") != null) {
+                        imageName = functionDockerImages.get("JAVA");
+                        break;
+                    }
+                case PYTHON:
+                    if (functionDockerImages.get("PYTHON") != null) {
+                        imageName = functionDockerImages.get("PYTHON");
+                        break;
+                    }
+                case GO:
+                    if (functionDockerImages.get("GO") != null) {
+                        imageName = functionDockerImages.get("GO");
+                        break;
+                    }
+                default:
+                    imageName = pulsarDockerImageName;
+                    break;
+            }
+            container.setImage(imageName);
+        } else {
+            container.setImage(pulsarDockerImageName);
+        }
+
         container.setImagePullPolicy(imagePullPolicy);
 
         // set up the container command

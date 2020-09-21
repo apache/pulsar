@@ -119,11 +119,20 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean autoUpdatePartitions = true;
 
+    private long autoUpdatePartitionsIntervalSeconds = 60;
+
     private boolean replicateSubscriptionState = false;
 
     private boolean resetIncludeHead = false;
 
     private KeySharedPolicy keySharedPolicy;
+
+    private boolean batchIndexAckEnabled = false;
+
+    public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
+        checkArgument(interval > 0, "interval needs to be > 0");
+        this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);
+    }
 
     @JsonIgnore
     public String getSingleTopic() {

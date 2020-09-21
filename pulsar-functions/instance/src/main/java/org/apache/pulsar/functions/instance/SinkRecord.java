@@ -25,6 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchema;
 import org.apache.pulsar.functions.api.KVRecord;
@@ -106,4 +107,13 @@ public class SinkRecord<T> implements Record<T> {
         return null;
     }
 
+    @Override
+    public Optional<Long> getEventTime() {
+        return sourceRecord.getEventTime();
+    }
+
+    @Override
+    public Optional<Message<T>> getMessage() {
+        return sourceRecord.getMessage();
+    }
 }

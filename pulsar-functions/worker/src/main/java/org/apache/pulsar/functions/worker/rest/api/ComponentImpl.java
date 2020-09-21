@@ -349,7 +349,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to deregister {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to deregister {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -422,7 +422,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to get {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to get {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -488,7 +488,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -541,7 +541,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -611,7 +611,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to start/stop {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -630,7 +630,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in stopFunctionInstances does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
+            log.warn("{} in stopFunctionInstances does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
@@ -661,7 +661,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to restart {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -680,7 +680,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in stopFunctionInstances does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
+            log.warn("{} in stopFunctionInstances does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace, componentName);
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
@@ -713,7 +713,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -732,7 +732,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Stats does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
+            log.warn("{} in get {} Stats does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
@@ -769,7 +769,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to get stats for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -789,7 +789,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Stats does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
+            log.warn("{} in get {} Stats does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
@@ -830,7 +830,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{} Client [{}] is not authorized to list {}", tenant, namespace, clientRole, ComponentTypeUtils.toString(componentType));
+                log.warn("{}/{} Client [{}] is not authorized to list {}", tenant, namespace, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
         } catch (PulsarAdminException e) {
@@ -906,7 +906,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to trigger {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to trigger {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -925,7 +925,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in trigger function does not exist @ /{}/{}/{}", tenant, namespace, functionName);
+            log.warn("Function in trigger function does not exist @ /{}/{}/{}", tenant, namespace, functionName);
             throw new RestException(Status.NOT_FOUND, String.format("Function %s doesn't exist", functionName));
         }
 
@@ -1028,7 +1028,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to get state for {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to get state for {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -1114,7 +1114,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized to put state for {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized to put state for {}", tenant, namespace,
                         functionName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -1212,7 +1212,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -1267,7 +1267,7 @@ public abstract class ComponentImpl {
 
                 try {
                     if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                        log.error("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
+                        log.warn("{}/{}/{} Client [{}] is not admin and authorized to download package for {} ", tenant, namespace,
                                 componentName, clientRole, ComponentTypeUtils.toString(componentType));
                         throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
                     }
@@ -1461,7 +1461,7 @@ public abstract class ComponentImpl {
 
         try {
             if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.error("{}/{}/{} Client [{}] is not authorized get status for {}", tenant, namespace,
+                log.warn("{}/{}/{} Client [{}] is not authorized get status for {}", tenant, namespace,
                         componentName, clientRole, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "client is not authorize to perform operation");
             }
@@ -1480,7 +1480,7 @@ public abstract class ComponentImpl {
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} in get {} Status does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
+            log.warn("{} in get {} Status does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), componentType, tenant, namespace, componentName);
             throw new RestException(Status.NOT_FOUND, String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
@@ -1518,8 +1518,18 @@ public abstract class ComponentImpl {
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,
                                     AuthenticationDataSource authenticationData) {
         try {
-            return worker().getAuthorizationService().allowFunctionOpsAsync(
-                    namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            switch (componentType) {
+                case SINK:
+                    return worker().getAuthorizationService().allowSinkOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                case SOURCE:
+                    return worker().getAuthorizationService().allowSourceOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                case FUNCTION:
+                default:
+                    return worker().getAuthorizationService().allowFunctionOpsAsync(
+                            namespaceName, role, authenticationData).get(worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), SECONDS);
+            }
         } catch (InterruptedException e) {
             log.warn("Time-out {} sec while checking function authorization on {} ", worker().getWorkerConfig().getZooKeeperOperationTimeoutSeconds(), namespaceName);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());

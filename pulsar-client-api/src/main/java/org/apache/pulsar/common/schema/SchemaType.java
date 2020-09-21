@@ -114,6 +114,26 @@ public enum SchemaType {
      */
     KEY_VALUE(15),
 
+    /**
+     * Instant.
+     */
+    INSTANT(16),
+
+    /**
+     * LocalDate.
+     */
+    LOCAL_DATE(17),
+
+    /**
+     * LocalTime.
+     */
+    LOCAL_TIME(18),
+
+    /**
+     * LocalDateTime.
+     */
+    LOCAL_DATE_TIME(19),
+
     //
     // Schemas that don't have schema info. the value should be negative.
     //
@@ -167,6 +187,10 @@ public enum SchemaType {
           case 13: return TIME;
           case 14: return TIMESTAMP;
           case 15: return KEY_VALUE;
+          case 16: return INSTANT;
+          case 17: return LOCAL_DATE;
+          case 18: return LOCAL_TIME;
+          case 19: return LOCAL_DATE_TIME;
           case -1: return BYTES;
           case -2: return AUTO;
           case -3: return AUTO_CONSUME;
@@ -198,6 +222,10 @@ public enum SchemaType {
             case TIME:
             case TIMESTAMP:
             case BYTES:
+            case INSTANT:
+            case LOCAL_DATE:
+            case LOCAL_TIME:
+            case LOCAL_DATE_TIME:
             case NONE:
                 return true;
             default:
