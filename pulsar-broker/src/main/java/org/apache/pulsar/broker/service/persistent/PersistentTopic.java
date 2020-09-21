@@ -1873,7 +1873,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         subscriptions.forEach((subName, sub) -> {
             sub.getConsumers().forEach(Consumer::checkPermissions);
             Dispatcher dispatcher = sub.getDispatcher();
-            if (dispatcher != null) {
+            // If the topic-level policy already exists, the namespace-level policy cannot override
+            // the topic-level policy.
+            if (dispatcher != null && (topicPolicies == null || !topicPolicies.isSubscriptionDispatchRateSet())) {
                 dispatcher.getRateLimiter().ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data));
             }
         });
@@ -2386,6 +2388,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 dispatchRateLimiter.get().updateDispatchRate(policies.getDispatchRate());
             } else {
                 dispatchRateLimiter.get().updateDispatchRate();
+            }
+        });
+
+        subscriptions.forEach((subName, sub) -> {
+            sub.getConsumers().forEach(Consumer::checkPermissions);
+            Dispatcher dispatcher = sub.getDispatcher();
+            if (policies.isSubscriptionDispatchRateSet()) {
+                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
+                        rateLimiter.updateDispatchRate(policies.getSubscriptionDispatchRate()));
+            } else {
+                dispatcher.getRateLimiter().ifPresent(rateLimiter ->
+                        rateLimiter.updateDispatchRate());
             }
         });
 

@@ -154,6 +154,27 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSubscriptionDispatchRateDisabled() throws Exception {
+        DispatchRate dispatchRate = new DispatchRate(1000,
+                1020*1024, 1);
+        log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
+
+        try {
+            admin.topics().setSubscriptionDispatchRate(testTopic, dispatchRate);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+
+        try {
+            admin.topics().getSubscriptionDispatchRate(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 405);
+        }
+    }
+
+    @Test
     public void testCompactionThresholdDisabled() {
         Long compactionThreshold = 10000L;
         log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
