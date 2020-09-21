@@ -1765,7 +1765,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             : policies.subscription_expiration_time_minutes);
             if (expirationTimeMillis > 0) {
                 subscriptions.forEach((subName, sub) -> {
-                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected()) {
+                    if (sub.dispatcher != null && sub.dispatcher.isConsumerConnected() || sub.isReplicated()) {
                         return;
                     }
                     if (System.currentTimeMillis() - sub.cursor.getLastActive() > expirationTimeMillis) {
