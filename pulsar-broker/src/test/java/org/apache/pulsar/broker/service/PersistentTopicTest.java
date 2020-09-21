@@ -1703,6 +1703,50 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertTrue(cursor3.isActive());
     }
 
+    @Test
+    public void testCheckInactiveSubscriptions() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+
+        ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = new ConcurrentOpenHashMap<>(16, 1);
+        // This subscription is connected by consumer.
+        PersistentSubscription nonDeletableSubscription1 = spy(new PersistentSubscription(topic, "nonDeletableSubscription1", cursorMock, false));
+        subscriptions.put(nonDeletableSubscription1.getName(), nonDeletableSubscription1);
+        // This subscription is not connected by consumer.
+        PersistentSubscription deletableSubscription1 = spy(new PersistentSubscription(topic, "deletableSubscription1", cursorMock, false));
+        subscriptions.put(deletableSubscription1.getName(), deletableSubscription1);
+        // This subscription is replicated.
+        PersistentSubscription nonDeletableSubscription2 = spy(new PersistentSubscription(topic, "nonDeletableSubscription2", cursorMock, true));
+        subscriptions.put(nonDeletableSubscription2.getName(), nonDeletableSubscription2);
+
+        Field field = topic.getClass().getDeclaredField("subscriptions");
+        field.setAccessible(true);
+        field.set(topic, subscriptions);
+
+        Method addConsumerToSubscription = AbstractTopic.class.getDeclaredMethod("addConsumerToSubscription",
+                Subscription.class, Consumer.class);
+        addConsumerToSubscription.setAccessible(true);
+
+        Consumer consumer = new Consumer(nonDeletableSubscription1, SubType.Shared, topic.getName(), 1, 0, "consumer1",
+                50000, serverCnx, "app1", Collections.emptyMap(), false, InitialPosition.Latest, null);
+        addConsumerToSubscription.invoke(topic, nonDeletableSubscription1, consumer);
+
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(new Policies()));
+
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(5).when(svcConfig).getSubscriptionExpirationTimeMinutes();
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        doReturn(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(6)).when(cursorMock).getLastActive();
+
+        topic.checkInactiveSubscriptions();
+
+        verify(nonDeletableSubscription1, times(0)).delete();
+        verify(deletableSubscription1, times(1)).delete();
+        verify(nonDeletableSubscription2, times(0)).delete();
+    }
+
     private ByteBuf getMessageWithMetadata(byte[] data) throws IOException {
         MessageMetadata messageData = MessageMetadata.newBuilder().setPublishTime(System.currentTimeMillis())
             .setProducerName("prod-name").setSequenceId(0).build();
