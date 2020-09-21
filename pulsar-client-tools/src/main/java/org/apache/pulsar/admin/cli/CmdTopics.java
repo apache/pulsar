@@ -57,6 +57,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Parameters(commandDescription = "Operations on persistent topics")
@@ -159,9 +160,14 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-inactive-topic-policies", new GetInactiveTopicPolicies());
         jcommander.addCommand("set-inactive-topic-policies", new SetInactiveTopicPolicies());
         jcommander.addCommand("remove-inactive-topic-policies", new RemoveInactiveTopicPolicies());
+
         jcommander.addCommand("get-max-consumers", new GetMaxConsumers());
         jcommander.addCommand("set-max-consumers", new SetMaxConsumers());
         jcommander.addCommand("remove-max-consumers", new RemoveMaxConsumers());
+
+        jcommander.addCommand("get-subscribe-rate", new GetSubscribeRate());
+        jcommander.addCommand("set-subscribe-rate", new SetSubscribeRate());
+        jcommander.addCommand("remove-subscribe-rate", new RemoveSubscribeRate());
     }
 
     @Parameters(commandDescription = "Get the list of topics under a namespace.")
@@ -1648,6 +1654,51 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             admin.topics().removeMaxConsumers(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get consumer subscribe rate for a topic")
+    private class GetSubscribeRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(admin.topics().getSubscribeRate(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set consumer subscribe rate for a topic")
+    private class SetSubscribeRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--subscribe-rate",
+                "-sr" }, description = "subscribe-rate (default -1 will be overwrite if not passed)\n", required = false)
+        private int subscribeRate = -1;
+
+        @Parameter(names = { "--subscribe-rate-period",
+                "-st" }, description = "subscribe-rate-period in second type (default 30 second will be overwrite if not passed)\n", required = false)
+        private int subscribeRatePeriodSec = 30;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().setSubscribeRate(persistentTopic,
+                    new SubscribeRate(subscribeRate, subscribeRatePeriodSec));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove consumer subscribe rate for a topic")
+    private class RemoveSubscribeRate extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            admin.topics().removeSubscribeRate(persistentTopic);
         }
     }
 }
