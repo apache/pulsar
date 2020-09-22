@@ -1624,29 +1624,22 @@
                 "topicName": {
                     "type": "string"
                 },
-                "publishTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "eventTime": {
-                    "type": "integer",
-                    "format": "int64"
-                },
                 "sequenceId": {
                     "type": "integer",
                     "format": "int64"
                 },
-                "producerName": {
+                "replicatedFrom": {
                     "type": "string"
                 },
                 "replicated": {
                     "type": "boolean"
                 },
-                "replicatedFrom": {
-                    "type": "string"
+                "redeliveryCount": {
+                    "type": "integer",
+                    "format": "int32"
                 },
-                "messageId": {
-                    "$ref": "#/definitions/MessageId"
+                "producerName": {
+                    "type": "string"
                 },
                 "orderingKey": {
                     "type": "array",
@@ -1665,10 +1658,6 @@
                 "encryptionCtx": {
                     "$ref": "#/definitions/EncryptionContext"
                 },
-                "redeliveryCount": {
-                    "type": "integer",
-                    "format": "int32"
-                },
                 "data": {
                     "type": "array",
                     "items": {
@@ -1682,6 +1671,17 @@
                         "type": "string",
                         "format": "byte"
                     }
+                },
+                "messageId": {
+                    "$ref": "#/definitions/MessageId"
+                },
+                "publishTime": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "eventTime": {
+                    "type": "integer",
+                    "format": "int64"
                 },
                 "value": {
                     "type": "object"

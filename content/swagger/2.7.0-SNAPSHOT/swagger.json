@@ -7918,7 +7918,7 @@
           "200" : {
             "description" : "successful operation",
             "schema" : {
-              "$ref" : "#/definitions/TopicStats"
+              "$ref" : "#/definitions/NonPersistentTopicStats"
             }
           },
           "307" : {
@@ -14952,23 +14952,8 @@
           "type" : "number",
           "format" : "double"
         },
-        "bandwidthIn" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "bandwidthOut" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
-        "memory" : {
-          "$ref" : "#/definitions/ResourceUsage"
-        },
         "underLoaded" : {
           "type" : "boolean"
-        },
-        "overLoaded" : {
-          "type" : "boolean"
-        },
-        "loadReportType" : {
-          "type" : "string"
         },
         "cpu" : {
           "$ref" : "#/definitions/ResourceUsage"
@@ -14980,9 +14965,24 @@
           "type" : "integer",
           "format" : "int64"
         },
+        "overLoaded" : {
+          "type" : "boolean"
+        },
+        "loadReportType" : {
+          "type" : "string"
+        },
         "msgThroughputIn" : {
           "type" : "number",
           "format" : "double"
+        },
+        "bandwidthIn" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "bandwidthOut" : {
+          "$ref" : "#/definitions/ResourceUsage"
+        },
+        "memory" : {
+          "$ref" : "#/definitions/ResourceUsage"
         },
         "msgThroughputOut" : {
           "type" : "number",
@@ -15158,10 +15158,10 @@
           "type" : "number",
           "format" : "double"
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -15463,13 +15463,13 @@
         "fileSystemURI" : {
           "type" : "string"
         },
-        "s3Driver" : {
-          "type" : "boolean"
-        },
         "gcsDriver" : {
           "type" : "boolean"
         },
         "fileSystemDriver" : {
+          "type" : "boolean"
+        },
+        "s3Driver" : {
           "type" : "boolean"
         }
       }
@@ -16035,10 +16035,10 @@
             "type" : "string"
           }
         },
-        "producerName" : {
+        "connectedSince" : {
           "type" : "string"
         },
-        "connectedSince" : {
+        "producerName" : {
           "type" : "string"
         },
         "clientVersion" : {
@@ -16143,11 +16143,11 @@
     "ResourceUnit" : {
       "type" : "object",
       "properties" : {
-        "resourceId" : {
-          "type" : "string"
-        },
         "availableResource" : {
           "$ref" : "#/definitions/ResourceDescription"
+        },
+        "resourceId" : {
+          "type" : "string"
         }
       }
     },
