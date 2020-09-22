@@ -84,9 +84,10 @@ module.exports = [
         logo: 'https://quantel.ai/wp-content/uploads/2019/09/Quantel-AI-Black-Font-Trans-1024x1024.png'
     },
     {
-        name: 'Streamlio',
-        url: 'https://streaml.io/',
-        logo: 'https://streaml.io/media/logo/Streamlio-Logo.svg'
+        name: 'Splunk',
+        url: 'https://splunk.com/',
+        logo: 'https://www.splunk.com/content/dam/splunk-blogs/images/2017/02/splunk-logo.png',
+        featured: 5
     },
     {
         name: 'Stream Native',
