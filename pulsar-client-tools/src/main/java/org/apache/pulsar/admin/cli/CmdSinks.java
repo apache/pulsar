@@ -164,6 +164,9 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
+        @Parameter(names = "--environment-based-secrets-provider", description = "Should we use environment based secret provider")
+        protected boolean environmentBasedSecretsProvider;
+
         private void mergeArgs() {
             if (!StringUtils.isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
             if (!StringUtils.isBlank(DEPRECATED_clientAuthPlugin)) clientAuthPlugin = DEPRECATED_clientAuthPlugin;

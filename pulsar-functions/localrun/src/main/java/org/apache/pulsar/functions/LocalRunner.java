@@ -38,7 +38,9 @@ import org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
+import org.apache.pulsar.functions.secretsproviderconfigurator.EnvironmentBasedSecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -143,6 +145,8 @@ public class LocalRunner {
     protected int instanceIdOffset = 0;
     @Parameter(names = "--runtime", description = "Function runtime to use (Thread/Process)", hidden = true, converter = RuntimeConverter.class)
     protected RuntimeEnv runtimeEnv;
+    @Parameter(names = "--environmentBasedSecretsProvider", description = "Do we want to use environment based secrets provider", hidden = true, arity = 1)
+    protected boolean environmentBasedSecretsProvider = false;
 
     private static final String DEFAULT_SERVICE_URL = "pulsar://localhost:6650";
 
@@ -359,7 +363,8 @@ public class LocalRunner {
                 null, /* log directory */
                 null, /* extra dependencies dir */
                 narExtractionDirectory, /* nar extraction dir */
-                new DefaultSecretsProviderConfigurator(), false, Optional.empty(), Optional.empty())) {
+                environmentBasedSecretsProvider ? new EnvironmentBasedSecretsProviderConfigurator() : new DefaultSecretsProviderConfigurator(),
+                false, Optional.empty(), Optional.empty())) {
 
             for (int i = 0; i < parallelism; ++i) {
                 InstanceConfig instanceConfig = new InstanceConfig();
@@ -422,7 +427,8 @@ public class LocalRunner {
                 serviceUrl,
                 stateStorageServiceUrl,
                 authConfig,
-                new ClearTextSecretsProvider(), null, narExtractionDirectory, null);
+                environmentBasedSecretsProvider ? new EnvironmentBasedSecretsProvider() : new ClearTextSecretsProvider(),
+                null, narExtractionDirectory, null);
         for (int i = 0; i < parallelism; ++i) {
             InstanceConfig instanceConfig = new InstanceConfig();
             instanceConfig.setFunctionDetails(functionDetails);
