@@ -48,6 +48,7 @@
         <jackson.databind.version>2.11.1</jackson.databind.version>
         <maven.version>3.0.5</maven.version>
         <guava.version>25.1-jre</guava.version>
+        <asynchttpclient.version>2.12.1</asynchttpclient.version>
     </properties>
 
     <dependencies>
