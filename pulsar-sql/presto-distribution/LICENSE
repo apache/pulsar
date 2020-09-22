@@ -267,8 +267,6 @@ The Apache Software License, Version 2.0
     - jetty-server-9.4.27.v20200227.jar
     - jetty-servlet-9.4.27.v20200227.jar
     - jetty-util-9.4.27.v20200227.jar
-  * Asynchronous Http Client
-    - async-http-client-1.9.40.jar
   * Apache BVal
     - bval-jsr-2.0.0.jar
   * Bytecode
@@ -407,6 +405,7 @@ The Apache Software License, Version 2.0
   * JCTools
     - jctools-core-2.1.2.jar
   * Asynchronous Http Client
+    - async-http-client-1.6.5.jar
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
