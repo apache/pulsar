@@ -103,7 +103,6 @@
           <execution>
             <goals>
               <goal>compile</goal>
-              <goal>add-source</goal>
             </goals>
           </execution>
         </executions>
