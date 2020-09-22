@@ -21,6 +21,7 @@ package pulsar
 
 /*
 #cgo LDFLAGS: -lpulsar
+#cgo CFLAGS: -Wno-incompatible-pointer-types
 #include "c_go_pulsar.h"
 */
 import "C"
