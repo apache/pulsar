@@ -26,20 +26,29 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -196,10 +205,28 @@ public class TenantsBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist"),
             @ApiResponse(code = 409, message = "The tenant still has active namespaces") })
-    public void deleteTenant(
+    public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
         @PathParam("tenant")
         @ApiParam(value = "The tenant name")
-        String tenant) {
+        String tenant, @QueryParam("force") @DefaultValue("false") boolean force) {
+        try {
+            internalDeleteTenant(asyncResponse, tenant, force);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    protected void internalDeleteTenant(AsyncResponse asyncResponse, String tenant, boolean force) {
+        if (force) {
+            internalDeleteTenantForcefully(asyncResponse, tenant);
+        } else {
+            internalDeleteTenant(asyncResponse, tenant);
+        }
+    }
+
+    protected void internalDeleteTenant(AsyncResponse asyncResponse, String tenant) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
@@ -208,15 +235,18 @@ public class TenantsBase extends AdminResource {
             isTenantEmpty = getListOfNamespaces(tenant).isEmpty();
         } catch (KeeperException.NoNodeException e) {
             log.warn("[{}] Failed to delete tenant {}: does not exist", clientAppId(), tenant);
-            throw new RestException(Status.NOT_FOUND, "The tenant does not exist");
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, "The tenant does not exist"));
+            return;
         } catch (Exception e) {
             log.error("[{}] Failed to get tenant status {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(new RestException(e));
+            return;
         }
 
         if (!isTenantEmpty) {
             log.warn("[{}] Failed to delete tenant {}: not empty", clientAppId(), tenant);
-            throw new RestException(Status.CONFLICT, "The tenant still has active namespaces");
+            asyncResponse.resume(new RestException(Status.CONFLICT, "The tenant still has active namespaces"));
+            return;
         }
 
         try {
@@ -229,8 +259,67 @@ public class TenantsBase extends AdminResource {
             log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
         } catch (Exception e) {
             log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, e);
-            throw new RestException(e);
+            asyncResponse.resume(new RestException(e));
         }
+    }
+
+    protected void internalDeleteTenantForcefully(AsyncResponse asyncResponse, String tenant) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        List<String> namespaces;
+        try {
+            namespaces = getListOfNamespaces(tenant);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to get namespaces list of tenant {}: does not exist", clientAppId(), tenant);
+            asyncResponse.resume(new RestException(Status.NOT_FOUND, "The tenant does not exist"));
+            return;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get tenant status for list namespace {}", clientAppId(), tenant, e);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+
+        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        try {
+            for (String namespace : namespaces) {
+                futures.add(pulsar().getAdminClient().namespaces().deleteNamespaceAsync(namespace, true));
+            }
+        } catch (Exception e) {
+            log.error("[{}] Failed to force delete namespaces {}", clientAppId(), namespaces, e);
+            asyncResponse.resume(new RestException(e));
+            return;
+        }
+
+        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+            if (exception != null) {
+                if (exception.getCause() instanceof PulsarAdminException) {
+                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
+                    return null;
+                } else {
+                    log.error("[{}] Failed to force delete namespaces {}", clientAppId(), namespaces, exception);
+                    asyncResponse.resume(new RestException(exception.getCause()));
+                    return null;
+                }
+            }
+
+            try {
+                // First try to delete every cluster z-node
+                for (String cluster : globalZk().getChildren(path(POLICIES, tenant), false)) {
+                    globalZk().delete(path(POLICIES, tenant, cluster), -1);
+                }
+
+                globalZk().delete(path(POLICIES, tenant), -1);
+                log.info("[{}] Deleted tenant forcefully {}", clientAppId(), tenant);
+            } catch (Exception e) {
+                log.error("[{}] Failed to delete tenant forcefully {}", clientAppId(), tenant, e);
+                asyncResponse.resume(new RestException(e));
+                return null;
+            }
+
+            asyncResponse.resume(Response.noContent().build());
+            return null;
+        });
     }
 
     private void validateClusters(TenantInfo info) {

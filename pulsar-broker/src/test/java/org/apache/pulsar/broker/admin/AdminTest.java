@@ -456,9 +456,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
+        AsyncResponse response = mock(AsyncResponse.class);
+
         // Check deleting non-existing property
         try {
-            properties.deleteTenant("non-existing");
+            properties.deleteTenant(response, "non-existing", false);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -514,7 +516,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/my-tenant");
             });
         try {
-            properties.deleteTenant("my-tenant");
+            properties.deleteTenant(response, "my-tenant", false);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -527,14 +529,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/error-property");
             });
         try {
-            properties.deleteTenant("error-property");
+            properties.deleteTenant(response, "error-property", false);
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
         }
 
-        properties.deleteTenant("test-property");
-        properties.deleteTenant("error-property");
+        properties.deleteTenant(response, "test-property", false);
+        properties.deleteTenant(response, "error-property", false);
         assertEquals(properties.getTenants(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
@@ -544,7 +546,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         namespaces.createNamespace("my-tenant", "use", "my-namespace", new BundlesData());
 
         try {
-            properties.deleteTenant("my-tenant");
+            properties.deleteTenant(response, "my-tenant", false);
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -588,12 +590,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        AsyncResponse response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, "my-tenant", "use", "my-namespace", false, false);
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
-        properties.deleteTenant("my-tenant");
+        properties.deleteTenant(response, "my-tenant", false);
     }
 
     @Test
