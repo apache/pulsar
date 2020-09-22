@@ -38,20 +38,6 @@ public class WorkerStatsManager {
 
   static {
     DefaultExports.initialize();
-
-    Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
-      @Override
-      public double get() {
-        return getJvmDirectMemoryUsed();
-      }
-    }).register(CollectorRegistry.defaultRegistry);
-
-    Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
-      @Override
-      public double get() {
-        return PlatformDependent.maxDirectMemory();
-      }
-    }).register(CollectorRegistry.defaultRegistry);
   }
 
   private static final String PULSAR_FUNCTION_WORKER_METRICS_PREFIX = "pulsar_function_worker_";
@@ -101,7 +87,7 @@ public class WorkerStatsManager {
   private final Summary.Child _stopInstanceProcessTime;
   private final Summary.Child _startInstanceProcessTime;
 
-  public WorkerStatsManager(WorkerConfig workerConfig) {
+  public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
 
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
 
@@ -178,6 +164,22 @@ public class WorkerStatsManager {
       .quantile(1, 0.01)
       .register(collectorRegistry);
     _startInstanceProcessTime = startInstanceProcessTime.labels(metricsLabels);
+
+    if (runAsStandalone) {
+      Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
+        @Override
+        public double get() {
+          return getJvmDirectMemoryUsed();
+        }
+      }).register(CollectorRegistry.defaultRegistry);
+
+      Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
+        @Override
+        public double get() {
+          return PlatformDependent.maxDirectMemory();
+        }
+      }).register(CollectorRegistry.defaultRegistry);
+    }
   }
 
   private Long startupTimeStart;
