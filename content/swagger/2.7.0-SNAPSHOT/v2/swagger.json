@@ -17462,10 +17462,10 @@
                 "connectedSince": {
                     "type": "string"
                 },
-                "clientVersion": {
+                "address": {
                     "type": "string"
                 },
-                "address": {
+                "clientVersion": {
                     "type": "string"
                 }
             }
@@ -17881,8 +17881,11 @@
                 "underLoaded": {
                     "type": "boolean"
                 },
-                "cpu": {
-                    "$ref": "#/definitions/ResourceUsage"
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 },
                 "directMemory": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17891,13 +17894,14 @@
                     "type": "integer",
                     "format": "int64"
                 },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
+                "cpu": {
+                    "$ref": "#/definitions/ResourceUsage"
                 },
                 "msgThroughputIn": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "msgThroughputOut": {
                     "type": "number",
                     "format": "double"
                 },
@@ -17909,10 +17913,6 @@
                 },
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
-                },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
                 }
             }
         },
@@ -18096,13 +18096,13 @@
                 "connectedSince": {
                     "type": "string"
                 },
+                "address": {
+                    "type": "string"
+                },
                 "producerName": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "address": {
                     "type": "string"
                 }
             }
@@ -18403,13 +18403,13 @@
                 "fileSystemURI": {
                     "type": "string"
                 },
+                "s3Driver": {
+                    "type": "boolean"
+                },
                 "gcsDriver": {
                     "type": "boolean"
                 },
                 "fileSystemDriver": {
-                    "type": "boolean"
-                },
-                "s3Driver": {
                     "type": "boolean"
                 }
             }
@@ -19005,13 +19005,13 @@
                 "connectedSince": {
                     "type": "string"
                 },
+                "address": {
+                    "type": "string"
+                },
                 "producerName": {
                     "type": "string"
                 },
                 "clientVersion": {
-                    "type": "string"
-                },
-                "address": {
                     "type": "string"
                 }
             }
