@@ -107,8 +107,8 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     }
 
     public boolean isAckSetRepeated(PositionImpl other) {
-        if (ackSet == null) {
-            return true;
+        if (ackSet == null || other.ackSet == null) {
+            return false;
         }
         checkNotNull(other);
         checkNotNull(ackSet);

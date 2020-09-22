@@ -214,6 +214,11 @@ public class EndToEndTest extends TransactionTestBase {
         txnAckTest(false, 1, SubscriptionType.Shared);
     }
 
+    @Test
+    public void txnAckTestBatchAndSharedSub() throws Exception {
+        txnAckTest(true, 5, SubscriptionType.Shared);
+    }
+
     private void txnAckTest(boolean batchEnable, int maxBatchSize,
                          SubscriptionType subscriptionType) throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
@@ -224,6 +229,7 @@ public class EndToEndTest extends TransactionTestBase {
                 .subscriptionName("test")
                 .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(subscriptionType)
+                .ackTimeout(1, TimeUnit.MINUTES)
                 .subscribe();
 
         @Cleanup
@@ -247,7 +253,7 @@ public class EndToEndTest extends TransactionTestBase {
                 Message<byte[]> message = consumer.receive();
                 Assert.assertNotNull(message);
                 log.info("receive msgId: {}", message.getMessageId());
-                consumer.acknowledgeAsync(message.getMessageId(), txn);
+                consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
             Thread.sleep(2000);
 
@@ -261,11 +267,15 @@ public class EndToEndTest extends TransactionTestBase {
             txn.abort().get();
 
             // after transaction abort, the messages could be received
+            consumer.redeliverUnacknowledgedMessages();
+
+            Thread.sleep(2000);
+
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(2, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                consumer.acknowledgeAsync(message.getMessageId(), commitTxn);
+                consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
                 log.info("receive msgId: {}", message.getMessageId());
             }
 
@@ -274,6 +284,9 @@ public class EndToEndTest extends TransactionTestBase {
 
             // after transaction commit, the messages can't be received
             message = consumer.receive(2, TimeUnit.SECONDS);
+            if (message != null) {
+                consumer.acknowledgeAsync(message.getMessageId(), txn).get();
+            }
             Assert.assertNull(message);
 
             try {

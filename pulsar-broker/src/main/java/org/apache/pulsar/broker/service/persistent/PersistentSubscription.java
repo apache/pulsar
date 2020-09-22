@@ -514,7 +514,7 @@ public class PersistentSubscription implements Subscription {
                         return completableFuture;
                     }
                     pendingAckMessageForCurrentTxn.put(position, position);
-                    this.pendingAckMessages.put(position, position);
+                    this.pendingAckMessages.putIfAbsent(position, position);
                 }
             }
         }
@@ -1052,10 +1052,17 @@ public class PersistentSubscription implements Subscription {
 
             positionMap.asMap().forEach((key, value) -> {
                 PositionImpl position = new PositionImpl(key.first, key.second);
-                if ((pendingAckMessages == null || !this.pendingAckMessages.containsKey(position)
-                        || !((PositionImpl) this.pendingAckMessages.get(position)).isAckSetRepeated(position))
-                        && (null == cumulativeAckPosition || position.compareTo(cumulativeAckPosition) > 0)) {
-                    pendingPositions.add(position);
+                if (position.isBatchPosition()) {
+                    if ((this.pendingAckMessages.containsKey(position) &&
+                            !((PositionImpl) this.pendingAckMessages.get(position)).isAckSetRepeated(position))
+                            || (cumulativeAckPosition != null && !cumulativeAckPosition.isAckSetRepeated(position))) {
+                        pendingPositions.add(position);
+                    }
+                } else {
+                    if (!this.pendingAckMessages.containsKey(position) ||
+                            (cumulativeAckPosition != null && cumulativeAckPosition.compareTo(position) <= 0)) {
+                        pendingPositions.add(position);
+                    }
                 }
             });
 
@@ -1075,10 +1082,17 @@ public class PersistentSubscription implements Subscription {
                     (PositionImpl) this.pendingCumulativeAckMessage;
 
             positions.forEach(position -> {
-                if ((!this.pendingAckMessages.containsKey(position)
-                        || !((PositionImpl) this.pendingAckMessages.get(position)).isAckSetRepeated(position))
-                        || (null == cumulativeAckPosition || cumulativeAckPosition.isAckSetRepeated(position))) {
-                    pendingPositions.add(position);
+                if (position.isBatchPosition()) {
+                    if ((this.pendingAckMessages.containsKey(position) &&
+                            !((PositionImpl) this.pendingAckMessages.get(position)).isAckSetRepeated(position))
+                            || (cumulativeAckPosition != null && !cumulativeAckPosition.isAckSetRepeated(position))) {
+                        pendingPositions.add(position);
+                    }
+                } else {
+                    if (!this.pendingAckMessages.containsKey(position) ||
+                            (cumulativeAckPosition != null && cumulativeAckPosition.compareTo(position) <= 0)) {
+                        pendingPositions.add(position);
+                    }
                 }
             });
             trimByMarkDeletePosition(pendingPositions);
@@ -1135,7 +1149,7 @@ public class PersistentSubscription implements Subscription {
         CompletableFuture<Void> commitFuture = new CompletableFuture<>();
         // It's valid to create transaction then commit without doing any operation, which will cause
         // pendingAckMessagesMap to be null.
-        if (pendingCumulativeAckTxnId != null) {
+        if (pendingCumulativeAckTxnId != null && pendingCumulativeAckMessage != null) {
             if (pendingCumulativeAckTxnId.equals(txnId)) {
                 acknowledgeMessage(Collections.singletonList(POSITION_UPDATER.get(this)), AckType.Cumulative, null);
                 // Reset txdID and position for cumulative ack.
@@ -1152,7 +1166,7 @@ public class PersistentSubscription implements Subscription {
             if (pendingAckMessagesMap != null && pendingAckMessagesMap.containsKey(txnId)) {
                 List<Position> positions = pendingAckMessagesMap.get(txnId).values();
                 for (int i = 0; i < positions.size(); i++) {
-                    if (pendingAckBatchMessageMap.containsKey(positions.get(i))) {
+                    if (pendingAckBatchMessageMap != null && pendingAckBatchMessageMap.containsKey(positions.get(i))) {
                         ConcurrentOpenHashSet<TxnID> txnIDConcurrentOpenHashSet =
                                 pendingAckBatchMessageMap.get(positions.get(i));
                         txnIDConcurrentOpenHashSet.remove(txnId);
@@ -1212,7 +1226,7 @@ public class PersistentSubscription implements Subscription {
                 checkNotNull(pendingAckMessageForCurrentTxn);
                 List<Position> positions = pendingAckMessageForCurrentTxn.values();
                 for (int i = 0; i < positions.size(); i++) {
-                    if (pendingAckBatchMessageMap.containsKey(positions.get(i))) {
+                    if (pendingAckBatchMessageMap != null && pendingAckBatchMessageMap.containsKey(positions.get(i))) {
                         ConcurrentOpenHashSet<TxnID> txnIDConcurrentOpenHashSet =
                                 pendingAckBatchMessageMap.get(positions.get(i));
                         txnIDConcurrentOpenHashSet.remove(txnId);

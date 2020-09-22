@@ -65,6 +65,7 @@ import java.util.stream.Collectors;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
@@ -600,14 +601,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 bitSetRecyclable.set(0, batchMessageId.getAcker().getBatchSize());
                 bitSetRecyclable.clear(batchMessageId.getBatchIndex());
             }
-            if (batchMessageId.getAcker().getBitSet().isEmpty()) {
-                unAckedMessageTracker.remove(messageId);
-            }
         } else {
             MessageIdImpl singleMessage = (MessageIdImpl) messageId;
             ledgerId = singleMessage.getLedgerId();
             entryId = singleMessage.getEntryId();
-            unAckedMessageTracker.remove(messageId);
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAck(consumerId, ledgerId, entryId,
@@ -617,6 +614,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         pendingRequests.put(requestId, op);
         timeoutQueue.add(new ClientCnx.RequestTime(System.currentTimeMillis(), requestId));
+        unAckedMessageTracker.remove(messageId);
+        cmd.retain();
         cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
         return callBack;
     }
@@ -709,7 +708,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             callBackOp.recycle();
         }
-        commandAckReceipt.recycle();
     }
 
     protected void ackError(CommandAckError commandAckError) {
