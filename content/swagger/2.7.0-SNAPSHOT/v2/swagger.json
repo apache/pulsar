@@ -1739,6 +1739,13 @@
                         "type": "string"
                     },
                     {
+                        "name": "force",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
+                    },
+                    {
                         "name": "authoritative",
                         "in": "query",
                         "required": false,
@@ -5276,6 +5283,13 @@
                         "in": "path",
                         "required": true,
                         "type": "string"
+                    },
+                    {
+                        "name": "force",
+                        "in": "query",
+                        "required": false,
+                        "type": "boolean",
+                        "default": false
                     },
                     {
                         "name": "authoritative",
@@ -9643,7 +9657,7 @@
                     "200": {
                         "description": "successful operation",
                         "schema": {
-                            "$ref": "#/definitions/NonPersistentTopicStats"
+                            "$ref": "#/definitions/TopicStats"
                         }
                     },
                     "307": {
@@ -10484,6 +10498,152 @@
                     },
                     "503": {
                         "description": "Failed to validate global cluster configuration"
+                    }
+                }
+            }
+        },
+        "/non-persistent/{tenant}/{namespace}/{topic}/subscriptionDispatchRate": {
+            "get": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Get subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "getSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Set subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "setSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Subscription message dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/DispatchRate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "non-persistent topic"
+                ],
+                "summary": "Remove subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "removeSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
                     }
                 }
             }
@@ -15604,6 +15764,152 @@
                 }
             }
         },
+        "/persistent/{tenant}/{namespace}/{topic}/subscriptionDispatchRate": {
+            "get": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Get subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "getSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Don't have admin permission"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Set subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "setSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "Subscription message dispatch rate for the specified topic",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/definitions/DispatchRate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "persistent topic"
+                ],
+                "summary": "Remove subscription message dispatch rate configuration for specified topic.",
+                "description": "",
+                "operationId": "removeSubscriptionDispatchRate",
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "tenant",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "namespace",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "topic",
+                        "in": "path",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "403": {
+                        "description": "Topic does not exist"
+                    },
+                    "404": {
+                        "description": "Topic does not exist"
+                    },
+                    "405": {
+                        "description": "Topic level policy is disabled, please enable the topic level policy and retry"
+                    },
+                    "409": {
+                        "description": "Concurrent modification"
+                    }
+                }
+            }
+        },
         "/persistent/{tenant}/{namespace}/{topic}/subscriptions": {
             "get": {
                 "tags": [
@@ -17581,9 +17887,14 @@
                 "memory": {
                     "$ref": "#/definitions/ResourceUsage"
                 },
-                "msgThroughputOut": {
-                    "type": "number",
-                    "format": "double"
+                "underLoaded": {
+                    "type": "boolean"
+                },
+                "overLoaded": {
+                    "type": "boolean"
+                },
+                "loadReportType": {
+                    "type": "string"
                 },
                 "cpu": {
                     "$ref": "#/definitions/ResourceUsage"
@@ -17599,14 +17910,9 @@
                     "type": "number",
                     "format": "double"
                 },
-                "underLoaded": {
-                    "type": "boolean"
-                },
-                "overLoaded": {
-                    "type": "boolean"
-                },
-                "loadReportType": {
-                    "type": "string"
+                "msgThroughputOut": {
+                    "type": "number",
+                    "format": "double"
                 }
             }
         },
