@@ -33,24 +33,21 @@ import java.util.Map;
  * to ensure that the secrets are available to the function at runtime. Then we plug in the
  * EnvironmentBasedSecretsConfig as the secrets provider who knows how to read these environment variables.
  */
-public class EnvironmentBasedSecretsProviderConfigurator implements SecretsProviderConfigurator {
+public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsProviderConfigurator {
+    private String className;
+    private Map<String, String> config;
+    public NameAndConfigBasedSecretsProviderConfigurator(String className, Map<String, String> config) {
+        this.className = className;
+        this.config = config;
+    }
     @Override
     public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
-        switch (functionDetails.getRuntime()) {
-            case JAVA:
-                return EnvironmentBasedSecretsProvider.class.getName();
-            case PYTHON:
-                return "secretsprovider.EnvironmentBasedSecretsProvider";
-            case GO:
-                throw new UnsupportedOperationException();
-            default:
-                throw new RuntimeException("Unknown function runtime " + functionDetails.getRuntime());
-        }
+        return className;
     }
 
     @Override
     public Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails) {
-        return null;
+        return config;
     }
 
     // Kubernetes secrets can be exposed as volume mounts or as environment variables in the pods. We are currently using the

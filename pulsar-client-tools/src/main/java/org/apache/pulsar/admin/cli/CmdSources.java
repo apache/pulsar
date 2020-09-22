@@ -165,8 +165,10 @@ public class CmdSources extends CmdBase {
         @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
-        @Parameter(names = "--environment-based-secrets-provider", description = "Should we use environment based secret provider")
-        protected boolean environmentBasedSecretsProvider;
+        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        protected String secretsProviderClassName;
+        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        protected String secretsProviderConfig;
 
         private void mergeArgs() {
             if (!isBlank(DEPRECATED_brokerServiceUrl)) brokerServiceUrl = DEPRECATED_brokerServiceUrl;
