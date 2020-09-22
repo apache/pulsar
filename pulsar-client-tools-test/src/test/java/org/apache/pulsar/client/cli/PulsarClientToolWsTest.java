@@ -42,15 +42,6 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-
-        /*WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName("test");
-        config.setConfigurationStoreServers("dummy-zk-servers");
-        service = spy(new WebSocketService(config));
-        doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
-        proxyServer = new ProxyServer(config);
-        WebSocketServiceStarter.start(proxyServer, service);*/
     }
 
     @AfterMethod
@@ -58,8 +49,6 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     protected void cleanup() throws Exception {
         super.resetConfig();
         super.internalCleanup();
-        //service.close();
-        //proxyServer.stop();
     }
 
     @Test(timeOut = 20000)
