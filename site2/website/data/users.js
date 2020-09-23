@@ -239,4 +239,24 @@ module.exports = [
         url: 'https://www.bigo.sg/',
         logo: 'https://static-web.bigolive.tv/as/bigo-static/official_website/pc/img/about/logo-blue-big.png',
     }
+    {
+        name: 'Newland',
+        url: 'http://www.newlandcomputer.com/',
+        logo: 'http://www.newlandcomputer.com/images/logo.jpg',
+    }
+    {
+        name: 'Keytop',
+        url: 'https://www.ikeytop.com/',
+        logo: 'https://static.wixstatic.com/media/ecbdea_434ae22f85ed4e93ba3fdc39c7141c3f~mv2.png/v1/fill/w_424,h_116,al_c,q_85,usm_0.66_1.00_0.01/Keytop_logo.webp',
+    }
+    {
+        name: 'Zhihu',
+        url: 'https://www.zhihu.com/',
+        logo: 'https://media-exp1.licdn.com/dms/image/C4D0BAQEoQxITTypd9g/company-logo_200_200/0?e=1608768000&v=beta&t=AbpUaraLUWyqUQcBiF3qYel_T0k-5W1JSEUw5qAqGj8',
+    }
+    {
+        name: 'Appen',
+        url: 'https://appen.com/',
+        logo: 'https://resources.appen.com/wp-content/uploads/2020/03/no-tagline.svg',
+    }
 ].sort((a, b) => (a.name > b.name) ? 1 : -1);
